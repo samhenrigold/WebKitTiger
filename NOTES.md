@@ -2905,3 +2905,24 @@ a real window — 11 controls × 3 size classes × 8 states. The two harness rul
 if forgotten are aquaatlas's and are repeated there: run from inside a .app bundle (a bare
 executable cannot be foregrounded, and every live control then draws inactive), and burn the first
 launch of a freshly created bundle.
+
+### 2026-09-21 — spike/ldt64/ldt32host: a 32-bit task on 10.4 can run long-mode code, and it survives preemption (coordinator)
+
+- Follow-up to the Mastodon thread (48e8c44 went 64→32). The reverse: an i386 process installs an LDT code
+  descriptor with L=1 (raw hi dword 0x00affa00) via i386_set_ldt — the kernel ACCEPTS it — and lcalls into it.
+  A `mov eax,1; inc rax` probe returns 2, so the CPU decodes as 64-bit: the 10.4 kernel runs 32-bit tasks in
+  IA-32e compatibility mode, not legacy protected mode. Then ~0.5G iterations (1.08 s wall, ~100 timer ticks)
+  checking r15's upper 32 bits every iteration: 0 corruptions. So the kernel saves the full 64-bit register
+  set even for a 32-bit task.
+- What this enables in principle: a mostly-32-bit process (AppKit, CG, CT, CA native) hosting 64-bit JSC/WebCore
+  in-process, sharing an address space instead of IPC. Constraints seen from here: the address space is still
+  32-bit (fine for JSC with the big reservations configured down); 64-bit code cannot make syscalls itself (the
+  trap frame from long mode is not what the kernel expects from a 32-bit task) so every libSystem call must go
+  through a 64→32 far-call thunk with argument/struct marshalling — bounded, because our x86_64 processes link
+  libSystem and libgcc_s only, so the surface is exactly the libSystem symbols they import; a 64-bit Mach-O can't
+  be loaded by the 32-bit dyld, so the backend would be a fixed-address static blob loaded by our own tiny loader.
+- Untested and decisive before anyone builds on this: (1) signal delivery while executing 64-bit code (does the
+  32-bit sigframe/mcontext carry the 64-bit state, can the handler resume?) — JIT traps and Wasm signaling
+  memory depend on it, though both have polling/bounds-check modes; (2) thread_get_state from a 32-bit task with
+  the x86_THREAD_STATE64 flavor (conservative GC needs r8–r15 of suspended threads); (3) sign-extension in the
+  small code model when allocations land above 2 GB (-mcmodel=medium or keep the heap low).
