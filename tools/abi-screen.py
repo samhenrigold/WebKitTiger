@@ -190,7 +190,10 @@ def main(argv):
         for line in out.splitlines():
             f = line.split()
             if len(f) == 3 and re.fullmatch(r"[A-TV-Z]", f[1]) and not f[2].endswith(".eh"):
-                exports.setdefault(f[2].lstrip("_"), fw)
+                # Exactly one leading underscore is the Mach-O C prefix. Stripping
+                # all of them makes the private ___CFRangeMake look like the
+                # public CFRangeMake and pairs a public name with private code.
+                exports.setdefault(f[2][1:] if f[2].startswith("_") else f[2], fw)
 
     counts = called_names(sorted(prefixes))
     screened = sorted(n for n in counts if n in exports)

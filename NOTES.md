@@ -190,7 +190,15 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   screencapture in ONE ssh invocation, or launch via `open` and let the app outlive the session.
 - ABI screen for same-name functions (from the audit): for each Tiger export WebCore calls, compare the highest stack argument the
   prologue reads (tiger-otool -tV) with the modern prototype's i386 cdecl argument size; hand-check candidates. Found CTLineDraw's
-  extra CFRange. Run it on any framework we call by name. Tiger's malloc zone ABI is version 3 (no memalign field), so
+  extra CFRange. Run it on any framework we call by name. **Now automated: `tools/abi-screen.py <framework>...`**, with
+  `--control` re-running the CoreText positive control (it reproduces all four hand verdicts incl. CTLineDraw). Two traps it
+  encodes: count the *access width*, not the displacement (a trailing double is one `movsd 0xc(%ebp)` and scores 4 bytes short),
+  and strip exactly one leading underscore off Mach-O names (`___CFRangeMake` is not `CFRangeMake`). Modern arg sizes come from
+  clang's own i386 lowering, not from reading headers. CoreFoundation/ATS/LaunchServices/HIServices/Security are **done and clean**:
+  206 functions, 1583 call sites, zero mismatches -> logs/abi-screen-cf.md, spike/cfabitest.c (13 checks pass on the box).
+  Modern WebKit calls **no** ATS* function at all. Stronger than the disassembly heuristic: 199 of those 206 are declared by
+  BOTH the 10.4u SDK and the modern SDK, and the i386 prototypes are byte-identical, so only 7 rest on disassembly at all.
+  (CoreGraphics/ImageIO were screened separately by cgcompat, fd4afe3.) Tiger's malloc zone ABI is version 3 (no memalign field), so
   malloc_zone_memalign cannot be offered; posix_memalign's mmap path matches Snow Leopard's Libc step for step.
 - LINK RULE 2: never strip local symbols on this port (no `strip -x`, no `-Wl,-x`): protocol ext records
   (__OBJC_PROTOCOLEXT_*) are recovered by name from the symbol table for JSExport, since Tiger's runtime discards the pointer.
