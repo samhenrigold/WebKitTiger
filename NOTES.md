@@ -1180,3 +1180,22 @@ No subagents remain. Last committed state per critical track, and what was still
 - wire: remap patch toolchain/patches/webkit-ipc-wire-flags.patch (2 conditionals) done; probe tools/check-wire-flags.py done.
 Next step when work resumes: wkcmake's item first (it gates everything), then jsc64's GC/signal proofs, then the font cascade.
 - Left uncommitted on purpose (mid-edit when their agents were stopped): spike/fontmanifest.c (ctcompat's BMP coverage-range export via CTFontCopyCharacterSet, looks complete but not built through its Makefile) and refs/leopard/tools/repoint-imports.py (leopard's rewrite, 57 lines removed, state unknown). Committed jsc64's core2 floor + build-jsc64 ignore as 1 commit.
+
+## 2026-09-21 — wkcmake gate passed: jsc builds and runs under PORT=Tiger x86_64 (coordinator)
+
+- WebKit eb76c9b9 (on tiger-fontcache, atop 9ad908c1). build-wkcmake/tiger-web (TIGER_PROCESS=WEB) builds WTF, bmalloc
+  (system-malloc shim) and JavaScriptCore and links bin/jsc. On the box (~/tiger-web, separate from jsc64's ~/jsc64):
+  2M loop 15/5/5 ms warm (FTL on), fib(30) 38 ms, fib(25) 3 ms; --useJIT=false 84 / 385 / 33 ms. WebAssembly.validate
+  works. Script: spike/tiger-web/bench.js (loop inside a function, so not directly comparable to the 51 ms top-level loop).
+- Three causes behind the 184 first-pass errors: (1) no find_package(Threads) in the port; (2) the proven jsc64 tree had
+  BUILDING_JSCONLY__, which is what kept PLATFORM(MAC)/COCOA and USE(CF) off on x86_64 -- PORT=Tiger lacked it, so
+  OS(DARWIN) became a full Cocoa build (CF, dispatch, mach SPI). TIGER64 now takes the same no-PLATFORM arm in
+  PlatformLegacy.h and BPlatform.h; (3) USE_SYSTEM_MALLOC defaults ON for TIGER64 as jsc64 did (libpas wants
+  TASK_DYLD_INFO, MADV_FREE_REUSABLE, CommonCrypto, dispatch_once). ponytail: port libpas when malloc shows in a profile.
+- DECISION: ENABLE_WEBASSEMBLY (+BBQJIT/OMGJIT) follows the JIT: on in WEB, off elsewhere. Upstream B3 with FTL on and
+  Wasm off does not compile, and the tiers only depend on FTL. Wire-neutral: the one serialization condition wraps
+  [NotSerialized] members only, which generate-serializers.py drops. TigerCheckIPC.cmake lists it expected-divergent.
+  All four build/ trees reconfigure clean and all four cross-arch pairs still "agree".
+- Cache trap: toolchain *_FLAGS_INIT only apply on first configure; tiger-web had no -march=core2 until the cache was
+  refreshed by hand. Reconfigure from scratch (or -DCMAKE_*_FLAGS) after toolchain-file changes.
+- Next gate: WebCore for the WEB process under PORT=Tiger x86_64 (cairo/freetype/harfbuzz/curl, no CG/CT/CF).
