@@ -479,3 +479,10 @@ one triage pass before it was noticed. See the triage table at the end of
   with tiger-clang64 into obj-x86_64/ and compat/libtigercompat-x86_64.a, installed as toolchain/sysroot-x86_64/usr/lib/libtigercompat.a.
   The CF/CG/CT/NS shims stay i386-only: they are about Tiger frameworks no 64-bit process can load, and Tiger libobjc is i386-only,
   which is also why the ARC header check is skipped for ARCH=x86_64. Both verified from clean.
+- 64-BIT ON TIGER CONFIRMED (logs/leopard-x86_64-spike.md, e4b6982): x86_64 processes run on 10.4.11 (32-bit kernel, x86_64
+  libSystem 3230 exports + x86_64 dyld). All 11 JIT prerequisites pass: RWX mmap, W^X flips, executing generated code, mach_vm
+  family, 16 MB thread stacks, 64 GB VA reserved. Tiger has NO x86_64 CF/CG/Cocoa/libobjc, so Leopard 10.5.0's x86_64 copies
+  load privately with small shims (CoreText 0 missing, ColorSync 1, ATS 3, libobjc 3, CG 9, CF 12; CoreServices' re-export load
+  commands must be demoted for dyld-46). CoreFoundation and the ObjC runtime work; CoreGraphics faults in CGBitmapContextCreate
+  (being isolated with gdb); CoreText/ImageIO untested pending a context. Flat namespace is a spike technique; per-binary import
+  repointing is the shipping form.
