@@ -1364,3 +1364,129 @@ Next step when work resumes: wkcmake's item first (it gates everything), then js
   SystemFontDatabase, Icon, ImageAdapter, MainThreadSharedTimer, EventHandler, DragController, AXObjectCache,
   Editor, ScrollbarsController's platform half, the media backend) are all still missing. They are link-time
   work, not compile-time; the next gate is ENABLE_WEBKIT/TIGER_WEBKIT2 and a real link.
+
+## 2026-09-21 — gpu32: the i386 GPU process's WebCore, first six passes (WebKit d6174b05/af04f5ef, root f4f21c6)
+
+Task was the GPU process's display-list replay: get WebCore's CG backend and the display-list
+machinery compiling for `build/tiger-gpu` (PORT=Tiger, TIGER_PROCESS=GPU, i386), then the
+WebKit target's GPUProcess/graphics subset, then a spike that replays a display list into an
+ImageBuffer and hands the tile to a CALayer via CAHost's scene applier. **The graphics path
+compiles; the archive does not yet link, and the spike is not reached.** Why, below.
+
+### Error trajectory (logs/gpu32-pass-1.log ... pass-6.log)
+
+| pass | failed TUs | what changed |
+|---|---|---|
+| 1 | 54 (242 errors) | baseline; WebCore i386 had never been compiled at all |
+| 2 | 34 | source selection: the frameworks Tiger has none of |
+| 3 | 30 | AppKit/CG/CF shims, first cut |
+| 4 | 44 | *up*, not down: files that had been failing on an early `#include` got far enough to report real errors |
+| 5 | 44 | C++ enum-type fixes |
+| 6 | 43 | graphics path clean |
+
+Pass 6's 43 contain **no file from platform/graphics/cg, platform/graphics/displaylists, or
+ImageBuffer**. That was the assignment's compile half.
+
+### Root causes, and the one lesson worth carrying
+
+Four kinds of failure, in descending count:
+
+1. **Source selection.** The i386 arm delegates to `PlatformCocoa.cmake`, whose source list
+   names every framework a modern macOS has. ~45 file patterns come out, grouped in the commit
+   by the framework that is missing: CoreMedia/AVFoundation/VideoToolbox (10.7-10.8), CoreVideo
+   (Tiger HAS it, but with none of the pixel formats the value types enumerate), Vision,
+   CoreLocation, WebGPU, UniformTypeIdentifiers, PassKit, MediaAccessibility, simd, IOKit hid
+   and power sources, and the 10.7+ AppKit of NSPopover/NSViewController/NSAppearance/
+   NSVisualEffectView/NSScrollerImp.
+2. **Renames.** Whole clusters are one value under two spellings: the 10.12 AppKit enums, the
+   `kCGImageByteOrder*`/`kCGBitmapByteOrder*` pair, `-[NSGraphicsContext CGContext]`.
+3. **Present but undeclared.** `CGDataProviderCopyData` and `CGContextResetClip` are both in
+   Tiger's CoreGraphics exports and in neither 10.4u SDK header. The CG survey predicted this
+   bucket; these are the first two with real callers.
+4. **Tiger's enums are C89 enums, and modern WebKit assumes CF_OPTIONS / NS_OPTIONS.** This is
+   the lesson. An unscoped enum with no fixed underlying type gets its *value range* from its
+   enumerators, and C++ will neither convert an `int` into it nor accept an out-of-range cast
+   in a constant expression. So:
+   - `enum { kCGBlendModeClear = 16, ... }` — the existing Porter-Duff block — could not be
+     returned from a function typed `CGBlendMode`. Latent since it was written; it only
+     surfaced when C++ first read it. Now casted macros.
+   - `kCGInterpolationMedium` (value 4, range [0,3]) could not be a `case` label at all. It
+     cannot be added from outside the SDK header. Widening the enum by rewriting its last
+     enumerator with a macro across the SDK include was tried and **does not hold**: the SDK's
+     CG headers re-include `CGContext.h` from inside `CGContext.h`, so the macro cannot be
+     scoped reliably (the nested copy's `#undef` fires before the outer file reaches the enum).
+     The two call sites are guarded instead.
+   - `CFRunLoopActivity` has the same shape and is why `RunLoopObserverCF.cpp` still fails.
+   **Rule: before shimming a post-10.4 enumerator, check whether its value is inside the Tiger
+   enum's range. Inside → a casted macro. Outside → it has to be declared at the enum, or the
+   call site has to be guarded.**
+
+Structural, and worth knowing: `<TigerCompat/AppKitCompat.h>` had no include hook and was
+being imported by hand at individual call sites, so its categories were invisible almost
+everywhere (this is why `-[NSGraphicsContext CGContext]` kept reporting "not found" after it
+had been added). It is now imported from the end of the SDK overlay's `AppKit.h`, after the
+`NSUserInterfaceLayoutDirection` typedef it needs and before the rename macros, which must not
+be live while its own declarations are parsed. ImageIO also joins the overlay, carrying a real
+`ImageIOBase.h`.
+
+### PROPOSALS for flags this track does not own — sub-items stopped, as briefed
+
+**(1) ENABLE_ASYNC_SCROLLING / ENABLE_KINETIC_SCROLLING. Blocks the archive.** Both are OFF in
+all four configurations (ASYNC_SCROLLING is in `TIGER_IPC_SHARED_FEATURES`). With both off,
+`PlatformWheelEventPhase` collapses to `{ None }` — `PlatformWheelEvent.h:62` guards the other
+seven enumerators on `ENABLE(ASYNC_SCROLLING) || ENABLE(KINETIC_SCROLLING)`. But the Mac event
+and scrolling code names `Began`/`Ended`/`MayBegin`/`Changed`/`Cancelled` unconditionally, so
+`EventHandler.cpp`, `ScrollLatchingController.cpp`, `ScrollingEffectsController.mm`,
+`ScrollbarsControllerMac.mm` and `PlatformEventFactoryMac.mm` cannot compile — ~45 of the 43
+remaining failures' errors. Both names appear in wire inputs
+(`PlatformWheelEvent.serialization.in`, `WebCoreArgumentCoders.serialization.in`,
+`RemoteScrollingCoordinator.messages.in`), so this cannot be fixed per-process.
+**Proposed: `TIGER_SET_SHARED_FEATURE(ENABLE_KINETIC_SCROLLING ON)` in all four configurations**
+— it is the cheaper of the two (ASYNC_SCROLLING drags in the scrolling thread and the remote
+scrolling coordinator, which this port does not want), it restores the enumerators, and it is
+uniform so the wire stays identical. Note that Tiger's NSEvent has no phases at all — the
+compat `NSEvent` category answers `NSEventPhaseNone` — so the phases will be inert at runtime;
+this is about the enum existing, not about momentum scrolling working.
+
+**(2) USE_CURL / USE_OPENSSL on i386.** Both are 1 in every Tiger configuration (they must
+agree across the wire), but `PlatformCocoa.cmake` selects the CFNetwork and CommonCrypto arms
+anyway, so both arms land in one translation unit: hence the `CryptoKeyRSA.h` "EVP_PKEY vs
+CCRSACryptorRef" typedef redefinition, the `CFNetworkSPI.h` block, and
+`DNSResolveQueue.cpp`'s missing `DNSResolveQueueCurl.h`. Switching the i386 side to
+`platform/Curl.cmake` + `platform/OpenSSL.cmake` changes which `ResourceRequest.h`,
+`ResourceResponse.h` and `CertificateInfo.h` win, which is a wire decision.
+**Proposed: the network/wire track gives the i386 configurations the curl/openssl arms**, with
+the include-directory ordering settled (curl's copies of those three headers must outrank
+`platform/network/cf`'s). Excluded for now so the archive builds.
+
+### What is done, and what is left
+
+Done: `USE_AVIF` now keys off whether `AVIF::AVIF` was imported, so building libavif for an
+arch turns it on (it is x86_64-only; the web process is the one that decodes). `USE_ACCELERATE`
+off for Tiger — Tiger ships vImage but not `vImage_CGImageFormat` (10.7),
+`vImagePremultiplyData_BGRA8888` or `vImagePermuteChannelsWithMaskedInsert_ARGB8888`; the
+portable arm of `PixelBufferConversion.cpp` does the work. `ponytail:` marker left there — the
+C path is slow on a Core 2 and Tiger's real vImage has the primitives under 10.4 spellings.
+WTF's unix headers were gated on TIGER64 although USE_UNIX_DOMAIN_SOCKETS is on for all four.
+
+Left, in order: the two flag proposals above; then the small tail of pass 6 —
+`RunLoopObserverCF.cpp` (the CFRunLoopActivity enum model), `SharedBufferCocoa.mm`'s
+`createCMBlockBuffer` (unconditional, needs CoreMedia, wants a PLATFORM(TIGER) guard in
+`SharedBuffer.h` and the .mm rather than losing the whole file), `ImageOverlayController.h`
+(names `DataDetectorHighlight` with ENABLE_DATA_DETECTION off), `LegacyWebArchive.cpp`
+(`CFPropertyListCreateWithData`/`CFPropertyListWrite`, both 10.6),
+`XMLDocumentParser{Scope,Libxml2}.cpp` (our libxml2 predates `XML_PARSE_HUGE` and
+`xmlStructuredErrorContext`), `WorkerRunLoop.cpp` (`OS_REASON_WEBKIT`), the JSC ObjC API
+(`JSValue.mm`, `JSMarkingConstraintPrivate.cpp`, `JSString.h` — JSC track), and the
+`NSAppearance` class, which Tiger does not have at all and which several SPI headers extend.
+
+Then the archive links, then step 2 (the WebKit target's GPUProcess/graphics subset, which
+needs `TIGER_WEBKIT2=ON` for the GPU configuration) and step 3 (spike/gpureplay: build a
+`DisplayList::Item` vector in-process, `GraphicsContext::drawDisplayList` into an
+`ImageBuffer` on `ImageBufferCGBitmapBackend`, hand the pixels to CAHost's `tigerca::Scene`
+through its `TileStore`, screenshot on the box, pixel-compare against a direct CG draw).
+Nothing in that plan is blocked by anything except the link.
+
+`cmake -DTIGER_IPC_A=build/tiger-gpu -DTIGER_IPC_B=build/tiger-web-port -P
+WebKit/Source/cmake/TigerCheckIPC.cmake` still says the two trees agree (six known-deliberate
+divergences, no new ones).
