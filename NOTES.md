@@ -869,3 +869,7 @@ in every hostname-based HTTPS connect above (no separate opt-out was set); all t
 require it for cert selection and all handshakes succeeded, so it's working. No
 -ltigerdispatch needed anywhere, only -ltigercompat, same as the rest of the x86_64 curl
 build. Link line and test binary: deps/spike-tests/test_curl_smoke.c.
+- Addendum to the git rule: **never `git rm` on this tree.** It stages the deletion into the shared index, where the
+  next agent's path-scoped commit can sweep it up: my removal of the stray sdk-fill/Availability.h landed inside
+  wkcmake's dc61a3c, not in mine, and my own `git commit -o` then failed with "pathspec did not match" because the
+  path was already gone. Plain `rm` the file and name it in your own `git commit -o` instead.
