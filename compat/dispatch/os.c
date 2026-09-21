@@ -28,6 +28,29 @@ void td_log_destroy(struct dispatch_object_s *o)
     free(l->category);
 }
 
+/* ------------------------------------------------------ object lifecycle --- */
+/* Shared by every object this library vends. It lives here rather than in
+ * dispatch.c because the x86_64 build is os.c alone: Tiger ships no 64-bit
+ * CoreFoundation, so dispatch.c cannot be built for it, but os_log still can. */
+
+void (*td_dispatch_destroy)(struct dispatch_object_s *);
+
+void td_destroy(struct dispatch_object_s *o)
+{
+    if (o->td_static)
+        return;
+    if (o->td_finalizer)
+        o->td_finalizer(o->td_context);
+    if (o->td_kind == TD_KIND_LOG)
+        td_log_destroy(o);
+    else if (td_dispatch_destroy)
+        td_dispatch_destroy(o);
+    free(o);
+}
+
+void *os_retain(void *o) { return td_retain_obj(o); }
+void os_release(void *o) { td_release_obj(o); }
+
 /* Bit per os_log_type_t we let through. */
 static int g_level = -1;
 

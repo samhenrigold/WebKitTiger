@@ -226,6 +226,7 @@ static pthread_once_t g_init_once = PTHREAD_ONCE_INIT;
 
 static void td_worker_spawn_locked(void);
 static void td_main_wake(void);
+static void td_destroy_dispatch_kinds(struct dispatch_object_s *o);
 
 static void td_queue_init(struct dispatch_queue_s *q, const char *label, int width)
 {
@@ -248,6 +249,7 @@ static void td_init(void)
     size_t len = sizeof(ncpu);
 
     td_time_init();
+    td_dispatch_destroy = td_destroy_dispatch_kinds;
     pthread_key_create(&g_curq_key, NULL);
 
     for (i = 0; i < 4; i++)
@@ -1317,13 +1319,10 @@ dispatch_data_t dispatch_data_create_subrange(dispatch_data_t d, size_t offset, 
 
 /* ------------------------------------------------- retain/release/suspend --- */
 
-void td_destroy(struct dispatch_object_s *o)
+/* Destructor for the kinds dispatch.c owns. os.c's td_destroy has already done
+ * the static check and run the finalizer, and frees the object afterwards. */
+static void td_destroy_dispatch_kinds(struct dispatch_object_s *o)
 {
-    if (o->td_static)
-        return;
-    if (o->td_finalizer)
-        o->td_finalizer(o->td_context);
-
     switch (o->td_kind) {
     case TD_KIND_QUEUE: {
         struct dispatch_queue_s *q = (struct dispatch_queue_s *)o;
@@ -1368,19 +1367,13 @@ void td_destroy(struct dispatch_object_s *o)
         }
         break;
     }
-    case TD_KIND_LOG:
-        td_log_destroy(o);
-        break;
     default:
         break;
     }
-    free(o);
 }
 
 void dispatch_retain(dispatch_object_t o) { td_retain_obj(o._do); }
 void dispatch_release(dispatch_object_t o) { td_release_obj(o._do); }
-void *os_retain(void *o) { return td_retain_obj(o); }
-void os_release(void *o) { td_release_obj(o); }
 
 void *dispatch_get_context(dispatch_object_t o) { return o._do ? o._do->td_context : NULL; }
 

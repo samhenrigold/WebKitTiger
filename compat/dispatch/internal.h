@@ -25,8 +25,12 @@ struct dispatch_object_s {
     void (*td_finalizer)(void *);
 };
 
-void td_destroy(struct dispatch_object_s *o);   /* dispatch.c */
+/* td_destroy lives in os.c so that os.c is self-contained: the x86_64 build is
+ * os.c alone (Tiger has no 64-bit CoreFoundation, so dispatch.c cannot build).
+ * dispatch.c installs td_dispatch_destroy for its own object kinds. */
+void td_destroy(struct dispatch_object_s *o);     /* os.c */
 void td_log_destroy(struct dispatch_object_s *o); /* os.c */
+extern void (*td_dispatch_destroy)(struct dispatch_object_s *);  /* set by dispatch.c */
 
 static inline void *td_retain_obj(void *p)
 {

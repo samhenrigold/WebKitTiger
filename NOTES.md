@@ -19,6 +19,13 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - `compat/dispatch/`      libtigerdispatch.a: libdispatch (GCD) + os_log/os_unfair_lock/os_signpost/sys/qos
                            polyfill on pthreads+mach+CFRunLoop. `make -C compat/dispatch install`.
                            API surface survey in compat/dispatch/SURVEY.md. Test: spike/dispatchtest.mm.
+                           **64-bit:** `make -C compat/dispatch ARCH=x86_64 install` builds os.c only
+                           (os_log/os_unfair_lock/os_signpost/qos) into sysroot-x86_64. dispatch.c cannot
+                           come along: Tiger has no x86_64 CoreFoundation and the main queue needs CFRunLoop
+                           (its CF headers do not even parse at -target x86_64). The 64-bit install stages
+                           os/ and sys/ but NOT dispatch//, so a 64-bit `#include <dispatch/dispatch.h>`
+                           fails at the include rather than at link time. Test: spike/os64test.c.
+                           Do not hand-fold os.o into libtigercompat.a; link -ltigerdispatch.
 - `deps/`                 third-party sources + build-c-deps.sh. `build/`, `logs/` scratch. `spike/` test programs.
 - `WebKit/`               sparse blobless checkout of WebKit main (d2f52605, 2026-09-20). This is the fork we patch.
 
