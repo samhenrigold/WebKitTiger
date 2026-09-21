@@ -39,6 +39,7 @@
 /compat/obj-x86_64/
 /compat/*.a
 /compat/dispatch/obj/
+/compat/dispatch/obj-x86_64/
 /compat/dispatch/*.a
 /spike/CAHost/Frameworks/
 *.o
