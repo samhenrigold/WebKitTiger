@@ -37,6 +37,18 @@ scp -O build/cgprobe tiger:/tmp/ && ssh tiger /tmp/cgprobe
 Checks were chosen by ranking real call sites under
 `WebKit/Source/WebCore/platform/graphics/{cg,cocoa}`.
 
+**Poison every output buffer before the call.** A function that writes fewer elements than its
+count promises is invisible if the buffer was zeroed, because the zeros read as a correct
+answer. The CoreText track found `CGFontGetGlyphsForUnicodes` agrees with CoreText on every
+glyph across Latin, Arabic, uncovered CJK, NUL and U+FFFF, and diverges only on a surrogate
+pair, where it writes one glyph and leaves the second slot untouched while CoreText writes
+both. Filling the buffer with 0xFFFF first is the only reason it was seen; zeroing it, or
+testing a font where neither side finds a glyph, would have reported a clean match.
+
+The callback in `cgcompat.c` was audited against this. All four colour paths and all three
+alpha-only paths of `evaluateGradient` write the full range declared to `CGFunctionCreate`,
+which CG does not zero.
+
 **Build the probe for both platforms, not just Tiger.** The audit track's
 `spike/cgbehaviour.c` prints identical `KEY=value` lines on Tiger and the host, so the result
 is a diff against modern CoreGraphics rather than a judgement about Tiger numbers. That caught
