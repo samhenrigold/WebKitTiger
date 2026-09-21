@@ -189,10 +189,16 @@ static Compare comparePixels(const uint8_t* a, const uint8_t* b, size_t rowBytes
 - (BOOL)isOpaque { return YES; }
 - (void)setTileStore:(tigerca::TileStore)store { _store = store; }
 
+// NEVER -[NSOpenGLContext makeCurrentContext] here. On Tiger that path goes
+// back through the view, which calls -openGLContext, which calls
+// -prepareOpenGL: the recursion eats the main thread's whole 8 MB stack and
+// dies in CGLSetCurrentContext with esp exactly at the stack's bottom page.
+// spike/CAHost never uses makeCurrentContext for the same reason; CGL directly
+// is the recipe.
 - (void)prepareOpenGL
 {
     [super prepareOpenGL];
-    [[self openGLContext] makeCurrentContext];
+    CGLSetCurrentContext((CGLContextObj)[[self openGLContext] CGLContextObj]);
 
     _renderer = [[CARenderer rendererWithCGLContext:(CGLContextObj)[[self openGLContext] CGLContextObj]
                                             options:nil] retain];
@@ -235,14 +241,20 @@ static Compare comparePixels(const uint8_t* a, const uint8_t* b, size_t rowBytes
     update.changedLayers.push_back(layer);
 
     CALayer* root = _scene->apply(update);
+    // The rest of the CAHost recipe: the layer tree is y-up, and the renderer
+    // has no bounds until -reshape runs -- without that call the first
+    // -drawRect: renders into a zero rect and the window stays the clear
+    // colour, which looks exactly like a scene that was never built.
+    [root setGeometryFlipped:YES];
     [_renderer setLayer:root];
+    [self reshape];
     _built = YES;
 }
 
 - (void)reshape
 {
     NSRect b = [self bounds];
-    [[self openGLContext] makeCurrentContext];
+    CGLSetCurrentContext((CGLContextObj)[[self openGLContext] CGLContextObj]);
     glViewport(0, 0, (GLsizei)b.size.width, (GLsizei)b.size.height);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -256,11 +268,13 @@ static Compare comparePixels(const uint8_t* a, const uint8_t* b, size_t rowBytes
 {
     if (!_built)
         return;
-    [[self openGLContext] makeCurrentContext];
+    NSRect b = [self bounds];
+    CGLSetCurrentContext((CGLContextObj)[[self openGLContext] CGLContextObj]);
+    [CATransaction flush];
     glClearColor(0.2f, 0.2f, 0.2f, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     [_renderer beginFrameAtTime:CACurrentMediaTime() timeStamp:NULL];
-    [_renderer addUpdateRect:[_renderer bounds]];
+    [_renderer addUpdateRect:CGRectMake(0, 0, b.size.width, b.size.height)];
     [_renderer render];
     [_renderer endFrame];
     [[self openGLContext] flushBuffer];
@@ -278,12 +292,7 @@ static Compare comparePixels(const uint8_t* a, const uint8_t* b, size_t rowBytes
 
 int main(int argc, const char** argv)
 {
-    // -show, or the marker file. Tiger's `open` cannot pass arguments to an
-    // application (--args is 10.6), and a window this process opens after being
-    // launched over ssh never comes up -- makeKeyAndOrderFront just blocks --
-    // so the on-screen half has to go through `open`, which runs it in the
-    // console session. The marker is how that run asks for the window.
-    bool show = access("/tmp/gpureplay-show", F_OK) == 0;
+    bool show = false;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "-show"))
             show = true;
@@ -385,7 +394,17 @@ int main(int argc, const char** argv)
     // No -setActivationPolicy:, which is 10.6. The bundle's Info.plist is what
     // makes this a foreground application on 10.4.
     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-    [NSApplication sharedApplication];
+    NSApplication* app = [NSApplication sharedApplication];
+    // The rest of the CAHost recipe: a menu bar, orderFrontRegardless and
+    // activateIgnoringOtherApps, so the window comes up in front of whatever
+    // the console session is showing.
+    NSMenu* menubar = [[[NSMenu alloc] init] autorelease];
+    NSMenuItem* appItem = [[[NSMenuItem alloc] init] autorelease];
+    [menubar addItem:appItem];
+    NSMenu* appMenu = [[[NSMenu alloc] init] autorelease];
+    [appMenu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@"q"];
+    [appItem setSubmenu:appMenu];
+    [app setMainMenu:menubar];
     NSRect frame = NSMakeRect(200, 200, kTile, kTile);
     NSWindow* window = [[NSWindow alloc] initWithContentRect:frame
                                                    styleMask:NSTitledWindowMask | NSClosableWindowMask
@@ -398,10 +417,12 @@ int main(int argc, const char** argv)
     [view setTileStore:store];
     [window setContentView:view];
     [window makeKeyAndOrderFront:nil];
+    [window orderFrontRegardless];
+    [app activateIgnoringOtherApps:YES];
     printf("  window visible %d, screens %d\n", (int)[window isVisible], (int)[[NSScreen screens] count]);
     fflush(stdout);
-    [NSApp setDelegate:[[GPUReplayDelegate alloc] init]];
-    [NSApp run];
+    [app setDelegate:[[GPUReplayDelegate alloc] init]];
+    [app run];
 
     [pool release];
     free(referenceBits);

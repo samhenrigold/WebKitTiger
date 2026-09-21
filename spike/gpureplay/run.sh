@@ -20,16 +20,16 @@ echo "== headless pixel compare"
 ssh tiger '/tmp/GPUReplay.app/Contents/MacOS/GPUReplay'
 status=$?
 
-# On screen. Launched with `open`, not directly: a window opened by a process
-# started over ssh never comes up (makeKeyAndOrderFront blocks), and Tiger's
-# open has no --args, so the marker file is how the window is asked for.
+# On screen. Launch, sleep and screencapture in ONE ssh invocation (see the note
+# at the top). A window opened this way does come up on 10.4.11 -- what it takes
+# is in GPUReplay.mm: CGLSetCurrentContext rather than -makeCurrentContext,
+# -reshape before the first frame, and the menu bar / orderFrontRegardless /
+# activateIgnoringOtherApps that spike/CAHost uses.
 echo "== on screen"
-ssh tiger "touch /tmp/gpureplay-show
-           open /tmp/GPUReplay.app
-           sleep 6
+ssh tiger "/tmp/GPUReplay.app/Contents/MacOS/GPUReplay -show >/tmp/gpureplay.log 2>&1 &
+           sleep 8
            screencapture -x /tmp/gpureplay.png
            killall GPUReplay 2>/dev/null
-           rm -f /tmp/gpureplay-show
            true"
 scp -qO tiger:/tmp/gpureplay.png "$SHOT"
 echo "screenshot: $SHOT"
