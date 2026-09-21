@@ -1331,3 +1331,77 @@ value. It is produced by the configure itself, so it cannot drift from the tree.
 Fifty-five of those names are compile-time macros rather than CMake options,
 including the CoreGraphics and CoreText ones, and those have to be made to agree in
 the port's platform header instead.
+
+## PORT=Tiger, the port headers, and the wire-flag set
+
+WebKit 9fa48ff6. Also `tools/rm-build-tree.sh` (ae0608f), adopted from ld64fix
+unchanged; its self-test passes all nine checks and it is now the only sanctioned
+way to remove anything under `build/`.
+
+The x86_64 pair configures under the new port. That was the goal.
+
+| Process | Port | Toolchain | Arch | Result |
+|---|---|---|---|---|
+| WEB | Tiger | tiger64.cmake | x86_64 | configures |
+| NETWORK | Tiger | tiger64.cmake | x86_64 | configures |
+| UI | Cocoa | tiger.cmake | i386 | configures, not yet migrated |
+
+In the web tree, the flags that were the whole point now read:
+CoreGraphics off, CoreText off, CoreFoundation off, AppKit off, cairo on, curl on,
+unix domain sockets on, the coordinated-layer switch on. Under the Cocoa port
+those first four were compile-time macros and could not be set at all.
+
+### What it took
+
+Six things the Cocoa port had been providing implicitly. Each was a
+target-not-found error rather than anything conceptual: the ICU imported targets,
+the rest of the static dependency set as imported targets pointing into the cross
+sysroot rather than at the host, the colour-management and WOFF2 libraries turned
+off because we have not cross-built them, the inspector front end off because the
+directory is not in this sparse checkout, WebKitLegacy off, and WebKit2 off behind
+the existing switch because turning it on reaches a Cocoa macro for an XPC service
+layout that 10.4 has no launchd for.
+
+One ordering bug worth recording because the check found it rather than review:
+the flag record has to be written at the very end of the options file, after the
+graphics settings. Written straight after the option block it reports every one of
+them as unset, which looks like agreement and is not.
+
+### The wire-flag set
+
+`wtf/PlatformTigerWire.h`. wcplan's measurement is that 293 distinct conditionals
+appear across the generator inputs and 69 inputs carry at least one flag the two
+sides genuinely disagree about, with PLATFORM(COCOA) alone appearing 166 times.
+
+The distinction the header draws: a condition in a generator input asks whether a
+field is on the wire, while the same macro in a source file asks whether this
+process has the framework. Upstream never had to separate those, because it never
+had two processes of different platform character on one connection. The
+TIGER_WIRE_* flags are 1 on both sides and used only in generator inputs, so the
+64-bit side encodes and decodes Cocoa-shaped messages without having Cocoa, which
+is what a process talking to a Cocoa process must do.
+
+Also confirmed wcplan's cheap win: unix domain sockets appears 8 times and is the
+one disagreeable-looking flag that is trivially agreeable. Forced on in both.
+
+### Correction to my own earlier proposal
+
+I proposed hashing the generated IPC sources. wcplan is right that it cannot work:
+the generator emits the conditions verbatim, so both sides produce a byte-identical
+file and diverge only when each compiler evaluates them. The hash stays as a cheap
+second signal, since it does catch a stale generated file or a patch applied to one
+tree only, but the primary guard has to be the preprocessor probe. That is next.
+
+### Remaining
+
+1. Migrate the UI process to PORT=Tiger. It still needs the Objective-C and ARC
+   setup, the SDK overlay search paths and the platform arguments that live in the
+   Cocoa options file. Until it moves, comparing the two trees reports two
+   port-specific options as divergent, which is the check working correctly rather
+   than a real problem.
+2. The preprocessor probe: extract every condition from the shared generator
+   inputs, build one probe translation unit, preprocess it per side with each
+   side's real flags, diff. Preprocessing only, never execution, because no i386
+   binary runs on this host.
+3. The mechanical rewrite of the affected conditions in the generator inputs, as a
+   patch under `toolchain/patches/` so it survives rebasing.
