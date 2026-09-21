@@ -236,7 +236,9 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - HarfBuzz 14.5 (meson, static, OT shaper only) is in the sysroot; deps/spike-tests/test_harfbuzz.c shaped Latin and Arabic on the box.
 - Static ABI screening is complete (tools/abi-screen.py, logs/abi-screen-cf.md): 510 functions, every over-read already adapted.
 - CG behavioral probing complete (logs/shim-audit.md, spike/): pattern tiling, transparency layers under CTMs, dash phase,
-  clip-to-rects, masking colors all match modern. cgcompat's CGContextDrawTiledImage loop seams at fractional origins (fix pending).
+  clip-to-rects, masking colors all match modern. cgcompat's CGContextDrawTiledImage loop seamed at fractional origins;
+  fixed in ce943a5 by bracketing the loop with antialiasing off, so adjacent tiles' shared edge snaps the same way for both
+  (spike/cgtest.c asserts no interior pixel drops below full alpha, and the check was verified to fail with the fix removed).
   Shadows ~92% of modern ink; no alpha correction by decision (would worsen large blurs).
 - CoreText cap-height/x-height adapters: midpoint of flat and round glyph heights reproduces modern CT to 0.03% (was 5.8%).
 - HarfBuzz on Tiger proven with GSUB: DejaVu 'fi' -> one ligature glyph; Arabic joined forms differ from isolated (deps/HARFBUZZ.md).
