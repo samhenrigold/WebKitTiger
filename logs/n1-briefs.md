@@ -89,11 +89,13 @@ upstream structure would have saved us.
 **Nothing in N1 changes.** Every brief below is web-process or build-system work.
 The GPU process is N2.
 
-One consequence for whoever picks up N2: because this is upstream's own shape,
+Two consequences for whoever picks up N2. Because this is upstream's own shape,
 `createGPUProcessConnection` (`UIProcess/WebProcessPool.cpp:581-587`) is used as
 written rather than redirected, and **the web process needs no changes at all** —
 it mints the connection pair itself and never learns which process the other end
-lives in.
+lives in. And **nobody writes a render-process `main()`**: upstream's
+`GPUProcess` main is the entry point, so the work is configuring and building it
+for i386, not authoring it.
 
 ---
 
@@ -142,7 +144,7 @@ framework".
 | **Do** | define `TIGER_WIRE_COCOA`, `_CG`, `_CF`, `_APPKIT`, `_CORE_TEXT` as 1 on **both** sides; remap `#if PLATFORM(COCOA)` → `#if TIGER_WIRE_COCOA` etc. **in generator inputs only** |
 | **Cheapest first** | turn off Apple Pay, WebXR, service controls and the model process. That removes `CoreIPCPassKit.serialization.in` (7), `PlatformXR.serialization.in` (4) and others from the check entirely, CMake-only, before a line of remapping |
 | **Verify** | `tiger-check-ipc` passes with an empty known-divergent list, where today it reports `USE_CG`, `USE_CORE_TEXT` and three types as expected divergences. Diff the four `tiger-ipc-features.txt` against `logs/tiger-ipc-shared-flags.txt` |
-| **Scope note** | wkcmake already forces the port-neutral encoding for the three types by default, so the remap may be **much smaller than 69 files** — the neutral encoding is the fix, and the remap is only for conditionals the encoding does not cover. **Measure before starting**: run the §N1-E probe first and remap only what it reports |
+| **Scope note** | wkcmake already forces the port-neutral encoding for the three types by default, so the remap may be **much smaller than 69 files**. **The measurement now exists**: `tools/check-wire-flags.py` is written and verified. Run it after N1-A lands and remap exactly what `logs/wire-flag-queue.txt` reports — do not work from the 69-file guess |
 | **Lines** | ~60 of header, plus a remap sized by the probe |
 | **Blocked by** | nothing — can start now |
 
@@ -175,16 +177,18 @@ framework".
 
 ---
 
-#### **N1-E · Preprocessor probe replaces the hash check** — wkcmake · *accepted, in flight*
+#### **N1-E · Preprocessor probe replaces the hash check** — **done**
 
 | | |
 |---|---|
-| **Files** | `Source/cmake/TigerCheckIPC.cmake`; new `tools/extract-wire-flags.py`, `tools/check-wire-flags.sh` |
+| **Files** | **`tools/check-wire-flags.py` (written, committed)**; `Source/cmake/TigerCheckIPC.cmake` still needs the target wired to call it |
 | **Why** | `generate-serializers.py` emits conditionals verbatim into the generated C++ (`:629`, `:651`, `:753`, `:759`, `:776`, `:784`, `:838`, `:866`, `:878`, `:891`), so both sides produce a byte-identical `.cpp` and a source hash is blind to flag drift. Full reasoning in `logs/serializer-asymmetry.md` §0 |
 | **Do** | keep the hash as the second check — because the generated sources *should* be identical, an inequality is itself a signal — and add the preprocessor probe as the primary |
 | **Needs from wkcmake** | `SHARED_SERIALIZATION_INPUTS` as the intersection of the two source lists, so the probe has an exact scope |
-| **Verify** | a throwaway tree with one flag flipped fails the check and names the flag |
-| **Lines** | 150–250 |
+| **Verified** | a throwaway tree with two flags flipped is reported by name with exit 1; `--may-differ` excuses one and still fails on the other. All three configured trees (UI, WEB, NETWORK) currently agree on all 294 conditionals, which is the expected result while `tiger-web` is still `PORT=Cocoa` |
+| **Result** | `logs/wire-flag-queue.txt` — empty today, and it says why in the file. **Re-run after N1-A lands; its length is how N1-B should be sized** |
+| **Remaining** | wire `tiger-check-ipc` to call it, and pass `--shared-inputs` once wkcmake exports `SHARED_SERIALIZATION_INPUTS` (it currently scans all 650 inputs, which is conservative but noisy) |
+| **Lines** | 260 |
 | **Blocked by** | nothing |
 
 ---
@@ -373,7 +377,7 @@ can start immediately and is pure 32-bit work.
 | N1-B `TIGER_WIRE_*` + remap | wkcmake, objcrt | ~60 + remap | — |
 | N1-C WTF x86_64 | wkcmake | 150–250 | A |
 | N1-D cross-ABI span assert | objcrt | ~15 | — |
-| N1-E preprocessor probe | wkcmake | 150–250 | — |
+| N1-E preprocessor probe | ~~wkcmake~~ **done** | 260 | — |
 | N1-F WebCore x86_64 | wkcmake | 800–1,200 | A |
 | N1-G null backend wiring | wkcmake | ~30 | A |
 | N1-H font handle de-CF | ctcompat | 300–450 | B |
