@@ -130,7 +130,7 @@ static BOOL tigerOptionsUsePointerIdentity(NSUInteger options)
 {
     if (!key)
         return nil;
-    return (id)NSMapGet((NSMapTableCStruct *)_table, key);
+    return (id)NSMapGetCStruct((NSMapTableCStruct *)_table, key);
 }
 
 - (void)setObject:(id)object forKey:(id)key
@@ -141,13 +141,13 @@ static BOOL tigerOptionsUsePointerIdentity(NSUInteger options)
         [self removeObjectForKey:key];
         return;
     }
-    NSMapInsert((NSMapTableCStruct *)_table, key, object);
+    NSMapInsertCStruct((NSMapTableCStruct *)_table, key, object);
 }
 
 - (void)removeObjectForKey:(id)key
 {
     if (key)
-        NSMapRemove((NSMapTableCStruct *)_table, key);
+        NSMapRemoveCStruct((NSMapTableCStruct *)_table, key);
 }
 
 - (void)removeAllObjects

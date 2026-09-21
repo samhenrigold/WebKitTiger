@@ -105,6 +105,27 @@ Expected, and not a bug. Modern macOS treats DeviceRGB as sRGB; Tiger's generic 
 ships rather than mapping it onto generic RGB, and why pixel assertions elsewhere should set
 colours with an explicit sRGB `CGColorRef`.
 
+### Font smoothing is inert (audit track)
+
+`spike/fontsmoothtest.c`, commit f7338be. `CGContextSetShouldSmoothFonts` on versus off gives
+byte-identical pixels in an opaque bitmap context, and no rendering produces a colour fringe.
+`CGContextSetAllowsFontSmoothing` is inert too. `CGContextSetShouldAntialias` is the knob that
+works: with it off, inked pixels drop from 615 to 247 and antialiased pixels from 556 to 0.
+
+The probe uses an opaque context deliberately, because CG disables subpixel smoothing for
+contexts with an alpha channel even on modern macOS. The claim is bounded: this measures bitmap
+contexts, which is what WebCore's canvas and ImageBuffer paths use. A window context could
+differ and cannot be tested headlessly.
+
+**Consequence here.** `CGContextSetShouldAntialiasFonts` used to forward to
+`SetShouldSmoothFonts`, so it only looked like it did something. It is now an explicit no-op.
+Forwarding to `SetShouldAntialias` instead was considered and rejected: that knob is
+context-wide and would alias every shape, and WebCore's only call site,
+`setCGFontRenderingMode` in `FontCascadeCoreText.cpp`, passes `true` unconditionally without
+bracketing it in a save and restore. Forwarding would therefore re-enable antialiasing for a
+context that had deliberately turned it off for shapes, to satisfy a request for glyph
+antialiasing that Tiger does by default anyway.
+
 ## What matched
 
 Worth recording, because these were the plausible suspects:

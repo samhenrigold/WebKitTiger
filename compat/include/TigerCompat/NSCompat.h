@@ -341,7 +341,18 @@ enum {
 - (NSUInteger)count;
 - (NSEnumerator *)keyEnumerator;
 - (NSEnumerator *)objectEnumerator;
+- (id)copyWithZone:(NSZone *)zone;
 @end
+
+/* The C accessors, spelled the way modern Foundation spells them: taking the
+ * class, not the C struct. JavaScriptCore reaches for these rather than
+ * -objectForKey: / -setObject:forKey: because the values it stores are raw
+ * integers, which the object-typed methods would try to retain. Tiger's own
+ * C entry points are still available from <Foundation/NSMapTable.h> under
+ * their CStruct spellings. */
+TIGER_NS_EXTERN void *NSMapGet(NSMapTable *table, const void *key);
+TIGER_NS_EXTERN void NSMapInsert(NSMapTable *table, const void *key, const void *value);
+TIGER_NS_EXTERN void NSMapRemove(NSMapTable *table, const void *key);
 #endif /* TIGER_NSMAPTABLE_TYPEDEF_RENAMED */
 
 /* -------------------------------------------------------------------------

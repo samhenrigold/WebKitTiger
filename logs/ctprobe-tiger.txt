@@ -1,5 +1,5 @@
 # ctprobe
-cgfloat_is_double                                    false
+info.cgfloat_is_double                               false
 
 ## 01 font load (helper: CTFontManagerCreateFontDescriptorFromData)
 font.bytes                                           756072
@@ -94,7 +94,41 @@ size24.glyphs.mixed.allMapped                        false
 size24.glyphs.mixed.ids                              68 69 932 837 1365 0
 size24.CTFontCopyCharacterSet                        U+0041=y U+007A=y U+00E9=y U+0410=y U+03B1=y U+0628=y U+4E00=n U+3042=n U+20AC=y
 
-## 06 descriptor round trips
+## 06 metric scaling sweep
+sweep9.ascent                                        8.354004
+sweep9.descent                                       2.122559
+sweep9.capHeight                                     7.000000
+sweep9.xHeight                                       5.000000
+sweep10.ascent                                       9.282227
+sweep10.descent                                      2.358398
+sweep10.capHeight                                    7.000000
+sweep10.xHeight                                      5.500000
+sweep11.ascent                                       10.210449
+sweep11.descent                                      2.594238
+sweep11.capHeight                                    8.000000
+sweep11.xHeight                                      6.000000
+sweep13.ascent                                       12.066895
+sweep13.descent                                      3.065918
+sweep13.capHeight                                    9.500000
+sweep13.xHeight                                      7.000000
+sweep17.ascent                                       15.779785
+sweep17.descent                                      4.009277
+sweep17.capHeight                                    12.500000
+sweep17.xHeight                                      9.500000
+sweep19.ascent                                       17.636230
+sweep19.descent                                      4.480957
+sweep19.capHeight                                    14.000000
+sweep19.xHeight                                      10.500000
+sweep31.ascent                                       28.774902
+sweep31.descent                                      7.311035
+sweep31.capHeight                                    23.000000
+sweep31.xHeight                                      17.000000
+sweep100.ascent                                      92.822266
+sweep100.descent                                     23.583984
+sweep100.capHeight                                   73.500000
+sweep100.xHeight                                     55.500000
+
+## 07 descriptor round trips
 CTFontCopyFontDescriptor                             true
 CTFontCopyFontDescriptor.attributes                  [3] NSCTFontTraitsAttribute NSFontNameAttribute NSFontSizeAttribute
 CTFontCopyFontDescriptor.Name                        "DejaVuSans"
@@ -115,7 +149,7 @@ CTFontCreateCopyWithAttributes                       true
   -> ascent                                          27.846680
   -> family                                          "DejaVu Sans"
 
-## 07 CTFontCreateWithName
+## 08 CTFontCreateWithName
 CTFontCreateWithName(family, 20)                     true
   -> size                                            20.000000
   -> family                                          "DejaVu Sans"
@@ -124,7 +158,7 @@ CTFontCreateWithName(bogus, 14)                      true
   -> substituted family                              "Lucida Grande"
   -> size                                            14.000000
 
-## 08 CTFontCreateWithGraphicsFont
+## 09 CTFontCreateWithGraphicsFont
 helper CTFontCopyGraphicsFont                        true
 CTFontCreateWithGraphicsFont                         true
   -> size                                            22.000000
@@ -134,14 +168,14 @@ CTFontCreateWithGraphicsFont                         true
 cgfont.glyphs.latin.allMapped                        true
 cgfont.glyphs.latin.ids                              36 57 36 3 73 76 3 58 68 89 72
 
-## 09 CTFontCopyFeatures / CTFontCopyVariationAxes
+## 10 CTFontCopyFeatures / CTFontCopyVariationAxes
 CTFontCopyFeatures.count                             3
 CTFontCopyFeatures[0].keys                           [3] CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
 CTFontCopyFeatures[1].keys                           [3] CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
 CTFontCopyFeatures[2].keys                           [3] CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
 CTFontCopyVariationAxes                              (null)
 
-## 10 line layout at size 16
+## 11 line layout at size 16
 line.latin.created                                   true
 line.latin.CTLineGetStringRange                      {0, 11}
 line.latin.CTLineGetGlyphRuns.count                  1
@@ -152,6 +186,12 @@ line.latin.run0.CTRunGetAttributes                   [1] NSFont
 line.latin.run0.CTRunGetGlyphsPtr                    36 57 36 3 5039 3 58 68 89 72
 line.latin.run0.CTRunGetAdvancesPtr                  9.9219 9.9219 10.9453 5.0859 10.0781 5.0859 14.7969 9.8047 9.4688 9.8438
 line.latin.run0.CTRunGetStringIndicesPtr             0 1 2 3 4 6 7 8 9 10
+line.latin.truncate.w10.nullToken                    false
+line.latin.truncate.w10.ellipsisToken                false
+line.latin.truncate.w50.nullToken                    false
+line.latin.truncate.w50.ellipsisToken                true
+line.latin.truncate.w1000.nullToken                  false
+line.latin.truncate.w1000.ellipsisToken              true
 line.latin.CTLineCreateTruncatedLine.created         false
 line.arabic.created                                  true
 line.arabic.CTLineGetStringRange                     {0, 5}
@@ -163,6 +203,12 @@ line.arabic.run0.CTRunGetAttributes                  [1] NSFont
 line.arabic.run0.CTRunGetGlyphsPtr                   1366 1394 1365 1374 1382
 line.arabic.run0.CTRunGetAdvancesPtr                 8.3828 12.5234 15.0625 7.7266 9.5469
 line.arabic.run0.CTRunGetStringIndicesPtr            4 3 2 1 0
+line.arabic.truncate.w10.nullToken                   false
+line.arabic.truncate.w10.ellipsisToken               false
+line.arabic.truncate.w50.nullToken                   false
+line.arabic.truncate.w50.ellipsisToken               true
+line.arabic.truncate.w1000.nullToken                 false
+line.arabic.truncate.w1000.ellipsisToken             true
 line.arabic.CTLineCreateTruncatedLine.created        false
 line.cjk.created                                     true
 line.cjk.CTLineGetStringRange                        {0, 3}
@@ -174,6 +220,12 @@ line.cjk.run0.CTRunGetAttributes                     [1] NSFont
 line.cjk.run0.CTRunGetGlyphsPtr                      1200 3275 2174
 line.cjk.run0.CTRunGetAdvancesPtr                    16.0000 16.0000 16.0000
 line.cjk.run0.CTRunGetStringIndicesPtr               0 1 2
+line.cjk.truncate.w10.nullToken                      false
+line.cjk.truncate.w10.ellipsisToken                  false
+line.cjk.truncate.w50.nullToken                      false
+line.cjk.truncate.w50.ellipsisToken                  true
+line.cjk.truncate.w1000.nullToken                    false
+line.cjk.truncate.w1000.ellipsisToken                true
 line.cjk.CTLineCreateTruncatedLine.created           false
 line.mixed.created                                   true
 line.mixed.CTLineGetStringRange                      {0, 6}
@@ -199,29 +251,35 @@ line.mixed.run2.CTRunGetAttributes                   [1] NSFont
 line.mixed.run2.CTRunGetGlyphsPtr                    1200
 line.mixed.run2.CTRunGetAdvancesPtr                  16.0000
 line.mixed.run2.CTRunGetStringIndicesPtr             5
+line.mixed.truncate.w10.nullToken                    false
+line.mixed.truncate.w10.ellipsisToken                false
+line.mixed.truncate.w50.nullToken                    false
+line.mixed.truncate.w50.ellipsisToken                true
+line.mixed.truncate.w1000.nullToken                  false
+line.mixed.truncate.w1000.ellipsisToken              true
 line.mixed.CTLineCreateTruncatedLine.created         false
 
-## 11 CTTypesetterCreateLine
+## 12 CTTypesetterCreateLine
 helper CTTypesetterCreateWithAttributedString        true
 CTTypesetterCreateLine{0,5}                          true
   -> stringRange                                     {0, 5}
   -> runs                                            1
   -> run0 glyphs                                     5
 
-## 12 CTLineCreateWithUniCharProvider
+## 13 CTLineCreateWithUniCharProvider
 CTLineCreateWithUniCharProvider                      true
   -> runs                                            1
   -> run0 glyphs                                     8
   -> run0 glyphsPtr                                  51 85 82 89 76 71 72 71
 
-## 13 CTParagraphStyleCreate
+## 14 CTParagraphStyleCreate
 CTParagraphStyleCreate                               true
   -> alignment readback ok                           true
   -> alignment value                                 2
   -> firstLineHeadIndent readback ok                 true
   -> firstLineHeadIndent value                       7.500000
 
-## 14 framesetter
+## 15 framesetter
 CTFramesetterCreateWithAttributedString              true
 CTFramesetterCreateFrame                             true
 CTFrameGetLines.count                                8
@@ -234,5 +292,5 @@ CTFrameGetLines[5].stringRange                       {51, 11}
 CTFrameGetLines[6].stringRange                       {62, 11}
 CTFrameGetLines[7].stringRange                       {73, 4}
 
-## 15 end
+## 16 end
 status                                               "complete"

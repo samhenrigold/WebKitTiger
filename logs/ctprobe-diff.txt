@@ -1,13 +1,9 @@
-matched   132
-differing 47
+matched   163
+differing 71
 only-mac  26
 only-tiger 0
 
 --- divergences ---
-cgfloat_is_double
-    mac   : true
-    tiger : false
-    why   : text differs
 desc.CTFontDescriptorCopyAttribute.Family
     mac   : "DejaVu Sans"
     tiger : (null)
@@ -68,6 +64,62 @@ size24.CTFontCopyAttribute.Size
     mac   : 24.000000
     tiger : (null)
     why   : text differs
+sweep9.capHeight
+    mac   : 6.618164
+    tiger : 7.000000
+    why   : delta 0.381836 > 1/64
+sweep9.xHeight
+    mac   : 4.979004
+    tiger : 5.000000
+    why   : delta 0.020996 > 1/64
+sweep10.capHeight
+    mac   : 7.353516
+    tiger : 7.000000
+    why   : delta 0.353516 > 1/64
+sweep10.xHeight
+    mac   : 5.532227
+    tiger : 5.500000
+    why   : delta 0.032227 > 1/64
+sweep11.capHeight
+    mac   : 8.088867
+    tiger : 8.000000
+    why   : delta 0.088867 > 1/64
+sweep11.xHeight
+    mac   : 6.085449
+    tiger : 6.000000
+    why   : delta 0.085449 > 1/64
+sweep13.capHeight
+    mac   : 9.559570
+    tiger : 9.500000
+    why   : delta 0.059570 > 1/64
+sweep13.xHeight
+    mac   : 7.191895
+    tiger : 7.000000
+    why   : delta 0.191895 > 1/64
+sweep17.xHeight
+    mac   : 9.404785
+    tiger : 9.500000
+    why   : delta 0.095215 > 1/64
+sweep19.capHeight
+    mac   : 13.971680
+    tiger : 14.000000
+    why   : delta 0.028320 > 1/64
+sweep31.capHeight
+    mac   : 22.795898
+    tiger : 23.000000
+    why   : delta 0.204102 > 1/64
+sweep31.xHeight
+    mac   : 17.149902
+    tiger : 17.000000
+    why   : delta 0.149902 > 1/64
+sweep100.capHeight
+    mac   : 73.535156
+    tiger : 73.500000
+    why   : delta 0.035156 > 1/64
+sweep100.xHeight
+    mac   : 55.322266
+    tiger : 55.500000
+    why   : delta 0.177734 > 1/64
 CTFontCopyFontDescriptor.attributes
     mac   : [2] NSFontNameAttribute NSFontSizeAttribute
     tiger : [3] NSCTFontTraitsAttribute NSFontNameAttribute NSFontSizeAttribute
@@ -100,6 +152,18 @@ line.latin.run0.CTRunGetStringIndicesPtr
     mac   : (null)
     tiger : 0 1 2 3 4 6 7 8 9 10
     why   : different shape
+line.latin.truncate.w10.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
+line.latin.truncate.w50.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
+line.latin.truncate.w1000.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
 line.latin.CTLineCreateTruncatedLine.created
     mac   : true
     tiger : false
@@ -112,6 +176,18 @@ line.arabic.run0.CTRunGetAdvancesPtr
     mac   : (null)
     tiger : 8.3828 12.5234 15.0625 7.7266 9.5469
     why   : different shape
+line.arabic.truncate.w10.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
+line.arabic.truncate.w50.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
+line.arabic.truncate.w1000.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
 line.arabic.CTLineCreateTruncatedLine.created
     mac   : true
     tiger : false
@@ -124,6 +200,14 @@ line.cjk.run0.CTRunGetAdvancesPtr
     mac   : (null)
     tiger : 16.0000 16.0000 16.0000
     why   : different shape
+line.cjk.truncate.w50.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
+line.cjk.truncate.w1000.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
 line.cjk.CTLineCreateTruncatedLine.created
     mac   : true
     tiger : false
@@ -188,6 +272,18 @@ line.mixed.run2.CTRunGetStringIndicesPtr
     mac   : 3
     tiger : 5
     why   : integer differs
+line.mixed.truncate.w10.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
+line.mixed.truncate.w50.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
+line.mixed.truncate.w1000.nullToken
+    mac   : true
+    tiger : false
+    why   : text differs
 line.mixed.CTLineCreateTruncatedLine.created
     mac   : true
     tiger : false
