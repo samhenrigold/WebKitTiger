@@ -1125,3 +1125,11 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   FLAGS but not DEFINES dropped WTF_PLATFORM_TIGER so the probe evaluated as a non-Tiger build and produced a plausible
   false report; the script now refuses values from a failed preprocess. First run was against stale Cocoa-port trees
   (empty queue); re-running against the PORT=Tiger web tree to produce the real logs/wire-flag-queue.txt.
+- Fallback-in-the-recording-process PROVEN pixel-exact (ctcompat 6ee1114, spike/textpixel): Arabic and CJK requested as
+  Helvetica fall back (GeezaPro-Bold, LiGothicMed) chosen by HarfBuzz coverage in a process with no CT/ATS/CF, and
+  draw with 0 differing pixels against native CoreText; worst wire position disagreement 0.14 pt (all Apple-kern
+  faces, known). Web fonts: ATS activation from memory (2.9 ms per 106 KB blob; bytes must stay resident for the
+  container's life); CGFontCreateWithDataProvider returns NULL on Tiger for ttf and dfont. Rasteriser fails on any
+  glyph 0, which caught a shaper that let an Arabic-only face reach Latin; downloaded faces now get the same coverage
+  check as installed ones. Bytes shipped inline in 60 KB chunks, not OOL Mach descriptors (their size differs across
+  the split).
