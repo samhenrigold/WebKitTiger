@@ -469,3 +469,8 @@ one triage pass before it was noticed. See the triage table at the end of
 - Link line that works for 64-bit C++: `tiger-clang64++ -nostdinc++ -isystem toolchain/sysroot-x86_64/usr/include/c++/v1
   -stdlib=libc++ -lc++ -lc++abi -lunwind -ltigercompat` (libtigercompat supplies `_dyld_find_unwind_sections` and
   `posix_memalign`, both of which libc++abi/libunwind need and Tiger lacks).
+- ld64 x86_64 FIXED (2d12f9c): stubs.cpp passed stubToGlobalWeakDef as forLazyDylib at the x86_64 classic call sites, so any
+  weak-def target used the NULL lazy-binding helper. Patch: toolchain/patches/cctools-ld64-x86_64-classic-stubs.patch. Also
+  compat's _dyld_find_unwind_sections now uses section_64 accessors under __LP64__ (64-bit C++ exceptions work on the box).
+  tiger-clang64{,++} link everything; no on-box ld64 stopgap needed. libtigercompat x86_64 archive: built by hand (availability.o,
+  libcompat.o, tlv.o); the compat Makefile is i386-only (TODO: ARCH switch).
