@@ -1613,3 +1613,46 @@ divergences, no new ones).
   has ever been created and no font, layout or paint path has run. GPUProcess/graphics/wc is stubbed on
   this side; the i386 GPU process owns the scene. The pasteboard, drag, accessibility and public-suffix
   stubs above. bin/TigerNetworkProcess links but has not been run.
+
+### 2026-09-21 — three follow-ups on the x86_64 side (wk2web)
+
+1. **kqueue instead of the poll.** 10.4 does have EVFILT_PROC: `spike/wk2web/kq-note-exit.c` shows
+   NOTE_EXIT on the parent pid firing the instant the parent goes, sharing a kqueue with an
+   EVFILT_READ on the socket. The web process now notices a dead launcher and exits in **0.010 s**
+   (three runs; spike/wk2web/wk2-parentdeath.c), against up to a second before.
+   The poll does not disappear, and `spike/wk2web/kq-dgram-eof.c` says why: with the parent still
+   alive but its end of the SOCK_DGRAM socketpair closed, EVFILT_READ never fires and EVFILT_WRITE
+   never reports EV_EOF — it reports 2048 bytes of space, forever. 10.4 has an event for "the peer
+   died" and none for "the peer closed". So the kevent wait carries a two-second timeout and does the
+   zero-byte-send probe when it expires: a 0.5 Hz backstop for a case that should not arise, rather
+   than the primary mechanism. All of it moved out of the lambda into `Connection::tigerMonitorSocket`
+   with the measurements written next to it; PlayStation's select() arm is byte-for-byte what it was.
+2. **bin/TigerNetworkProcess on the box**, same driver, same contract:
+   startup 56 ms, **RSS 16.6 MB**, exit status 0 both on socket close (0.8 s) and on parent death
+   (0.010 s).
+   The stretch goal — drive a real curl fetch — was NOT done, and deliberately. The minimal sequence,
+   for whoever does it:
+     a. `NetworkProcess::InitializeNetworkProcess(NetworkProcessCreationParameters)`   [sync]
+     b. `NetworkProcess::AddWebsiteDataStore(WebsiteDataStoreParameters)`              [creates the session]
+     c. `NetworkProcess::CreateNetworkConnectionToWebProcess(ProcessIdentifier, SessionID,
+        NetworkProcessConnectionParameters)`                                           [sync; the reply
+        carries an IPC::ConnectionHandle, i.e. a second socket arriving over SCM_RIGHTS]
+     d. on that second connection,
+        `NetworkConnectionToWebProcess::PerformSynchronousLoad(NetworkResourceLoadParameters)`
+        -> (ResourceError, ResourceResponse, Vector<uint8_t>). This is the smallest fetch there is;
+        ScheduleResourceLoad is the async path and needs a loader client to receive DidReceiveResponse.
+   All four parameter structs go through generated serializers over dozens of fields, so a C driver
+   would have to reimplement the encoder and the generated code — that is the "half a UI process in C"
+   case. The cheap honest version is a ~150-line **C++** harness linking libWebKit.a for x86_64 and
+   using IPC::Connection with the generated Messages headers; it needs no PageClient and no UI
+   process, only sensible values for those four structs. That is the next thing to build here.
+3. **-dead_strip.** ld64-956 has no --gc-sections but takes -dead_strip, and this port is the shape it
+   is for: one executable out of static archives, no dynamic exports, no Objective-C categories to
+   lose on this side. Enabled for both x86_64 executables.
+       TigerWebProcess      189,670,128 -> 156,811,376   (148,768,800 also stripped of symbols)
+       TigerNetworkProcess  189,671,520 -> 154,996,208   (146,889,696)
+   Idle RSS of the web process: **21.9 MB -> 17.1 MB**. Startup unchanged at 56 ms, both exit paths
+   unchanged. Caveat: the binary has only been run as far as starting up and idling, and dead
+   stripping's risk surface is anything reached without a relocation the linker can see — with JSC in
+   the link that is not nothing. If something vanishes once a page runs, the flag is two lines in
+   Source/WebKit/PlatformTiger.cmake.
