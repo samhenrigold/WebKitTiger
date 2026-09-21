@@ -208,7 +208,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   ctcompat, not a dependency (pre-release; two CoreTexts per process; objects must not cross). Its 11 TRANSITIONAL exports list
   exactly which functions changed shape in the double->CGFloat migration.
 - CG ABI screen: 285 entry points, 1 genuine mismatch (a CGGState transform getter returning by value), adapted and tested.
-- Tiger CoreGraphics behavior findings (runtime probes, spike/blendtest.c, CG-SURVEY.md): CGContextSetBlendMode ignores all 12
-  Porter-Duff modes (only source-over); CGShading discards alpha (cgcompat compensates for gradients); mask clipping takes
-  dest alpha = mask * source color (not modelled). Canvas composite ops and CSS blend modes degrade to source-over on this port.
+- Tiger CoreGraphics behavior findings (runtime probes, spike/blendtest.c, CG-SURVEY.md): CGContextSetBlendMode silently ignores Copy, XOR,
+  DestinationOver, PlusLighter and Clear (Multiply/Screen work; spike/cgprobe.c); CGShading discards alpha (cgcompat
+  compensates for gradients); CGContextClipToMask is correct with gray masks but silently clips everything for stencil masks
+  and RGBA images (WebCore clipToImageBuffer must convert to gray); shadows render ~26% lighter than modern CG. Canvas composite ops and CSS blend modes degrade to source-over on this port.
 - jsc timing on the box (C loop, 2.2 GHz C2D): ~1.7 M loop iterations/s; fib(25) 135 ms. ~4x Tiger's 2007 JSC.

@@ -145,11 +145,17 @@ def stub_kind(body, acc, modern):
             m = PIC.search(args)
             if not m: return None          # a real call means real work
             picreg = "e" + m.group(1)
-        elif op.startswith("jmp") and re.search(r'\b_[A-Za-z]', args):
+        elif op.startswith("jmp") and re.search(r'(^|[\s,])_[A-Za-z_]', args):
             return None                    # tail call into a real implementation
-    globals_seen = [m for op, args in body for m in GLOBAL.finditer(args)
-                    if picreg is None or m.group(1) == picreg[1:]]
-    if not globals_seen: return None
+                                           # (targets can be C++-mangled: __ZNK...)
+    # A PIC-relative global load only exists if a get_pc_thunk set up a base
+    # register first. Without that, `0x10(%eax)` is an ordinary struct field
+    # dereference -- which is what a genuine accessor like CTRunGetGlyphCount
+    # does, and matching it made every accessor look like a stub.
+    if picreg is None: return None
+    if not any(m.group(1) == picreg[1:] for op, args in body
+               for m in GLOBAL.finditer(args)):
+        return None
     touched = sorted(acc)
     if touched != [8]: return None
     if not modern or len(modern["plist"]) < 1: return None
