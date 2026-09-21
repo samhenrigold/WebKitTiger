@@ -247,6 +247,16 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   fonts without morx. 41/49 of Tiger's font files have morx/mort; the six Hiragino CJK faces are OpenType-only (costs vertical
   forms/ruby). HarfBuzz fallback scope: complex scripts in AAT-less fonts. Glyph rasterization geometry is identical to modern.
 
+## Foundation behaviour differences from modern (2026-09-20, audit track)
+- `-[NSString stringWithFormat:]` does **not** understand the C99 length modifiers `%zu`, `%zd`, `%jd`, `%td`:
+  the specifier is emitted as literal text, so `%zu` with 123456 yields the two characters `zu`. Silent
+  corruption, not an error. `%lld`/`%llu`/`%qi`/`%qu`/`%hd`/`%hhd` are all fine. No ObjC format string in
+  WebKit uses `%z` or `%ll` today; don't introduce one. (logs/foundation-probe.md)
+- `+[NSURL fileURLWithPath:]` produces `file://localhost/tmp/x` with `host` == `"localhost"`, where modern
+  gives `file:///tmp/x` with a nil host. The two are not string-equal, so anything comparing file URLs by
+  absolute string or inspecting `-host` sees a different shape. Also `+URLWithString:` returns nil for a
+  string containing a raw space, where modern parses leniently.
+
 ## Linking libtigercompat (2026-09-20, audit track)
 - **`-ObjC` is mandatory and its absence fails silently.** A category in a static archive is only pulled in when
   something references a symbol in the same object file, so without `-ObjC` every nscompat category is absent at
