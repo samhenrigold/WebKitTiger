@@ -736,8 +736,22 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   the first uint64/double shifts. Fixed with a wireAlignmentOf (8-byte scalars aligned to 8 on both sides) plus the requires
   clause banning long/unsigned long/size_t fields, UnixMessage framing fixed-width, ScrollSnapOffsetsInfo/PlatformXR fields
   fixed. Both builds must run to catch every offender (ptrdiff_t is int on i386).
-- 64-bit os_log/os_unfair_lock/os_signpost: single home = libtigercompat.a (ARCH=x86_64 superset); no 64-bit libtigerdispatch
-  (dispatch queues need CFRunLoop; the web process uses WTF's generic RunLoop/WorkQueue).
+- 64-bit os_log/os_unfair_lock/os_signpost: REVERSED (commits 2c6d1db + 833495c crossed and briefly left no 64-bit impl).
+  Final: x86_64 libtigerdispatch.a (os.c ONLY, no dispatch_* since Tiger has no x86_64 CF for the main queue) owns os_*;
+  x86_64 libtigercompat.a is 4 members (availability/libcompat/tlv/runtime) and stages no dispatch headers, so a 64-bit
+  #include <dispatch/dispatch.h> fails at the include, not at link. 64-bit link rule: -ltigercompat -ltigerdispatch.
+  Lesson: a home change is ONE commit touching both makefiles, never two independent ones.
+- Do NOT identify archives by md5: ar stores member mtimes, so cmp-identical objects give different checksums. Every md5
+  quoted earlier was a snapshot. Verify behaviourally (spike/run64.sh cxx64exc, nm for expected symbols).
+- Leopard x86_64 CG hang root-caused (leopard, 2729346): CGBitmapContextCreate -> CGFontDefaultAllowsFontSmoothing ->
+  pthread_once -> CGSGetDisplayIsLCD -> mach_msg to Tiger's 32-bit WindowServer, which never replies. Bootstrap-lookup
+  interception is not reached (port obtained via direct MIG). Branch stays closed.
+- Aqua controls (nscompat): compat/aquacontrols.m + TigerCompat/AquaControls.h; TigerControlStyle state bits match
+  WebCore::ControlStyle::State positions; button family blits via HIThemeDrawButton (NSCell ignores key-window state on
+  10.4, HITheme takes it as an argument); text/search/progress have no inactive look on 10.4. 540 atlas PNGs + metrics.json.
+- Plan restructured (wcplan 116a691): branch (d) primary; UI+render merged 32-bit; DrawControlPart remoting already exists
+  (RemoteGraphicsContext.messages.in:124), control cost ~525 LOC + aquacontrols.m; CAHost phase 4 cancelled; top risk is
+  now serializer asymmetry (silent wire corruption).
 - **Superseded within the hour (23:05): os.c is NOT in the compat archive; link `-ltigerdispatch` instead.** The dispatch
   track built a 64-bit libtigerdispatch.a (`make -C compat/dispatch ARCH=x86_64 install`), which is the better answer and
   removes the reason anyone hand-rolled a compat archive, so the os.c addition above was reverted. The x86_64
