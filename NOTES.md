@@ -706,3 +706,18 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   - **i386 is unchanged**: os.c stays the property of libtigerdispatch.a there, and the i386 libtigercompat.a still has
     no os.o. The duplication is deliberate and commented in compat/Makefile; if a 64-bit libtigerdispatch.a is ever
     built, drop os.c from the Makefile's x86_64 list in the same commit.
+- ARCHITECTURE DECIDED (00:50): (d) merged variant per logs/render-process-survey.md (73fbec3). TWO processes + network:
+  * 32-bit "UI+render" process: AppKit shell/view, Core Animation compositor (private QuartzCore), display-list replay with
+    Tiger CG/CoreText via compat, NSCell/HITheme control drawing (ControlPart remoting), text input/IME, audio output.
+  * 64-bit web process: JSC (x86_64 JIT incl. FTL), DOM/layout, image + video decoding (ffmpeg), HarfBuzz shaping + font
+    fallback (over the 32-bit-generated font manifest), display-list recording; no Apple frameworks (libSystem only).
+  * 64-bit network process: curl/LibreSSL/HTTP/2.
+  Precedent: WinCairo remotes 2D image-buffer drawing to its GPU process with PLATFORM(COCOA) off; ~110 messages, 2 gated.
+  Must-do before first pixel: force neutral encodings for the 3 CG-flag-dependent wire types (color space, ShareableBitmap
+  config, font attributes). Reuse Windows' coordinated-graphics layer delta (~1600 LOC) with a ~300-LOC scene applier building
+  real CA layers. Metrics authoritative from the 32-bit side (CT heuristics). Estimate 4.9-7.2k LOC + UI process 3-4k.
+  Branch (a) Leopard x86_64 CG/CT is DEAD for rendering (they block on 32-bit-only font/window-server Mach services); the
+  64-bit JIT process itself is fine. Branch (b) cairo remains the fallback only.
+- Aqua atlas done (spike/aquaatlas, 366 images, 18 controls, HIThemeDrawButton for window-inactive states): fallback artwork and
+  the reference for compat/aquacontrols.m. Tool gotchas: CGBitmapContextGetData is NULL on Tiger unless you supply the buffer;
+  a bare executable / first launch of a new bundle can't become active (inactive artwork); HIThemeDrawTrack draws whole scrollbars.
