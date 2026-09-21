@@ -1020,3 +1020,7 @@ in toolchain/sysroot-x86_64/usr/lib (jsc64's build), outside build/, so it was n
 Added to the ARTIFACT OWNERSHIP MAP above.
 - Two-tier text input verified on the box (browsershell 3630da0): in-callback query sees the pending state, post-keyDown
   query sees the old applied state in ~0.05 ms without blocking, post-round-trip sees the new state; 30/30 assertions.
+- build/builtins-i386 restored with a real script (deps 18ea953, toolchain/build-builtins-i386.sh): compiler-rt
+  builtins compiled directly with the raw cross-compiler + i386/*.S overlay; excludes crtbegin/crtend,
+  apple_versioning, clear_cache, os_version_check (compat/availability.c owns the version checks). i386 exctest and
+  fstest pass again. x86_64 builtins live in toolchain/sysroot-x86_64/usr/lib and were never at risk.
