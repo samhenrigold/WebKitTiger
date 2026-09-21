@@ -46,6 +46,10 @@
 /* 10.10, force touch. No Tiger trackpad reports pressure stages. */
 @property (readonly) NSInteger stage;
 
+/* 10.6. A real query, not a stub: Quartz Event Services shipped in 10.4 and
+ * CGEventSourceButtonState answers it. */
++ (NSUInteger)pressedMouseButtons;
+
 /* 10.5. Tiger's AppKit does not keep a CGEventRef on an NSEvent, and the only
  * caller wants the unaccelerated pointer movement that Quartz did not expose
  * until 10.15. NULL, so that pointer-lock movement reads as zero rather than
@@ -75,6 +79,12 @@ enum { NSWindowOcclusionStateVisible = 1UL << 1 };
 @property (readonly) CGFloat backingScaleFactor;
 /* 10.9 */
 @property (readonly) NSWindowOcclusionState occlusionState;
+
+/* 10.7. Real conversions, not identities: these position things on screen, and
+ * PAL's PopupMenu.mm uses the first one to place the <select> popup. Tiger has
+ * the point-wise -convertBaseToScreen: and -convertScreenToBase:. */
+- (NSRect)convertRectToScreen:(NSRect)rect;
+- (NSRect)convertRectFromScreen:(NSRect)rect;
 @end
 
 /* 10.7. NSEdgeInsets and the NSScreen inset accessor that uses it. */
@@ -99,6 +109,39 @@ typedef struct NSEdgeInsets {
 @end
 
 /* -------------------------------------------------------------------------
+ * NSGraphicsContext, 10.10. A pure rename: Tiger's "graphics port" already is
+ * a CGContextRef, so this forwards without converting anything.
+ * ------------------------------------------------------------------------- */
+@interface NSGraphicsContext (TigerCompat)
++ (NSGraphicsContext *)graphicsContextWithCGContext:(CGContextRef)context flipped:(BOOL)flipped;
+@end
+
+/* -------------------------------------------------------------------------
+ * NSWorkspace accessibility display settings, all 10.10.
+ *
+ * Tiger's Universal Access has none of these switches, so NO is the state of
+ * the machine rather than a simplification. WebCore asks before choosing
+ * high-contrast control art, before inverting, and before animating.
+ * ------------------------------------------------------------------------- */
+@interface NSWorkspace (TigerCompat)
+@property (readonly) BOOL accessibilityDisplayShouldIncreaseContrast;
+@property (readonly) BOOL accessibilityDisplayShouldDifferentiateWithoutColor;
+@property (readonly) BOOL accessibilityDisplayShouldInvertColors;
+@property (readonly) BOOL accessibilityDisplayShouldReduceMotion;
+@end
+
+/* -------------------------------------------------------------------------
+ * Menu type, 10.11. Only NSMenu -menuTypeForEvent: produces one, and WebCore
+ * casts the result straight to int, so the enum exists for this declaration.
+ * ------------------------------------------------------------------------- */
+typedef NSInteger NSMenuType;
+enum {
+    NSMenuTypeNone = 0,
+    NSMenuTypeContextMenu = 1,
+    NSMenuTypeMainMenu = 2
+};
+
+/* -------------------------------------------------------------------------
  * User interface layout direction. The type and its two enumerators are in the
  * SDK overlay, since they need no implementation; these accessors do.
  *
@@ -109,6 +152,10 @@ typedef struct NSEdgeInsets {
 /* 10.11. PAL's PopupMenu.mm reads this to decide which edge to align the
  * <select> popup to. */
 @property (readonly) NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
+/* 10.11. PlatformEventFactoryMac asks whether an event should raise a context
+ * menu. On Tiger that is a right-click or a control-click, which is what
+ * AppKit itself did before the method existed. */
++ (NSMenuType)menuTypeForEvent:(NSEvent *)event;
 @end
 
 @interface NSView (TigerCompatLayoutDirection)

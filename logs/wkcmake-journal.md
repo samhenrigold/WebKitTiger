@@ -927,6 +927,27 @@ crypto algorithm files are excluded; `CryptoDigestCommonCrypto.cpp` stays,
 because digests are exactly what Tiger has. LibreSSL is already in the sysroot
 and is the eventual answer for the rest.
 
+### PAL compiles and archives
+
+`libPAL.a` links. Getting there took, beyond the exclusions above:
+
+| Problem | Fix |
+|---|---|
+| `wtf/cocoa/SoftLinking.h` expands to `dispatch_once` but never included `<dispatch/dispatch.h>` | added it; on a modern SDK something else in the include graph always had |
+| `WebCorePrefix.h`'s `PLATFORM(MAC)` block warms the precompiled header with `AudioSession.h` (10.7), the IOKit HID family (10.5) and simd (10.11) | a `PLATFORM(TIGER)` branch keeping only what Tiger has |
+| The three `CoreGraphicsSPI.h` enum blocks cgcompat listed | gated; their values were checked against `<TigerCompat/CGCompat.h>` |
+| `CGDataProviderDirectAccessRangesCallbacks` (10.5), `CGDisplayMode` (10.6), `CGEventCopyIOHIDEvent`, the CGWindowList capture soft link, `CG_LOCAL` | gated, and `HAVE_CG_CONTEXT_SET_OWNER_IDENTITY` and `HAVE_LOCKDOWN_MODE_PDF_ADDITIONS` turned off |
+| `wtf/spi/cocoa/SecuritySPI.h` redeclares `SecTrustRef` as `struct __SecTrust *`; Tiger's `<Security/SecTrust.h>` already has it as `OpaqueSecTrustRef` | include Tiger's header instead of redeclaring |
+| `TransformationMatrix.h` includes `<simd/simd.h>` (10.11) under bare `PLATFORM(COCOA)` | gated, along with the three `simd_float*` conversions, which only the CA and WebXR paths use |
+| `GainMap.h` includes `<ImageIO/CGImageMetadata.h>` (10.8) under bare `PLATFORM(COCOA)` | forward-declare `CGImageMetadataRef`; it is only held as a `RetainPtr`, which needs no definition |
+| `NSNotificationName` (10.10) | added to the overlay's `NSObjCRuntime.h`, with the five sibling `NSString` aliases from the same release |
+
+One nesting mistake worth recording, because it is easy to repeat: adding
+`#if !PLATFORM(TIGER)` immediately inside an existing `#if HAVE(...)` block and
+closing it before the block's own `#endif` silently steals that `#endif`. The
+error surfaces hundreds of lines later as "unterminated conditional directive".
+Turning the `HAVE_` off is the better move anyway.
+
 ### Where the compile stands
 
 PAL compiles apart from one file, `system/mac/PopupMenu.mm`, which is the

@@ -36,6 +36,20 @@
 
 - (CGEventRef)CGEvent                   { return NULL; }
 
+/* Bit 0 is the left button, bit 1 the right, bit 2 the middle, matching what
+ * currentMouseButton() in PlatformEventFactoryMac.mm tests for. */
++ (NSUInteger)pressedMouseButtons
+{
+    NSUInteger buttons = 0;
+    if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kCGMouseButtonLeft))
+        buttons |= 1 << 0;
+    if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kCGMouseButtonRight))
+        buttons |= 1 << 1;
+    if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kCGMouseButtonCenter))
+        buttons |= 1 << 2;
+    return buttons;
+}
+
 @end
 
 /* =========================================================================
@@ -63,6 +77,25 @@
 
 - (NSWindowOcclusionState)occlusionState { return NSWindowOcclusionStateVisible; }
 
+/* Both corners are converted rather than translating the origin and carrying
+ * the size across. Window-to-screen is a pure translation while
+ * -userSpaceScaleFactor is 1.0, which it is on every real Tiger machine, but if
+ * it is not then the size scales too, and converting corners is right either
+ * way for the same three lines. */
+- (NSRect)convertRectToScreen:(NSRect)rect
+{
+    NSPoint lower = [self convertBaseToScreen:NSMakePoint(NSMinX(rect), NSMinY(rect))];
+    NSPoint upper = [self convertBaseToScreen:NSMakePoint(NSMaxX(rect), NSMaxY(rect))];
+    return NSMakeRect(lower.x, lower.y, upper.x - lower.x, upper.y - lower.y);
+}
+
+- (NSRect)convertRectFromScreen:(NSRect)rect
+{
+    NSPoint lower = [self convertScreenToBase:NSMakePoint(NSMinX(rect), NSMinY(rect))];
+    NSPoint upper = [self convertScreenToBase:NSMakePoint(NSMaxX(rect), NSMaxY(rect))];
+    return NSMakeRect(lower.x, lower.y, upper.x - lower.x, upper.y - lower.y);
+}
+
 @end
 
 @implementation NSScreen (TigerCompat)
@@ -89,6 +122,48 @@
 {
     return NSUserInterfaceLayoutDirectionLeftToRight;
 }
+
++ (NSMenuType)menuTypeForEvent:(NSEvent *)event
+{
+    if (!event)
+        return NSMenuTypeNone;
+    switch ([event type]) {
+    case NSRightMouseDown:
+    case NSRightMouseUp:
+        return NSMenuTypeContextMenu;
+    case NSLeftMouseDown:
+    case NSLeftMouseUp:
+        /* Control-click is the one-button-mouse context menu, which is how
+         * every Tiger application raises one. */
+        return ([event modifierFlags] & NSControlKeyMask) ? NSMenuTypeContextMenu : NSMenuTypeNone;
+    default:
+        return NSMenuTypeNone;
+    }
+}
+@end
+
+/* =========================================================================
+ * NSGraphicsContext
+ * ========================================================================= */
+
+@implementation NSGraphicsContext (TigerCompat)
+
++ (NSGraphicsContext *)graphicsContextWithCGContext:(CGContextRef)context flipped:(BOOL)flipped
+{
+    return [self graphicsContextWithGraphicsPort:(void *)context flipped:flipped];
+}
+
+@end
+
+/* =========================================================================
+ * NSWorkspace accessibility display settings
+ * ========================================================================= */
+
+@implementation NSWorkspace (TigerCompat)
+- (BOOL)accessibilityDisplayShouldIncreaseContrast { return NO; }
+- (BOOL)accessibilityDisplayShouldDifferentiateWithoutColor { return NO; }
+- (BOOL)accessibilityDisplayShouldInvertColors { return NO; }
+- (BOOL)accessibilityDisplayShouldReduceMotion { return NO; }
 @end
 
 @implementation NSView (TigerCompatLayoutDirection)

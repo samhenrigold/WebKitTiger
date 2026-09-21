@@ -166,6 +166,21 @@ enum { NSEnumerationConcurrent = 1UL << 0, NSEnumerationReverse = 1UL << 1 };
 @end
 #endif
 
+/* 10.6, and absent from the 10.4u SDK. Same value as the real one. */
+#ifndef NSPropertyListReadCorruptError
+#define NSPropertyListReadCorruptError 3840
+#endif
+
+/* 10.6. Tiger has +propertyListFromData:mutabilityOption:format:errorDescription:
+ * and the same mutability constants, so this is a signature change rather than
+ * new capability. */
+@interface NSPropertyListSerialization (TigerCompat)
++ (id)propertyListWithData:(NSData *)data
+                   options:(NSUInteger)options
+                    format:(NSPropertyListFormat *)format
+                     error:(NSError **)error;
+@end
+
 typedef NSUInteger NSDataBase64EncodingOptions;
 enum {
     NSDataBase64Encoding64CharacterLineLength = 1UL << 0,
@@ -212,9 +227,26 @@ typedef struct {
 - (NSUInteger)processorCount;
 - (NSUInteger)activeProcessorCount;
 - (unsigned long long)physicalMemory;
+
+/* 10.6. Sudden termination is a launchd contract that does not exist on Tiger:
+ * nothing will kill this process without asking, so there is nothing to opt out
+ * of. Counting no-ops, matching the real reference-counted pair. */
+- (void)disableSuddenTermination;
+- (void)enableSuddenTermination;
 @end
 
 /* ------------------------------------------------------------------------- */
+@interface NSRunLoop (TigerCompat)
+/* 10.5. Tiger has +currentRunLoop only, so the main thread's is captured at
+ * load time, the way [NSThread mainThread] is. */
++ (NSRunLoop *)mainRunLoop;
+@end
+
+@interface NSCalendar (TigerCompat)
+/* 10.9 convenience for -initWithCalendarIdentifier:, which Tiger has. */
++ (NSCalendar *)calendarWithIdentifier:(NSString *)identifier;
+@end
+
 @interface NSLocale (TigerCompat)
 + (NSArray *)preferredLanguages;
 + (NSLocale *)localeWithLocaleIdentifier:(NSString *)ident;

@@ -427,6 +427,7 @@ static int tigerComparatorTrampoline(id a, id b, void *context)
  * ========================================================================= */
 
 static NSThread *tigerMainThread;
+static NSRunLoop *tigerMainRunLoop;
 
 /* Recorded from whichever thread first touches Foundation. In a WebKit process
  * that is the thread that runs main(), because +load and static initialisers
@@ -435,6 +436,7 @@ static void tigerCaptureMainThread(void) __attribute__((constructor));
 static void tigerCaptureMainThread(void)
 {
     tigerMainThread = [[NSThread currentThread] retain];
+    tigerMainRunLoop = [[NSRunLoop currentRunLoop] retain];
 }
 
 @implementation NSThread (TigerCompat)
@@ -454,6 +456,54 @@ static void tigerCaptureMainThread(void)
     return self == tigerMainThread;
 }
 
+@end
+
+/* =========================================================================
+ * NSPropertyListSerialization
+ * ========================================================================= */
+
+@implementation NSPropertyListSerialization (TigerCompat)
+
+/* The 10.6 signature reports failure through an NSError rather than a string.
+ * Tiger's errorDescription is a caller-owned NSString, which is why it is
+ * released here; its text is carried into the error so nothing is lost. */
++ (id)propertyListWithData:(NSData *)data
+                   options:(NSUInteger)options
+                    format:(NSPropertyListFormat *)format
+                     error:(NSError **)error
+{
+    NSString *description = nil;
+    id result = [self propertyListFromData:data
+                          mutabilityOption:(NSPropertyListMutabilityOptions)options
+                                    format:format
+                          errorDescription:&description];
+    if (!result && error) {
+        NSDictionary *info = description
+            ? [NSDictionary dictionaryWithObject:description forKey:NSLocalizedDescriptionKey]
+            : nil;
+        *error = [NSError errorWithDomain:NSCocoaErrorDomain
+                                     code:NSPropertyListReadCorruptError
+                                 userInfo:info];
+    }
+    [description release];
+    return result;
+}
+
+@end
+
+/* =========================================================================
+ * NSRunLoop / NSCalendar
+ * ========================================================================= */
+
+@implementation NSRunLoop (TigerCompat)
++ (NSRunLoop *)mainRunLoop { return tigerMainRunLoop; }
+@end
+
+@implementation NSCalendar (TigerCompat)
++ (NSCalendar *)calendarWithIdentifier:(NSString *)identifier
+{
+    return [[[NSCalendar alloc] initWithCalendarIdentifier:identifier] autorelease];
+}
 @end
 
 /* =========================================================================
@@ -508,6 +558,14 @@ static long tigerSysctlLong(const char *name, long fallback)
 {
     return (NSUInteger)tigerSysctlLong("hw.activecpu", tigerSysctlLong("hw.ncpu", 1));
 }
+
+/* Reference-counted in the real implementation, so the count is kept even
+ * though nothing consumes it: a caller that pairs them incorrectly should not
+ * start behaving differently here than it does on a modern system. */
+static int tigerSuddenTerminationDisableCount;
+
+- (void)disableSuddenTermination { ++tigerSuddenTerminationDisableCount; }
+- (void)enableSuddenTermination  { --tigerSuddenTerminationDisableCount; }
 
 - (unsigned long long)physicalMemory
 {

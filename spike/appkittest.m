@@ -74,6 +74,25 @@ static BOOL sameColor(NSColor *a, NSColor *b)
            NSEqualPoints([view convertPointToBacking:NSMakePoint(3, 4)], NSMakePoint(3, 4)));
     expect("NSWindow -occlusionState is Visible",
            [window occlusionState] == NSWindowOcclusionStateVisible);
+    /* Window-to-screen conversion, the shape PopupMenu.mm uses to place the
+       <select> popup. These must be real translations, not identities. */
+    {
+        [window setFrameOrigin:NSMakePoint(120, 340)];
+        NSRect inWindow = NSMakeRect(10, 20, 50, 30);
+        NSRect onScreen = [window convertRectToScreen:inWindow];
+        NSPoint windowOrigin = [window frame].origin;
+        expect("-convertRectToScreen: translates by the window origin",
+               onScreen.origin.x == windowOrigin.x + 10
+               && onScreen.origin.y == windowOrigin.y + 20);
+        expect("-convertRectToScreen: preserves size",
+               onScreen.size.width == 50 && onScreen.size.height == 30);
+        expect("-convertRectToScreen: is not the identity",
+               !NSEqualRects(onScreen, inWindow));
+        NSRect roundTrip = [window convertRectFromScreen:onScreen];
+        expect("-convertRectFromScreen: round trips",
+               NSEqualRects(roundTrip, inWindow));
+    }
+
     expect("dot syntax on NSView/NSWindow",
            view.backingScaleFactor == 1.0f
            && window.occlusionState == NSWindowOcclusionStateVisible);
@@ -145,6 +164,82 @@ static BOOL sameColor(NSColor *a, NSColor *b)
         [menu release];
         [probeView release];
 #endif
+    }
+
+    /* ---- the triage batch from logs/appkit-selector-gaps.md ---- */
+    {
+        expect("NSWorkspace accessibility display settings are all NO",
+               ![[NSWorkspace sharedWorkspace] accessibilityDisplayShouldIncreaseContrast]
+               && ![[NSWorkspace sharedWorkspace] accessibilityDisplayShouldDifferentiateWithoutColor]
+               && ![[NSWorkspace sharedWorkspace] accessibilityDisplayShouldInvertColors]
+               && ![[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion]);
+
+        /* A real query, so the only safe assertion with no mouse held down is
+           that it answers without raising and reports nothing pressed. */
+        expect("NSEvent +pressedMouseButtons", [NSEvent pressedMouseButtons] == 0);
+
+        NSEvent *rightClick = [NSEvent mouseEventWithType:NSEventTypeRightMouseDown
+                                                 location:NSZeroPoint modifierFlags:0
+                                                timestamp:0 windowNumber:0 context:nil
+                                              eventNumber:0 clickCount:1 pressure:1.0f];
+        NSEvent *plainClick = [NSEvent mouseEventWithType:NSEventTypeLeftMouseDown
+                                                 location:NSZeroPoint modifierFlags:0
+                                                timestamp:0 windowNumber:0 context:nil
+                                              eventNumber:0 clickCount:1 pressure:1.0f];
+        NSEvent *controlClick = [NSEvent mouseEventWithType:NSEventTypeLeftMouseDown
+                                                   location:NSZeroPoint
+                                              modifierFlags:NSEventModifierFlagControl
+                                                  timestamp:0 windowNumber:0 context:nil
+                                                eventNumber:0 clickCount:1 pressure:1.0f];
+        expect("menuTypeForEvent: right click is a context menu",
+               [NSMenu menuTypeForEvent:rightClick] == NSMenuTypeContextMenu);
+        expect("menuTypeForEvent: control click is a context menu",
+               [NSMenu menuTypeForEvent:controlClick] == NSMenuTypeContextMenu);
+        expect("menuTypeForEvent: plain click is not",
+               [NSMenu menuTypeForEvent:plainClick] == NSMenuTypeNone);
+        expect("menuTypeForEvent: nil is not", [NSMenu menuTypeForEvent:nil] == NSMenuTypeNone);
+
+        expect("NSRunLoop +mainRunLoop is the current one here",
+               [NSRunLoop mainRunLoop] != nil
+               && [NSRunLoop mainRunLoop] == [NSRunLoop currentRunLoop]);
+        expect("NSCalendar +calendarWithIdentifier:",
+               [NSCalendar calendarWithIdentifier:NSGregorianCalendar] != nil);
+
+        NSProcessInfo *info = [NSProcessInfo processInfo];
+        [info disableSuddenTermination];
+        [info enableSuddenTermination];
+        expect("sudden termination pair is a no-op that returns", YES);
+
+        /* NSPropertyListSerialization, the 10.6 error-returning signature. */
+        NSDictionary *plist = [NSDictionary dictionaryWithObject:@"v" forKey:@"k"];
+        NSString *errorText = nil;
+        NSData *data = [NSPropertyListSerialization dataFromPropertyList:plist
+                            format:NSPropertyListXMLFormat_v1_0 errorDescription:&errorText];
+        NSPropertyListFormat format;
+        NSError *plistError = nil;
+        id parsed = [NSPropertyListSerialization propertyListWithData:data
+                        options:NSPropertyListImmutable format:&format error:&plistError];
+        expect("propertyListWithData:options:format:error:",
+               [[parsed objectForKey:@"k"] isEqualToString:@"v"] && plistError == nil);
+        plistError = nil;
+        id junk = [NSPropertyListSerialization
+                      propertyListWithData:[@"not a plist" dataUsingEncoding:NSASCIIStringEncoding]
+                                   options:NSPropertyListImmutable format:&format error:&plistError];
+        expect("propertyListWithData: reports an error",
+               junk == nil && plistError != nil && [[plistError domain] isEqualToString:NSCocoaErrorDomain]);
+
+        /* NSGraphicsContext, the 10.10 rename. */
+        {
+            CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+            CGContextRef bitmap = CGBitmapContextCreate(NULL, 8, 8, 8, 0, space,
+                                                        kCGImageAlphaPremultipliedFirst);
+            NSGraphicsContext *gc = [NSGraphicsContext graphicsContextWithCGContext:bitmap
+                                                                            flipped:NO];
+            expect("graphicsContextWithCGContext:flipped:",
+                   gc != nil && [gc graphicsPort] == bitmap && ![gc isFlipped]);
+            CGContextRelease(bitmap);
+            CGColorSpaceRelease(space);
+        }
     }
 
     /* ---- NSScreen ---- */
