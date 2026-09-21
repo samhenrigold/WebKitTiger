@@ -8,6 +8,8 @@
 /toolchain/cctools/
 /toolchain/llvm-tiger/
 /toolchain/sysroot-i386/
+# Apple's own ld64-97.17, extracted from the Xcode 3.2.6 dmg; reference linker, not redistributable
+/toolchain/apple-ld64-97/
 /refs/*
 !/refs/README.md
 !/refs/webkit-history/

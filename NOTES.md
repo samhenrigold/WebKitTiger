@@ -486,3 +486,27 @@ one triage pass before it was noticed. See the triage table at the end of
   commands must be demoted for dyld-46). CoreFoundation and the ObjC runtime work; CoreGraphics faults in CGBitmapContextCreate
   (being isolated with gdb); CoreText/ImageIO untested pending a context. Flat namespace is a spike technique; per-binary import
   repointing is the shipping form.
+
+## Reference linker: toolchain/apple-ld64-97/ld (Rosetta) — 2026-09-20 22:30
+- Apple's own **ld64-97.17**, the linker Xcode 3.2.6 shipped, extracted from /Users/shg/Downloads/xcode_3.2.6_and_ios_sdk_4.3.dmg
+  (`Packages/DeveloperToolsCLI.pkg` -> `xar -xf ... Payload` -> `gzip -dc Payload | cpio -id ./usr/bin/ld`). Universal i386/x86_64,
+  **no ppc**, so run it as `arch -x86_64 toolchain/apple-ld64-97/ld ...` under Rosetta 2. Gitignored (not redistributable);
+  re-extract with the recipe above. `arch -x86_64 toolchain/apple-ld64-97/ld -v` prints `PROJECT:ld64-97.17`.
+- Use it as an oracle when a link looks wrong, not as the build linker: it takes classic options only
+  (`-macosx_version_min 10.4`, not `-platform_version`), knows nothing of LTO or `-mllvm`, and **re-roots `-L` paths under
+  `-syslibroot`**, so an absolute `-L` outside the SDK is silently dropped and `-lfoo` can resolve to the SDK's dylib instead
+  of our static archive. Pass archives by full path when comparing. It reads LLVM 21's x86_64 objects without complaint.
+- **Validation of our patched cctools ld64 against it** (x86_64, `-macosx_version_min 10.4`, same objects, three programs:
+  the libcrypto/HMAC repro, a C++ throw/catch test and a static-libc++ std::sort/std::string test). All six binaries run
+  **identically on the box**. Findings:
+  - Both take the **classic** path: `dyld_stub_binding_helper`, no LC_DYLD_INFO, no `dyld_stub_binder`. This is the direct
+    confirmation that the classic-stub fix restores Apple's own behaviour rather than working around it.
+  - **Symbol tables are identical**, except that ld64-97 drops the local `GCC_except_table*` labels and we keep them. Keeping
+    them is what we want anyway (LINK RULE 2).
+  - Section **names** differ, same roles: ours `__stubs` / `__got`, ld64-97 `__symbol_stub1` / `__nl_symbol_ptr`. Stub helper
+    size is byte-identical (0x498 for the libcrypto case); ours places `__stub_helper` right after the stubs, ld64-97 puts it
+    after `__const`. No `__IMPORT` segment in either (that is an i386-only classic thing).
+  - We emit three load commands ld64-97 does not: LC_VERSION_MIN_MACOSX, LC_FUNCTION_STARTS, LC_DATA_IN_CODE. Tiger's 64-bit
+    dyld ignores them (all three binaries run), so they are harmless, but they are the only load-command difference.
+- `sdk/MacOSX10.6.sdk` also came out of that dmg (`Packages/MacOSX10.6.pkg`), read-only like the other two, for reference
+  headers only. Never build against it: it declares 10.6 API that Tiger does not have.
