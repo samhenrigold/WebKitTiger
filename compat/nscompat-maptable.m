@@ -39,7 +39,16 @@ static BOOL tigerOptionsUsePointerIdentity(NSUInteger options)
     return (options & 0xff00) != NSPointerFunctionsObjectPersonality;
 }
 
+/* The C accessors below are plain functions, not methods, so they cannot touch a
+ * @private ivar directly. This is how they reach the backing table. */
+@interface NSMapTable (TigerBacking)
+- (NSMapTableCStruct *)tigerBackingTable;
+@end
+
 @implementation NSMapTable
+
+- (NSMapTableCStruct *)tigerBackingTable { return (NSMapTableCStruct *)_table; }
+
 
 + (id)strongToStrongObjectsMapTable
 {
@@ -177,6 +186,26 @@ static BOOL tigerOptionsUsePointerIdentity(NSUInteger options)
 }
 
 
+/* JSManagedValue -dealloc copies its owner table so it can enumerate a stable
+ * snapshot while removing references. Tiger's NSCopyMapTableWithZone carries the
+ * callbacks over, so the copy keeps the same retain and hashing behaviour. */
+- (id)copyWithZone:(NSZone *)zone
+{
+    NSMapTable *copy = [[[self class] allocWithZone:zone]
+        initWithKeyOptions:_keyOptions valueOptions:_valueOptions capacity:0];
+    if (!copy)
+        return nil;
+
+    NSMapTableCStruct *duplicate = NSCopyMapTableWithZone((NSMapTableCStruct *)_table, zone);
+    if (!duplicate) {
+        [copy release];
+        return nil;
+    }
+    NSFreeMapTable((NSMapTableCStruct *)copy->_table);
+    copy->_table = duplicate;
+    return copy;
+}
+
 /* for-in over an NSMapTable yields its keys, matching 10.5+. */
 - (NSUInteger)countByEnumeratingWithState:(NSFastEnumerationState *)state
                                   objects:(__unsafe_unretained id *)buffer
@@ -204,3 +233,38 @@ static BOOL tigerOptionsUsePointerIdentity(NSUInteger options)
 }
 
 @end
+
+/* =========================================================================
+ * The C accessors, taking the class.
+ *
+ * Modern Foundation keeps these alongside the object-typed methods because a
+ * map table may hold raw integers or opaque pointers under a non-object
+ * personality, where -setObject:forKey: would be wrong. JavaScriptCore relies
+ * on exactly that: JSManagedValue and JSVirtualMachine store reference counts
+ * as values. So these go straight to the backing table and never message what
+ * they are handed.
+ *
+ * nil is tolerated rather than crashing, which costs nothing and is one less
+ * way for a Tiger-only code path to fail obscurely.
+ * ========================================================================= */
+
+void *NSMapGet(NSMapTable *table, const void *key)
+{
+    if (!table || !key)
+        return NULL;
+    return NSMapGetCStruct([table tigerBackingTable], key);
+}
+
+void NSMapInsert(NSMapTable *table, const void *key, const void *value)
+{
+    if (!table || !key)
+        return;
+    NSMapInsertCStruct([table tigerBackingTable], key, value);
+}
+
+void NSMapRemove(NSMapTable *table, const void *key)
+{
+    if (!table || !key)
+        return;
+    NSMapRemoveCStruct([table tigerBackingTable], key);
+}

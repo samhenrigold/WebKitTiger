@@ -728,3 +728,85 @@ scripting.
   there is a reason to rebuild everything anyway.
 - `jsc` prints `_NSAutoreleaseNoPool` warnings at startup. Cosmetic, but those
   objects leak.
+
+## Round 3 consolidation
+
+The stopgap aligned allocator is gone and the platform's is proven. With
+`libcompat.c`'s real `posix_memalign` (malloc at or below 16 bytes, valloc to a
+page, above that an mmap'd region registered as a malloc zone so plain `free()`
+finds it), `aligned_alloc` is back to a plain inline over it in
+`tigerprelude.h`, `tiger_aligned_free` is deleted, and bmalloc's `free()` is
+back to `::free`. Note `libcompat.c` does **not** itself provide `aligned_alloc`;
+the inline in the prelude is still where it comes from.
+
+One related fix stays: `SystemHeap::free` called
+`malloc_zone_free(m_zone, ...)` with `m_zone` forced to the default zone on
+Tiger, which would not free a block from the new aligned zone. It calls plain
+`free()` under `BPLATFORM(TIGER)`, which consults every registered zone.
+
+Proven from a clean build, all on the box, all exit 0: the smoke test, the
+allocation-shape test, the GC stress run, and the round-2 script set.
+
+CoreGraphics is un-gated in WTF and JavaScriptCore again, now that the CG hooks
+no longer reach the ApplicationServices umbrella. The `AssertMacros.h` overlay
+stays, because anything that includes the CoreGraphics *umbrella* still pulls
+CoreServices by the SDK's own design.
+
+### Performance against the 2007 baseline
+
+The JS timing loop from `spike/TigerBrowser/testpages/script.html`, verbatim,
+under our `jsc` on the box:
+
+| Run | Time |
+|---|---|
+| 1 | 2230 ms |
+| 2 | 2236 ms |
+| 3 | 2259 ms |
+
+Against the 5.3 s baseline of Tiger's own 2007 JIT-less JavaScriptCore, that is
+**about 2.4x faster** — with the C loop interpreter and no JIT at all.
+
+### Upstream-worthy bugs found
+
+Two changes in this port are not Tiger-specific and are bugs in current WebKit:
+
+1. **`AvailableMemory.cpp` returns a RAM size of zero on a 32-bit build of a
+   machine with more RAM than `size_t` can hold.** `memorySizeAccordingToKernel()`
+   clamps to `SIZE_MAX`, then `computeAvailableMemory()` rounds up to a 128 MB
+   multiple, which overflows. A zero `ramSize()` makes `CompleteSubspace` refuse
+   every large allocation; it presents as `RangeError: Out of memory` from
+   `Array.prototype.push` at about a thousand elements. Reproducible on any
+   32-bit host with more than 4 GB.
+
+2. **`API/JSRemoteInspector.cpp` does not build with `ENABLE(REMOTE_INSPECTOR)`
+   off on a Cocoa platform.** Every other `RemoteInspector` use in the file is
+   guarded; `defaultStateForRemoteInspectionEnabledByDefault()` guards its own
+   only with `PLATFORM(COCOA)`.
+
+Neither needs Tiger to reproduce.
+
+### The Objective-C JavaScriptCore API: ready, waiting on two shims
+
+The patched clang accepts `@implementation` instance variables and property
+auto-synthesis on the fragile runtime, so the original reason for disabling the
+API is gone. Turning it on now leaves exactly two gaps, both outside the WebKit
+tree and both asked for:
+
+- `objc_storeWeak` and `objc_loadWeak` are implemented in `compat/arc.m` but
+  declared nowhere, and `wtf/WeakObjCPtr.h` calls them from a non-ARC
+  translation unit.
+- The `NSMapTable` C functions (`NSMapGet`, `NSMapInsert`, `NSMapRemove`,
+  `NSFreeMapTable`, the enumerator pair) take Tiger's C struct, but
+  `JSManagedValue.mm` and `JSWrapperMap.mm` pass the class, which is what modern
+  Foundation supports.
+
+`SourcesTiger.txt` says so at the top and is a delete-me file: remove it and
+restore `SourcesCocoa.txt` in `PlatformCocoa.cmake` when both land.
+`JSRemoteInspector.cpp`'s guard fix is kept either way, since it is needed
+whenever the remote inspector is off.
+
+Not stripping local symbols matters now: objcrt's JSExport support recovers
+protocol ext records through clang's `__OBJC_PROTOCOLEXT_<Name>` local symbols.
+Nothing in `tiger.cmake` strips, and the only strip-adjacent link flag is
+`-dead_strip`, which removes unreferenced atoms rather than symbol-table
+entries. Worth re-checking on the first JSExport test.

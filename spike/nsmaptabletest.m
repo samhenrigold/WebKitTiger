@@ -98,6 +98,70 @@ int main(void)
     [k1 release];
     [k2 release];
 
+    /* ---- the C accessors, taking the class, exactly as JavaScriptCore uses
+       them: opaque pointer keys and reference counts as values. This is the
+       shape in JSManagedValue -didAddOwner: and JSVirtualMachine. ---- */
+    {
+        NSPointerFunctionsOptions weakIDOptions =
+            NSPointerFunctionsWeakMemory | NSPointerFunctionsObjectPersonality;
+        NSPointerFunctionsOptions integerOptions =
+            NSPointerFunctionsOpaqueMemory | NSPointerFunctionsIntegerPersonality;
+        NSMapTable *counts = [[NSMapTable alloc] initWithKeyOptions:weakIDOptions
+                                                       valueOptions:integerOptions
+                                                           capacity:1];
+        NSObject *owner = [[NSObject alloc] init];
+
+        expect("NSMapGet on an absent key is NULL", NSMapGet(counts, owner) == NULL);
+
+        /* -didAddOwner: increments a count held as the raw value. */
+        size_t count = (size_t)NSMapGet(counts, owner);
+        NSMapInsert(counts, owner, (const void *)(count + 1));
+        expect("NSMapInsert stores a raw integer value",
+               (size_t)NSMapGet(counts, owner) == 1 && [counts count] == 1);
+
+        count = (size_t)NSMapGet(counts, owner);
+        NSMapInsert(counts, owner, (const void *)(count + 1));
+        expect("NSMapInsert overwrites", (size_t)NSMapGet(counts, owner) == 2);
+
+        NSMapRemove(counts, owner);
+        expect("NSMapRemove", [counts count] == 0 && NSMapGet(counts, owner) == NULL);
+
+        expect("C accessors tolerate a nil table",
+               NSMapGet(nil, owner) == NULL);
+
+        /* An opaque, non-object key must never be messaged. */
+        NSPointerFunctionsOptions opaqueOptions =
+            NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality;
+        NSMapTable *opaqueKeyed = [[NSMapTable alloc] initWithKeyOptions:opaqueOptions
+                                                            valueOptions:integerOptions
+                                                                capacity:0];
+        static const char marker[] = "not an object";
+        NSMapInsert(opaqueKeyed, marker, (const void *)7);
+        expect("C accessors with an opaque key",
+               (size_t)NSMapGet(opaqueKeyed, marker) == 7);
+
+        /* -copy, which JSManagedValue -dealloc uses to enumerate a snapshot. */
+        NSMapInsert(counts, owner, (const void *)3);
+        NSMapTable *snapshot = [counts copy];
+        expect("-copy carries the contents",
+               [snapshot count] == 1 && (size_t)NSMapGet(snapshot, owner) == 3);
+        NSMapRemove(counts, owner);
+        expect("-copy is independent of the original",
+               [counts count] == 0 && [snapshot count] == 1);
+        {
+            int walked = 0;
+            NSEnumerator *e = [snapshot keyEnumerator];
+            while ([e nextObject])
+                ++walked;
+            expect("-copy is enumerable", walked == 1);
+        }
+
+        [snapshot release];
+        [opaqueKeyed release];
+        [owner release];
+        [counts release];
+    }
+
     printf("\n%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASS",
            failures, failures == 1 ? "" : "s");
     [pool drain];

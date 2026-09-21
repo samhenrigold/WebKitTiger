@@ -121,7 +121,7 @@ PIC = re.compile(r'___i686\.get_pc_thunk\.([a-z]{2})')
 GLOBAL = re.compile(r'0x[0-9a-f]+\(%e([a-z]{2})\)')
 QUIET = {"pushl", "popl", "movl", "mov", "ret", "retl", "leave", "nop", "push", "pop"}
 
-def stub_kind(body, acc, modern):
+def stub_kind(body, acc, modern, tiger_nargs=None):
     """Classify a body as an empty stub, a fixed-global-return stub, or neither."""
     if not body: return None
     mnems = [op for op, _ in body]
@@ -152,8 +152,9 @@ def stub_kind(body, acc, modern):
     # Gated on the prototype declaring at least one argument, because a zero-argument
     # function returning a constant is just a constant (CFArrayGetTypeID and the
     # other type-ID getters trip this otherwise).
+    nargs = len(modern["plist"]) if modern else tiger_nargs
     if ret_at is not None and ret_at <= 7 and not acc and ncall == 0 \
-            and modern and len(modern["plist"]) >= 1:
+            and nargs is not None and nargs >= 1:
         return ("const", "returns a constant without reading any argument")
 
     # Mode 2 -- fixed-global-return stub. No real call, at least one PIC-relative
@@ -170,7 +171,8 @@ def stub_kind(body, acc, modern):
                for m in GLOBAL.finditer(args)):
         return None
     if sorted(acc) != [8]: return None
-    if not modern or len(modern["plist"]) < 1: return None
+    if (len(modern["plist"]) if modern else (tiger_nargs or 0)) < 1: return None
+    if not modern: return ("global?", "reads only arg 0 and a global; no modern prototype to confirm sret")
     if "sret" not in modern["notes"]:
         # Slot 0 is a real first argument, not a hidden sret: the function does
         # read something. Tiger's CGLayerGetSize looks like this -- it reads the
@@ -216,6 +218,41 @@ def ir_struct_sizes(ir_path):
             if m: return int(m.group(1)) * size(m.group(2), seen)
         return 4
     return {t: size(t) for t in defs}
+
+
+def tiger_lowering(names, workdir):
+    """Lower the same names against the 10.4u SDK with tiger-clang.
+
+    Only used to answer "does this function declare any arguments?" for the stub
+    modes. The modern SDK drops API that Tiger still ships, and without this
+    fallback the gate silently discards real stubs: CTFontCreateUIFontForLocale,
+    CTFontCreateWithQuickdrawNameAndStyle and CTRunGetEmbeddedObject are each
+    `xorl %eax,%eax; ret` and each undeclared in the Xcode 27 SDK.
+
+    It is deliberately NOT used for the size comparison, where checking Tiger's
+    code against Tiger's own header would be circular."""
+    hdr = ("#include <CoreFoundation/CoreFoundation.h>\n"
+           "#include <ApplicationServices/ApplicationServices.h>\n")
+    cur, src = list(names), os.path.join(workdir, "tdecls.c")
+    ir = os.path.join(workdir, "tir.ll")
+    for _ in range(20):
+        open(src, "w").write(hdr + "\n".join(
+            "void* u_%d=(void*)&%s;" % (i, n) for i, n in enumerate(cur)) + "\n")
+        r = subprocess.run([os.path.join(ROOT, "toolchain/bin/tiger-clang"),
+                            "-S", "-emit-llvm", "-Wno-everything", "-o", ir, src],
+                           capture_output=True, text=True)
+        if r.returncode == 0: break
+        bad = set()
+        for pat in (r"use of undeclared identifier '([A-Za-z0-9_]+)'",
+                    r"'([A-Za-z0-9_]+)' is unavailable"):
+            bad.update(m.group(1) for m in re.finditer(pat, r.stderr))
+        if not bad: return {}
+        cur = [n for n in cur if n not in bad]
+    out = {}
+    for line in open(ir):
+        m = DECL.match(line.rstrip())
+        if m: out[m.group(1)] = len(split_params(m.group(2)))
+    return out
 
 
 def modern_lowering(names, workdir):
@@ -317,6 +354,7 @@ def main(argv):
                     "CTLineGetTypographicBounds"]
 
     modern, dropped = modern_lowering(screened, workdir)
+    tnargs = tiger_lowering(sorted(dropped), workdir) if dropped else {}
     dis = {fw: disassemble(FRAMEWORKS[fw][0]) for fw in fws}
 
     clean, cands, undet, shape, under, stubs = [], [], [], [], [], []
@@ -326,7 +364,7 @@ def main(argv):
         m = modern.get(n)
         row = (n, counts.get(n, 0), m, t)
         if t["status"] == "ok":
-            k = stub_kind(dis[fw].get(n, []), t["acc"], m)
+            k = stub_kind(dis[fw].get(n, []), t["acc"], m, tnargs.get(n))
             if k: stubs.append((n, counts.get(n, 0), k[0], k[1]))
         if not m or t["status"] != "ok": undet.append(row); continue
         for off, _, kind in m["plist"]:

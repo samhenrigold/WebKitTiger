@@ -42,6 +42,7 @@
  *     -ltigercompat -framework ApplicationServices
  */
 #include <CoreGraphics/CoreGraphics.h>
+#include <ApplicationServices/ApplicationServices.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +50,16 @@
 /* Tiger exports this but the 10.4u SDK does not declare it; private-but-exported
    Tiger API is fair game on this port (see NOTES.md). */
 CG_EXTERN void CGContextSetAllowsFontSmoothing(CGContextRef context, bool allows);
+
+/* Private but exported, and the interesting ones: Tiger carries a PER-FONT
+   antialias flag, stored in a bit at font+0x3c (verified in the disassembly of
+   _CGFontSetShouldAntialias). If the rasterizer honours it, this is the faithful
+   target for CGContextSetShouldAntialiasFonts -- it would alias glyphs without
+   aliasing shapes, which the context-wide CGContextSetShouldAntialias cannot do.
+   Storing a bit and honouring it are different things, so this measures. */
+CG_EXTERN void CGFontSetShouldAntialias(CGFontRef font, int shouldAntialias);
+CG_EXTERN int CGFontShouldAntialias(CGFontRef font);
+CG_EXTERN CGFontRef CGFontCreateWithPlatformFont(void *platformFontReference);
 
 #define W 96
 #define H 24
@@ -192,6 +203,89 @@ int main(void)
     report("allows font smoothing false, should true", &a);
     report("allows font smoothing true,  should true", &b);
     expect("CGContextSetAllowsFontSmoothing gates the should-flag", !samePixels(&a, &b));
+
+    /* Everything above draws through CGContextSelectFont/ShowTextAtPoint, which
+       needs no CGFontRef. WebCore does not: it draws glyph IDs through
+       CGContextShowGlyphsWithAdvances from a CGFontRef. Redo the measurement on
+       that path, and test Tiger's private per-font antialias flag while we have
+       a CGFontRef in hand. CGFontCreateWithFontName and
+       CGFontCreateWithDataProvider both return NULL on Tiger, so the only route
+       is ATS. */
+    printf("\n-- the path WebCore actually uses: CGFontRef + ShowGlyphsWithAdvances\n");
+    {
+        ATSFontRef ats = ATSFontFindFromName(CFSTR("Helvetica"), kATSOptionFlagsDefault);
+        CGFontRef font = (ats != kATSFontRefUnspecified) ? CGFontCreateWithPlatformFont(&ats) : NULL;
+        printf("    ATSFontFindFromName -> %lu, CGFontCreateWithPlatformFont -> %p\n",
+               (unsigned long)ats, (void *)font);
+        expect("a CGFontRef is obtainable at all", font != NULL);
+        if (font) {
+            /* Glyph IDs via CoreText, which Tiger has privately. */
+            CTFontRef ct = CTFontCreateWithGraphicsFont(font, 14.0, NULL, NULL);
+            static const UniChar chars[] = { 'H','a','m','b','u','r','g','e','f','o','n','s' };
+            enum { NG = sizeof chars / sizeof *chars };
+            CGGlyph glyphs[NG];
+            CGSize advances[NG];
+            int haveGlyphs = 0;
+            if (ct && CTFontGetGlyphsForCharacters(ct, chars, glyphs, NG)) {
+                haveGlyphs = 1;
+                CTFontGetAdvancesForGlyphs(ct, 0, glyphs, advances, NG);
+            }
+            expect("glyph IDs came back from CoreText", haveGlyphs);
+
+            if (haveGlyphs) {
+                Shot g1, g2, g3;
+                /* helper: render the glyph run with a given knob setting */
+                #define GLYPHRUN(shot, setup) do {                                     \
+                    CGColorSpaceRef _rgb = CGColorSpaceCreateDeviceRGB();               \
+                    memset((shot).px, 0xFF, sizeof (shot).px);                          \
+                    CGContextRef _c = CGBitmapContextCreate((shot).px, W, H, 8, STRIDE,  \
+                                        _rgb, kCGImageAlphaNoneSkipLast);               \
+                    CGColorSpaceRelease(_rgb);                                          \
+                    (shot).inked = (shot).grey = (shot).fringed = 0;                    \
+                    if (_c) {                                                           \
+                        CGContextSetRGBFillColor(_c, 0, 0, 0, 1);                        \
+                        CGContextSetFont(_c, font);                                      \
+                        CGContextSetFontSize(_c, 14.0);                                  \
+                        CGContextSetTextDrawingMode(_c, kCGTextFill);                    \
+                        setup;                                                           \
+                        CGContextSetTextPosition(_c, 2, 6);                              \
+                        CGContextShowGlyphsWithAdvances(_c, glyphs, advances, NG);        \
+                        CGContextRelease(_c);                                            \
+                        for (int _y = 0; _y < H; ++_y)                                    \
+                        for (int _x = 0; _x < W; ++_x) {                                  \
+                            const unsigned char *_p = (shot).px + _y * STRIDE + _x * 4;   \
+                            if (_p[0] != 255 || _p[1] != 255 || _p[2] != 255) ++(shot).inked; \
+                            for (int _k = 0; _k < 3; ++_k)                                 \
+                                if (_p[_k] != 0 && _p[_k] != 255) { ++(shot).grey; break; } \
+                            if (_p[0] != _p[2]) ++(shot).fringed;                          \
+                        }                                                                  \
+                    }                                                                      \
+                } while (0)
+
+                GLYPHRUN(g1, CGContextSetShouldSmoothFonts(_c, true));
+                GLYPHRUN(g2, CGContextSetShouldSmoothFonts(_c, false));
+                report("glyph run, smooth fonts on", &g1);
+                report("glyph run, smooth fonts off", &g2);
+                expect("glyphs draw through ShowGlyphsWithAdvances", g1.inked > 0);
+                expect("SetShouldSmoothFonts changes the glyph path", !samePixels(&g1, &g2));
+
+                /* The private per-font flag. */
+                CGFontSetShouldAntialias(font, 0);
+                printf("    CGFontShouldAntialias after setting 0 -> %d\n", CGFontShouldAntialias(font));
+                GLYPHRUN(g3, (void)0);
+                report("glyph run, CGFontSetShouldAntialias(0)", &g3);
+                CGFontSetShouldAntialias(font, 1);
+                expect("the per-font flag is stored", CGFontShouldAntialias(font) != 0);
+                expect("the per-font antialias flag is honoured by the rasterizer",
+                       g3.grey == 0 && g3.inked > 0);
+                if (g3.grey > 0)
+                    printf("    NOTE: the flag is stored but the rasterizer ignores it\n");
+                #undef GLYPHRUN
+            }
+            if (ct) CFRelease(ct);
+            CGFontRelease(font);
+        }
+    }
 
     printf("\n%s (%d measured difference%s from the documented behaviour)\n",
            failures ? "DIFFERENCES FOUND" : "everything behaved as documented",
