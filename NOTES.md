@@ -2122,3 +2122,140 @@ moment the archive lands.
   were reverted.
 - Note for the real UI process: **set all three scale factors**. A zero there is not a crash and not
   a warning, it is a blank window.
+
+## 2026-09-21 — gpu32: libWebCore.a links, and the display-list replay matches CoreGraphics exactly
+
+***** GATE PASSED. A WebCore display list, recorded the way the 64-bit web process records one and
+replayed through `GraphicsContextCG` into an `ImageBuffer` on `ImageBufferCGBitmapBackend`, is
+**bit-identical** to the same drawing done by hand in CoreGraphics on the 10.4.11 machine: **0
+differing pixels of 65536, worst channel delta 0.** *****
+
+`build/tiger-gpu/lib/libWebCore.a` is 121 MB and exists for the first time. Commits: WebKit
+d76d5dc7 (the WebCore census), root 130c782 (the spike), WebKit 2656578e / 68ef3d5f / 62e34c5f
+(the i386 WebKit2 arm, the CALayer WCScene and the IPC condition below).
+
+### The last WebCore census, passes 17-21
+
+Six translation units stood between pass 16 and the archive, and it took five passes for twenty
+files for the reason this file keeps recording: **each fatal include hides the errors behind it**,
+so a TU fixed in one pass comes back in the next with a different, real complaint. PlatformScreenMac
+alone appeared in four consecutive passes.
+
+Real Tiger paths, not exclusions:
+
+| file | what 10.4 answers |
+|---|---|
+| PlatformScreenMac | **`CGDirectDisplayID` is an opaque pointer on 10.4**, not the uint32 the window server reports as `NSScreenNumber` and WebCore carries as `PlatformDisplayID`. Same value, different declared type, so the two CoreGraphics calls need a cast and then both answer. `-[NSScreen colorSpace]` (10.6), `-backingScaleFactor` (10.7) and the P3 gamut query (10.12) get sRGB, 1 and false |
+| PowerObserverMac | `IONotificationPortSetDispatchQueue` is 10.6; adding the port's run-loop source to the main run loop is the 10.4 way to say the same thing, and because the callback then arrives on the main thread the `CFRunLoopPerformBlock` hop is not needed either |
+| IconCocoa | `-[NSImage initWithCGImage:size:]` is 10.6 and `-[NSBitmapImageRep CGImage]` is 10.5. Both directions go through AppKit's own drawing instead: `lockFocus` + `CGContextDrawImage` in, `-drawInRect:` into our CGContext out |
+| DragControllerMac, RenderThemeMac, ImageAdapterCocoa, EditorMac | the UTType identifiers as the 10.4 strings they are |
+| MemoryReleaseCocoa | `HAVE(IOSURFACE)` is already 0 here; the two calls were simply unguarded |
+| EditorCocoa | `NSPasteboardNameFind` / `NSPasteboardNameGeneral` are the 10.13 spellings of `NSFindPboard` / `NSGeneralPboard` |
+
+The HDR blocks in PlatformScreenMac are the clearest instance of the pattern this port keeps
+finding: they were guarded on `HAVE(AVPLAYER_VIDEORANGEOVERRIDE)`, which is `PLATFORM(MAC)`, but
+every name inside comes from PAL's AVFoundation soft-link header, which is `USE(AVFOUNDATION)`.
+**`USE(AVFOUNDATION)` is the condition that block always meant.** `USE(MEDIATOOLBOX)` is the one
+that got a `!PLATFORM(TIGER)` instead of its real condition, with a `ponytail:` marker saying so:
+it should be 0 for this port, and clearing it is a PlatformUse.h edit, which costs a full rebuild.
+Fold it into the next batched flag change.
+
+Excluded, each with its reason in PlatformCocoa.cmake: TextAlternativeWithRange (10.8),
+WebTextIndicatorLayer (a CALayer subclass), RevealUtilities and DictionaryLookup (Reveal.framework
+is 10.14 and its SPI header drags in the 10.10 immediate-action recognizer), CorrectionIndicator
+(10.7), TextUndoInsertionMarkupMac (10.6) and EditingHTMLConverter.
+
+### spike/gpureplay: three bugs, two of them in the spike
+
+**1. `-DNDEBUG` is not cosmetic, it is ABI.** WTF's `RefCounted`, `Ref` and the ASSERT-carrying
+value types change *layout* with assertions on. The spike was built without it and read every
+WebCore object at the wrong offsets: the symptom was a `PixelBuffer` reporting itself as
+133189632x262144 with a 1.6 GB span, whose bytes read as zeros and whose destructor crashed in
+`CFRelease`. Hours went into "the replay draws nothing" before that was the answer.
+**Rule: a program that links this port's archives must repeat the target's own flags exactly** --
+`-O3 -DNDEBUG -fno-threadsafe-statics -fcoroutines -DPAS_BMALLOC -DWEBRTC_WEBKIT_BUILD` and the
+libc++ hardening mode -- not approximate them. `grep -m1 "FLAGS = " build/<dir>/build.ninja` is the
+list.
+
+**2. A pixel comparison has to set its colours in the context's own colour space.**
+`CGContextSetRGBFillColor` means *device* RGB, and CoreGraphics then converts device RGB to the
+context's sRGB, which moves a saturated colour by as much as 57 levels per channel. The first
+honest run was 22380 differing pixels of 65536, worst delta 57, and all of it was that conversion --
+the replay was already right. `CGColorCreate` in the same space on the direct side, and the two
+agree bit for bit.
+
+**3. `JSC::initialize()`**, because the buffer `getPixelBuffer` hands back is a JSC
+`Uint8ClampedArray` even in a process that runs no script.
+
+**383 undefined symbols** stood between the archive and the link: the excluded accessibility,
+pasteboard, media-session, drag, scrolling-tree and web-archive files, the JSC Objective-C API, and
+the private 10.5-10.15 CoreUI/AppKit/CoreFoundation symbols. `spike/gpureplay/tombstones.s` is
+generated from the linker's own list (link once with `-undefined dynamic_lookup`, `nm -u`, demangle,
+intersect) and gives each 256 zero bytes, so anything that reaches one crashes there rather than
+quietly misbehaving. Five are Objective-C class references, which in the fragile runtime have to be
+real classes rather than addresses, so they are empty `@implementation`s.
+**MIMETypeRegistry and ScrollbarThemeMac are in that list and are the two the GPU process itself
+will need**; they are the first two to bring back with real Tiger implementations (LaunchServices
+for the first -- `UTIUtilitiesTiger.mm` already has the machinery -- and the Tiger NSScroller path
+in `compat/aquacontrols.m` for the second).
+
+**The on-screen half does not work yet.** A window opened by a process launched over ssh never comes
+up: every step to `setContentView:` prints, and `makeKeyAndOrderFront:` blocks. Launching through
+`open` (the documented escape hatch, with a marker file because Tiger's `open` has no `--args`)
+produced no window either. `spike/gpureplay/gpureplay.png` is therefore the desktop, not the tile.
+The headless number is measured; the compositing half is not.
+
+### The i386 WebKit2 arm, and the condition upstream never had to separate
+
+`Source/WebKit/PlatformTiger.cmake`'s `if (NOT TIGER64)` branch is written and no longer falls
+through to PlatformCocoa: unix IPC, `Shared/unix/AuxiliaryProcessMain.cpp`, Platform/WC.cmake **with
+its GPU half kept** (this is the side that replays), `GPUProcess/EntryPoint/unix/GPUProcessMain.cpp`,
+`GPUProcess_OUTPUT_NAME TigerGPUProcess`, `-dead_strip`. `GPUProcess/tiger/GPUProcessTiger.cpp` is
+**shared rather than deleted**: the x86_64 arm needs it for GPUProcess's vtable and this arm needs
+the same four empty implementations for real, because a headless process has no sandbox to
+initialize and no process name to set. `WCSceneTiger.cpp` is correctly absent here.
+
+`GPUProcess/graphics/wc/tiger/WCSceneCA.mm` is the real `WCScene` for this port: spike/CAHost's
+`tigerca::Scene`, whose vocabulary was written against `WCLayerUpdateInfo` field for field, applied
+to real CALayers. Two differences from the spike: tiles arrive as `WCBackingStore`'s ShareableBitmap,
+so `createPlatformImage(DontCopyBackingStore)` is the no-copy path and the mmap'd TileStore
+disappears; and `CATransform3D` is still converted element by element from the 16 doubles of a
+`TransformationMatrix`, because CGFloat is float on i386 and a memcpy collapses the layer to a
+degenerate frame.
+
+The finding worth carrying:
+
+> **"This connection is Mach" is not "this is a Cocoa platform."** The i386 GPU/UI process is the
+> first port ever to be `PLATFORM(COCOA)` *and* `USE(UNIX_DOMAIN_SOCKETS)`. It has AppKit and
+> CoreGraphics, so PLATFORM(COCOA) is true; 10.4 has no XPC, and it must speak the same transport
+> as its x86_64 peer. Upstream never needed the two conditions apart, so `Connection.h`'s whole
+> Mach/XPC surface -- transport headers, `xpcConnection()`, the audit token, the Mach `Identifier`,
+> `kill()`, the `MachMessage` send path -- and `Decoder`'s `ImportanceAssertion` (a Mach message
+> voucher, 10.9) are guarded on `PLATFORM(COCOA)` alone. Each is now
+> `PLATFORM(COCOA) && !USE(UNIX_DOMAIN_SOCKETS)`, which makes the i386 side see exactly the IPC
+> surface the x86_64 side sees. That is not a convenience: it is the wire agreeing.
+
+`WebKitPrefix.h`'s `PLATFORM(MAC)` block names CoreAudioTypes, Network, simd, CoreMedia and
+os/signpost -- 10.7 to 10.14 -- so the i386 build gets the members of it 10.4 has.
+
+### Status and what is next
+
+`bin/TigerGPUProcess` is **not linked yet**. The WebKit target's i386 compile is at the stage the
+WebCore one was at pass 8: the PCH builds, and the first real census is the generated serializers --
+`GeneratedSerializers.h` has a `SecTrust` typedef conflict (`__SecTrust` vs Tiger's
+`OpaqueSecTrustRef`) and duplicate `ArgumentCoder` specializations for `ResourceRequest` and
+`Credential`, which is the curl arm and the CFNetwork arm both being generated because
+`PLATFORM(COCOA)` is on. That is the same class of problem the curl/openssl switch solved in
+WebCore, one level up, and it is the next piece of work.
+
+For whoever picks this up, in order: that serializer census; the TigerGPUProcess link, whose
+undefineds will be a subset of the 383 in `tombstones.s` with MIMETypeRegistry and ScrollbarThemeMac
+first; then the i386 build of `spike/wk2web/wk2-driver.c` (it cross-compiles and runs on the box
+unchanged -- the argv contract is the same for every process) for startup, RSS and EOF-exit numbers;
+then `tiger-check-ipc` against build/tiger-web-port.
+
+Two operational notes. The machine is shared with the x86_64 build and with whoever is editing
+`Source/WTF/wtf/PlatformTigerWire.h` or the `.serialization.in` inputs: those regenerate WTF's
+headers, which invalidates the PCH and starts a ~1165-edge rebuild under you, with offlineasm's
+serial spike in the middle. And the on-screen ssh/window problem above is worth solving once,
+properly, because every UI-process screenshot from here on needs it.
