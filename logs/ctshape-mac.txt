@@ -1,0 +1,165 @@
+# ctshape
+
+## font Helvetica-Tiger.ttf
+Helvetica-Tiger.ttf/bytes                                  457656
+Helvetica-Tiger.ttf/postScriptName                         "Helvetica"
+Helvetica-Tiger.ttf/unitsPerEm                             2048
+Helvetica-Tiger.ttf/lig.fi.cmapGlyphs                       73 76
+Helvetica-Tiger.ttf/lig.fi.line                            runs=1 glyphs=1
+Helvetica-Tiger.ttf/lig.fi.run0.glyphs[copy]                192
+Helvetica-Tiger.ttf/lig.fi.run0.advances                    12.000
+Helvetica-Tiger.ttf/lig.fi.run0.status                     0x0
+Helvetica-Tiger.ttf/lig.fi.run0.font                       "Helvetica" upem=2048 glyphs=1745 size=24.0 firstCharGlyph=73  (the font we loaded)
+Helvetica-Tiger.ttf/lig.fi.shaped                          yes - glyphs differ from the raw cmap
+Helvetica-Tiger.ttf/lig.ffl.cmapGlyphs                      73 73 79
+Helvetica-Tiger.ttf/lig.ffl.line                           runs=1 glyphs=2
+Helvetica-Tiger.ttf/lig.ffl.run0.glyphs[copy]               73 193
+Helvetica-Tiger.ttf/lig.ffl.run0.advances                   6.668 12.000
+Helvetica-Tiger.ttf/lig.ffl.run0.status                    0x0
+Helvetica-Tiger.ttf/lig.ffl.run0.font                      "Helvetica" upem=2048 glyphs=1745 size=24.0 firstCharGlyph=73  (the font we loaded)
+Helvetica-Tiger.ttf/lig.ffl.shaped                         yes - glyphs differ from the raw cmap
+Helvetica-Tiger.ttf/latin.cmapGlyphs                        36 57 36 55 68 85
+Helvetica-Tiger.ttf/latin.line                             runs=1 glyphs=6
+Helvetica-Tiger.ttf/latin.run0.glyphs[ptr]                  36 57 36 55 68 85
+Helvetica-Tiger.ttf/latin.run0.advances                     14.238 14.238 14.238 12.000 13.348 7.992
+Helvetica-Tiger.ttf/latin.run0.status                      0x0
+Helvetica-Tiger.ttf/latin.run0.font                        "Helvetica" upem=2048 glyphs=1745 size=24.0 firstCharGlyph=36  (the font we loaded)
+Helvetica-Tiger.ttf/latin.shaped                           no - raw cmap glyphs only
+Helvetica-Tiger.ttf/arabic1.cmapGlyphs                      0 0 0 0 0   (not all mapped)
+Helvetica-Tiger.ttf/arabic1.line                           runs=1 glyphs=5
+Helvetica-Tiger.ttf/arabic1.run0.glyphs[ptr]                247 364 243 273 301
+Helvetica-Tiger.ttf/arabic1.run0.advances                   7.736 7.118 7.118 9.787 11.219
+Helvetica-Tiger.ttf/arabic1.run0.status                    0x1
+Helvetica-Tiger.ttf/arabic1.run0.font                      "GeezaPro" upem=2212 glyphs=1705 size=24.0 firstCharGlyph=300
+Helvetica-Tiger.ttf/arabic1.shaped                         yes - glyphs differ from the raw cmap
+Helvetica-Tiger.ttf/arabic2.cmapGlyphs                      0 0 0 0   (not all mapped)
+Helvetica-Tiger.ttf/arabic2.line                           runs=1 glyphs=4
+Helvetica-Tiger.ttf/arabic2.run0.glyphs[ptr]                269 346 262 345
+Helvetica-Tiger.ttf/arabic2.run0.advances                   9.787 10.535 14.745 10.535
+Helvetica-Tiger.ttf/arabic2.run0.status                    0x1
+Helvetica-Tiger.ttf/arabic2.run0.font                      "GeezaPro" upem=2212 glyphs=1705 size=24.0 firstCharGlyph=344
+Helvetica-Tiger.ttf/arabic2.shaped                         yes - glyphs differ from the raw cmap
+Helvetica-Tiger.ttf/cjk.cmapGlyphs                          0 0 0   (not all mapped)
+Helvetica-Tiger.ttf/cjk.line                               runs=1 glyphs=3
+Helvetica-Tiger.ttf/cjk.run0.glyphs[ptr]                    207 410 293
+Helvetica-Tiger.ttf/cjk.run0.advances                       24.000 24.000 24.000
+Helvetica-Tiger.ttf/cjk.run0.status                        0x0
+Helvetica-Tiger.ttf/cjk.run0.font                          "PingFangSC-Regular" upem=1000 glyphs=47102 size=24.0 firstCharGlyph=207
+Helvetica-Tiger.ttf/cjk.shaped                             yes - glyphs differ from the raw cmap
+Helvetica-Tiger.ttf/kana.cmapGlyphs                         0 0 0   (not all mapped)
+Helvetica-Tiger.ttf/kana.line                              runs=1 glyphs=3
+Helvetica-Tiger.ttf/kana.run0.glyphs[ptr]                   843 845 847
+Helvetica-Tiger.ttf/kana.run0.advances                      24.000 24.000 24.000
+Helvetica-Tiger.ttf/kana.run0.status                       0x0
+Helvetica-Tiger.ttf/kana.run0.font                         "HiraginoSans-W3" upem=1000 glyphs=20339 size=24.0 firstCharGlyph=843
+Helvetica-Tiger.ttf/kana.shaped                            yes - glyphs differ from the raw cmap
+
+## font GeezaPro.ttf
+GeezaPro.ttf/bytes                                         105808
+GeezaPro.ttf/postScriptName                                "GeezaPro"
+GeezaPro.ttf/unitsPerEm                                    2048
+GeezaPro.ttf/lig.fi.cmapGlyphs                              0 0   (not all mapped)
+GeezaPro.ttf/lig.fi.line                                   runs=1 glyphs=1
+GeezaPro.ttf/lig.fi.run0.glyphs[copy]                       192
+GeezaPro.ttf/lig.fi.run0.advances                           12.000
+GeezaPro.ttf/lig.fi.run0.status                            0x0
+GeezaPro.ttf/lig.fi.run0.font                              "Helvetica" upem=2048 glyphs=2252 size=24.0 firstCharGlyph=73
+GeezaPro.ttf/lig.fi.shaped                                 yes - glyphs differ from the raw cmap
+GeezaPro.ttf/lig.ffl.cmapGlyphs                             0 0 0   (not all mapped)
+GeezaPro.ttf/lig.ffl.line                                  runs=1 glyphs=2
+GeezaPro.ttf/lig.ffl.run0.glyphs[copy]                      73 193
+GeezaPro.ttf/lig.ffl.run0.advances                          6.668 12.000
+GeezaPro.ttf/lig.ffl.run0.status                           0x0
+GeezaPro.ttf/lig.ffl.run0.font                             "Helvetica" upem=2048 glyphs=2252 size=24.0 firstCharGlyph=73
+GeezaPro.ttf/lig.ffl.shaped                                yes - glyphs differ from the raw cmap
+GeezaPro.ttf/latin.cmapGlyphs                               0 0 0 0 0 0   (not all mapped)
+GeezaPro.ttf/latin.line                                    runs=1 glyphs=6
+GeezaPro.ttf/latin.run0.glyphs[ptr]                         36 57 36 55 68 85
+GeezaPro.ttf/latin.run0.advances                            14.238 14.238 14.238 12.000 13.348 7.992
+GeezaPro.ttf/latin.run0.status                             0x0
+GeezaPro.ttf/latin.run0.font                               "Helvetica" upem=2048 glyphs=2252 size=24.0 firstCharGlyph=36
+GeezaPro.ttf/latin.shaped                                  yes - glyphs differ from the raw cmap
+GeezaPro.ttf/arabic1.cmapGlyphs                             222 214 205 234 206
+GeezaPro.ttf/arabic1.line                                  runs=1 glyphs=5
+GeezaPro.ttf/arabic1.run0.glyphs[ptr]                       117 109 4 130 14
+GeezaPro.ttf/arabic1.run0.advances                          7.102 6.539 6.539 8.988 10.301
+GeezaPro.ttf/arabic1.run0.status                           0x1
+GeezaPro.ttf/arabic1.run0.font                             "GeezaPro" upem=2048 glyphs=343 size=24.0 firstCharGlyph=222  (the font we loaded)
+GeezaPro.ttf/arabic1.shaped                                yes - glyphs differ from the raw cmap
+GeezaPro.ttf/arabic2.cmapGlyphs                             229 210 229 212
+GeezaPro.ttf/arabic2.line                                  runs=1 glyphs=4
+GeezaPro.ttf/arabic2.run0.glyphs[ptr]                       128 106 252 20
+GeezaPro.ttf/arabic2.run0.advances                          8.988 9.668 13.535 9.668
+GeezaPro.ttf/arabic2.run0.status                           0x1
+GeezaPro.ttf/arabic2.run0.font                             "GeezaPro" upem=2048 glyphs=343 size=24.0 firstCharGlyph=229  (the font we loaded)
+GeezaPro.ttf/arabic2.shaped                                yes - glyphs differ from the raw cmap
+GeezaPro.ttf/cjk.cmapGlyphs                                 0 0 0   (not all mapped)
+GeezaPro.ttf/cjk.line                                      runs=1 glyphs=3
+GeezaPro.ttf/cjk.run0.glyphs[ptr]                           207 410 293
+GeezaPro.ttf/cjk.run0.advances                              24.000 24.000 24.000
+GeezaPro.ttf/cjk.run0.status                               0x0
+GeezaPro.ttf/cjk.run0.font                                 "PingFangSC-Regular" upem=1000 glyphs=47102 size=24.0 firstCharGlyph=207
+GeezaPro.ttf/cjk.shaped                                    yes - glyphs differ from the raw cmap
+GeezaPro.ttf/kana.cmapGlyphs                                0 0 0   (not all mapped)
+GeezaPro.ttf/kana.line                                     runs=1 glyphs=3
+GeezaPro.ttf/kana.run0.glyphs[ptr]                          843 845 847
+GeezaPro.ttf/kana.run0.advances                             24.000 24.000 24.000
+GeezaPro.ttf/kana.run0.status                              0x0
+GeezaPro.ttf/kana.run0.font                                "HiraginoSans-W3" upem=1000 glyphs=20339 size=24.0 firstCharGlyph=843
+GeezaPro.ttf/kana.shaped                                   yes - glyphs differ from the raw cmap
+
+## font DejaVuSans.ttf
+DejaVuSans.ttf/bytes                                       756072
+DejaVuSans.ttf/postScriptName                              "DejaVuSans"
+DejaVuSans.ttf/unitsPerEm                                  2048
+DejaVuSans.ttf/lig.fi.cmapGlyphs                            73 76
+DejaVuSans.ttf/lig.fi.line                                 runs=1 glyphs=1
+DejaVuSans.ttf/lig.fi.run0.glyphs[copy]                     5039
+DejaVuSans.ttf/lig.fi.run0.advances                         15.117
+DejaVuSans.ttf/lig.fi.run0.status                          0x0
+DejaVuSans.ttf/lig.fi.run0.font                            "DejaVuSans" upem=2048 glyphs=6241 size=24.0 firstCharGlyph=73  (the font we loaded)
+DejaVuSans.ttf/lig.fi.shaped                               yes - glyphs differ from the raw cmap
+DejaVuSans.ttf/lig.ffl.cmapGlyphs                           73 73 79
+DejaVuSans.ttf/lig.ffl.line                                runs=1 glyphs=1
+DejaVuSans.ttf/lig.ffl.run0.glyphs[copy]                    5042
+DejaVuSans.ttf/lig.ffl.run0.advances                        23.203
+DejaVuSans.ttf/lig.ffl.run0.status                         0x0
+DejaVuSans.ttf/lig.ffl.run0.font                           "DejaVuSans" upem=2048 glyphs=6241 size=24.0 firstCharGlyph=73  (the font we loaded)
+DejaVuSans.ttf/lig.ffl.shaped                              yes - glyphs differ from the raw cmap
+DejaVuSans.ttf/latin.cmapGlyphs                             36 57 36 55 68 85
+DejaVuSans.ttf/latin.line                                  runs=1 glyphs=6
+DejaVuSans.ttf/latin.run0.glyphs[ptr]                       36 57 36 55 68 85
+DejaVuSans.ttf/latin.run0.advances                          14.883 14.883 14.555 10.688 14.707 9.867
+DejaVuSans.ttf/latin.run0.status                           0x0
+DejaVuSans.ttf/latin.run0.font                             "DejaVuSans" upem=2048 glyphs=6241 size=24.0 firstCharGlyph=36  (the font we loaded)
+DejaVuSans.ttf/latin.shaped                                no - raw cmap glyphs only
+DejaVuSans.ttf/arabic1.cmapGlyphs                           1382 1374 1365 1394 1366
+DejaVuSans.ttf/arabic1.line                                runs=1 glyphs=5
+DejaVuSans.ttf/arabic1.run0.glyphs[ptr]                     5259 5355 5256 5285 5314
+DejaVuSans.ttf/arabic1.run0.advances                        12.867 7.242 6.680 13.242 14.320
+DejaVuSans.ttf/arabic1.run0.status                         0x1
+DejaVuSans.ttf/arabic1.run0.font                           "DejaVuSans" upem=2048 glyphs=6241 size=24.0 firstCharGlyph=1382  (the font we loaded)
+DejaVuSans.ttf/arabic1.shaped                              yes - glyphs differ from the raw cmap
+DejaVuSans.ttf/arabic2.cmapGlyphs                           1389 1370 1389 1372
+DejaVuSans.ttf/arabic2.line                                runs=1 glyphs=4
+DejaVuSans.ttf/arabic2.run0.glyphs[ptr]                     5281 5339 5275 5338
+DejaVuSans.ttf/arabic2.run0.advances                        12.598 13.875 15.492 12.855
+DejaVuSans.ttf/arabic2.run0.status                         0x1
+DejaVuSans.ttf/arabic2.run0.font                           "DejaVuSans" upem=2048 glyphs=6241 size=24.0 firstCharGlyph=1389  (the font we loaded)
+DejaVuSans.ttf/arabic2.shaped                              yes - glyphs differ from the raw cmap
+DejaVuSans.ttf/cjk.cmapGlyphs                               0 0 0   (not all mapped)
+DejaVuSans.ttf/cjk.line                                    runs=1 glyphs=3
+DejaVuSans.ttf/cjk.run0.glyphs[ptr]                         207 410 293
+DejaVuSans.ttf/cjk.run0.advances                            24.000 24.000 24.000
+DejaVuSans.ttf/cjk.run0.status                             0x0
+DejaVuSans.ttf/cjk.run0.font                               "PingFangSC-Regular" upem=1000 glyphs=47102 size=24.0 firstCharGlyph=207
+DejaVuSans.ttf/cjk.shaped                                  yes - glyphs differ from the raw cmap
+DejaVuSans.ttf/kana.cmapGlyphs                              0 0 0   (not all mapped)
+DejaVuSans.ttf/kana.line                                   runs=1 glyphs=3
+DejaVuSans.ttf/kana.run0.glyphs[ptr]                        843 845 847
+DejaVuSans.ttf/kana.run0.advances                           24.000 24.000 24.000
+DejaVuSans.ttf/kana.run0.status                            0x0
+DejaVuSans.ttf/kana.run0.font                              "HiraginoSans-W3" upem=1000 glyphs=20339 size=24.0 firstCharGlyph=843
+DejaVuSans.ttf/kana.shaped                                 yes - glyphs differ from the raw cmap
+
+## end

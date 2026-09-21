@@ -1,0 +1,13 @@
+# ctdraw
+size16.advanceWidth                          157.6562
+size16.aa0.CTLineDraw                        bbox={21,44,175,58} w=155 h=15 coverage=381.00 centroid=(94.864,50.551) pixels=381
+size16.aa0.ShowGlyphsWithAdvances            bbox={21,44,175,58} w=155 h=15 coverage=381.00 centroid=(94.921,50.551) pixels=381
+size16.aa1.CTLineDraw                        bbox={21,43,175,59} w=155 h=17 coverage=517.62 centroid=(95.269,50.659) pixels=869
+size16.aa1.ShowGlyphsWithAdvances            bbox={21,43,176,59} w=156 h=17 coverage=517.54 centroid=(95.380,50.659) pixels=895
+size24.advanceWidth                          236.4844
+size24.aa0.CTLineDraw                        bbox={22,38,253,60} w=232 h=23 coverage=1094.00 centroid=(132.274,48.424) pixels=1094
+size24.aa0.ShowGlyphsWithAdvances            bbox={22,38,254,60} w=233 h=23 coverage=1094.00 centroid=(132.400,48.424) pixels=1094
+size24.aa1.CTLineDraw                        bbox={22,37,253,60} w=232 h=24 coverage=1132.77 centroid=(133.089,48.364) pixels=1692
+size24.aa1.ShowGlyphsWithAdvances            bbox={22,37,254,60} w=233 h=24 coverage=1132.87 centroid=(133.286,48.364) pixels=1677
+
+## end

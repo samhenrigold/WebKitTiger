@@ -1,0 +1,56 @@
+font file                                  tables  of interest
+AmericanTypewriter.dfont                       20  mort kern feat cmap glyf
+Apple Chancery.dfont                           25  mort kern feat cmap glyf
+Apple LiGothic Medium.dfont                    22  morx feat cmap glyf
+Apple Symbols.ttf                              17  cmap glyf
+AppleCasual.dfont                              15  cmap glyf
+AppleGothic.dfont                              24  morx feat cmap glyf
+AquaKanaBold.otf                               15  morx GSUB feat cmap CFF 
+AquaKanaRegular.otf                            15  morx GSUB feat cmap CFF 
+Baskerville.dfont                              20  mort kern feat cmap glyf
+BigCaslon.dfont                                19  mort feat cmap glyf
+Capitals.dfont                                 20  morx feat cmap glyf
+Chalkboard.ttf                                 21  morx kern feat cmap glyf
+ChalkboardBold.ttf                             21  morx kern feat cmap glyf
+Cochin.dfont                                   18  morx feat cmap glyf
+Copperplate.dfont                              20  mort kern feat cmap glyf
+Courier.dfont                                  19  morx feat cmap glyf
+Didot.dfont                                    20  morx kern feat cmap glyf
+Futura.dfont                                   20  morx kern feat cmap glyf
+Geeza Pro Bold.ttf                             21  morx feat cmap glyf
+Geeza Pro.ttf                                  20  morx feat cmap glyf
+Geneva.dfont                                   21  mort feat cmap glyf
+GillSans.dfont                                 20  mort kern feat cmap glyf
+Hei.dfont                                      23  morx feat cmap glyf
+Helvetica.dfont                                17  morx kern feat cmap glyf
+HelveticaNeue.dfont                            20  mort kern feat cmap glyf
+Herculanum.dfont                               19  morx kern feat cmap glyf
+Hoefler Text.dfont                             25  mort kern feat cmap glyf
+Kai.dfont                                      23  morx feat cmap glyf
+LucidaGrande.dfont                             22  morx feat cmap glyf
+MarkerFelt.dfont                               20  mort kern feat cmap glyf
+Monaco.dfont                                   21  morx feat cmap glyf
+Optima.dfont                                   20  mort kern feat cmap glyf
+Osaka.dfont                                    23  mort feat cmap glyf
+OsakaMono.dfont                                22  mort feat cmap glyf
+Papyrus.dfont                                  20  mort kern feat cmap glyf
+Skia.dfont                                     25  mort kern feat cmap glyf
+Symbol.dfont                                   20  mort feat cmap glyf
+Times.dfont                                    20  morx kern feat cmap glyf
+ZapfDingbats.dfont                             16  mort feat cmap glyf
+Zapfino.dfont                                  16  morx kern feat cmap glyf
+ヒラギノ丸ゴ Pro W4.otf            20  GSUB GPOS cmap CFF 
+ヒラギノ明朝 Pro W3.otf               20  GSUB GPOS cmap CFF 
+ヒラギノ明朝 Pro W6.otf               20  GSUB GPOS cmap CFF 
+ヒラギノ角ゴ Pro W3.otf            20  GSUB GPOS cmap CFF 
+ヒラギノ角ゴ Pro W6.otf            20  GSUB GPOS cmap CFF 
+ヒラギノ角ゴ Std W8.otf            19  GSUB GPOS cmap CFF 
+儷黑 Pro.ttf                                 18  morx feat cmap glyf
+华文细黑.ttf                               20  morx feat cmap glyf
+华文黑体.ttf                               19  morx feat cmap glyf
+
+font files scanned:                 49
+with AAT shaping (morx/mort):       41
+with OpenType GSUB:                 8
+with both:                          2
+with neither:                       2

@@ -1,0 +1,146 @@
+matched   119
+differing 31
+only-mac  6
+only-tiger 6
+
+--- divergences ---
+Helvetica-Tiger.ttf/arabic1.run0.glyphs[ptr]
+    mac   : 247 364 243 273 301
+    tiger : 117 109 4 130 14
+    why   : integer differs
+Helvetica-Tiger.ttf/arabic1.run0.advances
+    mac   : 7.736 7.118 7.118 9.787 11.219
+    tiger : 7.102 6.539 6.539 8.988 10.301
+    why   : delta 0.918000 > 1/64
+Helvetica-Tiger.ttf/arabic1.run0.font
+    mac   : "GeezaPro" upem=2212 glyphs=1705 size=24.0 firstCharGlyph=300
+    tiger : "GeezaPro" upem=2048 glyphs=343 size=24.0 firstCharGlyph=222
+    why   : text differs
+Helvetica-Tiger.ttf/arabic2.run0.glyphs[ptr]
+    mac   : 269 346 262 345
+    tiger : 128 106 252 20
+    why   : integer differs
+Helvetica-Tiger.ttf/arabic2.run0.advances
+    mac   : 9.787 10.535 14.745 10.535
+    tiger : 8.988 9.668 13.535 9.668
+    why   : delta 1.210000 > 1/64
+Helvetica-Tiger.ttf/arabic2.run0.font
+    mac   : "GeezaPro" upem=2212 glyphs=1705 size=24.0 firstCharGlyph=344
+    tiger : "GeezaPro" upem=2048 glyphs=343 size=24.0 firstCharGlyph=229
+    why   : text differs
+Helvetica-Tiger.ttf/cjk.run0.glyphs[ptr]
+    mac   : 207 410 293
+    tiger : 3284 3722 1952
+    why   : integer differs
+Helvetica-Tiger.ttf/cjk.run0.font
+    mac   : "PingFangSC-Regular" upem=1000 glyphs=47102 size=24.0 firstCharGlyph=207
+    tiger : "HiraKakuPro-W3" upem=1000 glyphs=20317 size=24.0 firstCharGlyph=3284
+    why   : text differs
+Helvetica-Tiger.ttf/kana.run0.glyphs[ptr]
+    mac   : 843 845 847
+    tiger : 60 62 64
+    why   : integer differs
+Helvetica-Tiger.ttf/kana.run0.font
+    mac   : "HiraginoSans-W3" upem=1000 glyphs=20339 size=24.0 firstCharGlyph=843
+    tiger : "AquaKana" upem=1000 glyphs=486 size=24.0 firstCharGlyph=60
+    why   : text differs
+GeezaPro.ttf/lig.fi.run0.advances
+    mac   : 12.000
+    tiger : 15.469
+    why   : delta 3.469000 > 1/64
+GeezaPro.ttf/lig.fi.run0.font
+    mac   : "Helvetica" upem=2048 glyphs=2252 size=24.0 firstCharGlyph=73
+    tiger : "LucidaGrande" upem=2048 glyphs=2826 size=24.0 firstCharGlyph=73
+    why   : text differs
+GeezaPro.ttf/lig.ffl.line
+    mac   : runs=1 glyphs=2
+    tiger : runs=1 glyphs=1
+    why   : text differs
+GeezaPro.ttf/lig.ffl.run0.advances
+    mac   : 6.668 12.000
+    tiger : 23.566
+    why   : different shape
+GeezaPro.ttf/lig.ffl.run0.font
+    mac   : "Helvetica" upem=2048 glyphs=2252 size=24.0 firstCharGlyph=73
+    tiger : "LucidaGrande" upem=2048 glyphs=2826 size=24.0 firstCharGlyph=73
+    why   : text differs
+GeezaPro.ttf/latin.run0.advances
+    mac   : 14.238 14.238 14.238 12.000 13.348 7.992
+    tiger : 16.559 15.691 16.559 15.176 13.254 9.820
+    why   : delta 3.176000 > 1/64
+GeezaPro.ttf/latin.run0.font
+    mac   : "Helvetica" upem=2048 glyphs=2252 size=24.0 firstCharGlyph=36
+    tiger : "LucidaGrande" upem=2048 glyphs=2826 size=24.0 firstCharGlyph=36
+    why   : text differs
+GeezaPro.ttf/cjk.run0.glyphs[ptr]
+    mac   : 207 410 293
+    tiger : 3284 3722 1952
+    why   : integer differs
+GeezaPro.ttf/cjk.run0.font
+    mac   : "PingFangSC-Regular" upem=1000 glyphs=47102 size=24.0 firstCharGlyph=207
+    tiger : "HiraKakuPro-W3" upem=1000 glyphs=20317 size=24.0 firstCharGlyph=3284
+    why   : text differs
+GeezaPro.ttf/kana.run0.glyphs[ptr]
+    mac   : 843 845 847
+    tiger : 60 62 64
+    why   : integer differs
+GeezaPro.ttf/kana.run0.font
+    mac   : "HiraginoSans-W3" upem=1000 glyphs=20339 size=24.0 firstCharGlyph=843
+    tiger : "AquaKana" upem=1000 glyphs=486 size=24.0 firstCharGlyph=60
+    why   : text differs
+DejaVuSans.ttf/arabic1.run0.glyphs[ptr]
+    mac   : 5259 5355 5256 5285 5314
+    tiger : 1366 1394 1365 1374 1382
+    why   : integer differs
+DejaVuSans.ttf/arabic1.run0.advances
+    mac   : 12.867 7.242 6.680 13.242 14.320
+    tiger : 12.574 18.785 22.594 11.590 14.320
+    why   : delta 15.914000 > 1/64
+DejaVuSans.ttf/arabic1.shaped
+    mac   : yes - glyphs differ from the raw cmap
+    tiger : no - raw cmap glyphs only
+    why   : different shape
+DejaVuSans.ttf/arabic2.run0.glyphs[ptr]
+    mac   : 5281 5339 5275 5338
+    tiger : 1372 1389 1370 1389
+    why   : integer differs
+DejaVuSans.ttf/arabic2.run0.advances
+    mac   : 12.598 13.875 15.492 12.855
+    tiger : 10.688 14.859 15.492 14.859
+    why   : delta 2.004000 > 1/64
+DejaVuSans.ttf/arabic2.shaped
+    mac   : yes - glyphs differ from the raw cmap
+    tiger : no - raw cmap glyphs only
+    why   : different shape
+DejaVuSans.ttf/cjk.run0.glyphs[ptr]
+    mac   : 207 410 293
+    tiger : 3284 3722 1952
+    why   : integer differs
+DejaVuSans.ttf/cjk.run0.font
+    mac   : "PingFangSC-Regular" upem=1000 glyphs=47102 size=24.0 firstCharGlyph=207
+    tiger : "HiraKakuPro-W3" upem=1000 glyphs=20317 size=24.0 firstCharGlyph=3284
+    why   : text differs
+DejaVuSans.ttf/kana.run0.glyphs[ptr]
+    mac   : 843 845 847
+    tiger : 60 62 64
+    why   : integer differs
+DejaVuSans.ttf/kana.run0.font
+    mac   : "HiraginoSans-W3" upem=1000 glyphs=20339 size=24.0 firstCharGlyph=843
+    tiger : "AquaKana" upem=1000 glyphs=486 size=24.0 firstCharGlyph=60
+    why   : text differs
+
+--- present only in the mac dump (tiger printed nothing here) ---
+  Helvetica-Tiger.ttf/lig.fi.run0.glyphs[copy] = 192
+  Helvetica-Tiger.ttf/lig.ffl.run0.glyphs[copy] = 73 193
+  GeezaPro.ttf/lig.fi.run0.glyphs[copy] = 192
+  GeezaPro.ttf/lig.ffl.run0.glyphs[copy] = 73 193
+  DejaVuSans.ttf/lig.fi.run0.glyphs[copy] = 5039
+  DejaVuSans.ttf/lig.ffl.run0.glyphs[copy] = 5042
+
+--- present only in the tiger dump ---
+  Helvetica-Tiger.ttf/lig.fi.run0.glyphs[ptr] = 192
+  Helvetica-Tiger.ttf/lig.ffl.run0.glyphs[ptr] = 73 193
+  GeezaPro.ttf/lig.fi.run0.glyphs[ptr] = 1278
+  GeezaPro.ttf/lig.ffl.run0.glyphs[ptr] = 1281
+  DejaVuSans.ttf/lig.fi.run0.glyphs[ptr] = 5039
+  DejaVuSans.ttf/lig.ffl.run0.glyphs[ptr] = 5042

@@ -1,0 +1,22 @@
+matched   6
+differing 4
+only-mac  0
+only-tiger 0
+
+--- divergences ---
+size16.aa1.CTLineDraw
+    mac   : bbox={21,43,175,59} w=155 h=17 coverage=518.03 centroid=(95.254,50.659) pixels=869
+    tiger : bbox={21,43,175,59} w=155 h=17 coverage=517.62 centroid=(95.269,50.659) pixels=869
+    why   : text differs
+size16.aa1.ShowGlyphsWithAdvances
+    mac   : bbox={21,43,176,59} w=156 h=17 coverage=517.92 centroid=(95.364,50.659) pixels=895
+    tiger : bbox={21,43,176,59} w=156 h=17 coverage=517.54 centroid=(95.380,50.659) pixels=895
+    why   : text differs
+size24.aa1.CTLineDraw
+    mac   : bbox={22,37,253,60} w=232 h=24 coverage=1134.04 centroid=(133.065,48.364) pixels=1694
+    tiger : bbox={22,37,253,60} w=232 h=24 coverage=1132.77 centroid=(133.089,48.364) pixels=1692
+    why   : text differs
+size24.aa1.ShowGlyphsWithAdvances
+    mac   : bbox={22,37,254,60} w=233 h=24 coverage=1134.09 centroid=(133.258,48.364) pixels=1677
+    tiger : bbox={22,37,254,60} w=233 h=24 coverage=1132.87 centroid=(133.286,48.364) pixels=1677
+    why   : text differs

@@ -214,8 +214,171 @@ behaviour, just not a wrong one.
 ## Not covered
 
 Bounded pass, so these are open rather than done: the twelve adapter functions, which are
-ctcompat's; drawing calls (`CTLineDraw`, `CTFrameDraw`, `CTRunDraw`), which need a bitmap
-context and a pixel comparison rather than a text dump; vertical writing; and a second font
-with AAT tables, which would separate "Tiger cannot shape" from "Tiger cannot shape
-OpenType". A Tiger-installed font with `morx`, run through the same probe, would settle
-that and is the obvious next step.
+ctcompat's; `CTFrameDraw` and `CTRunDraw`; and vertical writing. The two items that were
+open here, AAT shaping and a pixel comparison of glyph drawing, are now done and appear
+below.
+
+---
+
+# Follow-up 1: shaping with AAT fonts
+
+The first pass showed Tiger applying no Arabic shaping to DejaVu Sans and left the
+question of whether Tiger's shaper works at all or only its OpenType path is missing. It
+is the second, and the boundary is sharper than "AAT yes, OpenType no".
+
+**Tiger shapes AAT fonts identically to modern CoreText. It also applies OpenType `liga`
+ligatures identically. What it does not do is OpenType complex-script joining.**
+
+`spike/ctshape.c` prints, per font and per sample, the raw `cmap` glyphs beside the glyphs
+the line actually produced, so substitution is visible rather than inferred.
+
+## Which of Tiger's fonts can be shaped at all
+
+`spike/ctprobe-fonttables.py` reads sfnt table directories, including inside `.dfont`
+resource containers, and runs under the box's Python 2.3 as well as 3.x. Over the box's
+`/System/Library/Fonts` and `/Library/Fonts`:
+
+| | files |
+|---|---|
+| scanned | 49 |
+| with AAT shaping (`morx`/`mort`) | **41** |
+| with OpenType `GSUB` | 8 |
+| with both | 2 |
+| with neither | 2 |
+
+So the overwhelming majority of what Tiger ships is AAT, and shapes correctly. The eight
+`GSUB` fonts are the six Hiragino CJK faces plus AquaKana Regular and Bold, and those two
+are the only ones carrying both. The two with neither are Apple Symbols and AppleCasual.
+The per-file listing is in `logs/ctprobe-tigerfonts.txt`.
+
+Notably **none of Tiger's six Hiragino CJK faces has `morx`**; they are `GSUB`/`GPOS` only.
+That matters less than it looks, because CJK is mostly a one-to-one mapping, but vertical
+forms and ruby do need substitution and will not get it.
+
+## The measurements
+
+Three fonts, same bytes on both machines. Helvetica had to be lifted out of its `.dfont`
+suitcase first, since a resource container cannot be handed to
+`CTFontManagerCreateFontDescriptorFromData`; the extracted sfnt is byte-identical to the
+one Tiger loads.
+
+**Arabic through an AAT font (Geeza Pro, `morx`) is identical.** Not close, identical:
+
+```
+                        mac                          tiger
+cmapGlyphs              222 214 205 234 206          222 214 205 234 206
+line                    runs=1 glyphs=5              runs=1 glyphs=5
+run0.glyphs             117 109 4 130 14             117 109 4 130 14
+run0.advances           7.102 6.539 6.539 ...        7.102 6.539 6.539 ...
+run0.status             0x1                          0x1
+shaped                  yes                          yes
+```
+
+Five characters in, five contextual forms out, none of them the `cmap` glyph, the same
+five on both machines, with the same advances and the same right-to-left status bit. The
+second Arabic sample behaves the same way.
+
+**Latin ligatures through an AAT font (Helvetica, `morx`+`kern`) are identical.** `fi`
+becomes one glyph, 192, on both; `ffl` becomes two, 73 and 193, on both. `AVATar` gets no
+substitution on either and the advances agree to the last digit, so the `kern` table is
+being applied the same way.
+
+**OpenType `liga` also works, and is identical.** This was the surprise. DejaVu Sans has no
+`morx`, yet on both machines `fi` becomes glyph 5039 with advance 15.117 and `ffl` becomes
+glyph 5042 with advance 23.203. Tiger read the `GSUB` ligature lookup and applied it.
+
+**OpenType Arabic joining is the one real gap.** Same font, same bytes:
+
+```
+                        mac                          tiger
+cmapGlyphs              1382 1374 1365 1394 1366     1382 1374 1365 1394 1366
+run0.glyphs             5259 5355 5256 5285 5314     1366 1394 1365 1374 1382
+shaped                  yes                          no - raw cmap glyphs only
+```
+
+Tiger returns the `cmap` glyphs in reverse, which is the right visual order and the right
+direction bit but no joining at all. Modern substitutes five contextual forms.
+
+The distinction that falls out: a `GSUB` lookup the font can apply on its own, like a
+ligature, works on Tiger. A `GSUB` feature that only a script-aware shaper can select,
+like the initial/medial/final forms Arabic needs, does not, because selecting it requires
+Arabic joining logic in the shaper. With AAT the joining is a state machine inside the
+font, which is why `morx` Arabic works.
+
+## What this means for the port
+
+**HarfBuzz is needed only for complex scripts in fonts without AAT tables.** For Tiger's
+own fonts, 41 of 49, the system shaper is correct and matches modern CoreText exactly. For
+web fonts, which are almost always OpenType-only, Latin and ligatures are fine and Arabic,
+Hebrew with marks, and the Indic scripts are not.
+
+## Everything else in the shaping diff is font fallback
+
+Of 31 divergences in `logs/ctshape-diff.txt`, 27 are one machine picking a different
+fallback font, which is a difference in what is installed rather than in CoreText. Asking
+Helvetica for Arabic falls back to this Mac's Geeza Pro, 2212 units per em and 1705 glyphs,
+against Tiger's, 2048 and 343. CJK falls back to PingFang here and Hiragino there; kana to
+Hiragino Sans here and AquaKana there. Printing each run font's units per em and glyph
+count is what made this legible, and it is worth keeping: pointer identity is useless here,
+because an equivalent font is not the same object and a same-named font from another source
+is exactly the hazard.
+
+---
+
+# Follow-up 2: pixel comparison of glyph drawing
+
+**No offset error and no scale error. With antialiasing off the two machines produce
+identical rasters.**
+
+`spike/ctdraw.c` draws the same string from the bundled DejaVu Sans into an 8-bit grey
+bitmap at 16 and 24 pt, by two paths: `CTLineDraw`, which is ctcompat's adapter on Tiger,
+and `CGContextShowGlyphsWithAdvances`. It then reduces each canvas to the inked bounding
+box, total coverage, centroid and pixel count, which survive a different antialiaser where
+exact pixels would not.
+
+| measurement | modern | Tiger |
+|---|---|---|
+| 16 pt, no AA, `CTLineDraw` | bbox 21,44,175,58 cov 381.00 centroid 94.864,50.551 | **identical** |
+| 16 pt, no AA, glyph path | bbox 21,44,175,58 cov 381.00 centroid 94.921,50.551 | **identical** |
+| 24 pt, no AA, `CTLineDraw` | bbox 22,38,253,60 cov 1094.00 centroid 132.274,48.424 | **identical** |
+| 24 pt, no AA, glyph path | bbox 22,38,254,60 cov 1094.00 centroid 132.400,48.424 | **identical** |
+| 16 pt, AA, `CTLineDraw` | cov 518.03 centroid 95.254,50.659 | cov 517.62 centroid 95.269,50.659 |
+| 24 pt, AA, `CTLineDraw` | cov 1134.04 centroid 133.065,48.364 | cov 1132.77 centroid 133.089,48.364 |
+
+With antialiasing off every number matches exactly, including the pixel counts, so glyph
+scaling and pen placement are the same on both machines. With antialiasing on the bounding
+boxes and pixel counts still match and only the coverage differs, by **0.08% at 16 pt and
+0.11% at 24 pt**, with the centroid moving at most 0.024 px. That is the antialiasing
+filter, not geometry.
+
+The advance width agrees exactly at both sizes, 157.6562 and 236.4844.
+
+One thing the comparison shows that is *not* a Tiger difference: the glyph path draws one
+pixel wider than the `CTLineDraw` path, 176 against 175 and 254 against 253. That appears
+identically on both machines, so it is a property of the two CoreText paths rather than
+anything the port introduced.
+
+**ctcompat's `CTLineDraw` adapter is correct.** Tiger's own `CTLineDraw` takes an extra
+`CFRange` and draws nothing when it receives stack junk; the adapter presents the modern
+two-argument form, and the ink it produces is pixel-identical to modern CoreText.
+
+## Files from the follow-ups
+
+| Path | What |
+|---|---|
+| `spike/ctshape.c` | shaping probe, raw cmap beside shaped output |
+| `spike/ctdraw.c` | rasterises and reduces to bbox, coverage, centroid |
+| `spike/ctprobe-fonttables.py` | sfnt and `.dfont` table reader, runs on Python 2.3 |
+| `logs/ctshape-{mac,tiger,diff}.txt` | shaping dumps and their diff |
+| `logs/ctdraw-{mac,tiger,diff}.txt` | drawing dumps and their diff |
+| `logs/ctprobe-tigerfonts.txt` | every font file on the box and its tables |
+
+The three fonts used are Apple's and one is extracted from a system suitcase, so they are
+kept in `refs/tigerfonts/`, which is outside version control. `spike/ctprobe-fonttables.py`
+regenerates the survey and the extraction recipe is in this file's history.
+
+## Still not covered
+
+`CTFrameDraw` and `CTRunDraw`; vertical writing; and Indic or Hebrew shaping, which the
+AAT-versus-OpenType boundary above predicts will behave like Arabic but which was not
+measured.
