@@ -1169,3 +1169,13 @@ Added to the ARTIFACT OWNERSHIP MAP above.
 - KEY RESULT: none of the six original wire flags disagree between the PORT=Tiger trees. The 69–121-file remap we sized for is NOT needed; the port's uniform platform macros already make both sides agree. USE(CAIRO) is the only divergence.
 - objcrt's objection: if the web process drops cairo, this patch should be dropped, not carried. DECISION: the web process keeps cairo as its local raster (canvas/ImageBuffer in a 64-bit process with no CG), so USE(CAIRO)=1 stays in the web build and the 2-conditional patch stays. Revisit only if web loses cairo.
 - objcrt stopped after this (budget).
+
+## 2026-09-21 03:28 — all agents stopped by the user (budget)
+
+No subagents remain. Last committed state per critical track, and what was still open:
+- jsc64 (branch tiger-jsc64 @45f51600): full JIT on the box, 51 ms. OPEN: conservative-GC-across-threads proof (thread_get_state x86_THREAD_STATE64), signal delivery into JIT code, FTL enable + re-time, RSS/JIT-memory numbers; build tree still under build/jsc64 (move out).
+- wkcmake (WebKit 96f4d1bd, journal 4e02aef): four PORT=Tiger configs configure, compile/link flags split by arch. OPEN: TIGER_WIRE_CAIRO=0 in all four options files; first real WTF+JSC compile under PORT=Tiger x86_64 merging tiger-jsc64; jsc binary matching 51 ms.
+- ctcompat (454d6d9/d38b183): textpixel 7/7 identical, kern + 1/1024 rules held by harness. OPEN: 64-bit FontCache/FontCascade over logs/tiger-fonts.json (N1 long pole).
+- leopard: logs/debug64.md never delivered.
+- wire: remap patch toolchain/patches/webkit-ipc-wire-flags.patch (2 conditionals) done; probe tools/check-wire-flags.py done.
+Next step when work resumes: wkcmake's item first (it gates everything), then jsc64's GC/signal proofs, then the font cascade.
