@@ -30,6 +30,14 @@ extern const CFStringRef kCFLocaleCollatorIdentifier;
    when the preference is unset. */
 CFArrayRef CFLocaleCopyPreferredLanguages(void);
 
+/* CFRunLoopGetMain is exported by Tiger's CoreFoundation (T _CFRunLoopGetMain;
+   logs/api/tiger-CF.txt) but not declared in the 10.4u SDK's <CFRunLoop.h>, so
+   this is a declaration of the real function rather than a shim. Note it cannot
+   implement +[NSRunLoop mainRunLoop]: NSRunLoop and CFRunLoop are not toll-free
+   bridged in either direction, so there is no way back from a CFRunLoopRef to
+   the NSRunLoop wrapping it. */
+CFRunLoopRef CFRunLoopGetMain(void);
+
 /* CFStringCreateWithBytesNoCopy is absent from the 10.4 headers but present in
    Tiger's CoreFoundation binary (logs/api/tiger-CF.txt), so this is a
    declaration of the real function, not a shim. */
