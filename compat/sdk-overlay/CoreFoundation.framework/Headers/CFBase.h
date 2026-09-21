@@ -412,6 +412,20 @@ CFAllocatorRef CFGetAllocator(CFTypeRef cf);
 #define CF_RELEASES_ARGUMENT
 #endif
 
+/* The printf-style format checking attributes. CF_FORMAT_FUNCTION is the one
+   that matters: WebCore declares formatLocalizedString with it, and an
+   undefined macro there is "expected function body after function declarator",
+   which then cascades into every caller not finding the function. */
+#ifndef CF_FORMAT_FUNCTION
+#if defined(__GNUC__)
+#define CF_FORMAT_FUNCTION(F, A) __attribute__((format(CFString, F, A)))
+#define CF_FORMAT_ARGUMENT(A) __attribute__((format_arg(A)))
+#else
+#define CF_FORMAT_FUNCTION(F, A)
+#define CF_FORMAT_ARGUMENT(A)
+#endif
+#endif
+
 #ifndef CF_SWIFT_NAME
 #define CF_SWIFT_NAME(_name)
 #define CF_SWIFT_UNAVAILABLE(_msg)
