@@ -114,3 +114,12 @@
 /spike/media64/
 /spike/fasttext/ctref32
 /spike/fasttext/fast64
+
+# quartzraster: probe binaries and the Quartz glyph-bitmap dumps they pull off the box
+/spike/quartzraster/pathprobe32
+/spike/quartzraster/ctglyph32
+/spike/quartzraster/ctgrid32
+/spike/quartzraster/model64
+/spike/quartzraster/*.bin
+# Tiger CoreGraphics copied off the box for disassembly (refs/* is ignored already; explicit)
+/refs/tiger-cg/

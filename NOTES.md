@@ -2926,3 +2926,106 @@ launch of a freshly created bundle.
   memory depend on it, though both have polling/bounds-check modes; (2) thread_get_state from a 32-bit task with
   the x86_THREAD_STATE64 flavor (conservative GC needs r8–r15 of suspended threads); (3) sign-extension in the
   small code model when allocations land above 2 GB (-mcmodel=medium or keep the heap low).
+
+### 2026-09-21 — spike/quartzraster: Quartz's rasteriser is exact-area, and the gap is a size-dependent position grid plus integer-ppem hinting (quartzraster)
+
+Full evidence, probe by probe: `logs/quartz-raster.md`. Model and probes: `spike/quartzraster/`
+(`pathprobe32.c` synthetic CGPath coverage, `ctglyph32.c`/`ctgrid32.c` glyph-bitmap dumps off the
+box, `model64.c` the model rasteriser and its scorer).
+
+**The 7% residual `spike/fasttext` called "the two rasterisers' antialiasing kernels disagreeing"
+is not that.** Filling synthetic `CGPath`s with fractional edges shows CoreGraphics computes
+**exact analytic area coverage**: a rect whose width sweeps 0→1 px in 1/64 steps produces 64
+distinct, perfectly linear coverage values; a 1-px rect slid across a boundary splits 1.0000
+between the two pixels at every offset; a fractional square gives t², and a slope-1/2 triangle
+gives exactly 1/4 and 3/4 on its edge pixels. No supersampling grid, no gamma, no LUT. That is
+the same integral FreeType's smooth rasteriser computes, so the pixels *can* be matched.
+
+**What actually differs is placement, and the grid is size-dependent.** Hashing one glyph drawn at
+1/48-px offsets, the number of horizontal subpixel phases is a function of the **device** pixel
+size (page zoom changes it), identical across Helvetica, Times and Lucida Grande:
+
+| device px | ≤ 8.33 | 8.375–11.1 | 11.125–16.67 | 16.75–33.3 | > 33.3 |
+|---|---|---|---|---|---|
+| x phases | 5 | 4 | 3 | 2 | 1 |
+
+i.e. `Nx = min(5, 1 + floor((100/3) / px))`, snapped with `floor(x*N)/N` on the pen. The 1/3 px
+that `spike/fasttext` measured is just the 11.125–16.67 px row. Vertically
+`Ny = min(5, 1 + floor((25/3) / px))`, which is **1 above 8.33 px** — no vertical subpixel
+positioning in any real text size, floor in CG's bottom-up space (`ceil` in a top-down raster).
+
+**With that grid and an unhinted outline the model is essentially pixel-exact**: median 0.5–0.8
+of 255 per inked pixel (0.2–0.3%) for Helvetica, Helvetica Bold and Lucida Grande across 63
+fractional sizes each; Times carries a constant unexplained ~2.6.
+
+**The one real remaining difference is that at integer ppem Quartz runs the font's TrueType
+hinting, y only.** At 12/16/17/18 pt Helvetica's cap top lands exactly where FreeType's bytecode
+interpreter puts it and 0.4–0.5 px away from the unhinted outline, while the stems stay
+byte-identical to the unhinted model; at 13/19/20/24 pt Quartz is unhinted and FreeType's
+interpreter is not. It never happens at fractional ppem, and it never happens for Hiragino (CFF).
+Apple's interpreter is not FreeType's: enabling v35, v40 or the light autohinter is **worse than
+not hinting** (8.6 unhinted vs 16.8/19.5/20.8 over the 864-patch set).
+
+Scored on the same fasttext page and metric (`model64 <manifest> page <dir> ref-smooth.bin`):
+
+```
+fast mode today (cairo, no grid rules)       luma 3.929   inkluma 41.22   ink 0.987
+best cairo variant (yceil + x3floor)              1.617         17.95     0.987
+model64 (exact area + measured grid)              1.194         13.41     0.987
+```
+
+−26% against the best cairo configuration, −67% against today. The sample is all integer sizes,
+so every line pays the hinting gap; at fractional sizes the model is at 0.2–0.3%.
+
+#### Integration plan for cairo in the web process — NOT applied to WebKit
+
+Cheapest thing that captures nearly all of it, in order:
+
+1. **Fix the grid rule that is already written down, and make it size-dependent.** The NOTES
+   snippet above hardcodes `floor(penX * 3.0) / 3.0`, which is only correct for 11.125–16.67
+   device px. Real content runs 9–11 px (4 phases) and ≥ 17 px (2, then 1) constantly, and at
+   ≥ 33.3 px subpixel positioning must be switched off entirely or we are *adding* blur Quartz
+   does not have. Replace with the table:
+
+   ```c++
+   // spike/quartzraster measured Quartz's phase count as a function of the glyph's
+   // DEVICE pixel size (not the point size: a 2x CTM moves an 8 pt font to the 16 px row).
+   static inline double snapGlyphX(double x, double devicePixelSize)
+   {
+       int n = 1 + static_cast<int>(100.0 / (3.0 * devicePixelSize));
+       if (n > 5) n = 5;
+       return std::floor(x * n) / n;   // floor, on the pen, in device space
+   }
+   glyph.x = snapGlyphX(penX, sizeInDevicePixels);
+   glyph.y = std::ceil(baselineY);     // unchanged: Quartz has no vertical subpixel positioning
+   ```
+
+   This is two lines of arithmetic in the existing glyph loop and needs nothing else. It is
+   worth most of the 59% the old note claimed, plus the sizes the old note got wrong.
+
+2. **Stop cairo re-quantising what we just snapped.** cairo's scaled-font glyph cache rounds
+   glyph positions to its own 1/4-px grid, so `floor(x*3)/3` arrives at the rasteriser as a
+   different number — up to 1/8 px away. That re-quantisation is the difference between the
+   model's 13.41 and cairo's 17.95 on the same page. Two ways out, both small:
+   * `cairo_font_options_set_hint_metrics(OFF)` does **not** disable it; the subpixel grid is
+     `_cairo_scaled_font_glyph_device_advance` / `CAIRO_FIXED` rounding inside the glyph cache.
+     Our cairo is a static build we control (`deps/build-c-deps.sh`), so the honest fix is a
+     one-line patch to the glyph-cache key to keep 1/N instead of 1/4 — but N varies per size,
+     so the general fix is to key on the already-snapped position and let it round to the
+     nearest 1/64 rather than 1/4.
+   * Or bypass the cache for text: render glyphs ourselves (as `model64` does —
+     `FT_Outline_Translate` + `FT_Outline_Get_Bitmap` into a tile, composite with
+     `cairo_mask_surface`). ~60 lines, one allocation per glyph unless we add our own cache,
+     and it is exactly the code in `spike/quartzraster/model64.c:pageMode`.
+
+   Do (1) first and measure; only do (2) if the 17.95→13.41 is judged worth a patched cairo.
+
+3. **Do not** register an `FT_Raster_Funcs` replacement via `FT_Set_Raster`. There is nothing to
+   replace: FreeType's smooth rasteriser already computes the same exact-area coverage Quartz
+   does, to within the 0.5/255 that separates 26.6 fixed point from float. A custom raster
+   would buy at most that 0.2% and would put our own scan converter on the hot path.
+
+4. **Do not** enable hinting of any kind to chase §4 — measured worse than unhinted at every
+   setting. If the integer-ppem gap ever matters enough, the only thing that would close it is
+   Apple's own interpreter, i.e. rasterising in the 32-bit process, which is what the other mode
+   is for.
