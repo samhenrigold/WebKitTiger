@@ -112,3 +112,5 @@
 
 # Media test fixtures for the MSE spike (large binaries, regenerable from spike/msescan notes).
 /spike/media64/
+/spike/fasttext/ctref32
+/spike/fasttext/fast64

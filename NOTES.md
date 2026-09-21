@@ -2673,3 +2673,69 @@ shell and never added to the source list. It is there now.
   descriptor layout, signal frame, thread state and dyld image the 32-bit frameworks would use is the
   wrong ABI. Hosting AppKit this way is a WoW64-style thunk layer over libSystem and Mach, not a
   segment switch. The process split is the same architecture with the kernel doing the thunking.
+
+### 2026-09-21 — spike/fasttext: fast-mode text is already within 1.3% of Quartz's, and every knob makes it worse (fasttext)
+
+Full table, method and PNGs: `spike/fasttext/README.md`. `ctref32` (i386) records CoreText's layout and
+pixels for a fixed eight-run sample; `fast64` (x86_64) replays that exact layout through cairo+FreeType
+from the manifest paths under 22 option variants and scores each against the CoreText bitmap.
+
+Two facts about the target settle most of it:
+
+- **Quartz does no subpixel antialiasing into an offscreen bitmap on 10.4.** With `AppleFontSmoothing`
+  unset (the box's state; Tiger's LCD default is "medium"), `CGContextSetShouldSmoothFonts` true and
+  false give byte-identical bitmaps with zero colour-fringed pixels. CG only does LCD into a window
+  backing store. Fast mode is matching grayscale AA, not subpixel.
+- **Our FreeType is in Harmony mode.** Stock `ftoption.h` leaves `FT_CONFIG_OPTION_SUBPIXEL_RENDERING`
+  commented out, so `FT_Library_SetLcdFilter` returns `Unimplemented_Feature` (7). cairo's lcd_filter
+  option and fontconfig's `FC_LCD_FILTER` do nothing on this build; the fir5/light variants are
+  byte-identical to the unfiltered one. Nothing to fix — we do not want LCD here anyway.
+
+Result: **gray AA, hinting off, no gamma, no stem darkening, no emboldening** scores 0.987 of Quartz's
+ink with per-line weight ratios 0.95–1.04, and is the best of the 22. Slight hinting costs +13% error,
+full +39%, subpixel +15%, gamma 0.85 +4%, embolden +71%. Stem darkening is a no-op on the seven
+TrueType `.dfont` faces and only over-inks the CFF Hiragino line by 24%. The residual, 28.6/255 mean
+over inked pixels, is the two scan-converters' antialiasing kernels disagreeing on edge coverage; no
+option addresses it and only rasterising with Quartz would.
+
+One rule with teeth: **do not round glyph x to whole pixels.** Integer pen positions cost +43% error.
+cairo honours fractional glyph origins on an image surface and CoreText positions at fractional x.
+
+#### Fast mode's font options
+
+`FontCacheTiger64::patternForFace` already sets `FC_HINTING=false`, `FC_HINT_STYLE=FC_HINT_NONE`,
+`FC_ANTIALIAS=true`, which is the winning configuration — for the reason given in its own comment
+(unhinted metrics), not for looks, but the measurement says it is also the best-looking choice. Two
+gaps, both about not depending on a default:
+
+```c++
+// in patternForFace(), next to the existing FC_ANTIALIAS line:
+
+// Grayscale, explicitly. setCairoFontOptionsFromFontConfigPattern() switches
+// cairo to CAIRO_ANTIALIAS_SUBPIXEL the moment FC_RGBA is anything but
+// FC_RGBA_NONE, and subpixel is a pure regression here: Quartz produces no
+// colour-fringed pixels at all when it draws into a bitmap on 10.4, so every
+// coloured pixel we emit is a divergence. Measured +15% luma error.
+FcPatternAddInteger(pattern.get(), FC_RGBA, FC_RGBA_NONE);
+```
+
+```c++
+// in FontCache::platformInit(), before anything builds a scaled font:
+
+// getDefaultCairoFontOptions() is an untouched cairo_font_options_t unless
+// someone sets it, which leaves hint_metrics at DEFAULT (= ON). Advances come
+// from the shaper, not from cairo, so hinted cairo metrics cannot move a glyph
+// -- but nothing should be left implicit in the path that decides how text
+// looks. FontRenderOptions has no hint-metrics setter, so it is set on the
+// shared options object directly.
+FontRenderOptions::singleton().setAntialias(FontRenderOptions::Antialias::Normal);
+FontRenderOptions::singleton().setHinting(FontRenderOptions::Hinting::None);
+cairo_font_options_set_hint_metrics(
+    const_cast<cairo_font_options_t*>(getDefaultCairoFontOptions()), CAIRO_HINT_METRICS_OFF);
+```
+
+And the rule that is not a setting: whatever computes the `cairo_glyph_t` array must pass CoreText's
+fractional x through unrounded. `FontRenderOptions::setHinting` sets `hint_metrics` back to ON, so the
+`setHinting` call above has to come before the `cairo_font_options_set_hint_metrics` call, not after.
+
+Not applied to the WebKit tree: it was in use by the build track when this was written.
