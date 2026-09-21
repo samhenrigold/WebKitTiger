@@ -601,3 +601,27 @@ one triage pass before it was noticed. See the triage table at the end of
   appendInternal, parsed with libavformat over a custom AVIO on a growing buffer. Audio must leave the process —
   clone RemoteAudioDestinationProxy's shape (AudioDestinationResampler + shared ring buffer) into the 32-bit UI
   process. Two decoder threads is the right number; a third buys nothing on two cores.
+
+## Rosetta cross-compile trap (2026-09-20, deps agent)
+Building x86_64 on this Apple Silicon Mac: Rosetta 2 transparently *executes* x86_64
+binaries, so any configure-time check that compiles-and-runs a conftest (autoconf's
+AC_RUN_IFELSE, CMake's check_*_source_runs/try_run, meson's compiler.run()) measures
+*this Mac's* real behavior instead of Tiger's, and can silently bake in wrong answers.
+Found via ICU: its old bundled autoconf re-derives `cross_compiling` by compiling and
+running a trivial conftest regardless of `--host`, so on x86_64 it always concluded
+cross_compiling=no -- which silently drops the real ~30MB icudata from the build in favor
+of a 680-byte data-less stub (data is only built when `$tools=true or cross_compiling=yes`).
+Audited every other x86_64 lib's config.log / meson-log / CMakeCache for the same class of
+bug (grepped for actual AC_RUN_IFELSE / try_run / execution traces): none of the other
+autoconf-based builds use runtime probes at all (modern autoconf just trusts `--host` and
+never re-derives it by execution -- ICU's is unusually old), meson was already protected by
+`needs_exe_wrapper = true` in every cross file (meson skips run-checks without a configured
+exe_wrapper rather than silently running them), and CMake's CMAKE_CROSSCOMPILING correctly
+comes out ON given CMAKE_SYSTEM_PROCESSOR x86_64 differs from the host's arm64 (matching
+CMAKE_SYSTEM_NAME=Darwin alone would NOT have been enough, since the host is also Darwin).
+Rule going forward for any x86_64 build script: `export cross_compiling=yes` before
+autoconf configures, `needs_exe_wrapper = true` in meson cross files, `CMAKE_CROSSCOMPILING
+ON` set explicitly in CMake toolchain files -- all three now standard in
+deps/build-deps-x86_64.sh. If a configure script's *own* runtime probe (not just the
+generic cross_compiling boilerplate) ignores all of the above, as ICU's did, patch that copy
+of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than fighting it.

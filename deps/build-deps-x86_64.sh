@@ -13,6 +13,14 @@ export CC=tiger-clang64 CXX=tiger-clang64++ AR=tiger-ar RANLIB=tiger-ranlib NM=t
 export CFLAGS="-O3 -march=core2 -mtune=core2" CPPFLAGS="-I$P/include" LDFLAGS="-L$P/lib"
 export LIBS="-ltigercompat"
 export PKG_CONFIG_PATH=$P/lib/pkgconfig PKG_CONFIG_LIBDIR=$P/lib/pkgconfig
+# Rosetta 2 transparently executes x86_64 binaries on this Apple Silicon Mac, which fools
+# any configure-time check that compiles-and-runs a conftest (AC_RUN_IFELSE, CMake
+# check_*_source_runs/try_run, meson compiler.run()) into reporting THIS MAC's behavior
+# instead of Tiger's -- see NOTES.md "Rosetta cross-compile trap" for the full writeup and
+# the ICU incident that found it (a stub, dataless libicudata.a). Force it off explicitly;
+# --host alone isn't always enough (ICU's old bundled autoconf re-derives cross_compiling
+# from actually running a conftest despite --host, unless this is set first).
+export cross_compiling=yes
 HOST=x86_64-apple-darwin8
 NASM=/opt/homebrew/bin/nasm  # brew install nasm; needed by libjpeg-turbo SIMD and dav1d asm.
 cd $WKT/deps/src
@@ -49,6 +57,7 @@ set(CMAKE_FIND_ROOT_PATH $P)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_CROSSCOMPILING ON)
 EOF
   log "$name cmake configure"
   ( cd $builddir && PATH="/opt/homebrew/bin:$PATH" cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=$builddir/toolchain-tiger64.cmake \
