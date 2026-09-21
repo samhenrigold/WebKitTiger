@@ -982,3 +982,13 @@ that was actually affected by their absence (only ICU, already fixed). No change
   {uint32;uint64} is 12 bytes on i386 vs 16 on x86_64, and a struct that merely NESTS it is 16 vs 24 (nothing in it is
   8 bytes wide, so a field-type review passes it). Only the x86_64 build can detect it (i386 alignof reports 4 either
   way): both builds must run, always.
+- DECISION 2026-09-21 03:05 (revises the merged UI+render process): the 2D replay runs in a SEPARATE i386 GPU process
+  (upstream's own shape, TIGER_PROCESS=GPU) painting tiles into shareable bitmaps; the UI process keeps the CA
+  compositor (the only part that needs the window) and uploads tiles as layer contents. Why (wkcmake 75c8f0bd seam
+  trace): merging relocates ~6000 lines, runs CG replay on a non-main thread beside AppKit against 2005 CG caches never
+  audited for it (intermittent-crash territory), and inverts the trust model (every 2D message check becomes a browser
+  crash). The "extra copy" is a tile in shm that the UI process would have to upload to a GL texture anyway, so the
+  cost is near zero; measure it (cahost) before ever paying for the merge. The 7-line in-process seam stays available.
+  Video frames go 64-bit decoder -> shm -> CA layer in the UI process directly (CAVideo), unaffected.
+- compat/check-ownership.sh + Makefile hook committed (dispatch 45e5131); wrong ownership fails install, half-built
+  arch warns. VIDEO/MSE on in all three configs (serialization conditions); neutral graphics encoding defaults on.
