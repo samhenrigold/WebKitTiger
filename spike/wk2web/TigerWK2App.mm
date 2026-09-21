@@ -95,7 +95,7 @@ static RefPtr<TigerWebView> createWebView(const String& url, NSView* container)
 
     auto pageConfiguration = API::PageConfiguration::create();
     pageConfiguration->setProcessPool(processPool.ptr());
-    pageConfiguration->setWebsiteDataStore(WebsiteDataStore::defaultDataStore().ptr());
+    pageConfiguration->setWebsiteDataStore(&WebsiteDataStore::defaultDataStore());
 
     // The same preference pagedriver sets, and for the same reason: with DOM
     // rendering remote the web process produces display-list items for a GPU

@@ -2497,3 +2497,59 @@ wheel, and also asserts the scrollOffset the update carries, which is the direct
 **pagedriver options** now: `--assert-page`, `--expect-text` (polls `GetContentsAsString`),
 `--click x y`, `--type`, `--wheel`. Assertions run inside the driver against
 `GetRenderTreeExternalRepresentation`, not by grepping the web process's stderr.
+
+### 2026-09-21 — the UI process: written, gated, and staged behind the i386 census (wk2web)
+
+**Status: not on screen yet, and the reason is a shared dependency, not the UI code.** The i386
+`libWebKit.a` has never compiled — gpu32b's notes call the CoreIPC ObjC++ item "the next piece of
+work" and that is still true. The UI process is written, committed and configured; it is behind that.
+
+**What is written and committed:**
+
+- `UIProcess/cg/BackingStoreCG.mm` — **the file upstream never wrote.** WebKit has a Cairo
+  BackingStore and a Skia one and no CoreGraphics one, because Apple went to the RemoteLayerTree and
+  never needed a backing store on a CG platform. logs/webkit2-split-survey.md section 3 predicted it
+  at "roughly 130 to 200 lines mirroring the Cairo file"; it is 155. One real difference from Cairo:
+  cairo cannot safely blit a surface onto itself, so its scroll path keeps a second surface, copies
+  twice and runs a hysteresis timer to release it; `CGBitmapContextCreateImage` plus one
+  `CGContextDrawImage` is a single copy, so there is no scroll surface here.
+- `UIProcess/tiger/` — the platform half, modelled on `UIProcess/playstation` because that is the
+  closest shape in tree (no native widget, a WC drawing area, a C API rather than a framework):
+  `PageClientImpl` over an NSView, `TigerWebView` holding the page and the view and turning
+  `setViewNeedsDisplay` into `-setNeedsDisplayInRect:`, `WebContextMenuProxyTiger` on a real NSMenu.
+  That last one is not optional decoration: PLATFORM(COCOA) is true on this side, so
+  `platformMenu()` and `platformData()` are pure virtuals that have to be answered even though
+  nothing on this port reads `platformData`.
+- `spike/wk2web/TigerWK2App.mm` — the app. Launches the x86_64 content and network processes through
+  the ProcessLauncherTiger contract already in the tree, creates the page, loads a URL, blits the
+  backing store in `-drawRect:`. Deliberately **not** `spike/TigerBrowser/TigerBrowser.m`: that is
+  the chrome (toolbar, find bar, menus, NSTextInput) hosting a CARenderer over a stub page, and it is
+  where this ends up, but bringing WebKit2 up inside it at the same time means debugging two unknowns
+  at once.
+- The UI half of `PlatformTiger.cmake`'s `if (NOT TIGER64)` arm, **gated on
+  `TIGER_PROCESS STREQUAL "UI"`** rather than on the architecture. The WebKit library is one target
+  per tree, so a UI source that does not compile yet would stop build/tiger-gpu building the GPU
+  process too; with the gate, build/tiger-gpu compiles none of it. Verified by reconfiguring both
+  trees. No serialization input is involved, so the wire is unaffected. Committed on its own and
+  immediately, because the file is co-owned.
+
+**The path chosen, and why.** Backing store, not the GPU compositor: `bin/TigerGPUProcess` is not
+linked yet, so `DrawingAreaProxyWC` compositing ShareableBitmap updates onto a view-sized CG bitmap
+is the only real option today. Nothing in the app changes when the GPU process arrives — the web
+process enters compositing mode and the accelerated arm takes over.
+
+**A real wire divergence found on the way, and fixed (WebKit c87aff28).** `USE(PASSKIT)` guards
+`CoreIPCPassKit.serialization.in` and `CoreIPCPKPaymentMerchantSession.serialization.in`, and
+PlatformUse.h derives it from `PLATFORM(MAC)` — true on this port's i386 side, false on its x86_64
+side. The two processes were compiling different serializer sets out of byte-identical generated
+text. **tiger-check-ipc cannot see this**: the generated sources match, and the flag is not a CMake
+variable, so the flag comparison records it `<unset>` on both sides. Same shape as the font
+divergence wirefont fixed, and the general form is worth a sweep: every `USE_*` that PlatformUse.h
+derives from `PLATFORM(MAC)` and that appears in a serialization condition is a candidate. It was
+also 240 of the 572 errors in the i386 census, so it unblocks gpu32b as much as the UI track.
+
+**The census, for whoever takes the i386 WebKit library next.** 572 errors, 46 failed targets before
+the PassKit fix, concentrated in `Shared/cocoa` (240) and `Shared/API` (80) — the CoreIPC surface the
+split survey said must not be compiled, which is on because PLATFORM(COCOA) is true here. Two
+image-decoder flags also have to match the GPU tree: `USE_AVIF` and `USE_JPEGXL` were ON in
+build/tiger-ui-port's stale cache and OFF in build/tiger-gpu's.
