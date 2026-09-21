@@ -110,8 +110,43 @@ CTFontDescriptorRef CTFontDescriptorCreateMatchingFontDescriptor(CTFontDescripto
 
 CFArrayRef CTFontCopyDefaultCascadeListForLanguages(CTFontRef font, CFArrayRef languages)
 {
-    (void)languages; /* Tiger's cascade list is not language-keyed. */
-    return font ? CTFontCopyDefaultCascadeList(font) : NULL;
+    CFArrayRef base;
+    CFMutableArrayRef result;
+    CFIndex languageCount, i;
+
+    if (!font)
+        return NULL;
+    base = CTFontCopyDefaultCascadeList(font);
+    if (!base || !languages)
+        return base;
+
+    /* Tiger's own cascade list answers for the current locale only. The
+     * language-specific fallbacks do exist in its
+     * CoreText.framework/Resources/DefaultFontFallbacks.plist, reachable through
+     * CTFontDescriptorCreatePerLanguageAndCSSKey, so put the caller's languages
+     * in front of the locale's list in the order they asked for. That is what
+     * this function is for in SystemFontDatabaseCoreText: getting the CJK
+     * fallback ordering right for the page's language rather than the user's. */
+    languageCount = CFArrayGetCount(languages);
+    if (!languageCount)
+        return base;
+
+    result = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+    for (i = 0; i < languageCount; ++i) {
+        CFStringRef language = (CFStringRef)CFArrayGetValueAtIndex(languages, i);
+        CTFontDescriptorRef descriptor;
+
+        if (!language || CFGetTypeID(language) != CFStringGetTypeID())
+            continue;
+        descriptor = CTFontDescriptorCreatePerLanguageAndCSSKey(language, kCTFontDescriptorDefaultKey);
+        if (descriptor) {
+            CFArrayAppendValue(result, descriptor);
+            CFRelease(descriptor);
+        }
+    }
+    CFArrayAppendArray(result, base, CFRangeMake(0, CFArrayGetCount(base)));
+    CFRelease(base);
+    return result;
 }
 
 CFIndex CTFontGetGlyphCount(CTFontRef font)
@@ -478,27 +513,25 @@ CTFontDescriptorRef CTFontDescriptorCreateWithTextStyleAndAttributes(CFStringRef
     return result;
 }
 
+/* Tier 1. Tiger ships CoreText.framework/Resources/DefaultFontFallbacks.plist,
+ * keyed by CSS generic family with per-language alternatives, and exports
+ * CTFontDescriptorCreatePerLanguageAndCSSKey to read it. Its CSS key constants
+ * are the literal strings "serif", "sans-serif" and so on, which is exactly
+ * what WebCore passes, so the key goes straight through.
+ *
+ * This replaces a hardcoded guess that was wrong more often than right: Apple
+ * maps sans-serif to Lucida Grande, not Helvetica; monospace to Monaco, not
+ * Courier; and fantasy to Zapfino, not Papyrus. It also ignored the language
+ * entirely, where the real table answers serif/ja with HiraMinPro-W3. */
 CTFontDescriptorRef CTFontDescriptorCreateForCSSFamily(CFStringRef cssFamily, CFStringRef language)
 {
-    CFStringRef name;
-
     if (!cssFamily)
         return NULL;
+    /* Tiger has no system-ui generic; its nearest equivalent is the default
+     * key, which is what the system font resolves through. */
     if (CFStringCompare(cssFamily, kCTFontCSSFamilySystemUI, 0) == kCFCompareEqualTo)
-        return CTFontDescriptorCreateForUIType(kCTFontUIFontSystem, 0, language);
-    if (CFStringCompare(cssFamily, kCTFontCSSFamilySerif, 0) == kCFCompareEqualTo)
-        name = CFSTR("Times");
-    else if (CFStringCompare(cssFamily, kCTFontCSSFamilySansSerif, 0) == kCFCompareEqualTo)
-        name = CFSTR("Helvetica");
-    else if (CFStringCompare(cssFamily, kCTFontCSSFamilyMonospace, 0) == kCFCompareEqualTo)
-        name = CFSTR("Courier");
-    else if (CFStringCompare(cssFamily, kCTFontCSSFamilyCursive, 0) == kCFCompareEqualTo)
-        name = CFSTR("Apple Chancery");
-    else if (CFStringCompare(cssFamily, kCTFontCSSFamilyFantasy, 0) == kCFCompareEqualTo)
-        name = CFSTR("Papyrus");
-    else
-        return NULL;
-    return CTFontDescriptorCreateWithNameAndSize(name, 0);
+        return CTFontDescriptorCreatePerLanguageAndCSSKey(language, kCTFontDescriptorDefaultKey);
+    return CTFontDescriptorCreatePerLanguageAndCSSKey(language, cssFamily);
 }
 
 /* ---- tables ------------------------------------------------------------ */
@@ -682,12 +715,18 @@ void CTFontGetVerticalTranslationsForGlyphs(CTFontRef font, const CGGlyph glyphs
     if (!font || count <= 0)
         return;
 
-    /* Apple does this through CGGetGlyphDeviceMetrics, a CoreGraphics private
-     * that Tiger's CoreGraphics does not export, so neither tier 1 nor tier 2
-     * is reachable. The next best thing is the font's own VORG table, which is
-     * where a CJK font records its per-glyph vertical origin; without one, the
-     * ascent is the conventional origin. The horizontal half is always half the
-     * advance, which centres the glyph on the vertical baseline. */
+    /* Both Apple versions reach for a CoreGraphics private Tiger does not have:
+     * 10.5 uses CGGetGlyphDeviceMetrics, 10.6 uses CGFontGetGlyphVerticalOffsets.
+     * What 10.6 does when that fails is reachable, though: it falls back to the
+     * glyphs' bounding boxes and takes the origin from the top of the box.
+     *
+     * So, in order of preference: the font's own VORG table, which is where a
+     * CJK font records its authoritative per-glyph vertical origin and is more
+     * accurate than anything derived from ink; then 10.6's bounding-box
+     * fallback, via CTFontGetBoundingRectsForGlyphs rather than the CoreGraphics
+     * entry point, since Tiger's CoreText answers that directly; then the
+     * ascent. The horizontal half is always half the advance, which centres the
+     * glyph on the vertical baseline. */
     ascent = (CGFloat)CTFontGetAscent(font);
     advances = (CGSize*)calloc((size_t)count, sizeof(CGSize));
     origins = (short*)calloc((size_t)count, sizeof(short));
@@ -708,9 +747,24 @@ void CTFontGetVerticalTranslationsForGlyphs(CTFontRef font, const CGGlyph glyphs
             scale = (CGFloat)CTFontGetSize(font) / unitsPerEm;
     }
 
-    for (i = 0; i < count; ++i) {
-        CGFloat originY = scale > 0 ? origins[i] * scale : ascent;
-        translations[i] = CGSizeMake(-advances[i].width / 2, -originY);
+    if (scale > 0) {
+        for (i = 0; i < count; ++i)
+            translations[i] = CGSizeMake(-advances[i].width / 2, -origins[i] * scale);
+    } else {
+        /* No VORG. Take the top of each glyph's bounding box, the way 10.6 does
+         * when its vertical-offset lookup comes back empty, and fall back to the
+         * ascent for a glyph with no ink, such as a space. */
+        CGRect* rects = (CGRect*)calloc((size_t)count, sizeof(CGRect));
+
+        if (rects)
+            CTFontGetBoundingRectsForGlyphs(font, glyphs, rects, count);
+        for (i = 0; i < count; ++i) {
+            CGFloat originY = ascent;
+            if (rects && !CGRectIsEmpty(rects[i]) && !CGRectIsNull(rects[i]))
+                originY = CGRectGetMaxY(rects[i]);
+            translations[i] = CGSizeMake(-advances[i].width / 2, -originY);
+        }
+        free(rects);
     }
     free(advances);
     free(origins);
@@ -906,7 +960,17 @@ static ATSFontContainerRef activateFontData(CFDataRef data)
 
 /* Every font in the container, as descriptors named by PostScript name. Once
  * ATS knows the font, Tiger's own CoreText resolves such a descriptor, which is
- * what lets the rest of WebCore's descriptor plumbing work untouched. */
+ * what lets the rest of WebCore's descriptor plumbing work untouched.
+ *
+ * One divergence from 10.6, which is the first release with this API and so the
+ * reference for it. Its CTFontManagerCreateFontDescriptorsFromURL builds each
+ * descriptor straight from a CGFont with an `is_unregistered_t` tag, so the font
+ * is never registered and stays invisible to font enumeration. Tiger has no
+ * descriptor that can wrap a CGFont, so activation is the only way to make a
+ * descriptor resolvable, and the font therefore does become visible
+ * process-wide: a web font will show up in CTFontManagerCopyAvailableFontFamilyNames
+ * and can shadow an installed family of the same name. Noted in CT-SURVEY.md;
+ * ATS offers no unregistered-but-resolvable mode to fix it with. */
 static CFArrayRef descriptorsForContainer(ATSFontContainerRef container)
 {
     ATSFontRef stackFonts[8];

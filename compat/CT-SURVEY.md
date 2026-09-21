@@ -79,8 +79,17 @@ realise the descriptor into a font and ask that instead.
 
 Per the standing rule: **tier 1** means Tiger already exports something that does the
 job, private or older-named; **tier 2** means it is implemented the way Apple implements
-it, read out of the 10.5 binary in `refs/leopard/CoreText.i386`; **tier 3** means neither
-was reachable and this is the best version that could be written on what Tiger has.
+it, read out of `refs/leopard/CoreText.i386` (10.5.8) or
+`refs/snowleopard-10.6.3/.../CoreText` (10.6.3); **tier 3** means neither was reachable
+and this is the best version that could be written on what Tiger has.
+
+10.6.3 matters because it is the first CoreText with `CTFontManager*`, so it is the
+reference for the web-font path. Checked against it, and **absent even there**:
+`CTLineGetBoundsWithOptions`, `CTFontGetUnsummedAdvancesForGlyphsAndStyle`,
+`CTRunGetBaseAdvancesAndOrigins`, `CTFontCopyDefaultCascadeListForLanguages`,
+`CTFontManagerCreateFontDescriptorFromData` and `CTFontCopyGlyphCoverageForFeature`.
+Those are tier 3 with no Apple implementation in existence to match, which is now a
+checked fact rather than an assumption.
 
 Everything in bucket (b) is **tier 1** by definition: each one forwards to a Tiger export
 under its older name.
@@ -90,8 +99,34 @@ Bucket (c), by tier:
 | Tier | Functions |
 | --- | --- |
 | 1 | `CTFontDescriptorCreateCopyWithSymbolicTraits` (Tiger's `CTFontCreateVariantWithMatchingSymbolicTraits`), `CTFontCopyAvailableTables` (ATS's `ATSFontGetTableDirectory`, the same directory Leopard reads), `CTFontHasTable` (`CTFontCopyTable`), `CTFontGetGlyphsForCharacterRange` and `CTFontGetVerticalGlyphsForCharacters` (`CTFontGetGlyphsForCharacters`), `CTFontGetPhysicalSymbolicTraits`, `CTFontCopyPhysicalFont`, `CTFontCreateForCharactersWithLanguageAndOption` and its two siblings (`CTFontCreateForString`), `CTFontCreatePathForGlyph` (`CGFontGetGlyphPath`), `CTFontDescriptorCreateLastResort`, all four `CTFontManager*` font-loading entry points (`ATSFontActivateFromMemory`) |
-| 2 | `CTFontCreateUIFontForLanguage`, `CTFontDescriptorCreateForUIType`, `CTFontDescriptorCreateWithTextStyle`, `CTFontDescriptorGetTextStyleSize`, `CTFontDescriptorCreateForCSSFamily`, `CTFontIsSystemUIFont`, `CTFontDescriptorIsSystemUIFont`, `CTFontGetUIFontType` — Leopard's `CTFontCreateUIFontForLanguage` is `CTFontDescriptorCreateForUIType` plus `CTFontCreateWithFontDescriptor`, and Leopard's `CTFontDescriptorCreateForUIType` builds its descriptor from a function-local static table of name and size with `CFStringHasPrefix` on the language. That is the same shape as the table here; only the values differ, and on 10.4 they are Lucida Grande's. Also `CTFontDrawGlyphs`, which is the documented set-font, set-size, show-glyphs sequence. |
+| 2 | `CTFontCreateUIFontForLanguage`, `CTFontDescriptorCreateForUIType`, `CTFontDescriptorCreateWithTextStyle`, `CTFontDescriptorGetTextStyleSize`, `CTFontIsSystemUIFont`, `CTFontDescriptorIsSystemUIFont`, `CTFontGetUIFontType` — Leopard's `CTFontCreateUIFontForLanguage` is `CTFontDescriptorCreateForUIType` plus `CTFontCreateWithFontDescriptor`, and Leopard's `CTFontDescriptorCreateForUIType` builds its descriptor from a function-local static table of name and size with `CFStringHasPrefix` on the language. That is the same shape as the table here; only the values differ, and on 10.4 they are Lucida Grande's. Also `CTFontDrawGlyphs`, which is the documented set-font, set-size, show-glyphs sequence. |
 | 3 | `CTFontGetVerticalTranslationsForGlyphs`, `CTLineGetTrailingWhitespaceWidth`, `CTLineGetBoundsWithOptions`, `CTFrameGetLineOrigins`, `CTFramesetterSuggestFrameSizeWithConstraints`, `CTRunGetBaseAdvancesAndOrigins` — reasons below. |
+
+### Moved up a tier after checking 10.6.3 and Tiger's own resources
+
+- `CTFontDescriptorCreateForCSSFamily` was tier 2 and is now **tier 1**. Tiger ships
+  `CoreText.framework/Resources/DefaultFontFallbacks.plist`, keyed by CSS generic family
+  with per-language alternatives, and exports `CTFontDescriptorCreatePerLanguageAndCSSKey`
+  to read it. Its CSS key constants are the literal strings `serif`, `sans-serif` and so
+  on, which is exactly what WebCore passes, so the key goes straight through. The
+  hardcoded table it replaces was wrong more often than right: Apple maps sans-serif to
+  **Lucida Grande**, not Helvetica; monospace to **Monaco**, not Courier; and fantasy to
+  **Zapfino**, not Papyrus. It also ignored the language, where the real table answers
+  serif/ja with HiraMinPro-W3.
+- `CTFontCopyDefaultCascadeListForLanguages` was tier 1 but dropped the language list on
+  the floor. Tiger's own `CTFontCopyDefaultCascadeList` answers for the current locale
+  only, but the per-language fallbacks are in that same plist, so the requested languages
+  now go in front of the locale's list in the order asked for. With `ja` the list leads
+  with AquaKana-HiraKaku. This is what the function is for in
+  `SystemFontDatabaseCoreText`: CJK fallback ordering for the page's language rather than
+  the user's.
+- `CTFontGetVerticalTranslationsForGlyphs` stays tier 3, but now follows 10.6's
+  fallback. Both Apple versions reach for a CoreGraphics private Tiger lacks (10.5
+  `CGGetGlyphDeviceMetrics`, 10.6 `CGFontGetGlyphVerticalOffsets`), but what 10.6 does
+  when that fails is reachable: it derives the origin from the glyph's bounding box. So
+  the order is now VORG, which is authoritative where a CJK font provides it, then the
+  bounding-box top via `CTFontGetBoundingRectsForGlyphs`, then the ascent. For Helvetica
+  'A' that moves the origin from the font ascent to the glyph's own cap height.
 
 Three tier-3 cases are worth stating, because tiers 1 and 2 really were checked and
 really were closed:
@@ -102,8 +137,8 @@ really were closed:
   own `VORG` table, which is where a CJK font records per-glyph vertical origins, and
   falls back to the ascent only when there is no `VORG`. The horizontal half is half the
   advance either way.
-- `CTLineGetTrailingWhitespaceWidth`: 10.5 does export this one, and Leopard's
-  implementation calls `TLine::CountTrailingWhitespaceChars`. Tiger's CoreText contains
+- `CTLineGetTrailingWhitespaceWidth`: 10.5 and 10.6 both export this one, and both
+  implement it by calling `TLine::CountTrailingWhitespaceChars`. Tiger's CoreText contains
   that exact method, but as a **local** symbol, so it cannot be linked against, and
   `CTLine` never hands back its string. This walks the runs backwards instead, summing the advances of glyphs equal to
   the run font's space glyph. Verified on the box against a line with two trailing spaces.
@@ -443,6 +478,20 @@ overlay. What it does need:
 - The overlay needs `-F compat/sdk-overlay` ahead of the SDK, and the ApplicationServices
   sub-framework directory also on `-F` so `<ATS/SFNTLayoutTypes.h>` resolves from
   `<CoreText/SFNTLayoutTypes.h>`. `compat/Makefile` shows both.
+
+## The web-font path diverges from 10.6 in one visible way
+
+10.6.3 is the reference for this path, and its
+`CTFontManagerCreateFontDescriptorsFromURL` builds each descriptor straight from a
+`CGFont` carrying an `is_unregistered_t` tag: the font is never registered and stays
+invisible to font enumeration. Tiger has no descriptor that can wrap a `CGFont`, so ATS
+activation is the only way to make a descriptor resolvable at all.
+
+The consequence is a real behavioural difference, not just an implementation one. A web
+font loaded on Tiger becomes visible process-wide: it will appear in
+`CTFontManagerCopyAvailableFontFamilyNames` and can shadow an installed family of the
+same name. ATS offers no unregistered-but-resolvable mode to avoid it. Worth knowing
+before debugging a page whose `@font-face` named "Arial" appears to affect unrelated text.
 
 ## Leopard's CoreText cannot be used directly
 

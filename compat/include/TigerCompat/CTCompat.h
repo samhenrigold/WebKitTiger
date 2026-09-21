@@ -195,6 +195,16 @@ CTFontDescriptorRef CTFontDescriptorCreateWithAttributes(CFDictionaryRef);
 CTFontDescriptorRef CTFontDescriptorCreateWithNameAndSize(CFStringRef, double size);
 CTFontDescriptorRef CTFontDescriptorCopyWithAttributes(CTFontDescriptorRef, CFDictionaryRef);
 CTFontDescriptorRef CTFontDescriptorCopyWithFeature(CTFontDescriptorRef, CFNumberRef, CFNumberRef);
+/* Tiger's own per-language CSS generic-family lookup, reading the table in
+ * CoreText.framework/Resources/DefaultFontFallbacks.plist. Argument order
+ * confirmed on the box: language first, CSS key second. */
+CTFontDescriptorRef CTFontDescriptorCreatePerLanguageAndCSSKey(CFStringRef language, CFStringRef cssKey);
+extern const CFStringRef kCTFontDescriptorSerifFamilyKey;
+extern const CFStringRef kCTFontDescriptorSanSerifFamilyKey;
+extern const CFStringRef kCTFontDescriptorMonospaceFamilyKey;
+extern const CFStringRef kCTFontDescriptorCursiveFamilyKey;
+extern const CFStringRef kCTFontDescriptorFantasyFamilyKey;
+extern const CFStringRef kCTFontDescriptorDefaultKey;
 CFArrayRef CTFontDescriptorCopyMatchingFontDescriptors(CTFontDescriptorRef, CFSetRef);
 CFTypeRef CTFontDescriptorCopyAttribute(CTFontDescriptorRef, CFStringRef);
 CFDictionaryRef CTFontDescriptorCopyAttributes(CTFontDescriptorRef);

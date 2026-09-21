@@ -255,7 +255,7 @@ static void testWrappers(CTFontRef helvetica)
 
 static void testSystemFont(CTFontRef helvetica)
 {
-    CTFontDescriptorRef uiDescriptor, styleDescriptor, cssDescriptor;
+    CTFontDescriptorRef uiDescriptor, styleDescriptor;
     CTFontRef systemFont, viaLanguage;
     CGFloat weight = -1, lineSpacing = -1, size;
 
@@ -340,17 +340,57 @@ static void testSystemFont(CTFontRef helvetica)
     printf("     title1: size=%.1f weight=%.2f lineSpacing=%.1f\n",
         (double)size, (double)weight, (double)lineSpacing);
 
-    cssDescriptor = CTFontDescriptorCreateForCSSFamily(kCTFontCSSFamilyMonospace, NULL);
-    expect(cssDescriptor != NULL, "CTFontDescriptorCreateForCSSFamily(monospace)");
-    if (cssDescriptor) {
-        CTFontRef font = CTFontCreateWithFontDescriptor(cssDescriptor, 12.0, NULL);
-        CFStringRef family = font ? CTFontCopyFamilyName(font) : NULL;
-        printString("css monospace family", family);
-        if (family)
-            CFRelease(family);
-        if (font)
-            CFRelease(font);
-        CFRelease(cssDescriptor);
+    /* The CSS generic families come from Tiger's own DefaultFontFallbacks.plist,
+       so check them against what that table actually says, including a
+       language-specific answer. */
+    {
+        static const struct { const CFStringRef* key; const char* language; const char* want; } css[] = {
+            { &kCTFontCSSFamilySerif,      "en", "Times-Roman" },
+            { &kCTFontCSSFamilySansSerif,  "en", "LucidaGrande" },
+            { &kCTFontCSSFamilyMonospace,  "en", "Monaco" },
+            { &kCTFontCSSFamilyCursive,    "en", "Apple-Chancery" },
+            { &kCTFontCSSFamilyFantasy,    "en", "Zapfino" },
+            { &kCTFontCSSFamilySerif,      "ja", "HiraMinPro-W3" }
+        };
+        unsigned i, wrong = 0;
+        for (i = 0; i < sizeof(css) / sizeof(css[0]); ++i) {
+            CFStringRef lang = CFStringCreateWithCString(NULL, css[i].language, kCFStringEncodingASCII);
+            CTFontDescriptorRef d = CTFontDescriptorCreateForCSSFamily(*css[i].key, lang);
+            CTFontRef f = d ? CTFontCreateWithFontDescriptor(d, 12.0, NULL) : NULL;
+            CFStringRef ps = f ? CTFontCopyPostScriptName(f) : NULL;
+            char got[64] = "(null)";
+            if (ps)
+                CFStringGetCString(ps, got, sizeof(got), kCFStringEncodingUTF8);
+            if (strcmp(got, css[i].want)) {
+                printf("     css %s/%s: got %s, want %s\n", css[i].language, got, got, css[i].want);
+                ++wrong;
+            }
+            if (ps) CFRelease(ps);
+            if (f) CFRelease(f);
+            if (d) CFRelease(d);
+            CFRelease(lang);
+        }
+        expect(!wrong, "CSS generic families match Tiger's own fallback table");
+    }
+
+    /* The language-aware cascade list must lead with the requested language. */
+    {
+        CFStringRef ja = CFSTR("ja");
+        CFArrayRef langs = CFArrayCreate(NULL, (const void**)&ja, 1, &kCFTypeArrayCallBacks);
+        CFArrayRef plain = CTFontCopyDefaultCascadeListForLanguages(helvetica, NULL);
+        CFArrayRef jaList = CTFontCopyDefaultCascadeListForLanguages(helvetica, langs);
+        expect(jaList && plain && CFArrayGetCount(jaList) > CFArrayGetCount(plain),
+            "a language-specific cascade list is longer than the plain one");
+        if (jaList && CFArrayGetCount(jaList)) {
+            CTFontDescriptorRef first = (CTFontDescriptorRef)CFArrayGetValueAtIndex(jaList, 0);
+            CFStringRef name = (CFStringRef)CTFontDescriptorCopyAttribute(first, kCTFontNameAttribute);
+            printString("ja cascade leads with", name);
+            if (name)
+                CFRelease(name);
+        }
+        if (plain) CFRelease(plain);
+        if (jaList) CFRelease(jaList);
+        CFRelease(langs);
     }
 }
 
