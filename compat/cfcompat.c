@@ -77,6 +77,13 @@ void backtrace_symbols_fd(void *const *array, int size, int fd)
     free(symbols);
 }
 
+/* TIGER64: Mac OS X 10.4's x86_64 userland is libSystem only, so there is no
+   libdispatch and no CoreFoundation for that architecture. The <execinfo.h>,
+   <malloc/malloc.h>, dyld and libcache sections below are plain libSystem and
+   build for both; notify_register_dispatch and the CoreFoundation section are
+   compiled for i386 only. See logs/jsc64-spike.md. */
+#ifndef __LP64__
+
 /* ---- <notify.h>, notify_register_dispatch is 10.6+ ---------------------- */
 
 #include <notify.h>
@@ -91,6 +98,8 @@ uint32_t notify_register_dispatch(const char *name, int *out_token,
         *out_token = -1;
     return NOTIFY_STATUS_FAILED;
 }
+
+#endif /* !__LP64__ */
 
 /* ---- <malloc/malloc.h>, 10.6+ / 10.7+ ---------------------------------- */
 
@@ -139,7 +148,13 @@ int _dyld_get_image_uuid(const struct mach_header *mh, uuid_t uuid)
 
     if (!mh)
         return 0;
+#ifdef __LP64__
+    /* TIGER64: the caller passes a mach_header_64 through this mach_header* -- that
+       is how Apple's own prototype is spelled -- and it is 4 bytes longer. */
+    lc = (const struct load_command *)((const struct mach_header_64 *)mh + 1);
+#else
     lc = (const struct load_command *)(mh + 1);
+#endif
     for (i = 0; i < mh->ncmds; i++) {
         if (lc->cmd == LC_UUID) {
             memcpy(uuid, ((const struct uuid_command *)lc)->uuid, sizeof(uuid_t));
@@ -188,6 +203,8 @@ void cache_simulate_memory_warning_event(uint64_t level)
 
 /* ---- CoreFoundation, <TigerCompat/CFCompat.h> --------------------------- */
 
+#ifndef __LP64__
+
 #include <CoreFoundation/CoreFoundation.h>
 
 /* CFLocaleCopyPreferredLanguages, 10.5+. CF-550's implementation reads the
@@ -214,3 +231,5 @@ CFArrayRef CFLocaleCopyPreferredLanguages(void)
    region registered as a malloc zone so plain free() still finds it. An earlier
    version of this file over-allocated and returned an interior pointer, which
    needed its own free; that is gone now that the platform does it properly. */
+
+#endif /* !__LP64__ */
