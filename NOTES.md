@@ -406,3 +406,9 @@ one triage pass before it was noticed. See the triage table at the end of
   Checked: plain .m files with @implementation ivars and auto-synthesized properties compile and run on the box with the
   patched clang (spike/fragileivars_c.m), so the plan's two ivar items (WebPanelAuthenticationHandler.m,
   WebJavaScriptTextInputPanel.m, WebFeature.m) need no edits.
+- JS PERFORMANCE (reopened 22:20 at the user's request; it's critical to them). Three options under evaluation:
+  (1) keep 2026 tree + interpreter (2.24 s test loop); (2) pin to the last tree with JSVALUE32_64 + x86-32 JIT (~mid-2021,
+  bug 229331) and revive the JIT (agent jit2021, logs/jit-pin-2021-plan.md); (3) a 64-bit content process (WebKit2-shaped:
+  32-bit Cocoa UI process + x86_64 content process with today's fully-maintained x86_64 JIT) — spikes: jsc PORT=JSCOnly
+  x86_64 on Tiger's 64-bit libSystem (agent jsc64, worktree WebKit-jsc64, logs/jsc64-spike.md) and Leopard 10.5.0's x86_64
+  CF/CG/CoreText loaded privately in a 64-bit process (agent leopard, logs/leopard-x86_64-spike.md). Decision is the user's.
