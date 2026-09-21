@@ -11,6 +11,18 @@
 # `ls -l` tells the two apart at a glance; README.md records why each real file
 # is real.
 set -e
+
+# The SDK is read-only and this script only ever creates symlinks into it, but a
+# damaged SDK would be silently baked into the overlay, so check first. A write
+# through one of these symlinks -- shell redirection and open(,'w') both follow
+# them -- is what truncated two SDK headers once. Delete the symlink before
+# creating a real file at any path this script manages.
+if [ -x "$(dirname "$0")/../../toolchain/verify-sdk.sh" ]; then
+    "$(dirname "$0")/../../toolchain/verify-sdk.sh" || {
+        echo "make-overlay.sh: the 10.4u SDK does not match its manifest; refusing to run" >&2
+        exit 1
+    }
+fi
 WKT=${WKT:-/Users/shg/Developer/WebKitTiger}
 SDK=$WKT/sdk/MacOSX10.4u.sdk/System/Library/Frameworks
 HERE=$(cd "$(dirname "$0")" && pwd)
