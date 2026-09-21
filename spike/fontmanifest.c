@@ -411,6 +411,38 @@ static void emitFace(ATSFontRef ats, int first)
     if (ct)
         printf(",\n     \"ctCapHeight16\": %.4f, \"ctXHeight16\": %.4f",
             (double)CTFontGetCapHeight(ct), (double)CTFontGetXHeight(ct));
+
+    /* Covered characters, as coalesced BMP ranges.
+     *
+     * The 64-bit font cache has to decide fallback without opening a single
+     * font file: it has no CoreText and no ATS to ask, and parsing 174 faces to
+     * answer one missing glyph is not a cache. So coverage travels in the
+     * manifest, taken from CTFontCopyCharacterSet, which is the authority the
+     * brief names. Ranges rather than a bitmap because real coverage is
+     * clustered: the whole box fits in a few hundred kilobytes this way. */
+    if (ct) {
+        CFCharacterSetRef set = CTFontCopyCharacterSet(ct);
+        if (set) {
+            int firstRange = 1, runStart = -1;
+            unsigned u;
+            printf(",\n     \"coverage\": [");
+            for (u = 0; u <= 0xFFFF; ++u) {
+                int in = u >= 0xD800 && u <= 0xDFFF ? 0
+                    : CFCharacterSetIsCharacterMember(set, (UniChar)u);
+                if (in && runStart < 0)
+                    runStart = (int)u;
+                else if (!in && runStart >= 0) {
+                    printf("%s[%d,%d]", firstRange ? "" : ",", runStart, (int)u - 1);
+                    firstRange = 0;
+                    runStart = -1;
+                }
+            }
+            if (runStart >= 0)
+                printf("%s[%d,%d]", firstRange ? "" : ",", runStart, 0xFFFF);
+            printf("]");
+            CFRelease(set);
+        }
+    }
     printf("}");
 
     if (ct) CFRelease(ct);
