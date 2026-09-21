@@ -1,7 +1,7 @@
 # large/derived trees; WebKit/ and toolchain/src are their own repos
 /WebKit/
 /build/
-/sdk/
+/sdk/*
 /sysroot/
 /deps/src/
 /toolchain/src/
@@ -81,3 +81,4 @@
 /toolchain/bin/tiger-otool
 /toolchain/bin/tiger-ranlib
 /toolchain/bin/tiger-strip
+!/sdk/MacOSX10.4u.sdk.sha256
