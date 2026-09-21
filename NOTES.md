@@ -574,3 +574,10 @@ one triage pass before it was noticed. See the triage table at the end of
   (cacheDisplayInRect:) and composited as CALayers in the page's layer tree (proper z-order/clipping/transforms); events
   translated and forwarded; AppKit modal tracking loops replaced by explicit highlight/click/value updates; NSMenu popups stay
   real windows. Prototype: CAHost phase 4 (revised).
+- ARCHITECTURE CANDIDATE (d), now primary pending survey (00:15): "32-bit rendering, 64-bit everything else" = WebKit's
+  GPU-process shape: 64-bit WebProcess (JIT, DOM, layout, decoding, HarfBuzz shaping incl. AAT, display-list recording) +
+  32-bit render process replaying display lists with Tiger's real CG/CoreText via the verified compat layer, hosting the CA
+  compositor (+ remoted WebGL on Tiger OpenGL) + 32-bit UI (AppKit, offscreen-rendered Aqua controls); NetworkProcess 64-bit.
+  Reuses the whole 32-bit investment; Apple-exact text/graphics; JIT kept. Open question: is RemoteRenderingBackend/display-list
+  remoting usable with PLATFORM(COCOA) off + USE(CG) on (logs/render-process-survey.md)? Fallback (b) cairo-in-64-bit;
+  (a) Leopard frameworks opportunistic. Font handle: HarfBuzz metrics/shaping in 64-bit must match CT rasterization in 32-bit.
