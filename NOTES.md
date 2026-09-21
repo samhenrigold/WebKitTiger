@@ -1024,3 +1024,19 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   builtins compiled directly with the raw cross-compiler + i386/*.S overlay; excludes crtbegin/crtend,
   apple_versioning, clear_cache, os_version_check (compat/availability.c owns the version checks). i386 exctest and
   fstest pass again. x86_64 builtins live in toolchain/sysroot-x86_64/usr/lib and were never at risk.
+- Cross-process text pixel test (ctcompat be67b1a, logs/hb-raster.md): 64-bit HarfBuzz shaping -> 32-bit CoreText by
+  handle is PIXEL-IDENTICAL for Lucida Grande 13 and CJK; Arabic differs only by a 1/60 pt displacement. The one real
+  difference is AAT kerning: CoreText puts the whole Apple-format kern on the leading glyph, HarfBuzz splits the pair
+  (run width identical, so line breaking is unaffected; worst shift 0.99 pt). 66/176 faces carry Apple-format kern
+  (the system font does not). Fix in the web process: shape with -kern and apply the table value to the leading glyph.
+  Read the displacement column, not differing-pixel counts. Tiger's CTLineDraw takes colour from the attributed string
+  and ignores the context fill (a committed cttest check had passed black-on-black by reading a stale bitmap; fixed).
+- Hand-written coder audit (objcrt 2a9f0d69): four more sites fixed, the sharpest being StreamConnectionEncoder (a
+  second encoder with the identical alignof bug) and StreamConnectionBuffer's size_t-backed ClientOffset/ServerOffset,
+  which are the atomic sync words in shared memory; also ArrayReferenceTuple bypassing the span check and
+  AttachmentInfo blitted raw. CGFloat/NSInteger absent from Platform/IPC today; re-check if Cocoa coders ever join.
+  long double is 16/16 on both (ban removed).
+- wcplan bdc2c46: plan and N1 briefs updated to the four-process topology; the compositor never moved, only replay;
+  remap brief now "run the probe first, remap only what it reports" (wkcmake already forces neutral encoding for the
+  three divergent types).
+- ffmpeg x86_64 install lives in toolchain/sysroot-x86_64/usr, intact (h264 + vp9 decoders present, msebench relinks).
