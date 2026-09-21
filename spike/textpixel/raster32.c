@@ -19,8 +19,15 @@
 #define W 520
 #define H 48
 
-static int cases, identical, fellBackCases, notdefCases;
+static int cases, identical, fellBackCases, notdefCases, overTolerance;
 static double maxShiftSeen;
+
+/* The regression this test exists to hold. Two fixes got every case here:
+ * applying Apple-format kern to the leading glyph the way CoreText does, and
+ * shaping at 1/1024 pt rather than 26.6 so per-glyph rounding stops
+ * accumulating along the run. Either one regressing shows up as a shift above
+ * this, and the Helvetica kerned paragraph is the case that moves first. */
+#define TP_SHIFT_TOLERANCE 0.02
 
 /* ---- web font bytes, assembled from the wire ---------------------------- */
 
@@ -227,7 +234,38 @@ static void handleRun(const TPRunMsg* m)
             m->label, origin, m->glyphCount, notdef ? " NOTDEF" : "",
             diff, inkB ? 100.0 * diff / inkB : 0.0, maxDelta, shift,
             m->fellBack ? "  [fell back]" : "");
+        if (getenv("TP_TRACE") && shift > 0.02) {
+            CFStringRef st = CFStringCreateWithCharacters(NULL, (const UniChar*)m->text, m->textLength);
+            CFStringRef k2 = kCTFontAttributeName;
+            CFDictionaryRef at = CFDictionaryCreate(NULL, (const void**)&k2, (const void**)&nativeFont, 1,
+                &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+            CFAttributedStringRef as2 = CFAttributedStringCreate(NULL, st, at);
+            CTLineRef ln = CTLineCreateWithAttributedString(as2);
+            CFArrayRef rr = ln ? CTLineGetGlyphRuns(ln) : NULL;
+            if (rr && CFArrayGetCount(rr)) {
+                CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(rr, 0);
+                const CGSize* adv = CTRunGetAdvancesPtr(run);
+                const CGGlyph* gs = CTRunGetGlyphsPtr(run);
+                CFIndex nn = CTRunGetGlyphCount(run);
+                double pen = 0; unsigned i2;
+                printf("      glyph  hbpos    ctpos    delta   hbadv    ctadv   g\n");
+                for (i2 = 0; i2 < (unsigned)nn && i2 < m->glyphCount && i2 < 8; ++i2) {
+                    double hbadv = (i2 + 1 < m->glyphCount) ? m->posX[i2+1] - m->posX[i2] : 0;
+                    printf("      %4u  %7.3f  %7.3f  %+6.3f  %6.3f  %6.3f  %u/%u\n",
+                        i2, (double)m->posX[i2], pen, (double)m->posX[i2] - pen,
+                        hbadv, (double)adv[i2].width, m->glyphs[i2], gs ? gs[i2] : 0);
+                    pen += adv[i2].width;
+                }
+            }
+            if (ln) CFRelease(ln);
+            CFRelease(as2); CFRelease(at); CFRelease(st);
+        }
         if (shift > maxShiftSeen) maxShiftSeen = shift;
+        if (shift > TP_SHIFT_TOLERANCE) {
+            ++overTolerance;
+            printf("      OVER TOLERANCE: %.4f pt exceeds %.2f pt at glyph %d\n",
+                shift, TP_SHIFT_TOLERANCE, worstGlyph);
+        }
     }
     (void)hbWidth; (void)inkA; (void)ctWidth;
 
@@ -274,6 +312,11 @@ int main(int argc, char** argv)
 
     printf("\n%d cases, %d pixel-identical, %d needed fallback, %d drew a .notdef\n",
         cases, identical, fellBackCases, notdefCases);
-    printf("worst per-glyph position disagreement over the wire: %.4f pt\n", maxShiftSeen);
-    return notdefCases ? 1 : 0;
+    printf("worst per-glyph position disagreement over the wire: %.4f pt (tolerance %.2f)\n",
+        maxShiftSeen, TP_SHIFT_TOLERANCE);
+    if (overTolerance)
+        printf("FAIL: %d case(s) over tolerance\n", overTolerance);
+    if (notdefCases)
+        printf("FAIL: %d case(s) drew a .notdef\n", notdefCases);
+    return (notdefCases || overTolerance) ? 1 : 0;
 }

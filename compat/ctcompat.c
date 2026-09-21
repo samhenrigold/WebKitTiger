@@ -795,6 +795,15 @@ CGPathRef CTFontCreatePathForGlyph(CTFontRef font, CGGlyph glyph, const CGAffine
     return path ? CGPathCreateCopy(path) : NULL;
 }
 
+/* Colour trap, and it differs between these two draw paths.
+ *
+ * This one honours the context: whatever CGContextSetFillColor last set is what
+ * the glyphs come out. Tiger's CTLineDraw does NOT: it takes its colour from the
+ * attributed string's kCTForegroundColorAttributeName and defaults to black,
+ * ignoring the context entirely. Setting the colour the way this function
+ * expects and then calling CTLineDraw gives black text, which on a dark bitmap
+ * is no text at all. That cost two tests a green tick each before it was found;
+ * see logs/hb-raster.md. */
 void CTFontDrawGlyphs(CTFontRef font, const CGGlyph glyphs[], const CGPoint positions[],
     size_t count, CGContextRef context)
 {
@@ -1908,6 +1917,9 @@ static CTFontRef runFont(CTRunRef run)
     return attributes ? (CTFontRef)CFDictionaryGetValue(attributes, kCTFontAttributeName) : NULL;
 }
 
+/* Colour: this goes through CTFontDrawGlyphs, so it honours the context fill
+ * colour, unlike Tiger's CTLineDraw which reads kCTForegroundColorAttributeName
+ * and ignores the context. A caller mixing the two has to set both. */
 void TigerCTRunDraw(CTRunRef run, CGContextRef context, CFRange range)
 {
     const CGGlyph* glyphs;
@@ -1959,6 +1971,12 @@ void TigerCTRunDraw(CTRunRef run, CGContextRef context, CFRange range)
  * passes stack junk as the range and draws the line only when that junk happens
  * to be {0, 0} or {0, count}. Tiger routes {0, 0} straight to the whole-line
  * draw, which is the convention its CTLineGetTypographicBounds uses too. */
+/* Colour: Tiger's CTLineDraw takes it from the attributed string's
+ * kCTForegroundColorAttributeName, defaulting to black, and ignores the
+ * context's fill colour. This adapter only fixes the missing CFRange; it does
+ * not and should not change that, since the colour behaviour is CoreText's
+ * contract. Callers that set the colour on the context, as they would for
+ * CTFontDrawGlyphs above, get black text. */
 void TigerCTLineDraw(CTLineRef line, CGContextRef context)
 {
     if (line && context)
