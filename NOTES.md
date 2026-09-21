@@ -1803,3 +1803,101 @@ repeated (without them `<Availability.h>` alone stops the build), and WebCore's 
 
 So the honest state of step 3 is: written, compiles, unrun. The pixel-compare number does not
 exist yet.
+
+
+## 2026-09-21 — gpu32: passes 13-15, and the i386 WebKit2 arm that is designed but not built
+
+### Where the passes actually got to
+
+Pass 13 ran to completion and produced the first **complete** census of the i386 GPU
+configuration: 17 failing translation units, all outside the graphics path. Pass 15 fixes
+them. The census is worth recording because it is the shape of the remaining Cocoa surface:
+
+| cluster | why |
+|---|---|
+| scrolling tree (`page/scrolling/{mac,cocoa}`, WheelEventDeltaFilterMac) | NSScrollerImp is 10.7 and the tree is CALayer-backed |
+| accessibility (`accessibility/{cocoa,mac}`) | NSAccessibility role and attribute constants are 10.9-10.13 |
+| editing (FontAttributes, AlternativeTextUIController, WebContentReader, WebArchiveResourceFromNSAttributedString) | NSTextList markers 10.13, NSTextAlternatives 10.8, and the NSAttributedString web-archive bridge wants the CFNetwork arm |
+| loader (LegacyWebArchiveMac, SubresourceLoaderCocoa, DiskCacheMonitorCocoa) | CFNetwork-arm leftovers |
+| GPUCanvasContextCocoa | Metal, and PAL's OpenGLSoftLinkCocoa.h names GL types nothing declares |
+
+Two are **not** exclusions: `RenderThemeCocoa::mediaControlsFormattedStringForDuration` gets a
+hand-rolled English duration string (NSDateComponentsFormatter is 10.10) rather than losing
+all of RenderThemeCocoa, which is not media-specific; and `WebCoreCALayerExtras.h` guards only
+its Objective-C category, not the C++ declarations below it.
+
+### The bug worth remembering from this pass
+
+**`list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES ...)` at the end of PlatformCocoa.cmake is
+silently ignored.** By that point the variable has already been turned into the target's
+include path. `list(APPEND WebCore_SOURCES ...)` in the same block still works, which is
+exactly what makes the miss invisible: the sources appear, the include directories do not.
+`platform/generic`, `platform/text/icu` and the cross-built libxml2 were never on the command
+line, so XMLDocumentParser kept compiling against Tiger's own 2.6.16 headers for three passes
+while the cmake file said otherwise. Use `target_include_directories(WebCore PRIVATE ...)`.
+
+### Build economics, which turned out to matter more than any single fix
+
+Touching `PlatformUse.h`, `cmakeconfig.h` or anything in `compat/sdk-overlay` invalidates the
+precompiled header and rebuilds all ~900 edges of WTF, JavaScriptCore and WebCore. On this
+machine, shared with the x86_64 web port build, that is hours, and offlineasm's
+LLIntAssembly.h generation plus the C-loop LowLevelInterpreter is a serial spike in the middle
+of it. Editing only `PlatformCocoa.cmake` and individual `.cpp`/`.mm` files is incremental and
+cheap.
+
+**Practical consequence for anyone continuing this: batch every flag and overlay change into
+one pass.** Run `-k 0` to completion first and fix the whole census at once, rather than
+fixing the first error and rebuilding. Three of the passes above cost a full rebuild each for
+a handful of files.
+
+### The i386 WebKit2 arm: designed, not built
+
+`Source/WebKit/PlatformTiger.cmake`'s `if (NOT TIGER64)` branch is still
+`include(PlatformCocoa.cmake); return()`, i.e. the full Cocoa WebKit2 with Mach IPC, XPC
+services and the RemoteLayerTree. That is wrong for this port and the file's own header
+comment says so. What it should be, from reading the x86_64 arm next to it:
+
+```
+if (NOT TIGER64)
+    set(GPUProcess_OUTPUT_NAME TigerGPUProcess)
+    include(Headers.cmake)
+    include(Platform/Curl.cmake)      # not Cairo: USE_CAIRO is 0 on i386
+    include(Platform/WC.cmake)        # and KEEP the GPU half, unlike x86_64
+    list(APPEND WebKit_SOURCES
+        Platform/IPC/unix/{ArgumentCodersUnix,ConnectionUnix,IPCSemaphoreUnix,IPCUtilitiesUnix}.cpp
+        Platform/unix/{LoggingUnix,ModuleUnix}.cpp
+        Shared/unix/AuxiliaryProcessMain.cpp)
+    list(APPEND GPUProcess_SOURCES GPUProcess/EntryPoint/unix/GPUProcessMain.cpp)
+    target_link_options(GPUProcess PRIVATE "LINKER:-dead_strip")
+    return ()
+endif ()
+```
+
+`WEBKIT_EXECUTABLE_DECLARE(GPUProcess)` already runs for this tree (CMakeLists.txt:851,
+`ENABLE_GPU_PROCESS AND NOT TIGER64`), so the target exists and only needs its entry point and
+output name.
+
+Two things this design settles that are worth writing down:
+
+- **`GPUProcess/graphics/wc/tiger/WCSceneTiger.cpp` is the x86_64 side's stub and must NOT be
+  in the i386 arm.** Its own comment says the real scene "runs in the i386 GPU process against
+  CoreGraphics". The i386 arm keeps Platform/WC.cmake's GPU files, and the real
+  implementation of `WCScene` for this port is what `spike/CAHost`'s `tigerca::Scene` already
+  is — a WC-shaped layer delta applied to real CALayers. Porting that file into
+  `GPUProcess/graphics/wc/tiger/` is the next concrete piece of work, and it is a port of
+  working, measured code rather than a new design.
+- **`GPUProcess/tiger/GPUProcessTiger.cpp` should be deleted at the same time.** wk2web added
+  it so the x86_64 build could satisfy GPUProcess's vtable, and its comment already says to
+  delete it "when the i386 arm of PlatformTiger.cmake stops being PlatformCocoa's".
+
+Not attempted here, and the honest reason is arithmetic: libWebCore.a for i386 had not
+finished building, and libWebKit.a plus a TigerGPUProcess link is another full build on top of
+it. Writing an unverified CMake arm would have been worth less than saying precisely what it
+should contain.
+
+### Status
+
+`spike/gpureplay` compiles clean and has still not linked or run: **no pixel-compare number
+yet**, and no GPU process link or run numbers. Pass 15 was at 236/883 with zero failures when
+this was written; nothing is known to be wrong with it. The `run.sh` in that directory does
+build, copy, headless compare and screenshot in one go the moment the archive exists.
