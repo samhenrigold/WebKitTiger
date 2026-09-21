@@ -98,12 +98,25 @@ processes of different platform character on one connection.
 the generator inputs.**
 
 ```
-TIGER_WIRE_COCOA      1   // both sides
-TIGER_WIRE_CG         1   // both sides
-TIGER_WIRE_CF         1   // both sides
-TIGER_WIRE_APPKIT     1   // both sides
-TIGER_WIRE_CORE_TEXT  1   // both sides
+TIGER_WIRE_COCOA      1   // every side
+TIGER_WIRE_MAC        1   // every side
+TIGER_WIRE_CG         1   // every side
+TIGER_WIRE_CF         1   // every side
+TIGER_WIRE_APPKIT     1   // every side
+TIGER_WIRE_CORE_TEXT  1   // every side
 ```
+
+**Six flags, not five.** `PLATFORM(MAC)` gets its own rather than folding into
+`TIGER_WIRE_APPKIT`, because the two ask different questions: `TIGER_WIRE_MAC`
+says this port is a Mac product, so the Mac-specific fields are on the wire and
+every process carries them; `TIGER_WIRE_APPKIT` is about having the framework.
+Upstream keeps them apart and so do we. `tools/tiger-wire-remap.py` implements
+the mapping and takes `--mac-maps-to` if that ever needs revisiting.
+
+`PLATFORM(MAC)`'s 59 occurrences split **30 in `.serialization.in` and 29 in
+`.messages.in`**, which is the arithmetic confirming that **both** kinds of
+generator input must be in scope. `tools/check-wire-flags.py` scans both — 394 +
+256 = 650 inputs, 294 distinct conditionals.
 
 Set to 1 on both, meaning "the wire carries the Cocoa shape". The 64-bit side
 then encodes and decodes Cocoa-shaped messages without having Cocoa, which is
@@ -176,6 +189,12 @@ builds. It must fail the build, and it must not require running a target binary
 be executed here at all (Rosetta does not run i386).
 
 ### 3.2 The mechanism: preprocess, do not execute
+
+**Implemented as `tools/check-wire-flags.py`**, verified by negative control, and
+run. What follows is the design it realises. It writes two outputs:
+`--write-queue` for a human, and `--write-files`, which emits the **paths** of the
+generator inputs carrying a disagreeing conditional, because
+`tools/tiger-wire-remap.py --list` consumes file paths rather than flag names.
 
 The C preprocessor is the only thing that knows the answer, and we can run it
 for both targets on the host. So:
