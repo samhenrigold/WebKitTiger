@@ -269,3 +269,6 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   KEY=value lines, diff. spike/{cgbehaviour.c,fndbehaviour.m} do this. It caught two of my own broken tests that
   a Tiger-only run reports as agreement: a transparency-layer case that measured nothing, and a y-axis mistake
   that made every point sample read an empty pixel on both platforms.
+- WebKit CMake tip (wkcmake): WebKitMacros.cmake's `<framework>_UNIFIED_SOURCE_EXCLUDES` filters Sources*.txt by regex before
+  unified bundles are generated (runs after PlatformCocoa.cmake), so excluding directories needs no edits to the .txt lists.
+- jsc on the TigerBrowser script.html loop: ~2.24 s vs 5.3 s on Tiger's 2007 WebKit (2.4x, C loop, no JIT).
