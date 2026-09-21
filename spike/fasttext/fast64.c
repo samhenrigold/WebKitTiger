@@ -141,8 +141,10 @@ typedef struct {
     int forceAutohint;
     int stemDarken;
     double embolden;      /* second pass offset in px; 0 = off */
-    int intPos;           /* round glyph x to whole pixels before drawing */
+    int intPos;           /* 1 = round x to whole px, 2 = floor to 1/4 px, 3 = round to 1/4 px */
     double gamma;         /* applied to coverage; <1 darkens */
+    double contrast;      /* S-curve on coverage; >1 sharpens edges, 1 = off */
+    double dx, dy;        /* global subpixel shift, to test for a phase error */
 } Variant;
 
 static FT_Library g_ft;
@@ -188,7 +190,17 @@ static cairo_surface_t* render(const Variant* v)
         if (v->intPos) {
             cairo_glyph_t tmp[MAXGLYPHS]; int k;
             memcpy(tmp, g_runs[i].g, sizeof(cairo_glyph_t) * g_runs[i].n);
-            for (k = 0; k < g_runs[i].n; ++k) tmp[k].x = floor(tmp[k].x + 0.5);
+            for (k = 0; k < g_runs[i].n; ++k) {
+                if (v->intPos == 1) tmp[k].x = floor(tmp[k].x + 0.5);
+                else if (v->intPos == 2) tmp[k].x = floor(tmp[k].x * 4.0) / 4.0;
+                else if (v->intPos == 3) tmp[k].x = floor(tmp[k].x * 4.0 + 0.5) / 4.0;
+                tmp[k].x += v->dx;
+            }
+            cairo_show_glyphs(cr, tmp, g_runs[i].n);
+        } else if (v->dx != 0 || v->dy != 0) {
+            cairo_glyph_t tmp[MAXGLYPHS]; int k;
+            memcpy(tmp, g_runs[i].g, sizeof(cairo_glyph_t) * g_runs[i].n);
+            for (k = 0; k < g_runs[i].n; ++k) { tmp[k].x += v->dx; tmp[k].y += v->dy; }
             cairo_show_glyphs(cr, tmp, g_runs[i].n);
         } else
             cairo_show_glyphs(cr, g_runs[i].g, g_runs[i].n);
@@ -205,13 +217,18 @@ static cairo_surface_t* render(const Variant* v)
     cairo_destroy(cr);
     cairo_surface_flush(surf);
 
-    if (v->gamma != 1.0) {
+    if (v->gamma != 1.0 || v->contrast != 1.0) {
         unsigned char lut[256];
         unsigned char* d = cairo_image_surface_get_data(surf);
         int stride = cairo_image_surface_get_stride(surf), x, y;
         for (x = 0; x < 256; ++x) {
             /* coverage = 1 - value (black ink on white); gamma the coverage */
-            double c = pow(1.0 - x / 255.0, v->gamma);
+            double c = 1.0 - x / 255.0;
+            if (v->contrast != 1.0 && c > 0 && c < 1) {
+                double a = pow(c, v->contrast), b = pow(1.0 - c, v->contrast);
+                c = a / (a + b);
+            }
+            c = pow(c, v->gamma);
             lut[x] = (unsigned char)(255.0 * (1.0 - c) + 0.5);
         }
         for (y = 0; y < FT_H; ++y)
@@ -223,6 +240,7 @@ static cairo_surface_t* render(const Variant* v)
 }
 
 /* ---- scoring ------------------------------------------------------------- */
+static long g_refSoft, g_refSolid;
 static unsigned char* g_ref;  /* FT_W*FT_H*4 RGBA */
 
 static int loadRef(const char* path)
@@ -239,6 +257,21 @@ static int loadRef(const char* path)
 }
 
 static double luma(double r, double g, double b) { return 0.2126 * r + 0.7152 * g + 0.0722 * b; }
+
+/* partial[0] = pixels with any ink but not solid, partial[1] = near-solid. Tells
+ * whether we are spreading the same ink over more pixels than Quartz does. */
+static void coverageShape(const unsigned char* d, int stride, int cairoOrder, long* soft, long* solid)
+{
+    int x, y;
+    *soft = *solid = 0;
+    for (y = 0; y < FT_H; ++y)
+        for (x = 0; x < FT_W; ++x) {
+            const unsigned char* p = d + (stride ? y * stride + x * 4 : ((size_t)y * FT_W + x) * 4);
+            double l = cairoOrder ? luma(p[2], p[1], p[0]) : luma(p[0], p[1], p[2]);
+            if (l < 32) ++*solid;
+            else if (l < 250) ++*soft;
+        }
+}
 
 static void score(cairo_surface_t* s, double* meanErr, double* inkErr, double* inkRatio, double* lineInk)
 {
@@ -272,7 +305,7 @@ int main(int argc, char** argv)
     const char* dir = argc > 2 ? argv[2] : ".";
     const char* refName = argc > 3 ? argv[3] : "ref-smooth.bin";
     char path[512];
-    Variant vs[64]; int nv = 0, i; int coloured[64];
+    Variant vs[64]; int nv = 0, i; int coloured[64]; double softRatio[64], solidRatio[64];
     double bestErr[64]; int order[64];
     static const struct { const char* n; cairo_hint_style_t h; } hints[] = {
         { "none", CAIRO_HINT_STYLE_NONE }, { "slight", CAIRO_HINT_STYLE_SLIGHT }, { "full", CAIRO_HINT_STYLE_FULL }
@@ -293,36 +326,73 @@ int main(int argc, char** argv)
     snprintf(path, sizeof(path), "%s/%s", dir, refName);
     if (!loadRef(path)) { fprintf(stderr, "no %s\n", path); return 1; }
     printf("# %d faces, %d runs, reference %s\n", g_faceCount, g_runCount, refName);
+    {   long soft, solid;
+        coverageShape(g_ref, 0, 0, &soft, &solid);
+        printf("# reference coverage: %ld soft px, %ld solid px, soft/solid %.2f\n", soft, solid, solid ? (double)soft / solid : 0);
+        g_refSoft = soft; g_refSolid = solid; }
 
     for (hi = 0; hi < 3; ++hi)
         for (gi = 0; gi < 4; ++gi) {
             static char names[64][64];
-            Variant v = { NULL, CAIRO_ANTIALIAS_GRAY, hints[hi].h, LCD_DEFAULT, 0, 0, 0, 0, gammas[gi] };
+            Variant v = { NULL, CAIRO_ANTIALIAS_GRAY, hints[hi].h, LCD_DEFAULT, 0, 0, 0, 0, gammas[gi], 1.0 };
             snprintf(names[nv], 64, "gray-%s-g%.2f", hints[hi].n, gammas[gi]);
             v.name = names[nv]; vs[nv++] = v;
         }
     for (hi = 0; hi < 3; ++hi) {
         static char names[8][64];
-        Variant v = { NULL, CAIRO_ANTIALIAS_SUBPIXEL, hints[hi].h, LCD_DEFAULT, 0, 0, 0, 0, 1.0 };
+        Variant v = { NULL, CAIRO_ANTIALIAS_SUBPIXEL, hints[hi].h, LCD_DEFAULT, 0, 0, 0, 0, 1.0, 1.0 };
         snprintf(names[hi], 64, "rgb-%s-g1.00", hints[hi].n);
         v.name = names[hi]; vs[nv++] = v;
     }
-    {   Variant v = { "rgb-slight-fir5-g0.85", CAIRO_ANTIALIAS_SUBPIXEL, CAIRO_HINT_STYLE_SLIGHT, LCD_FIR5, 0, 0, 0, 0, 0.85 };
+    {   Variant v = { "rgb-slight-fir5-g0.85", CAIRO_ANTIALIAS_SUBPIXEL, CAIRO_HINT_STYLE_SLIGHT, LCD_FIR5, 0, 0, 0, 0, 0.85, 1.0 };
         vs[nv++] = v; }
-    {   Variant v = { "rgb-slight-light-g0.85", CAIRO_ANTIALIAS_SUBPIXEL, CAIRO_HINT_STYLE_SLIGHT, LCD_FIR3, 0, 0, 0, 0, 0.85 };
+    {   Variant v = { "rgb-slight-light-g0.85", CAIRO_ANTIALIAS_SUBPIXEL, CAIRO_HINT_STYLE_SLIGHT, LCD_FIR3, 0, 0, 0, 0, 0.85, 1.0 };
         vs[nv++] = v; }
-    {   Variant v = { "gray-slight-autohint-darken", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_SLIGHT, LCD_DEFAULT, 1, 1, 0, 0, 1.0 };
+    {   Variant v = { "gray-slight-autohint-darken", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_SLIGHT, LCD_DEFAULT, 1, 1, 0, 0, 1.0, 1.0 };
         vs[nv++] = v; }
-    {   Variant v = { "gray-none-darken", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 1, 0, 0, 1.0 };
+    {   Variant v = { "gray-none-darken", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 1, 0, 0, 1.0, 1.0 };
         vs[nv++] = v; }
-    {   Variant v = { "gray-none-intpos", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 1, 1.0 };
+    if (argc > 4 && !strcmp(argv[4], "sweep")) {
+        static char names[64][64];
+        static const double off[] = { -0.375, -0.3125, -0.25, -0.1875, -0.125, -0.0625, 0, 0.0625, 0.125, 0.25 };
+        static const double yoff[] = { 0 };
+        int a, b;
+        for (a = 0; a < 10; ++a)
+            for (b = 0; b < 1; ++b) {
+                Variant v = { NULL, CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 0, 1.0, 1.0, off[a], yoff[b] };
+                snprintf(names[nv], 64, "shift-dx%+.3f-dy%+.3f", off[a], yoff[b]);
+                v.name = names[nv]; vs[nv++] = v;
+            }
+    } else {
+    {   Variant v = { "gray-none-q4floor", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 2, 1.0, 1.0, 0, 0 };
         vs[nv++] = v; }
-    {   Variant v = { "gray-none-embolden0.3", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0.3, 0, 1.0 };
+    {   Variant v = { "gray-none-q4round", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 3, 1.0, 1.0, 0, 0 };
         vs[nv++] = v; }
-    {   Variant v = { "gray-slight-embolden0.3-g0.85", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_SLIGHT, LCD_DEFAULT, 0, 0, 0.3, 0, 0.85 };
+    {   Variant v = { "gray-slight-q4floor", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_SLIGHT, LCD_DEFAULT, 0, 0, 0, 2, 1.0, 1.0, 0, 0 };
         vs[nv++] = v; }
+    {   Variant v = { "gray-none-dx0.125", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 0, 1.0, 1.0, -0.125, 0 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-slight-dx0.125", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_SLIGHT, LCD_DEFAULT, 0, 0, 0, 0, 1.0, 1.0, -0.125, 0 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-full-dx0.125", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_FULL, LCD_DEFAULT, 0, 0, 0, 0, 1.0, 1.0, -0.125, 0 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-none-contrast1.3", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 0, 1.0, 1.3 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-none-contrast1.6", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 0, 1.0, 1.6 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-none-contrast0.8", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 0, 1.0, 0.8 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-none-contrast1.3-g0.92", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 0, 0.92, 1.3 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-none-intpos", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0, 1, 1.0, 1.0 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-none-embolden0.3", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_NONE, LCD_DEFAULT, 0, 0, 0.3, 0, 1.0, 1.0 };
+        vs[nv++] = v; }
+    {   Variant v = { "gray-slight-embolden0.3-g0.85", CAIRO_ANTIALIAS_GRAY, CAIRO_HINT_STYLE_SLIGHT, LCD_DEFAULT, 0, 0, 0.3, 0, 0.85, 1.0 };
+        vs[nv++] = v; }
+    }
 
-    printf("%-32s %8s %8s %8s %3s  per-line ink\n", "variant", "luma", "inkluma", "ink", "clr");
+    printf("%-32s %8s %8s %8s %5s %5s %3s  per-line ink\n", "variant", "luma", "inkluma", "ink", "soft", "solid", "clr");
     for (i = 0; i < nv; ++i) {
         cairo_surface_t* s = render(&vs[i]);
         double err, ierr, ink, lineInk[FT_LINES]; int k;
@@ -336,9 +406,14 @@ int main(int argc, char** argv)
                 }
             if (col) vs[i].name = vs[i].name;   /* reported in the colour column */
             coloured[i] = col; }
+        {   long soft, solid;
+            coverageShape(cairo_image_surface_get_data(s), cairo_image_surface_get_stride(s), 1, &soft, &solid);
+            softRatio[i] = g_refSoft ? (double)soft / g_refSoft : 0;
+            solidRatio[i] = g_refSolid ? (double)solid / g_refSolid : 0; }
         snprintf(path, sizeof(path), "%s/v-%s.png", dir, vs[i].name);
         cairo_surface_write_to_png(s, path);
-        printf("%-32s %8.3f %8.2f %8.3f %3s ", vs[i].name, err, ierr, ink, coloured[i] ? "rgb" : "-");
+        printf("%-32s %8.3f %8.2f %8.3f %5.2f %5.2f %3s ", vs[i].name, err, ierr, ink,
+            softRatio[i], solidRatio[i], coloured[i] ? "rgb" : "-");
         for (k = 0; k < FT_LINES; ++k) printf(" %.2f", lineInk[k]);
         printf("\n");
         fflush(stdout);

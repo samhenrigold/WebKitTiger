@@ -2691,15 +2691,32 @@ Two facts about the target settle most of it:
   option and fontconfig's `FC_LCD_FILTER` do nothing on this build; the fir5/light variants are
   byte-identical to the unfiltered one. Nothing to fix — we do not want LCD here anyway.
 
-Result: **gray AA, hinting off, no gamma, no stem darkening, no emboldening** scores 0.987 of Quartz's
-ink with per-line weight ratios 0.95–1.04, and is the best of the 22. Slight hinting costs +13% error,
-full +39%, subpixel +15%, gamma 0.85 +4%, embolden +71%. Stem darkening is a no-op on the seven
-TrueType `.dfont` faces and only over-inks the CFF Hiragino line by 24%. The residual, 28.6/255 mean
-over inked pixels, is the two scan-converters' antialiasing kernels disagreeing on edge coverage; no
-option addresses it and only rasterising with Quartz would.
+Among the font *options*: **gray AA, hinting off, no gamma, no stem darkening, no emboldening** scores
+0.987 of Quartz's ink with per-line weight ratios 0.95–1.04, and is the best of the 22. Slight hinting
+costs +13% error, full +39%, subpixel +15%, gamma 0.85 +4%, embolden +71%. Stem darkening is a no-op on
+the seven TrueType `.dfont` faces and only over-inks the CFF Hiragino line by 24%.
 
-One rule with teeth: **do not round glyph x to whole pixels.** Integer pen positions cost +43% error.
-cairo honours fractional glyph origins on an image surface and CoreText positions at fractional x.
+**But the biggest disagreement was not an option at all — it is a half-quantum grid offset.** Sweeping a
+global horizontal shift finds a clean V with one minimum at dx = −0.125 px that takes **30%** off the
+error (2.665 → 1.865). Two probes pin the mechanism exactly: quantising our glyph x to the *nearest*
+1/4 px is byte-identical to not quantising (so cairo already snaps glyph origins to a 1/4-pixel grid),
+while *flooring* to 1/4 px scores 1.865, identical to the −0.125 shift. Both rasterisers use the same
+1/4-pixel horizontal grid and disagree on the rounding rule: **Quartz floors to it, cairo rounds to
+nearest**, so our glyphs sit 1/8 px right of Quartz's on every face and size. Flooring glyph x to 1/4 px
+before `cairo_show_glyphs` removes it, costs nothing, and is orthogonal to hinting (−30% at none, −26%
+at slight, −18% at full). Related: never round x to *whole* pixels, which costs +43%.
+
+**Pixel fitting.** Mean absolute error nearly hid a real perceptual difference, because a crisply
+grid-fitted stem in the wrong column scores worse than a blurry stem in the right one. Scored on
+bimodality (mean |2·coverage−1| over inked pixels) the unhinted render matches the reference overall
+(0.5978 vs 0.5996), but is locally soft on one line: Helvetica **Bold** 16, ref 0.703 vs none 0.674,
+with Times 16 3.6% short on stem-edge contrast. `slight` overshoots both (0.721) and costs 19% of
+positional fidelity. The gap is ~4%, on bold faces, in the soft direction — real but small, and the
+grid fix above addresses the stem-to-pixel alignment that reads as "pixel fitting" without hinting.
+
+The remaining residual, 20.4/255 mean over inked pixels after the grid fix, is the two scan-converters'
+antialiasing kernels disagreeing on edge coverage; no option addresses it and only rasterising with
+Quartz would.
 
 #### Fast mode's font options
 
@@ -2734,9 +2751,27 @@ cairo_font_options_set_hint_metrics(
     const_cast<cairo_font_options_t*>(getDefaultCairoFontOptions()), CAIRO_HINT_METRICS_OFF);
 ```
 
-And the rule that is not a setting: whatever computes the `cairo_glyph_t` array must pass CoreText's
-fractional x through unrounded. `FontRenderOptions::setHinting` sets `hint_metrics` back to ON, so the
-`setHinting` call above has to come before the `cairo_font_options_set_hint_metrics` call, not after.
+And the rule that is not a setting, and is worth more than both of the above put together — match
+Quartz's glyph grid:
+
+```c++
+// Wherever fast mode fills the cairo_glyph_t array, per glyph:
+//
+// Quartz and cairo both place glyphs on a 1/4-pixel horizontal grid and round
+// onto it differently: Quartz floors, cairo rounds to nearest. Left alone, every
+// glyph we draw sits 1/8 px right of where Tiger draws it -- uniformly, on every
+// face and size measured. Flooring here puts us on Quartz's grid and takes 30%
+// off the pixel difference against CoreText, for free. Do NOT round to whole
+// pixels instead; that costs +43%.
+glyph.x = std::floor(penX * 4.0) / 4.0;
+```
+
+`FontRenderOptions::setHinting` sets `hint_metrics` back to ON, so the `setHinting` call above has to
+come before the `cairo_font_options_set_hint_metrics` call, not after.
+
+Hinting stays at none. It cannot break layout either way here (positions come from the shaper and
+`hint_metrics` is OFF, so hinting is purely a look choice), but with the grid fix applied `none` beats
+`slight` by 19% on pixel fidelity, and the crispness it gives up is ~4% on bold faces only.
 
 Not applied to the WebKit tree: it was in use by the build track when this was written.
 

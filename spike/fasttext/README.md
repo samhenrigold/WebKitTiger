@@ -73,11 +73,71 @@ gray-slight-embolden0.3-g0.85       5.328    54.04    1.307   -  1.32 1.26 1.42 
 `out/contact.png` is the reference on top and the best three under it; `out/results.txt` is
 the run verbatim. To the eye the four bands are the same text.
 
+## The correction that mattered most: a half-quantum grid offset
+
+The table above says "nothing to tune", and at the level of cairo font options that is true.
+It is also misleading, because the largest disagreement was not an option at all. Sweeping a
+global horizontal shift over the whole sample finds a clean V with a single minimum at
+**dx = -0.125 px**, which cuts the error by 30%:
+
+```
+shift-dx-0.250   2.267      shift-dx+0.000   2.665   <- as drawn
+shift-dx-0.188   2.050      shift-dx+0.062   3.146
+shift-dx-0.125   1.865  <-  shift-dx+0.125   3.784
+shift-dx-0.062   2.179      shift-dx+0.250   5.193
+```
+
+Two probes identify it exactly. Quantising our glyph x to the nearest 1/4 px is
+**byte-identical to not quantising at all** (2.665 either way), so cairo is already snapping
+glyph origins to a 1/4-pixel grid. Quantising by *flooring* to 1/4 px instead scores 1.865 —
+identical to the -0.125 shift, as it must be, since floor is round-to-nearest of x - 1/8.
+
+So both rasterisers place glyphs on the same 1/4-pixel horizontal grid, and they disagree
+about the rule: **Quartz floors to the grid, cairo rounds to nearest.** Our glyphs sit half a
+quantum — 1/8 px — to the right of Quartz's, uniformly, on every face and size in the sample.
+Flooring glyph x to 1/4 px before `cairo_show_glyphs` removes it, is free, and is orthogonal
+to every other setting: it takes 30% off hinting none, 26% off slight and 18% off full.
+
+It does not go to zero (1.865 remains), so the two grids agree on average rather than
+per glyph. But it is the single biggest available win and it is not a font option.
+
+## Pixel fitting, and why the mean-error metric nearly missed it
+
+Looking at the contact sheet, the CoreText band reads as crisper than ours on some lines —
+most visibly the stems of "jigs" in Helvetica Bold 16 and "quartz" in Times 16. Mean absolute
+error does not capture that: a crisply grid-fitted stem in the *wrong* column scores worse
+than a blurry stem in the right one, which is why `gray-full` ranks badly while looking sharp.
+
+So: **bimodality**, the mean of |2·coverage - 1| over inked pixels. 1.0 means every inked
+pixel is fully on or fully off (a stem snapped to the grid); 0 means everything is mid-grey.
+Plus `hstem`, the mean horizontal coverage gradient, which is stem edge contrast.
+
+```
+line              ref bimod   none    slight   full      ref hstem   none    slight
+LucidaGrande 13     0.567     0.563   0.572    0.572       0.4295   0.4324   0.4577
+LG-Bold 13          0.633     0.660   0.627    0.652       0.3876   0.3735   0.3947
+LG 11               0.555     0.556   0.549    0.580       0.4093   0.4179   0.4463
+Helvetica 16        0.606     0.607   0.602    0.617       0.4191   0.4008   0.4265
+Helv-Bold 16        0.703     0.674   0.721    0.734       0.3535   0.3481   0.3724
+Times 16            0.559     0.558   0.561    0.619       0.4187   0.4072   0.4459
+Times-It 16         0.539     0.545   0.522    0.577       0.4170   0.4187   0.4372
+Hiragino 16         0.532     0.532   0.620    0.620       0.2850   0.2852   0.3184
+```
+
+Overall we match the reference's crispness closely (0.5978 against 0.5996). The deficit is
+local and it is on the bold 16 px line: Helvetica Bold, where the reference is 0.703 and
+unhinted cairo is 0.674. `slight` overshoots it to 0.721, `full` to 0.734. Times 16 is a tie
+on bimodality but 3.6% short on stem edge contrast, which `slight` overshoots by 5.5%.
+
+That is the whole of the crispness gap: one bold face, about 4%, in the direction of slightly
+soft. Hinting closes it and overshoots, and costs 19% on positional fidelity to do it.
+
 ## Reading it
 
-**The plain, unmodified setting wins, and wins by a lot.** Gray antialiasing, hinting off,
-no gamma, no darkening, no emboldening: 0.987 of Quartz's ink, and every per-line ratio
-between 0.95 and 1.04. Nothing in the tuning matrix improves on doing nothing.
+**Among the font options, the plain unmodified setting wins.** Gray antialiasing, hinting
+off, no gamma, no darkening, no emboldening: 0.987 of Quartz's ink, and every per-line ratio
+between 0.95 and 1.04. Nothing in the *option* matrix improves on doing nothing — but see the
+1/4-pixel grid offset above, which is worth more than every option in this table combined.
 
 **Every knob makes it worse, and the good ones make it worse the least.** Gamma at 0.85
 costs 4% more error and overshoots the weight by 5%; at 0.55 the text is visibly fat.
@@ -89,10 +149,9 @@ The direction to tune *in* would have been lighter, not heavier, and there is no
 that.
 
 **Do not round glyph x to whole pixels.** `gray-none-intpos` is the same rendering with
-integer pen positions and it costs **+43% error** (2.665 → 3.814). cairo honours fractional
-glyph origins on an image surface, CoreText positions at fractional x, and the two agree.
-Any layer that quantises positions on the way to `cairo_show_glyphs` throws away a third of
-the fidelity this spike measured.
+integer pen positions and it costs **+43% error** (2.665 → 3.814). Quarter-pixel positioning
+is real and both rasterisers do it; whole-pixel rounding throws it away. Floor to 1/4 px,
+never to 1.
 
 **Subpixel antialiasing is strictly a regression here** (+15% error at every hint style),
 because the reference has no colour in it at all. It is not a look to be tuned toward; it
@@ -100,8 +159,9 @@ is a look Quartz is not producing.
 
 ## What the residual is
 
-28.56/255 mean error over inked pixels — about 11% — with stroke weight matched to 1.3%.
-That is not weight, position or hinting; it is the rasterisers' antialiasing kernels
+After the grid fix, 20.37/255 mean error over inked pixels — about 8% — with stroke weight
+matched to 1.3%.
+That is not weight, gross position or hinting; it is the rasterisers' antialiasing kernels
 disagreeing about how to share coverage between adjacent pixels on a curve. Quartz's
 outline scan-converter and FreeType's are different code computing the same integral, and
 the difference lands entirely on edge pixels. No cairo or FreeType option addresses it, and
