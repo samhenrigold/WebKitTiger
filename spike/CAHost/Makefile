@@ -62,3 +62,18 @@ CAVideoNoCA: CAVideo.m
 	  -framework Cocoa -framework OpenGL -framework QTKit -framework QuickTime \
 	  -framework CoreVideo -framework ApplicationServices
 .PHONY: CAVideoNoCA
+
+# --- CAWidgets: real Aqua controls over the CA-hosted page -------------------
+WAPP := $(ROOT)/build/CAWidgets.app
+
+CAWidgets: $(WAPP)
+
+$(WAPP): CAWidgets.m Info-CAWidgets.plist $(FW)/Versions/A/QuartzCore
+	rm -rf $(WAPP)
+	mkdir -p $(WAPP)/Contents/MacOS $(WAPP)/Contents/Frameworks
+	cp Info-CAWidgets.plist $(WAPP)/Contents/Info.plist
+	printf 'APPL????' > $(WAPP)/Contents/PkgInfo
+	cp -R $(FW) $(WAPP)/Contents/Frameworks/
+	$(CLANG) $(CFLAGS) -o $(WAPP)/Contents/MacOS/CAWidgets CAWidgets.m $(LDFLAGS)
+
+.PHONY: CAWidgets
