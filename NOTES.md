@@ -1079,3 +1079,25 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   in-flight hunks in that file; run `git diff -- <file>` and confirm every hunk is yours before every commit -o.
 - Re-mirror (remirror 34add82, logs/box-update-2026-09-20.md): sysroot-new/ is a complete verified post-update mirror;
   sysroot/ is still pre-update; export diff and swap not done (stopped on budget cut; steps listed in that file).
+- 64-bit JIT spike (logs/jsc64-spike.md, worktree WebKit-jsc64 branch tiger-jsc64): today's JavaScriptCore builds as the
+  JSCOnly port for x86_64-apple-macosx10.4 and runs on the box with the full JIT. The TigerBrowser 2M-iteration loop takes
+  **51 ms** (vs 2240 ms for our i386 C-loop jsc, 59 ms for Safari 4.1.3's own JIT, 5300 ms for Tiger's 2007 WebKit);
+  --useJIT=false is 511 ms. Smoke suite (JSON/RegExp/closures/Intl/Unicode/ES6+/GC) matches the host line for line.
+  Tiger has no MAP_JIT and no W^X: plain RWX mmap works and executes (spike vmprobe). The i386 port's lack of a JIT is
+  upstream deleting 32-bit JSValues, not a Tiger limitation.
+  - Three upstream bugs found: **WebKit hardcodes s_avxCheckState = Set on every x86_64 Darwin** (MacroAssemblerX86_64.cpp),
+    so the DFG emits vmovq and SIGILLs on a Core 2 Duo; **bmalloc's vmTagFd() passes VM_MAKE_TAG(n) as mmap's fd**, which is
+    10.5+ and returns EINVAL on 10.4, failing every reservation; InlineCacheCompiler.h uses CCallHelpers::Jump with only a
+    forward declaration.
+  - **pthread_get_stackaddr_np() lies in a 64-bit process on 10.4**: the main thread reports the 32-bit 0xc0000000 and a
+    512 KB size while its stack is really just below 0x7fff5fc00000. Secondary threads are correct. StackBounds now takes
+    both ends from mach_vm_region(). This class of bug (a 10.4 API that answers with 32-bit values under a 64-bit process)
+    is worth assuming anywhere else 64-bit code asks libSystem about itself.
+  - x86_64 sysroot is toolchain/sysroot-x86_64/usr (libc++/libc++abi/libunwind, builtins, libtigercompat, libtigerdispatch,
+    ICU 76 static). Wrappers toolchain/bin/tiger-clang64{,++}; CMake toolchain toolchain/tiger64.cmake (PORT=JSCOnly).
+    Gotcha: ICU's data step does not run for the x86_64 configure and installs the 680-byte stub libicudata.a; the generated
+    icudt76l_dat.S is arch-neutral, so reassemble the i386 build's copy. A stub ICU fails *quietly* (ucol_open returns null).
+  - A 64-bit **content** process is a different project, not an increment: no CF/Foundation/AppKit/CG/CoreText/ImageIO/QuickTime
+    has an x86_64 slice on this system, so it would have to be a non-Cocoa port over IPC. Untested and load-bearing for that:
+    thread_get_state(x86_THREAD_STATE64) for conservative GC scanning, and POSIX-signal delivery into JIT code
+    (HAVE(MACH_EXCEPTIONS) is off: mach_exc.defs is 10.5+).

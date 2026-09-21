@@ -1,0 +1,5 @@
+#!/bin/sh
+# TIGER64: cross compiler wrapper: patched clang 21 (toolchain/llvm-tiger) targeting x86_64 / Mac OS X 10.4.
+# Same SDK and same cctools ld64 as tiger-clang; no ObjC flags (x86_64 has no fragile runtime and we build no ObjC).
+WKT=/Users/shg/Developer/WebKitTiger
+exec $WKT/toolchain/llvm-tiger/bin/clang++ -target x86_64-apple-macosx10.4 -isysroot $WKT/sdk/MacOSX10.4u.sdk -mmacosx-version-min=10.4 -fno-stack-protector -Wno-unused-command-line-argument --ld-path=$WKT/toolchain/cctools/bin/i386-apple-darwin8-ld -include $WKT/compat/include/tigerprelude.h -cxx-isystem $WKT/toolchain/sysroot-x86_64/usr/include/c++/v1 -I$WKT/toolchain/sysroot-x86_64/usr/include -L$WKT/toolchain/sysroot-x86_64/usr/lib "$@"
