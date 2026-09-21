@@ -752,3 +752,26 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   check is behavioural: run `spike/run64.sh spike/cxx64exc.cpp spike/throwlib.cpp`, or call
   `_dyld_find_unwind_sections` on `&main` from a 64-bit C program, where 1 with non-null section pointers is good and
   0 is a compat archive built from pre-fix sources.
+
+- **Final (23:15), superseding both entries above: `compat/libtigercompat-x86_64.a` is the single 64-bit home of
+  `compat/dispatch/os.c`.** The dispatch track retired its x86_64 target (its Makefile now says so and refuses to grow
+  one back), so `make -C compat ARCH=x86_64 install` builds os.c with that directory's own flags and include tree.
+  **64-bit `os_log` / `os_retain` / `os_release` / `os_unfair_lock` / `os_signpost` / `sys/qos` need only
+  `-ltigercompat`**, verified on the box including the object lifecycle that the dispatch owner moved out of
+  dispatch.c into os.c (it was not self-contained before; an os.c-only link used to fail on `os_release`).
+  Members now: availability.c.o, libcompat.c.o, tlv.c.o, cfcompat.c.o, **os.c.o**, runtime.c.o.
+  - i386 is unchanged: os.c stays in libtigerdispatch.a there, and the i386 libtigercompat.a has no os.o. Never let
+    both archives carry it; if a 64-bit libtigerdispatch is ever revived, drop os.c from the compat Makefile in the
+    same commit.
+  - compat stages only `dispatch/include/os` and `dispatch/include/sys` into the 64-bit sysroot, never `dispatch/`.
+    That is deliberate, and the dispatch track's design: a 64-bit TU including `<dispatch/dispatch.h>` must fail at the
+    include, not compile and then die on undefined `dispatch_*` at link time. `dispatch_*` cannot exist in 64-bit,
+    since the main queue needs CFRunLoop and Tiger has no x86_64 CoreFoundation. A stale `dispatch/` left in
+    sysroot-x86_64 from the hand-rolled era was removed; nothing regenerates it. Verified: the include now fails.
+- `compat/include/sdk-fill/Availability.h` was **restored** (23:15) from the staged copy in
+  `toolchain/sysroot-i386/usr/include/sdk-fill/`, which still had it intact from 19:56. It had been created but never
+  committed, so it existed only as the derived copy and vanished from the source tree; it is committed now. It is also
+  staged into the **x86_64** sysroot for the first time. This is the second time this class of loss has happened here
+  (see the Housekeeping note about six overlay availability headers). **A header that only exists staged is a header
+  you have already lost**: `git status` cannot show a file that was never added, so commit new files in sdk-fill and
+  the overlay the same day they are written.
