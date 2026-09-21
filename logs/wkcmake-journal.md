@@ -1123,3 +1123,33 @@ whichever 64-bit rendering branch wins:
 
 Stopping here per instruction. No WebKitLegacy work, no curl `ResourceHandle`
 restoration, no link attempt.
+
+### Addendum: ctcompat's AAT case constants verified
+
+ctcompat landed the four case-feature constants (their 4a109c6) in the
+overlay's `CoreText.framework/Headers/SFNTLayoutTypes.h`. Rebuilding
+`UnifiedSource-platform-25.cpp` confirms the six errors are gone. Their note
+is worth keeping: this is a build fix only, not a rendering change — all six
+WebCore uses funnel into `CTFontCopyGlyphCoverageForFeature`, which is a NULL
+stub, so `supportsSmallCaps` answers no and WebCore synthesises scaled
+capitals. Of eight Tiger system faces only Hoefler Text and Didot declare a
+case feature at all, and both use the legacy type 3.
+
+The rebuild surfaced the next layer in the same unit, and two of my own gates
+turned out to be stale:
+
+- `wtf/cf/TypeCastsCF.h` was skipping both `<CoreText/CTFontDescriptor.h>` and
+  `WTF_DECLARE_CF_TYPE_TRAIT(CTFontDescriptor)` on the grounds that Tiger's
+  CoreText is header-less. It is not any more, and Tiger does export
+  `CTFontDescriptorGetTypeID`. Un-gated (WebKit 1982436d).
+- `kCFNumberCGFloatType` is 10.5+. Added to the overlay's `CFBase.h` as a macro
+  expanding to `kCFNumberFloat32Type`: CGFloat is float on i386, and Tiger's
+  CFNumber would not recognise the 10.5 enumerator anyway. A macro rather than
+  an enumerator so it does not depend on CFNumber.h parse order (d439f59).
+
+That unit is now down to four errors, all ctcompat's and all routed:
+`kThirdWidthTextSelector`, `kQuarterWidthTextSelector`, and
+`kCTFontBaselineAdjustAttribute` twice.
+
+Note for the next full pass: `TypeCastsCF.h` is a widely included WTF header,
+so touching it costs a large rebuild.
