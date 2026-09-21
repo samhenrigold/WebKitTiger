@@ -1405,3 +1405,36 @@ tree only, but the primary guard has to be the preprocessor probe. That is next.
    binary runs on this host.
 3. The mechanical rewrite of the affected conditions in the generator inputs, as a
    patch under `toolchain/patches/` so it survives rebasing.
+
+## Four configurations, all on PORT=Tiger, all agreeing
+
+WebKit 251aadb1. The GPU process joins as the fourth configuration and the UI
+process migrated off the Cocoa port, which turned out to need nothing extra: it
+configured under PORT=Tiger on the first try.
+
+| Process | Toolchain | Arch | Graphics |
+|---|---|---|---|
+| UI | tiger.cmake | i386 | CoreGraphics, CoreText, CoreFoundation, AppKit |
+| GPU | tiger.cmake | i386 | same |
+| WEB | tiger64.cmake | x86_64 | cairo only, never presented |
+| NETWORK | tiger64.cmake | x86_64 | cairo only |
+
+All six pairs agree. `ENABLE_GPU_PROCESS` is now on in all four, since it is the
+most-used condition in the generator inputs and therefore not a per-process choice.
+
+### What the check found when the fourth config landed
+
+Comparing an i386 tree against an x86_64 one produced exactly the set wcplan
+predicted, and nothing else: CoreGraphics, CoreText, CoreFoundation, AppKit and
+cairo. Four of those five are covered by the wire-flag set. The check now treats
+the eight flags that describe what a side *has* as deliberate rather than failing
+on them, and still fails on anything else.
+
+**One of the five is not yet covered and should be.** `USE_CAIRO` appears in
+generator inputs, and our two sides genuinely disagree about it: the 64-bit side
+has cairo as its never-presented local raster and the i386 side has none. That is
+the same shape of problem as the CoreGraphics one and wants the same answer,
+namely that the wire carries the CoreGraphics shape and cairo-conditioned blocks
+in generator inputs are neutralised rather than matched. Raised with wcplan; it is
+not in their list of six because the local-raster decision came after their
+measurement.
