@@ -1502,3 +1502,114 @@ Nothing in that plan is blocked by anything except the link.
 `cmake -DTIGER_IPC_A=build/tiger-gpu -DTIGER_IPC_B=build/tiger-web-port -P
 WebKit/Source/cmake/TigerCheckIPC.cmake` still says the two trees agree (six known-deliberate
 divergences, no new ones).
+
+## 2026-09-21 — WebKit2 on, bin/TigerWebProcess links and runs on the box (wk2web track)
+
+- ***** GATE PASSED. A WebKit2 web process for PORT=Tiger x86_64 builds, links and runs on the 10.4.11
+  machine. *****  `ninja -C build/tiger-web-port` is clean with no target argument: WTF, bmalloc, PAL,
+  JavaScriptCore, all of WebCore, all of WebKit, bin/jsc, bin/TigerWebProcess (190 MB unstripped,
+  179 MB stripped, 143 MB of it __TEXT — ld64-956 has no --gc-sections) and bin/TigerNetworkProcess.
+  WebKit branch tiger-fontcache, ebf1a287..cbc3ae19.
+- ON THE BOX (spike/wk2web/wk2-driver.c, which is the UI half of the launcher contract and nothing else:
+  socketpair, fork, exec with argv[1]=pid argv[2]=fd, send nothing, close):
+    fork -> a running process with >4 MB RSS:  34-61 ms over three runs
+    RSS while waiting for the UI process:      21.9 MB, flat
+    exit after the socket closes:              status 0, within 0.8 s (the poll interval, see below)
+  It does NOT touch the font manifest: FontCache::platformInit is lazy and needs a page, so
+  ~/tiger-fonts.json is untouched at startup. TIGER_FONT_MANIFEST is how it will be pointed at it.
+- Error trajectory, `ninja -k 0`: compile pass 1 (2 root causes) -> 2 (3) -> 3 (12 causes, 77 errors)
+  -> 4 (2) -> 5 (0, everything compiles) -> then link: 543 undefined -> 271 -> 126 -> 4 -> 1 duplicate
+  -> 0. Logs in logs/wk2web-pass-N.log.
+- COMPILE root causes, all of them one assumption or another about what Darwin means:
+  1. "OS(DARWIN) means Apple's Mach IPC." IPC::Attachment aliases WTF::MachSendRight under OS(DARWIN),
+     and MachSendRight is declared only under PLATFORM(COCOA), so a non-Cocoa Darwin port named an
+     incomplete type and every std::optional<Attachment> failed to instantiate. Connection.h included
+     the XPC SPI and wtf/darwin/DispatchOSObject.h the same way. WIRE: two serialization inputs had it
+     too, and there the arms are NOT exclusive — ConnectionHandle and SharedMemoryHandle each declared
+     m_handle once under USE(UNIX_DOMAIN_SOCKETS) and again under OS(DARWIN), giving a duplicate member
+     and a static_assert that UnixFileDescriptor is MachSendRight. All changed to PLATFORM(COCOA);
+     both Tiger sides take the file-descriptor arm and agree, and no Cocoa port changes value.
+  2. thread_local. clang rejects it outright at -mmacosx-version-min=10.4 ("thread-local storage is not
+     supported for the current target"), with or without -femulated-tls. The one site in Source/WebKit a
+     Tiger build reaches is Connection::MessageDispatchScope::s_current, which is a real per-thread
+     stack and cannot take the CornerShapeUtilities memo trick; it moved behind two accessors, a
+     pthread key on Tiger.
+  3. USE(GRAPHICS_LAYER_WC) without USE(TEXTURE_MAPPER) is a configuration upstream has never built —
+     Windows and PlayStation have both. Two consequences: the backing-store half of the drawing area
+     (UpdateInfo, DrawingArea's and DrawingAreaProxy's Update/UpdateBackingStoreState) is gated on
+     COORDINATED_GRAPHICS || TEXTURE_MAPPER and WC needs all of it, and WCUpdateInfo names
+     TextureMapperSparseBackingStore::TileIndex, whose declaration chain ends at a file of pure
+     virtuals also gated on TEXTURE_MAPPER. WIRE: the first is a serialization and messages condition;
+     USE(GRAPHICS_LAYER_WC) joins the gate, identical on all four trees and unchanged upstream.
+  4. `__APPLE__` meant Cocoa in the public C API headers: WKNativeEvent.h types WKNativeEventPtr as
+     NSEvent* for any __APPLE__ build, and WKPagePrivate.h guards a declaration with !defined(__APPLE__)
+     while WKPage.cpp guards the definition with !PLATFORM(COCOA).
+- LINK root causes, which were more interesting than the compile ones:
+  5. WEBKIT_DEFINE_SUBTARGET_WITH_PREFIX gives a STATIC parent's objects to its consumers with
+     target_link_libraries(INTERFACE), not to the archive. Every upstream port using it links dylibs.
+     Here it meant bin/WebProcess linked every UIProcess and GPUProcess object whether referenced or
+     not, and wanted PageClientImpl, ProcessLauncher and the WC scene. Putting the objects in the
+     archive (what the WebKitARC subtarget already does) took 543 undefined symbols to 271.
+  6. USE_PCH_CODEGEN off for this port. -fpch-codegen emits the inline functions a prefix header
+     defines into one <target>_pch_obj.o instead of a weak symbol per TU. In a static-archive port that
+     object is an ordinary member, so a link that pulls a member referring to an inline defined in
+     ANOTHER archive's pch object gets an undefined symbol — JSC::Heap::heap, RenderBox::topLeftLocation.
+     Invisible in a dylib build.
+  7. The transitive halves of the hand-declared imported libraries: pixman under cairo, expat under
+     fontconfig, brotli under freetype, nghttp2 under curl, dav1d under avif, libwebp under the
+     demuxer. find_package would have brought them; a port that declares its targets by hand must too.
+     150 of the 271.
+  8. USE_ACCELERATE off for TIGER64, joining PLATFORM(TIGER). Beyond the reason already recorded for
+     i386, the 10.4u SDK's Accelerate.framework umbrella stub is malformed for ld64 ("symbol table
+     strings not in __LINKEDIT"), so an x86_64 link cannot even name it.
+- PLATFORM IMPLEMENTATIONS. Reused verbatim, because none mentions the port it is named after:
+  PlayStation's PlatformScreen (24bpp sRGB and a fixed rect; the real screen comes from the UI process
+  later), MIMETypeRegistry, NetworkStateNotifier, SystemFontDatabase; Windows' CurlSSLHandle (its
+  cipher and curve lists are OpenSSL's); GLib's DragController (four constants from DragControllerMac
+  and two predicates). GraphicsLayerTiger.cpp, written for i386, takes TIGER64: DrawingAreaWC always
+  passes its WCLayerFactory, so the factory arm is the one that runs.
+  THEME: Adwaita (USE_THEME_ADWAITA), which is right here for a port-specific reason — Aqua controls
+  are drawn on the i386 side from remoted ControlParts, so the web side wants a theme that EMITS
+  ControlParts and computes metrics, not one that paints. Not in any serialization condition.
+  Written: UserAgent (a Mac UA reporting 10_15_7, because the product is a Mac browser and every
+  target serves on the UA; 10_4 reads as a bot), PlatformKeyboardEvent, Editor (libwpe's with the
+  guard removed). Deliberate stubs with a ceiling in the file: Pasteboard and DragData (copy/paste
+  and drops inert), AXObjectCache (VoiceOver blind), PublicSuffixStore (every host its own suffix,
+  so partitioning is narrower than it should be, never wider). libpsl was NOT cross-built: it is not a
+  20-minute job against this sysroot and the stub is conservative.
+  The pasteboard is the one worth coming back to: the shape is right (PasteboardStrategy ->
+  WebPasteboardProxy -> the i386 NSPasteboard) but wiring it up means joining the GTK/WPE arm of
+  PasteboardStrategy.h, PasteboardWebContent (which has NO members for a port in none of the existing
+  arms) and WebPasteboardProxy.messages.in — three serialization inputs, both sides at once.
+  UIProcess and GPUProcess platform halves exist too, and only because unified bundles are sixteen TUs
+  wide: pulling one member pulls fifteen others, so WebPageProxy's constructor, WebProcessPool's and
+  the GPUProcess vtable all arrive in an x86_64 link. ProcessLauncherTiger.cpp is the exception and is
+  real: posix_spawn is 10.5, so it is fork and execve with only async-signal-safe calls between them.
+- TWO MEASURED FACTS ABOUT 10.4's SOCKETS, both from spike/wk2web/:
+  * AF_UNIX SOCK_SEQPACKET does not exist on Darwin 8 (EPROTONOSUPPORT), so SOCKET_TYPE is SOCK_DGRAM,
+    which is what ConnectionUnix already picks on Darwin.
+  * Closing one end of a SOCK_DGRAM socketpair does NOT make the other end readable IN ANOTHER PROCESS.
+    select() blocks forever and the child outlives a dead parent. (In the same process it does wake,
+    which is how the first probe misled me.) A zero-byte send on the same socket fails with ECONNRESET
+    the moment the peer is gone, so the Tiger arm of the socket monitor waits with a one-second timeout
+    and asks. Upgrade paths named in the source: kqueue EVFILT_PROC/NOTE_EXIT on the parent, or
+    SOCK_STREAM, which gives a real EOF but needs a partial-send loop in sendOutgoingMessage — a
+    non-blocking stream sendmsg can take part of a message and that code ignores short writes.
+  Also: the socket monitor thread is not PlayStation-specific. USE(GENERIC_EVENT_LOOP) has no
+  file-descriptor event source, so without it platformOpen's one dispatched readyReadHandler is the
+  only read the connection ever does. Both #if arms widened.
+- FLAGS CHANGED, and the wire: USE_THEME_ADWAITA ON (TIGER64), USE_PCH_CODEGEN OFF, USE_ACCELERATE off
+  for TIGER64 — none of the three appears in a serialization condition. ENABLE_KINETIC_SCROLLING ON in
+  all four (coordinator decision; PlatformWheelEvent.h needs it or ASYNC_SCROLLING for the phase
+  enumerators, and it IS in PlatformWheelEvent.serialization.in). TIGER_WEBKIT2 defaults ON for
+  TIGER_PROCESS=WEB. All four trees reconfigure and all six pairs report agree, with only the known
+  USE_CG/USE_CORE_TEXT/USE_CF/USE_APPKIT/USE_CAIRO and ENABLE_WEBASSEMBLY divergences.
+- tiger-check-ipc had been globbing a directory that does not exist (<build>/DerivedSources/WebKit
+  rather than <build>/WebKit/DerivedSources) and looking for *Serializers.cpp rather than
+  GeneratedSerializers*.cpp. Nothing noticed while no tree built WebKit2. Fixed; with one tree
+  generating 1100 of them the branch is now "only one tree has them", since a tree with TIGER_WEBKIT2
+  off generates none and cannot disagree with one that does.
+- WHAT IS NOT DONE: nothing drives the process — there is no UI process to connect to it, so no page
+  has ever been created and no font, layout or paint path has run. GPUProcess/graphics/wc is stubbed on
+  this side; the i386 GPU process owns the scene. The pasteboard, drag, accessibility and public-suffix
+  stubs above. bin/TigerNetworkProcess links but has not been run.
