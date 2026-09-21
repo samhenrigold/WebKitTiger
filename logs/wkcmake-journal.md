@@ -948,6 +948,50 @@ closing it before the block's own `#endif` silently steals that `#endif`. The
 error surfaces hundreds of lines later as "unterminated conditional directive".
 Turning the `HAVE_` off is the better move anyway.
 
+### The WebCore compile passes
+
+Five passes. The failure count is translation units, not errors.
+
+| Pass | Failing units | What cleared |
+|---|---|---|
+| 1 | 97 of 557 | — |
+| 2 | 60 | `CCCryptorStatus`/`CCStatus`, `HAVE_TASK_IDENTITY_TOKEN`, the media exclusions |
+| 3 | 60 | `CCAlgorithm`/`CCOperation`, the `nw_*` types, `CFN_EXPORT` |
+| 4 | 51 | the exclusions applied to `WebCore_SOURCES` as well as the `.txt` lists |
+| 5 | in flight | `CF_FORMAT_FUNCTION`, the NSURLSession SPI blocks |
+
+Two of these were worth more than they looked.
+
+**The exclusions were only half-applied.** `WebCore_UNIFIED_SOURCE_EXCLUDES`
+filters the `Sources*.txt` lists, but `WebCore_SOURCES` is a separate list that
+`PlatformCocoa.cmake` and `CMakeLists.txt` append to directly and nothing
+filters. The Core Animation and media files were still being compiled from
+there. Both now come from one pattern list, in the TIGER block of
+`WebCore/PlatformCocoa.cmake`.
+
+**`CF_FORMAT_FUNCTION` presented as two unrelated problems.** WebCore declares
+`formatLocalizedString` with it. An undefined macro there reads as "expected
+function body after function declarator" in `LocalizedStrings.h`, and then
+every caller fails separately with "no member named formatLocalizedString" in
+`CodecUtilities.cpp`. One missing macro, two symptoms, neither pointing at the
+cause. That is the third time a missing `CF_*` macro has done this, so the whole
+set WebCore names is in the overlay's `CFBase.h` now rather than just the one.
+
+**A pattern that keeps recurring: narrowing an include removes types as well as
+functions.** Gating `<CommonCrypto/CommonCrypto.h>` down to `CommonDigest.h`
+took `CCCryptorStatus`, `CCStatus`, `CCAlgorithm` and `CCOperation` with it, and
+those are named in declarations throughout the SPI header even where nothing
+calls them. Same with `Network/Network.h` and the `nw_*` types. The fix in both
+cases is to declare the types and let the functions stay absent, so the failure
+lands at link time where it belongs rather than at parse time in every file that
+includes the header.
+
+**And one to watch for when adding a gate:** putting `#if !PLATFORM(TIGER)`
+immediately inside an existing `#if HAVE(...)` and closing it before that
+block's own `#endif` silently steals the `#endif`. It surfaces hundreds of lines
+later as "unterminated conditional directive". Turning the `HAVE_` off is
+usually the better move anyway.
+
 ### Where the compile stands
 
 PAL compiles apart from one file, `system/mac/PopupMenu.mm`, which is the
