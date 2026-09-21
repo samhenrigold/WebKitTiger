@@ -1438,3 +1438,19 @@ namely that the wire carries the CoreGraphics shape and cairo-conditioned blocks
 in generator inputs are neutralised rather than matched. Raised with wcplan; it is
 not in their list of six because the local-raster decision came after their
 measurement.
+
+### Carrying the compile-time setup across
+
+The migration to PORT=Tiger left the i386 pair configuring but unbuildable: the
+Objective-C language enablement, the ARC flags, the overlay search roots, the
+CGBitmapInfo warning suppression and the static link set all still lived in the
+Cocoa options file, and none of them affects configure. Now carried over and split
+by architecture. The i386 pair gets all of it; the x86_64 pair deliberately enables
+neither Objective-C language and links no framework.
+
+Confirmed in the caches: the i386 trees carry the full fragile-runtime and overlay
+flag set, and the x86_64 trees have no Objective-C entries at all.
+
+All four configure, all six pairs agree. Note for anyone reading a cache: the
+compiler path for these languages is not cached under the obvious key, so check
+CMAKE_OBJCXX_FLAGS rather than CMAKE_OBJCXX_COMPILER.
