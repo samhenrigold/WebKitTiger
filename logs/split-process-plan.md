@@ -1,34 +1,37 @@
-# A 64-bit content process on Mac OS X 10.4.11
+# The Tiger browser architecture: two processes, split 32/64
 
-Design for option (3) of the JS-performance decision in `NOTES.md`: a
-WebKit2-shaped split, with a 32-bit Cocoa UI process, an x86_64 content process
-carrying WTF, JSC (for the maintained x86_64 JIT, including FTL) and WebCore,
-and an x86_64 NetworkProcess (§2.6 — it is mandatory in modern WebKit2, so this
-is three processes, not two).
+**This is the decided design** (`NOTES.md`, "ARCHITECTURE DECIDED", 00:50),
+not a candidate. It came out of the JS-performance decision, went through four
+branches, and settled on the one below after
+`logs/render-process-survey.md` (`73fbec3`) found WebKit's display-list remoting
+viable with a shipping upstream precedent.
 
-Written 2026-09-20 against the fork at `df6cc9ff`. Read-only: nothing under
-`WebKit/` was modified. `Source/WebKit` (65 MB, the full WebKit2 tree) was
-fetched into the sparse checkout to write this; that is the only change to the
-working tree.
+| Process | Arch | Owns |
+|---|---|---|
+| **UI + render** | **i386** | AppKit shell and view, the Core Animation compositor (private QuartzCore), **display-list replay against Tiger's real CoreGraphics and CoreText** through `compat/`, `NSCell`/`HITheme` control drawing, text input and IME, audio output |
+| **Web** | **x86_64** | JSC with the full JIT including FTL, DOM and layout, image and video decoding (ffmpeg), HarfBuzz shaping and font fallback, display-list **recording**. No Apple frameworks — libSystem only |
+| **Network** | **x86_64** | curl, LibreSSL, HTTP/2 |
 
-Revised after the user set the direction (`NOTES.md`, "DIRECTION SET BY THE
-USER"): option (3) is chosen, the targets are YouTube, React applications and
-The Verge, and the governing principle is **as much 64-bit as possible**.
+The shape is WebKit's GPU-process architecture with the roles inverted: the
+process holding the platform graphics is the small one. The precedent is
+WinCairo, which remotes 2D image-buffer drawing to its GPU process by default
+with `PLATFORM(COCOA)` off — about 110 messages, of which two are platform-gated.
 
-**Branch (d) — "32-bit rendering, 64-bit everything else" — is now the primary
-recommendation** (§2.0), following the user's proposal and
-`logs/render-process-survey.md`. Branch (b), Cairo in the 64-bit process,
-remains the guaranteed fallback; branch (a), Leopard's frameworks, is
-opportunistic. §6.3 compares all three.
+Two processes, not three. Compositing needs the window, Tiger cannot lend a
+window across processes, and a separate compositor would copy every frame back.
+So replay lives with AppKit.
 
-Spikes folded in since the first draft: `logs/leopard-x86_64-spike.md` (§2.1),
-`logs/render-process-survey.md` (§2.0), `logs/hb-vs-ct.md` (§2.0.4, which
-retires that branch's top risk), `spike/ipc32x64` (§2.0.3),
-`logs/decodebench-tiger.txt` and `logs/media64-plan.md` (§3.1), and the controls
-survey `a375b4c` (§2.7, which corrected a mistake of mine).
-`logs/jsc64-spike.md` has not landed, so the JIT premise in §3.2 and milestone
-N0 remain the one unverified load-bearing assumption. Where I could settle a
-question myself from the repo, I did, and those answers are marked **measured**.
+Written against the fork at `df6cc9ff`; `Source/WebKit` was fetched into the
+sparse checkout to write it. Read-only otherwise.
+
+Spikes folded in: `logs/render-process-survey.md` (the architecture),
+`logs/hb-vs-ct.md` (the font risk, retired), `logs/leopard-x86_64-spike.md`
+(branch (a), now dead for rendering), `spike/ipc32x64` (transport numbers),
+`logs/decodebench-tiger.txt` and `logs/media64-plan.md` (media),
+`spike/aquaatlas` (fallback artwork), and the IPC cross-ABI patch
+(`toolchain/patches/webkit-ipc-cross-abi.patch`). **`logs/jsc64-spike.md` has
+not landed, so milestone N0 remains the one unverified load-bearing
+assumption.**
 
 ---
 
@@ -90,37 +93,54 @@ assumed:
 harfbuzz, curl.** All four are plain C autotools/meson builds with no modern-CPU
 requirements. That is the whole third-party gap.
 
-### 0.3 The alignment trap — two teammates' rules that look contradictory
+### 0.3 The alignment trap, and a correction to an earlier draft
 
-`NOTES.md` records the audio-bridge rule: *"i386 ABI 4-byte-aligns 8-byte
-fields; x86_64 8-byte-aligns them; use 4-byte fields only in shared structs."*
-The IPC analysis for this document found the opposite-looking result: that
-`alignof(long long)` is 8 on both, so IPC's wire alignment agrees.
-
-**Both are correct.** Measured with our own clang, by static assertion:
+This section previously concluded that the IPC wire format agreed between the
+two architectures because `alignof(long long)` is 8 on both. **That was right
+about scalars and wrong about the conclusion**, and the objcrt track found the
+real offender while building
+`toolchain/patches/webkit-ipc-cross-abi.patch`. Measured with our clang, by
+static assertion, in C++:
 
 | | i386-apple-macosx10.4 | x86_64-apple-macosx10.5 |
 |---|---|---|
-| `_Alignof(long long)` | **8** | **8** |
-| `offsetof(struct { unsigned; unsigned long long; }, second)` | **4** | **8** |
-| `sizeof(long)` | 4 | 8 |
+| `alignof(uint64_t)`, `alignof(double)` | 8 | 8 |
+| **`alignof(struct { uint64_t; })`** | **4** | **8** |
+| **`alignof(struct { uint32_t; uint64_t; })`** | **4** | **8** |
+| **`sizeof(struct { uint32_t; uint64_t; })`** | **12** | **16** |
+| `offsetof(struct { uint32_t; uint64_t; }, second)` | 4 | 8 |
+| `sizeof(long)`, `sizeof(size_t)`, `sizeof(void*)` | 4 | 8 |
+| `sizeof(ptrdiff_t)` | 4 (`int`) | 8 |
 
-`_Alignof` reports the *preferred* alignment; struct **field layout** uses the
-i386 ABI's 4-byte rule. They are different numbers from the same compiler.
+**Wrapping a 64-bit scalar in a struct changes its alignment on i386.** So
+`Encoder::grow(alignof(T), sizeof(T))` agrees for a bare `uint64_t` and
+disagrees for any struct containing one — in both the padding *and* the size.
+A scalar-only test cannot catch this, which is exactly how the first draft
+missed it.
 
-The practical split:
+Four classes of offender, all now fixed in that patch:
 
-- **Raw structs blitted through shared memory** follow field layout, so the
-  audio-bridge rule applies: 4-byte fields only, split 64-bit values into two
-  `uint32_t`, verify `offsetof` from both compilers.
-- **`IPC::Encoder`/`Decoder`** use `grow(alignof(T), sizeof(T))`
-  (`Platform/IPC/Encoder.h:132-147`) and
-  `roundUpToMultipleOf<alignof(T)>` (`Decoder.h:241`), i.e. `_Alignof`, which
-  agrees. The serialized wire format is therefore ABI-compatible.
+1. **`Encoder`/`Decoder` padding by `alignof(T)`** — fixed with a
+   `wireAlignmentOf` that aligns 8-byte scalars to 8 on both sides.
+2. **`long` / `unsigned long` / `size_t` fields** — banned by a `requires`
+   clause on the arithmetic coder, so the compiler finds future offenders.
+3. **`IPC::MessageInfo`** framing in `Platform/IPC/unix/UnixMessage.h` — made
+   fixed-width.
+4. **`ScrollSnapOffsetsInfo` and `PlatformXR`** fields — fixed individually.
 
-Anyone writing a shared struct must be told which of the two rules applies, or
-they will apply the wrong one. This belongs in `NOTES.md` next to the existing
-audio-bridge rule.
+Two rules that follow, and both are build-environment rules rather than code,
+which makes them easy to violate by accident:
+
+- **Both builds must run to catch every offender.** `ptrdiff_t` is `int` on
+  i386, so a 32-bit-only build is silent about a whole class of mismatch.
+- **Build both sides with our clang.** Tiger's GCC 4.0 reports
+  `__alignof__(long long)` as 4, and mixing compilers reintroduces the bug
+  underneath the fix.
+
+Separately, for **raw structs blitted through shared memory** — the audio ring,
+any hand-rolled header — the rule from `spike/audiobridge` still stands and is
+stricter: **4-byte fields only**, split 64-bit values into two `uint32_t`, and
+static-assert `sizeof`/`offsetof` from both compilers.
 
 ---
 
@@ -351,9 +371,9 @@ to the extent that its fixes are generic rather than Cocoa-specific.
 
 ---
 
-## 2. The content process rendering backend
+## 2. The rendering architecture
 
-### 2.0 Branch (d): 32-bit rendering, 64-bit everything else — **primary**
+### 2.0 Display-list remoting to the 32-bit process
 
 This is WebKit's GPU-process shape with the roles inverted: the process that
 holds the platform graphics is the small one. A **64-bit WebProcess** does
@@ -362,8 +382,9 @@ JavaScript, DOM, layout, image decoding, text shaping and display-list
 real CoreGraphics and CoreText through the compat layer we have already
 verified, and hosts the CA compositor.
 
-It supersedes branches (a) and (b) as the recommendation. They remain below:
-**(b) is the guaranteed fallback, (a) is opportunistic.**
+Sections 2.1 and 2.2 record the two alternatives and why they lost. **2.1 is
+dead**, not deferred. **2.2 is the fallback** if the remoting turns out not to
+work, which the survey and the spikes make unlikely.
 
 #### 2.0.1 Why it wins
 
@@ -386,11 +407,17 @@ every CMake port from `Sources.txt:32-47`. Of roughly 110 messages in
 And it keeps everything the split was for: the x86_64 JIT, a 64-bit address
 space, 64-bit ffmpeg decode, crash isolation.
 
-#### 2.0.2 The topology: two processes, not three
+#### 2.0.2 Why two processes and not three
 
-**The brief asked for a separate render process; the survey recommends against
-it and I agree.** Put the replay in the 32-bit UI process, alongside AppKit and
-the compositor.
+Replay lives in the 32-bit UI process, alongside AppKit and the compositor.
+Three reasons, the first of which is decisive and is not about performance:
+
+1. **Compositing needs the window, and Tiger cannot lend a window across
+   processes.** There is no CA render-server protocol (`atv/REPORT.md`), so the
+   compositor must live wherever the `NSWindow` is.
+2. **A separate compositor would copy every frame back** to the process that
+   owns the window — the cost the whole display-list design exists to avoid.
+3. **Splitting later is cheap; merging later is impossible.**
 
 | | merged UI + render (recommended) | separate render process |
 |---|---|---|
@@ -399,9 +426,9 @@ the compositor.
 | Hop for control drawing | none — AppKit is right there | another hop |
 | Scheduling on 2 cores | better | three runnable processes on two cores |
 | Crash isolation of graphics | none | yes |
-| Reversible? | **yes — splitting later is cheap** | merging later is impossible |
+| Can composite at all | **yes** | **no** — the window is in the other process |
 
-The asymmetry in that last row decides it. Start merged.
+The last row is the one that settles it.
 
 The **NetworkProcess stays 64-bit** (§2.6): pure C++ over curl, no frameworks,
 and it keeps TLS and HTTP/2 off the WebProcess's cores.
@@ -419,7 +446,7 @@ So: **64-bit WebProcess, 64-bit NetworkProcess, 32-bit UI+render process.**
 | Canvas | remote `ImageBuffer`s | both |
 | Font handles | `FontPlatformDataAttributes` — file path, PostScript name, size, synthetic bold/oblique, orientation, variation axes, feature settings; web fonts ship bytes | 64 → 32 |
 | **Font metrics and advances** | plain floats, computed by **real CoreText in the 32-bit process**, cached per handle | 32 → 64 |
-| Layer tree deltas | the Windows coordinated-layer delta, retargeted | 64 → 32 |
+| Layer tree deltas | the Windows coordinated-graphics layer delta (**~1,600 LOC reused unchanged**), consumed by a **~300-LOC scene applier** that builds real `CALayer`s | 64 → 32 |
 | Decoded video frames | shared bitmaps, or a video layer in the compositor (§3.1) | 64 → 32 |
 
 The measured IPC characteristics on the box (`spike/ipc32x64`, commits
@@ -495,8 +522,18 @@ Two rules that follow, both cheap and both easy to get wrong later:
 - **Font fallback moves entirely into the recording process.** The CoreText
   complex-text controller exists partly to ask CoreText which font it chose per
   run; this design forbids that, so every draw must name a concrete resolved
-  face. That means a real font cache and cascade over file-scanned metadata, and
-  it is where missing-glyph bugs will come from.
+  face.
+
+  The mechanism is a **font manifest**: the 32-bit process enumerates the
+  installed faces with real CoreText and ATS and writes out, per face, the
+  PostScript name, family, traits, the covered character set and the file path.
+  The 64-bit process loads that manifest and runs its own cache and cascade over
+  it, so it can resolve a concrete face for every run without ever asking
+  CoreText anything. `ctcompat` is building the manifest generator and the
+  handle resolver.
+
+  This is where missing-glyph bugs will come from, and it is the second-largest
+  remaining risk after serializer asymmetry.
 
 #### 2.0.5 The known structural gaps
 
@@ -504,10 +541,20 @@ From the survey, both must be fixed before a pixel appears:
 
 1. **WebKit's serialization is symmetric by construction.** The same generated
    coder runs on both sides, so a type whose encoding depends on a platform
-   `#if` corrupts the wire silently rather than failing to compile. Colour space
-   and bitmap configuration are the named offenders: **force the neutral
-   encoding on both sides**. This is the failure mode to fear, because it
-   produces wrong pixels, not a build error.
+   `#if` corrupts the wire silently rather than failing to compile. **Three
+   types are CoreGraphics-flag-dependent and must be forced to a neutral
+   encoding on both sides before the first pixel:**
+
+   | Type | Why it differs |
+   |---|---|
+   | **Colour space** | encodes as a `CGColorSpaceRef`-derived form with the CG flag on, an enumerated form without |
+   | **`ShareableBitmap` configuration** | pixel format and bitmap-info fields are CG-typed under the flag |
+   | **Font attributes** (`FontPlatformDataAttributes`) | CoreFoundation-typed members under the flag; see §2.0.4 |
+
+   The 64-bit side has the flag off and the 32-bit side has it on, which is the
+   entire point of the architecture and also precisely what makes these three
+   dangerous. Fix them first. This is the failure mode to fear, because it
+   produces wrong pixels rather than a build error.
 2. **There is no image-buffer backend for "no 2D library".** The 64-bit side
    records without rasterizing, so it needs a **pixel-less shareable-bitmap
    backend**, about 150 LOC.
@@ -551,7 +598,7 @@ Ordered, with the survey's ranking amended by the hb-vs-ct result:
    measurement, not an unknown.
 7. **Path geometry** in the 64-bit process needs the scalar implementation.
 
-### 2.1 Branch (a): Leopard's x86_64 frameworks loaded privately — opportunistic
+### 2.1 Rejected: Leopard's x86_64 frameworks (dead for rendering)
 
 **Status, per `logs/leopard-x86_64-spike.md`: plausible, one fault away.**
 The spike has run on the box and supersedes the estimate I made from the SDK
@@ -607,12 +654,26 @@ of that sits on a drawing path — it is CommonCrypto, file quarantine, launchd
 and `fenv` — and cutting CoreServices out of the closure would remove most of
 it. But it is 25 libraries of private userland to ship and keep working.
 
-**Recommendation unchanged: do not gate the project on this.** Branch (b) is
-the guaranteed fallback and should be the critical path. Branch (a) is worth
-finishing because a CoreText that needs zero shims is a genuinely better
-answer for text than FreeType, and because the fault is one debugging session
-from being understood. Fold it in at N3 as an alternative graphics backend
-behind a build option, never as a prerequisite.
+#### Verdict: dead for rendering
+
+The `CGBitmapContextCreate` fault was isolated, and the cause is structural
+rather than a bug to fix. **Leopard's x86_64 CoreGraphics and CoreText block on
+Mach services that exist only in 32-bit form on Tiger** — the font server and
+the window server. A 64-bit process cannot reach them, and there is no shim for
+a service that is not there.
+
+So this branch is **rejected, not deferred**. The architecture in §2.0 gets the
+same thing by a better route: Tiger's own CoreGraphics and CoreText, in the
+32-bit process where those Mach services are reachable, with the compat layer
+we have already verified against them.
+
+**The 64-bit process itself is fine**, and that is the part of the spike that
+matters and survives. It proved every JIT prerequisite on the box — RWX `mmap`,
+the W^X flip, executing generated code, `mach_vm`, 16 MB stacks, 64 GB of
+address space — which is what milestone N0 rests on. The
+`LC_REEXPORT_DYLIB` demotion trick and the
+`dyld_register_image_state_change_handler` shim are recorded above in case
+anything else ever needs to load a Leopard library.
 
 Either way the content process still needs curl: Leopard's CFNetwork drags the
 same launchd chain, and §2.6 shows curl is now the cheaper option anyway.
@@ -639,7 +700,13 @@ configuration — `USE_CG`, `USE_CORE_TEXT`, the CG and CoreText backends — bu
 still with **no AppKit**, which §2.5 shows is the part that actually hurts. So
 branch (a) buys back text and raster quality, not native controls.
 
-### 2.2 Branch (b): the cross-platform backend — **the guaranteed fallback**
+### 2.2 Held in reserve: Cairo in the 64-bit process (fallback only)
+
+**Not the plan.** This is what we would build if display-list remoting failed,
+and it is recorded at its original length because that decision would have to be
+made quickly and with the analysis already done. Its costs — a lookalike theme,
+FreeType text, and the whole 32-bit compat investment stranded — are exactly
+what §2.0 avoids.
 
 **Cairo is alive in this tree and is the default for a new port.**
 `Source/WebCore/platform/graphics/cairo/` is 41 files / 7,362 LOC;
@@ -949,9 +1016,21 @@ Tiger) and the four `thumb`/`track` geometry virtuals at `ScrollbarTheme.h:97-10
 
 Set against the alternatives this section previously proposed: **525 LOC instead
 of 3,250–4,750 for the capture cache, or ~2,000 for a hand-drawn painter set
-that could never be pixel-exact.** `spike/aquaatlas` keeps a narrower role as a
-reference for verifying that the remoted drawing matches, and as a source for
-the 17 system colours its `atlas.json` already captures from real `NSColor`.
+that could never be pixel-exact.**
+
+`spike/aquaatlas` is **done** — 366 images across 18 control types, using
+`HIThemeDrawButton` for the window-inactive states AppKit will not render
+directly. It keeps two roles: **fallback artwork**, for any state
+`compat/aquacontrols.m` cannot draw live, and **the reference** for verifying
+that the remoted drawing matches, plus the 17 system colours its `atlas.json`
+captures from real `NSColor`.
+
+Three tool gotchas from building it, worth not rediscovering:
+`CGBitmapContextGetData` returns NULL on Tiger unless you supply the buffer
+yourself; a bare executable, or the first launch of a new bundle, cannot become
+active, which is why the inactive artwork needed `HITheme`; and
+`HIThemeDrawTrack` draws a whole scrollbar at once where WebCore wants the parts
+separately.
 
 **`spike/CAHost` phase 4, the offscreen-view prototype, is cancelled** and
 should not be built.
@@ -1408,143 +1487,111 @@ The earlier warning to those tracks is withdrawn.
 
 ## 6. Milestones and effort
 
-### 6.1 Branch (b), the recommended path
+### 6.1 The sequence
 
-| # | Milestone | Gate | Effort |
-|---|---|---|---|
-| **N-1** | Split the arch-blind Tiger block | `OptionsCocoa.cmake:165-199` forces `ENABLE_C_LOOP` and turns off JIT/video/MSE for all of `TIGER`, and hardcodes the i386 sysroot at `:299`/`:469`. **Nothing below can be configured until this is split on architecture** | 1–2 d |
-| **N0** | `jsc` x86_64 runs on the box with the JIT on | `jsc -e 'print(1+1)'`, then JetStream 2 and the 2M-iteration loop. **This is the whole premise.** The Leopard spike has already proved every JIT *prerequisite* on the box — RWX `mmap`, the W^X flip, executing generated code, `mach_vm`, 16 MB stacks, 64 GB of VA — so the remaining risk is JSC itself, not the platform | in flight (`jsc64` agent) |
-| **N1** | x86_64 dependency set complete | harfbuzz and curl for x86_64 (freetype, fontconfig, png, jpeg, webp, xml2, sqlite, ssl, ICU, ffmpeg are built). Cairo and pixman only if branch (b) is taken | 1–3 d |
-| **N2** | The two WebCore configurations compile | 64-bit recording side (no 2D library) and 32-bit replay side (CG + CoreText + compat). Includes the neutral colour-space encoding and the pixel-less image-buffer backend, both of which must land before any pixel | 12–18 d |
-| **N3** | Display lists replay | 64-bit records, 32-bit replays to a PNG. Proves the stream, the serializer symmetry fix and the font handle. **The font metrics service lands here** | 8–12 d |
-| **N4** | WebKit2 content process builds and runs headless | `USE_UNIX_DOMAIN_SOCKETS`, the three ABI fixes, `MessageInfo` widened, the `requires` guard; `Shared/unix/AuxiliaryProcessMain.cpp` | 5–8 d |
-| **N5** | Two processes talk | `ProcessLauncherTiger.cpp` (~120), `PageClientImpl` + view stack cloned from PlayStation (~856); a page loads and paints into a `ShareableBitmap` | 8–12 d |
-| **N6** | Pixels on screen | UI process wraps the bitmap as a `CGImage` and sets it as a `CALayer`'s contents in the CARenderer host; `logs/ca-hosting-design.md` is the reference | 5–8 d |
-| **N7** | Interactive | events, `WebPopupMenuProxy` as a real `NSMenu`, pasteboard, IME, scrolling | 10–15 d |
-| **N7.5** | **Aqua controls (§2.7)** | route `DrawControlPart` into `compat/aquacontrols.m` (~275) plus `HITheme` scrollbars (~250). Far cheaper than the capture design this replaced | 3–5 d |
-| **N8** | The Verge class works | HTTP/2 via nghttp2, brotli, WebP and AVIF decode, tiled scrolling within the bandwidth budget of §3.3 | 8–12 d |
-| **N9** | YouTube plays | `MediaPlayerPrivateTiger` + `MediaSourcePrivateTiger` + `SourceBufferPrivateTiger` cloned from `platform/mock/mediasource/` (1,060 LOC skeleton), libavformat demux behind `appendInternal`, libavcodec + `sws_scale` behind `paint()`, codec policy forcing `avc1`/`mp4a`, audio over the proven bridge | 15–25 d |
+| # | Milestone | Gate | New LOC | Days |
+|---|---|---|---|---|
+| **N-1** | Split the arch-blind Tiger block | `OptionsCocoa.cmake:165-199` forces `ENABLE_C_LOOP` and turns off JIT, video and MSE for all of `TIGER`, and hardcodes the i386 sysroot at `:299`/`:469`. It must now split **three** ways: 64-bit web, 64-bit network, 32-bit UI+render. Nothing below configures until it does | ~150 | 1–2 |
+| **N0** | **`jsc` x86_64 runs with the JIT** | `jsc -e 'print(1+1)'`, then JetStream 2 and the 2M-iteration loop. **The whole premise.** Every platform prerequisite is already proven on the box by the Leopard spike, so the remaining risk is JSC itself | ~100 | in flight |
+| **N1** | **Web process links** | WTF, JSC and WebCore for x86_64 with **no raster backend** — the pixel-less shareable-bitmap backend (~150), display-list recording, HarfBuzz shaping, the font cache and cascade over the manifest, ffmpeg decode. Plus the three neutral wire encodings and the cross-ABI IPC patch, both of which must land here | 2,500–3,800 | 12–18 |
+| **N2** | **UI + render process** | C-API view (`PageClientImpl` + view stack, ~856 from PlayStation), display-list **replay** against Tiger CG/CoreText via `compat/`, the CA compositor from `logs/ca-hosting-design.md`, the ~300-LOC scene applier over the reused ~1,600-LOC layer delta, and the font **metrics service** | 3,000–4,200 | 15–22 |
+| **N3** | **`about:blank` end to end** | two processes launched with `fork`+`exec`, the stream connected, a page loaded, a white frame composited on screen. Proves the transport, the serializer symmetry fix, the font handle and the compositor together | 400–700 | 6–10 |
+| **N4** | **An HTTPS page with text and images** | the 64-bit NetworkProcess over curl with `cacert.pem` shipped and set at runtime; image decode; **real CoreText rasterization of HarfBuzz-shaped runs** — the first point where §2.0.4's 0.03 pt result is tested on real pages rather than a harness | 600–1,000 | 8–12 |
+| **N5** | **Controls, scrollbars, text input** | route `DrawControlPart` into `compat/aquacontrols.m` (~275), `HITheme` scrollbars (~250), the lean Tiger `NSTextInput` view over the C API (~1,000, per `logs/textinput-plan.md`, including the 5 query messages that need synchronous variants and the `NSNotFound` clamp), `WebPopupMenuProxy` as a real `NSMenu` | 1,800–2,400 | 12–16 |
+| **N6** | **Video** | `MediaPlayerPrivateFFmpeg` (~5,300 content-side, ~700 on the 32-bit side), MSE via libavformat over a custom AVIO on a growing buffer, audio over the `spike/audiobridge` ring in the `RemoteAudioDestination` shape, codec policy preferring H.264 | ~6,000 | 15–25 |
 
-**N-1 through N7.5: roughly 52–83 engineer-days** to an interactive browser
-with native text and pixel-exact Aqua controls,
-comparable to the WebCore milestone estimate in `logs/webcore-plan.md` and on
-top of it rather than instead of it. **N8 and N9 add 23–37 days** and are the
-least predictable, N9 especially: A/V sync and sustained decode throughput on a
-2.2 GHz Merom are the kind of thing that is either fine on the second day or
-consumes a fortnight.
+**N-1 through N5: roughly 54–80 engineer-days** to an interactive browser with
+native text and Aqua controls. **N6 adds 15–25.**
 
-New code, by area:
+### 6.2 New code, by area
 
 | Area | LOC |
 |---|---|
-| Branch (d) render + recording sides (§2.0.6) | 4,900–7,250 |
-| WebKit2 glue (launcher, PageClient, view, popup proxy) — note `fork`+`exec`, Tiger has no `posix_spawn` | 1,200–1,800 |
-| IPC ABI fixes | ~30 |
-| **Aqua controls (§2.7) — our side** | **~525** |
-| Optional: fontconfig-free `FontCacheFreeType` fork | +600 |
-| UI process itself (additive, largely independent) | 3,000–4,200 |
-| **Baseline, to an interactive browser with native text and Aqua controls** | **≈ 9,650–13,800** |
-| Media, `MediaPlayerPrivateFFmpeg` (N9): 5,300 content-side + 700 on the 32-bit side | +6,000 |
-| **Everything** | **≈ 15,650–19,800** |
+| Render side: PlayStation-shaped port + CG/CoreText WebCore + compat layer | 800–1,200 |
+| Three neutral wire encodings, both sides | 150–250 |
+| Pixel-less shareable-bitmap backend | 150 |
+| Font handle de-CoreFoundation-ed, both directions | 300–450 |
+| Font metrics service and cache (32-bit side authoritative) | 300–500 |
+| Font manifest generator + the 64-bit cache and cascade over it | 800–1,500 |
+| HarfBuzz wiring for a CoreGraphics-shaped tree | 400–700 |
+| Scene applier building real `CALayer`s (the ~1,600-LOC layer delta is reused) | ~300 |
+| Backing store blit and tile plumbing | 200–300 |
+| Port glue for the 64-bit process | 1,400–1,600 |
+| UI process: view, `PageClientImpl`, launcher (`fork`+`exec`), popup proxy | 3,000–4,200 |
+| Aqua controls and scrollbars (§2.7) | ~525 |
+| Text input (`logs/textinput-plan.md`) | ~1,000 |
+| Accessibility: **declare absence** (~15) | ~15 |
+| **To an interactive browser** | **≈ 9,300–12,700** |
+| Media (N6) | +6,000 |
+| **Everything** | **≈ 15,300–18,700** |
 
-Rejected and recorded: **live AppKit controls in the page** (fatal z-order, and
-the `Widget`/`RenderWidget` machinery is vestigial), **offscreen-view capture
-with a state cache** (§2.7 — unnecessary once `DrawControlPart` was found;
-`spike/CAHost` phase 4 is cancelled), **a hand-drawn Aqua painter set** (~2,000
-LOC, never pixel-exact), and **GStreamer** (§3.1 — 1.2–1.5M LOC of GLib chain to
-port).
+Reused unchanged: ~1,600 lines of the coordinated-graphics layer delta, the
+whole stream transport, `NetworkProcess/curl`, and every line of `compat/` that
+touches CoreGraphics or CoreText.
 
-### 6.2 Branch (a), if the Leopard spike succeeds
+### 6.3 Risks, ordered
 
-Add to N1: bring up a private Leopard x86_64 userland (libobjc, libauto,
-CoreFoundation, ApplicationServices) with ~12 libSystem shims for CF plus
-whatever the other three layers need, all under
-`@executable_path`-relative install names as `spike/CAHost/rebundle.sh` already
-does for QuartzCore. Subtract the cairo, pixman, freetype and fontconfig
-builds; subtract `RenderThemeAdwaita` in favour of something CG-based; keep
-curl regardless.
+1. **Serializer asymmetry.** Fails as silent wire corruption, not a build error.
+   The three CG-flag-dependent types (§2.0.5) and the cross-ABI alignment patch
+   (§0.3) must both land before the first pixel.
+2. **Font fallback rewritten** in the recording process over the manifest.
+   Missing-glyph bugs live here.
+3. **Metrics disagreement** between the sides, making layout and paint disagree.
+   Mitigated structurally by making the 32-bit side authoritative.
+4. ~~AAT shaping divergence~~ — **measured and retired** (`logs/hb-vs-ct.md`).
+5. ~~Does the Leopard stack load~~ — **answered: it does not, for rendering**
+   (§2.1). No longer a risk because it is no longer a plan.
+6. **The same-clang rule** (§0.3). A build-environment rule, easy to violate by
+   accident and confusing when violated.
+7. **Shared-memory limits** under aggressive tile allocation. A measurement.
+8. **Accessibility is a known regression.** Remote AX is closed on Tiger; v1
+   declares absence. Tiger shipped VoiceOver, so this belongs in the README
+   rather than in a bug tracker.
 
-**Net effect: probably a wash on effort, a clear win on text rendering, and a
-large increase in risk** — four layers of a pre-release-adjacent OS loaded into
-a process on a different OS. It also reintroduces an ObjC runtime into the
-content process, which changes §4's "C-only 64-bit compat library" conclusion.
+### 6.4 Against not splitting at all
 
-Do not sequence N2 behind it. If the spike lands positive, fold it in at N3 as
-an alternative graphics backend behind a build option, not as a prerequisite.
+`NOTES.md` records that the 2021 pin is off the table by explicit user decision:
+*"The port runs the 2026 WebKit tree, period."* So this is a two-way comparison.
 
-### 6.3 Comparison with the alternatives
-
-`NOTES.md` records that **the 2021 pin is off the table by explicit user
-decision (22:50)**, not merely deprioritised: *"The port runs the 2026 WebKit
-tree, period. JS performance comes from the 64-bit content process with today's
-x86_64 JIT; if the 64-bit path failed, the answer would be the 2026 tree on the
-interpreter, never an older browser."* So this is a two-way comparison, not a
-three-way one.
-
-First, between the three rendering branches (§2.0–2.2):
-
-| | **(d) 32-bit render, 64-bit rest** | (b) Cairo in 64-bit | (a) Leopard frameworks in 64-bit |
-|---|---|---|---|
-| Status | **primary** | guaranteed fallback | opportunistic |
-| Rendering fidelity | **native, by construction** | a lookalike; different text | native *if* the stack loads and behaves |
-| Text | Tiger CoreText; shaping agrees to 0.03 pt (`hb-vs-ct.md`) | FreeType/HarfBuzz throughout | Leopard CoreText, needs 0 shims |
-| Aqua controls | **real `NSCell`s, Safari's pixels** | painter set or nothing | real cells, but no AppKit at 64 bits |
-| Compat-layer reuse | **complete — it is the renderer** | none | partial; different release's binaries |
-| Upstream precedent | **WinCairo, by default** | GTK, WPE, PlayStation | none |
-| New code | 4,900–7,250 (+3,000–4,200 UI) | ~2,800–4,300 + a whole graphics backend | unknown until the fault clears |
-| Concentrated risk | serializer asymmetry, font fallback | shaping and theme fidelity | does the stack load at all |
-| Fails how | in text, visibly and early | gradually, in fidelity | all at once, at load |
-
-Then, against not doing the split at all:
-
-| | (1) 2026 tree, interpreter, single 32-bit process | **(3) the split, branch (d)** |
+| | 2026 tree, interpreter, single 32-bit process | **the split** |
 |---|---|---|
-| JS on the 2M-iteration loop | 2.24 s | x86_64 JIT + FTL; Safari 4.1.3's i386 JIT does it in 59 ms, so expect that order |
-| Architecture | one process, WebKit1 | **three** processes, WebKit2 |
-| Extra engineering | none beyond the existing plans | ~8,400–11,975 LOC to interactive with Aqua controls and native text |
-| Rendering | Tiger CoreGraphics + CoreText, native Aqua | **the same, via branch (d)** — real CG, real CoreText, real `NSCell`s |
-| **YouTube** | **no** — QTKit cannot do MSE, and its software path did ~2 fps at 720p | yes, non-DRM, **720p H.264 comfortably** (~50× QTKit) |
+| JS on the 2M-iteration loop | 2.24 s | x86_64 JIT + FTL; Safari 4.1.3's i386 JIT does it in 59 ms |
+| Processes | one, WebKit1 | three |
+| Extra engineering | none beyond the existing plans | ~9,300–12,700 LOC, 54–80 days |
+| Rendering | Tiger CG + CoreText, native Aqua | **the same** — real CG, real CoreText, real `NSCell`s |
+| **YouTube** | **no** — QTKit cannot do MSE, and managed ~2 fps at 720p | yes, non-DRM, **720p H.264 comfortably** (~50×) |
 | **React apps** | unusable at interpreter speed | the reason for the architecture |
 | Crash isolation | none | yes |
-| CT/CG shim investment | fully used | **fully used — branch (d) makes the 32-bit process the renderer** |
+| CT/CG compat investment | fully used | **fully used — the 32-bit process is the renderer** |
 | Address space | ~2.7 GB | full 64-bit |
-| Risk | low, and largely retired | concentrated in N0 |
+| Accessibility | works | **regression: declared absent in v1** |
+| Risk | low, largely retired | concentrated in N0, then in the serializer |
 
-The honest framing: option (3) buys roughly a 30–40x JavaScript improvement and
-crash isolation, and pays for it with a foreign-looking page, a second
-architecture, and the stranding of two of the project's largest completed
-tracks. Given the user's stated targets — React apps, YouTube, The Verge —
-none of which are usable at interpreter speed, that trade is the right one. But
-the stranding cost is real and is not visible from the JS benchmark alone.
+The trade is a 30–40× JavaScript improvement, working video, and crash
+isolation, against roughly three months of engineering and losing accessibility
+in v1. Given the stated targets — React apps, YouTube, The Verge, none of which
+are usable at interpreter speed — that is the right trade. **Everything still
+hinges on N0.**
 
-**Everything hinges on N0.** If `jsc` x86_64 with the JIT does not run on
-Tiger's libSystem, the entire branch collapses to option (1), and the work in
-§5's "does not transfer" column was spent for nothing. N0 should stay ahead of
-every other milestone here, and nothing in §5.1 should start before it reports.
+## 7. What is still open
 
----
+1. **`jsc64`** — does the x86_64 JIT run, and does FTL? What does JetStream 2
+   say? **N0, and the only load-bearing unknown left.** Every platform
+   prerequisite it depends on is already proven on the box.
+2. **Shared-memory limits** on Tiger under a tile-allocating renderer. A
+   measurement, cheap, worth doing before N2.
+3. **The arch-blind CMake block** (`OptionsCocoa.cmake:165-199`) now has to
+   split three ways. Not a question, just the first task.
 
-## 7. Open questions for the spikes
+Closed since the first draft, recorded so nobody reopens them:
 
-1. **`jsc64`** — does the x86_64 JIT run at all, and does FTL? Does
-   `ExecutableAllocator` need a Tiger gate beyond the `MAP_JIT` one already
-   applied? What does the 2M-iteration loop measure?
-2. **`leopard`** — answered for load and resolve (§2.1): they do, with small
-   shims, and CoreText needs none. The open part is now narrow and specific:
-   **why does `CGBitmapContextCreate` fault?** The toolchain is ruled out. Next
-   suspects are something CoreGraphics expects from a windowed session, or a
-   dependency initialising incorrectly under flat namespace.
-3. **Unverified and load-bearing** — the arch-blind block at
-   `Source/cmake/OptionsCocoa.cmake:165-199` forces `ENABLE_JIT` and
-   `ENABLE_C_LOOP` for all of `TIGER`. Under branch (d) it now has to be split
-   **three** ways, not two: 64-bit WebProcess, 64-bit NetworkProcess, 32-bit
-   UI+render. Until then N0 cannot be configured.
-4. **Closed since the first draft**, recorded so nobody re-opens them: the
-   content process needs no x86_64 libdispatch (§4); HarfBuzz and Tiger CoreText
-   agree to 0.03 pt (§2.0.4); `DrawControlPart` already exists so controls need
-   no bespoke mechanism (§2.7); 720p H.264 decodes at 112 fps (§3.1);
-   `NetworkProcess/curl` is live upstream (§2.6).
-
-The third question I had listed here — whether the content process needs an
-x86_64 libdispatch — is **answered in §4: it does not.** `RunLoopGeneric` and
-`WorkQueueGeneric` are pure WTF and are selected by source list.
+| Question | Answer | Where |
+|---|---|---|
+| Does the 64-bit side need libdispatch? | No — `RunLoopGeneric`/`WorkQueueGeneric` are pure WTF, selected by source list | §4 |
+| Do HarfBuzz and Tiger CoreText agree? | Yes, to 0.008 pt per glyph, AAT included | §2.0.4 |
+| Is there a cross-process control-drawing protocol? | Yes — `DrawControlPart`, already serialized upstream | §2.7 |
+| Can Leopard's x86_64 frameworks render? | No — they block on 32-bit-only Mach services | §2.1 |
+| Is the curl backend dead work? | No — `NetworkProcess/curl` is live upstream. The WebKit1 restoration is the dead work | §2.6 |
+| How fast does video decode? | 720p30 H.264 in 12 ms of a 33 ms budget, ~50× QTKit | §3.1 |
+| Does the IPC wire format agree? | Only for bare scalars; structs containing 64-bit fields disagree in padding *and* size. Fixed in `webkit-ipc-cross-abi.patch` | §0.3 |
+| Two processes or three? | Two — compositing needs the window, and Tiger cannot lend one across processes | §2.0.2 |
