@@ -242,6 +242,15 @@ static BOOL sameColor(NSColor *a, NSColor *b)
         }
     }
 
+    {
+        expect("NSCursor +contextualMenuCursor", [NSCursor contextualMenuCursor] != nil);
+        expect("NSCursor +dragCopyCursor", [NSCursor dragCopyCursor] != nil);
+        [[NSSpellChecker sharedSpellChecker] updatePanels];
+        expect("NSSpellChecker -updatePanels returns", YES);
+        expect("NSNumber -initWithInteger:",
+               [[[[NSNumber alloc] initWithInteger:-7] autorelease] integerValue] == -7);
+    }
+
     /* ---- NSScreen ---- */
     {
         NSScreen *main = [NSScreen mainScreen];

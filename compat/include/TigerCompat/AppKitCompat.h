@@ -109,6 +109,22 @@ typedef struct NSEdgeInsets {
 @end
 
 /* -------------------------------------------------------------------------
+ * NSCursor, 10.6. Two cursors Tiger's AppKit does not ship. Both fall back to
+ * a cursor that exists, so the pointer stays sensible rather than vanishing.
+ * ------------------------------------------------------------------------- */
+@interface NSCursor (TigerCompat)
++ (NSCursor *)contextualMenuCursor;
++ (NSCursor *)dragCopyCursor;
+@end
+
+/* -------------------------------------------------------------------------
+ * NSSpellChecker, 10.6.
+ * ------------------------------------------------------------------------- */
+@interface NSSpellChecker (TigerCompat)
+- (void)updatePanels;
+@end
+
+/* -------------------------------------------------------------------------
  * NSGraphicsContext, 10.10. A pure rename: Tiger's "graphics port" already is
  * a CGContextRef, so this forwards without converting anything.
  * ------------------------------------------------------------------------- */

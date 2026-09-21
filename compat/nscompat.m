@@ -418,6 +418,7 @@ static int tigerComparatorTrampoline(id a, id b, void *context)
 @implementation NSNumber (TigerCompat)
 + (NSNumber *)numberWithInteger:(NSInteger)value { return [self numberWithInt:(int)value]; }
 + (NSNumber *)numberWithUnsignedInteger:(NSUInteger)value { return [self numberWithUnsignedInt:(unsigned)value]; }
+- (id)initWithInteger:(NSInteger)value { return [self initWithInt:(int)value]; }
 - (NSInteger)integerValue { return (NSInteger)[self intValue]; }
 - (NSUInteger)unsignedIntegerValue { return (NSUInteger)[self unsignedIntValue]; }
 @end

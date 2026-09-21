@@ -203,6 +203,7 @@ enum {
 @interface NSNumber (TigerCompat)
 + (NSNumber *)numberWithInteger:(NSInteger)value;
 + (NSNumber *)numberWithUnsignedInteger:(NSUInteger)value;
+- (id)initWithInteger:(NSInteger)value;
 - (NSInteger)integerValue;
 - (NSUInteger)unsignedIntegerValue;
 @end

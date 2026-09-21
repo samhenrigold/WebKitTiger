@@ -143,6 +143,33 @@
 @end
 
 /* =========================================================================
+ * NSCursor and NSSpellChecker
+ * ========================================================================= */
+
+@implementation NSCursor (TigerCompat)
+
+/* Tiger draws no distinct contextual-menu or drag-copy pointer. The arrow is
+ * what the window server shows for both situations on this system, so this is
+ * the honest answer rather than a placeholder. */
++ (NSCursor *)contextualMenuCursor { return [NSCursor arrowCursor]; }
++ (NSCursor *)dragCopyCursor { return [NSCursor arrowCursor]; }
+
+@end
+
+@implementation NSSpellChecker (TigerCompat)
+
+/* 10.6, and it refreshes whichever of the spelling, grammar and substitutions
+ * panels are open. Tiger has only the spelling panel and refreshes it from
+ * -updateSpellingPanelWithMisspelledWord:, which WebKit calls separately.
+ *
+ * ponytail: a no-op, so an open spelling panel will not refresh from this call
+ * alone. Upgrade path if that is ever visible: forward to
+ * -updateSpellingPanelWithMisspelledWord: with the current word. */
+- (void)updatePanels { }
+
+@end
+
+/* =========================================================================
  * NSGraphicsContext
  * ========================================================================= */
 
