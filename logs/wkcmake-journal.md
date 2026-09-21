@@ -1153,3 +1153,93 @@ That unit is now down to four errors, all ctcompat's and all routed:
 
 Note for the next full pass: `TypeCastsCF.h` is a widely included WTF header,
 so touching it costs a large rebuild.
+
+## Round 4, first tree change: per-process CMake split
+
+WebKit b1fc713d. Two new files plus edits to `OptionsCocoa.cmake`.
+
+`Source/cmake/OptionsTigerProcesses.cmake` introduces `TIGER_PROCESS`, one of
+UI, RENDER, WEB or NETWORK, and validates it against the toolchain: asking for a
+64-bit process with the i386 toolchain now fails at configure rather than after
+four hundred compile errors.
+
+The structure is deliberate. **Every feature flag is set in one shared list,
+identically for all four configurations.** The serializer generator copies the
+conditions from the `.serialization.in` and `.messages.in` files straight into
+the generated C++, and 219 distinct `ENABLE_`/`USE_` names appear in them, so two
+processes that disagree about any one of them compile different serializer sets
+out of the same source and diverge on the wire. The per-process sections set only
+the JIT switches and the target selection, none of which appear in a condition.
+
+Three findings from doing it:
+
+1. **Video cannot be a per-process choice.** `ENABLE_VIDEO`, `ENABLE_MEDIA_SOURCE`
+   and their relatives all appear in serialization conditions. Turning video on
+   later for the ffmpeg backend means turning it on for all four processes, not
+   just the web process. Same for `ENABLE_WEBASSEMBLY`, which is why it stays off
+   even in the JIT configuration for now. `ENABLE_GPU_PROCESS` is the most-used
+   condition of all and flips on for everyone at once when the render process
+   lands.
+2. **55 of the names are not CMake options at all**, they are compile-time macros
+   in the `PlatformEnable*.h` headers. They cannot be set from the build system,
+   so making them agree is the port header's job, not CMake's. The configure
+   prints the list. Setting one would have been a hard error, so the fragment
+   skips and reports rather than keeping a hand-pruned second copy of the list.
+3. **`USE_CG` and `USE_CORE_TEXT` are among them.** The two flags that most need
+   to diverge between the render process and the web process are not CMake
+   variables under the Cocoa port. That is one more reason the non-Cocoa
+   `OptionsTiger64.cmake` is required rather than optional.
+
+`Source/cmake/TigerCheckIPC.cmake` records every IPC-relevant flag and its final
+value into `tiger-ipc-features.txt` at configure time, deriving the names from the
+tree with one grep rather than keeping a list in sync by hand. It adds a
+`tiger-check-ipc` target that compares this tree against `TIGER_IPC_REFERENCE`,
+first at the flag level, which names the cause, then by hashing the generated IPC
+sources, which catches the symptom. It treats `USE_CG`, `USE_CORE_TEXT` and the
+three types the render-process survey identified as known-divergent and reports
+them instead of failing.
+
+Verified both ways. All four configurations agree with each other. A throwaway
+tree configured with `-DENABLE_VIDEO=ON` is correctly rejected with
+"UNEXPECTED: ENABLE_VIDEO: A has OFF, B has ON".
+
+`ENABLE_WEBKIT` stays off, behind a new `TIGER_WEBKIT2` switch. Turning it on
+under `PORT=Cocoa` fails immediately in `PlatformCocoa.cmake`, which needs Swift,
+and that build is exactly the one the survey ruled out: it compiles the 115
+CoreIPC serializers that make a Cocoa process disagree with a non-Cocoa one.
+WebKitLegacy is now off in all four configurations; the WK1 work is retired.
+
+### Configure results
+
+| Process | Toolchain | Arch | Result |
+|---|---|---|---|
+| UI | tiger.cmake | i386 | configures |
+| RENDER | tiger.cmake | i386 | configures |
+| WEB | tiger64.cmake | x86_64 | configures |
+| NETWORK | tiger64.cmake | x86_64 | configures |
+
+All four build WTF, JSC and WebCore for their architecture and feature set. No
+builds were run. The x86_64 pair configures under `PORT=Cocoa` but will not
+compile, since Tiger has no 64-bit Foundation; they need `OptionsTiger64.cmake`,
+which is the next piece.
+
+Reconciled with jsc64's `toolchain/tiger64.cmake` rather than writing a second
+one. Theirs defines `WTF_PLATFORM_TIGER64` and deliberately not
+`WTF_PLATFORM_TIGER`, keeps the dispatch polyfill off the path, and points at
+`sysroot-x86_64`. Left untouched.
+
+### Incident: I deleted build/
+
+A loop over colon-separated specs used `set -- $cfg`, which does not word-split
+in zsh, so the positional parameters were empty and `rm -rf build/$D` became
+`rm -rf build/`. It removed the `tiger-wc` WebCore tree from the fifth compile
+pass and the `llvm-host` LLVM build tree.
+
+What survived: `toolchain/llvm-tiger`, the installed patched clang, is intact and
+reports the right version and target. Everything lost is a build tree, so the
+cost is rebuild time, not information; `logs/wc-build.log` still has the fifth
+pass and its error list.
+
+The lesson for this repo: never interpolate a shell variable into an `rm -rf`
+path without first checking it is non-empty. The corrected loop validates all
+three fields and skips the iteration if any is empty.
