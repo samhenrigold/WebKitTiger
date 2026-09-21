@@ -1656,3 +1656,146 @@ divergences, no new ones).
    stripping's risk surface is anything reached without a relocation the linker can see — with JSC in
    the link that is not nothing. If something vanishes once a page runs, the flag is two lines in
    Source/WebKit/PlatformTiger.cmake.
+
+
+## 2026-09-21 — gpu32, second half: both flag decisions taken, i386 WebCore down to zero errors
+
+Continues the gpu32 section above. The coordinator decided both proposals:
+ENABLE_KINETIC_SCROLLING ON in all four processes (ASYNC_SCROLLING stays OFF), and the i386
+processes take the curl and OpenSSL platform arms. Both are done.
+
+### Error trajectory, passes 8-13 (logs/gpu32-pass-*.log)
+
+| pass | failed TUs | what changed |
+|---|---|---|
+| 8 | 104 | *up*: the curl/openssl switch and KINETIC_SCROLLING both landed, and each exposed its own new work |
+| 9 | 33 | the curl arm's own gaps |
+| 10 | 1 | a link failure in a build-time tool, not a compile error |
+| 11 | 17 | new files reached now that the scroll enum exists |
+| 12 | 15 | |
+| 13 | **0 compile errors** | archive still linking when this was written |
+
+Pass 8 going up is the normal shape of this work and worth saying plainly: every flag that
+gets turned on, and every arm that gets switched, reveals a batch of files that were
+previously failing on an early `#include` and never reached their real errors.
+
+### The curl/openssl switch (WIRE DECISION, WebKit b9dedca6)
+
+The point of USE_CURL and USE_OPENSSL being 1 in all four configurations is that
+ResourceRequest, ResourceResponse, CertificateInfo, ProtectionSpace, AuthenticationChallenge
+and the crypto keys are **the same classes on every side of the wire**. PlatformCocoa was
+compiling the CFNetwork and CommonCrypto arms anyway.
+
+The include directories mattered as much as the sources. `platform/network/cf` and
+`platform/network/cocoa` had to come out of the search path, and so did their copies of the
+per-arm headers in `WebCore_PRIVATE_FRAMEWORK_HEADERS`: those are copied into one flat
+PrivateHeaders directory **by name**, so `cf/ResourceRequest.h` and `curl/ResourceRequest.h`
+cannot both be there and "first wins" would silently depend on list order.
+
+Four places read `PLATFORM(COCOA)` as "the CFNetwork stack": which arm's class to include
+(ProtectionSpace.h, Credential.h), `AuthenticationScheme::Unknown` (only in the non-Cocoa
+arm, and AuthenticationChallengeCurl returns it), and `CertificateInfo::trust()`
+(SWServerJobQueue). Upstream never has to order Cocoa against curl because no port is both;
+this one is, deliberately.
+
+`UTIUtilitiesTiger.mm` is new and is **not a stub**. Uniform type identifiers are 10.4 —
+only the `UTType` *class* is 10.15 — so MIMETypeRegistry, FileInputType and ImageUtilitiesCG
+get real answers from the system type database through `<LaunchServices/UTType.h>`. The
+conformance walk the modern file does through `-supertypes` is done through
+`UTTypeCopyDeclaration`. `MIMETypeRegistryCocoa.mm` is still out, because building the whole
+MIME table needs `-[UTType _enumerateAllDeclaredTypesUsingBlock:]` and there is no
+enumeration API on 10.4; it carries a TODO.
+
+### The pattern that accounts for most of the remaining work
+
+**`PLATFORM(COCOA)` used as a proxy for something else.** Every instance compiled a feature
+whose CMake option or framework is absent, and each fix names the real condition:
+
+| guard was | should be | what it meant |
+|---|---|---|
+| `PLATFORM(MAC)` | `&& ENABLE(DATA_DETECTION)` | ImageOverlayController's highlight |
+| `PLATFORM(MAC)` | `&& ENABLE(ACCESSIBILITY_ISOLATED_TREE)` | AXCrossProcessSearch's remote search |
+| `PLATFORM(COCOA)` | `&& !PLATFORM(TIGER)` | `Modules/compression` = "libcompression exists" (10.11) |
+| `PLATFORM(COCOA)` | `&& !USE(CURL)` | "the CFNetwork stack" |
+| `OS(DARWIN)` | `&& !PLATFORM(TIGER)` | "CommonCrypto exists" |
+
+Three more hardcoded `1`s joined the PLATFORM(TIGER) block in PlatformEnableCocoa.h:
+ENABLE_APPLE_PAY_AMS_UI, ENABLE_MODEL_ELEMENT_ACCESSIBILITY and
+ENABLE_ADVANCED_PRIVACY_PROTECTIONS — each is the UI or accessibility half of a CMake option
+that is off, and each kept a reference to a type whose implementation is not in the build.
+USE_AVFOUNDATION and USE_ACCELERATE are off for the same reason.
+
+### The C89-enum problem, third and fourth instances
+
+Recorded in the first gpu32 section as a rule; it keeps arriving.
+
+- `CFRunLoopActivity`. Modern CoreFoundation makes it a CF_OPTIONS over CFOptionFlags; Tiger's
+  is a plain enum, so a bitmask cannot be accumulated in one **and the callback's function
+  pointer does not convert**. The mask is computed in CFOptionFlags (what
+  CFRunLoopObserverCreate takes, and what RunLoopObserver.h declares) and a local lambda
+  adapts the callback signature.
+- `NSEventType`. `((NSEventType)34)` for NSEventTypePressure is not a constant expression:
+  the 1..27 enum is five bits wide. **Fixed at the declaration this time** — the overlay's
+  NSEvent.h is our own file, so the post-10.4 event types are named as real enumerators and
+  the range widens. That is the fix `kCGInterpolationMedium` could not have, because its enum
+  lives in the SDK.
+- `CF_ENUM`/`CF_OPTIONS` are now variadic like Apple's. Both arities appear in practice, and a
+  fixed two-parameter macro fails the one-argument form with "too few arguments provided to
+  function-like macro invocation" and then cascades into a dozen undeclared-identifier errors
+  for the enumerators.
+
+### Things that are real, not stubs
+
+Worth listing, because the count of exclusions above makes it easy to assume the opposite.
+`kVK_*` (the hardware key codes, unchanged since 1986, which Tiger's window server really
+reports); `CGDataProviderCopyData` and `CGContextResetClip` (exported by Tiger's CG, merely
+undeclared); `CFPropertyListCreateWithData` / `CFPropertyListWrite` / `CFPropertyListCreateData`
+(adapters over Tiger's own pre-10.6 spellings, with binary output going through an
+allocated-buffer write stream); `UTIUtilitiesTiger.mm`; `-[NSWindow convertPointToScreen:]`;
+and `-[NSAppearance _drawInRect:context:options:]`, which maps CoreUI's widget vocabulary onto
+`TigerDrawControl` (HITheme) for the combo-box button, the little arrows and both progress
+bars. The switch is the one that draws nothing, marked `ponytail:` with its upgrade path and
+logging once rather than failing silently.
+
+### Traps
+
+- **Check the object file, not the error log.** A unified bundle fails as a whole, so a file
+  can compile fine and have no `.o` because something else in its bundle did not.
+- **A cached CMake option outranks `WEBKIT_OPTION_DEFAULT_PORT_VALUE`.** USE_AVIF and
+  USE_JPEGXL stayed on after the option file said off; `cmake -U <NAME>` in the build tree is
+  what clears them. Anything keyed off "is the library in the sysroot" should be written that
+  way (USE_AVIF now is), so a fresh configure gets it right.
+- **`-ObjC` applies to every archive on the link line.** aquacontrols.m is an ObjC member of
+  libtigercompat, so -ObjC always loads it and its HITheme references become undefined symbols
+  in every binary — which is how it surfaced, in bin/LLIntSettingsExtractor. Carbon joins the
+  shared link list. For the spike, `-force_load` on libtigercompat alone says the same thing
+  about one archive without dragging in libWebCore.a's ~200 Objective-C++ members.
+- **TIGER_LIB_NEEDS did not filter its dependency list.** The two sysroots are not identical
+  (the i386 curl was configured without HTTP/2, so there is no libnghttp2) and naming a target
+  TIGER_IMPORTED_LIB did not create is a hard error at generate time, not a missing symbol
+  later.
+
+### spike/gpureplay (root d8fe25d)
+
+The GPU process's job end to end in one process: build a display list the way the 64-bit web
+process would record one, replay it through GraphicsContextCG into an ImageBuffer on
+ImageBufferCGBitmapBackend, compare against the same drawing done by hand in CoreGraphics, and
+hand the tile to a CALayer through CAHost's `tigerca::Scene`. The content is described once and
+used twice, as items and as direct CG calls, next to each other on purpose: if the two drift
+the comparison stops meaning anything. Plain fill, clipped fill (so the replay must carry clip
+state, not just paint) and a stroke.
+
+`make -C spike/gpureplay && spike/gpureplay/run.sh` builds, copies, runs the headless compare
+and screenshots. Launch, sleep and screencapture are one ssh invocation, per the rule in this
+file.
+
+**Status: the source compiles clean against the built headers; it has not linked or run.**
+libWebCore.a did not exist yet when this was written — pass 13 reports zero compile errors and
+was still working through JavaScriptCore, which the USE_AVFOUNDATION change in PlatformUse.h
+invalidated the precompiled header for. Two Makefile details that took iterations and are
+worth keeping: the toolchain file's flags are not in the tiger-clang wrapper and have to be
+repeated (without them `<Availability.h>` alone stops the build), and WebCore's and JSC's own
+**header maps** are the only sane way to resolve their 2,000-odd unqualified includes.
+
+So the honest state of step 3 is: written, compiles, unrun. The pixel-compare number does not
+exist yet.
