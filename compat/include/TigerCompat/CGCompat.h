@@ -355,6 +355,13 @@ CFDataRef CGDataProviderCopyData(CGDataProviderRef);
 typedef struct CGImageSource *CGImageSourceRef;
 #endif
 
+/* CGImageMetadata is 10.8. PAL/pal/spi/cg/ImageIOSPI.h declares the opaque type
+   for Tiger and WebCore declares a CF type trait over it, which needs the
+   GetTypeID. Nothing on this system can produce a CGImageMetadataRef, so the
+   trait's only job is to make checked casts fail, which returning a type ID no
+   real object carries does exactly. */
+CFTypeID CGImageMetadataGetTypeID(void);
+
 size_t CGImageSourceGetPrimaryImageIndex(CGImageSourceRef);
 CFDictionaryRef CGImageSourceCopyAuxiliaryDataInfoAtIndexWithOptions(CGImageSourceRef, size_t index,
     CFStringRef auxiliaryImageDataType, CFDictionaryRef options);

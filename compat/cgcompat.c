@@ -1172,6 +1172,21 @@ CFDictionaryRef CGImageSourceCopyAuxiliaryDataInfoAtIndexWithOptions(CGImageSour
 CGColorSpaceRef CGIOSurfaceContextGetColorSpace(CGContextRef c) { (void)c; return NULL; }
 CGBitmapInfo CGIOSurfaceContextGetBitmapInfo(CGContextRef c) { (void)c; return 0; }
 
+/* A private type ID of our own, registered once, so it can never collide with a
+   real CF type and every checked cast to CGImageMetadataRef fails. */
+CFTypeID CGImageMetadataGetTypeID(void)
+{
+    static CFTypeID sID;
+    if (!sID) {
+        /* CFBagGetTypeID is as good as any: what matters is that it is NOT the
+           type ID of anything WebCore will hand to the trait. Registering a real
+           CFRuntime class for a type no code can construct would be ceremony.
+           ponytail: swap for a real class if Tiger ever grows CGImageMetadata. */
+        sID = (CFTypeID)-1;
+    }
+    return sID;
+}
+
 OSStatus CGImageSourceSetAllowableTypes(CFArrayRef allowableTypes) { (void)allowableTypes; return 0; }
 OSStatus CGImageSourceDisableHardwareDecoding(void) { return 0; }
 OSStatus CGImageSourceEnableRestrictedDecoding(void) { return 0; }
