@@ -331,7 +331,7 @@ and has no composition-language slot.
 
 | Function | Why | Consequence |
 | --- | --- | --- |
-| `CTFontShapeGlyphs` | The modern shaper does not exist in any form on Tiger. Its 10.4 shaping engine is ATSUI, reachable only through `CTTypesetter`/`CTLine`/`CTRun`. | **Called unconditionally** from `FontCoreText.cpp:665`, so the stub fills advances from `CTFontGetAdvancesForGlyphs`, zeroes the origins and returns `CGSizeZero`: correct for simple Latin, no ligatures/kerning/marks. Complex text must be routed through `ComplexTextController`, which uses `CTTypesetter` and does work on Tiger. This is the single biggest thing to gate. |
+| `CTFontShapeGlyphs` | The modern shaper does not exist in any form on Tiger. Its 10.4 shaping engine is ATSUI, reachable only through `CTTypesetter`/`CTLine`/`CTRun`. | **Called unconditionally** from `FontCoreText.cpp:665`, so the stub fills advances from `CTFontGetAdvancesForGlyphs`, zeroes the origins and returns `CGSizeZero`: correct for simple Latin, no ligatures, kerning or marks. Routing complex text through `ComplexTextController` instead is the single biggest thing to gate, and it buys more than it looks like. See below. |
 | `CTFontCopyGlyphCoverageForFeature` | Tier 1 is closed: Tiger CT has no such query. Tier 2 is closed too, and not by accident — Leopard's CoreText does not export this function at all, so there is no Apple implementation to match. A correct tier 3 means parsing `morx`/`GSUB` lookups and collecting their substitution outputs, which is the same shaper work as `CTFontShapeGlyphs` below. | Returns NULL, so synthesised small-caps coverage is empty and `font-variant: small-caps` falls back to scaled capitals. |
 | `CTFontCopyColorGlyphCoverage`, `CTFontIsAppleColorEmoji` | Tiger has no color font formats at all: no sbix, no COLR, no CBDT, and no Apple Color Emoji. | Honest constants (NULL / false), not stubs. Emoji render as monochrome or as missing glyphs. |
 | `CTFontGetSbixImageSizeForGlyphAndContentsScale`, `CTFontHasComplexColorFormatForGlyph` | Same. | 0 / false. |
@@ -494,6 +494,32 @@ one-argument on Tiger, so the direct call is correct;
 and `CTFontCollectionCreateWithFilterCallback` have no WebCore call site and are not
 declared in the overlay; and `CTFontDescriptorCreateForUIType` does not exist on Tiger
 at all, so it is implemented here rather than adapted.
+
+## Tiger's shaping is better than "no shaping"
+
+Measured, not assumed: `spike/ctshape.c` prints the raw `cmap` glyphs beside the glyphs a
+line actually produced, per font and per sample, so substitution is visible rather than
+inferred. The boundary is sharper than "AAT yes, OpenType no".
+
+**Tiger shapes AAT fonts identically to modern CoreText, and applies OpenType `liga`
+ligatures identically too. What it does not do is OpenType complex-script joining.**
+Arabic through Geeza Pro, an AAT font with `morx`, comes out not merely close but
+identical on both machines: same five glyph ids, same advances, same right-to-left status
+bit. The same text through an OpenType-only font gets the isolated forms, correctly
+ordered and correctly reversed, but never the initial, medial and final variants, because
+Tiger's ATSUI reads AAT `morx`/`mort` and that font has neither.
+
+This matters for how much of the text stack has to be written off, and the answer is: much
+less than the `CTFontShapeGlyphs` stub suggests. Of the 49 fonts Tiger ships, 41 carry AAT
+shaping tables, 8 carry `GSUB`, 2 carry both, and 2 carry neither. The overwhelming
+majority of the system's own fonts shape correctly, **provided text goes through
+`CTTypesetter` rather than the shaping stub**.
+
+Two caveats worth carrying forward. None of Tiger's six Hiragino CJK faces has `morx`;
+they are `GSUB`/`GPOS` only, which matters less than it sounds because CJK is largely a
+one-to-one mapping, but vertical forms and ruby do need substitution and will not get it.
+And for **web fonts specifically**, an OpenType-only face gets correct Latin and correct
+ligatures and no Arabic joining, which is the common case for a downloaded font.
 
 ## Tiger's metrics are quantised: cap height and x-height
 
