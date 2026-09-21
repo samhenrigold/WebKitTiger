@@ -1063,3 +1063,13 @@ Added to the ARTIFACT OWNERSHIP MAP above.
     compat/include/sdk-fill/mach-o/getsect.h, and compat/include/TigerCompat/AquaControls.h.
   - Clean-clone testing is cheap and worth repeating: it is the only check that distinguishes "builds here" from
     "builds". Seed a scratch PREFIX from the real sysroot first, or the missing staged headers drown the real signal.
+- MSE scanner done (media64 c478f62, spike/msescan.{c,h}, 89 lines, 25 unit tests, 193/172-position cut sweep, 900/900
+  packets at every cut). Finding: the decoder must be built from init + FIRST COMPLETE FRAGMENT (matroska will not open
+  on an init segment alone), so "initialization segment received" is reported after the first fragment parses.
+- Aqua pixel compare (nscompat 6291975, spike/aquaatlas/compare/): 7/48 states byte-identical (button
+  normal/pressed/disabled/inactive, textfield normal/disabled/inactive), 30 differ, 11 unreachable on 10.4. Corrections:
+  HITheme artwork does NOT match live controls, so the button family is back on NSCell with the window ordered out for
+  the inactive state (NSPopUpButtonCell does vary with key state). Harness rules: the process must be foregrounded via
+  TransformProcessType or every live control draws inactive; backdrop must be the captured pattern background; live
+  control sized to the PAINTED bounds (new TigerControlDrawingBounds), not the border box. Remaining: focus rings,
+  a constant checkbox/radio delta, and decomposing slider/progress/scrollbar into the parts WebCore asks for.
