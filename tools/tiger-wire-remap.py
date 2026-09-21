@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Rewrite split-sensitive conditionals in WebKit generator inputs to the TIGER_WIRE_* flags.
 
+Both kinds of generator input are in scope: .serialization.in and .messages.in. Half of
+PLATFORM(MAC)'s occurrences are in the message inputs.
+
 A conditional in a generator input answers "is this field on the wire?"; the same macro in a .cpp
 answers "do I have this framework?". The 32-bit UI process and the 64-bit content process disagree
 on the second question and must agree on the first, so the inputs get their own flag set. See
@@ -18,12 +21,15 @@ import re
 import sys
 from pathlib import Path
 
-# The five names the design fixes. PLATFORM(MAC) is deliberately absent: the design names five
-# TIGER_WIRE_* flags for six unagreeable macros, and folding PLATFORM(MAC) into TIGER_WIRE_APPKIT
-# would conflate "is a Mac" with "has AppKit", which upstream keeps separate. Pass --mac-maps-to to
-# say which it should be, so the decision is recorded on the command line rather than assumed here.
+# The six unagreeable macros and the wire flags they become, all defined 1 on every side.
+#
+# PLATFORM(MAC) gets its own flag rather than folding into TIGER_WIRE_APPKIT. The two ask different
+# questions: TIGER_WIRE_MAC says this port is a Mac product, so the Mac-specific fields are on the
+# wire and the 64-bit side carries them; TIGER_WIRE_APPKIT is about having the framework. Upstream
+# keeps them apart and so do we. --mac-maps-to overrides this if that ever needs revisiting.
 MAPPING = {
     "PLATFORM(COCOA)": "TIGER_WIRE_COCOA",
+    "PLATFORM(MAC)": "TIGER_WIRE_MAC",
     "USE(CF)": "TIGER_WIRE_CF",
     "USE(CG)": "TIGER_WIRE_CG",
     "USE(APPKIT)": "TIGER_WIRE_APPKIT",
@@ -70,7 +76,7 @@ def main():
     ap.add_argument("--apply", action="store_true", help="rewrite in place")
     ap.add_argument("--verify", action="store_true", help="report flags left outside conditionals")
     ap.add_argument("--mac-maps-to", choices=sorted(set(MAPPING.values())),
-                    help="what PLATFORM(MAC) becomes; omitted means leave it alone")
+                    help="override what PLATFORM(MAC) becomes; the default is TIGER_WIRE_MAC")
     args = ap.parse_args()
 
     mapping = dict(MAPPING)
@@ -111,7 +117,7 @@ def main():
 
     verb = "rewrote" if args.apply else "would rewrite"
     print(f"\n{verb} {totalLines} conditionals across {totalFiles} files"
-          f"{'' if args.mac_maps_to else '; PLATFORM(MAC) left alone, pass --mac-maps-to'}")
+          f" (PLATFORM(MAC) -> {mapping['PLATFORM(MAC)']})")
     return 0
 
 
