@@ -653,3 +653,16 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   needs only interpretKeyEvent; a Tiger NSTextInput view is ~450-840 LOC; open design point: NSTextInput's synchronous queries
   vs cross-process EditorState (local cache, one-round-trip staleness).
 - Rosetta trap audit: only ICU's old autoconf was affected; scripts hardened anyway (cross_compiling=yes, CMAKE_CROSSCOMPILING ON).
+- **64-bit C++ exceptions: canonical link line and the trap that hid them (22:45).** Working line, also in `spike/run64.sh`:
+  `tiger-clang64++ -nostdinc++ -isystem toolchain/sysroot-x86_64/usr/include/c++/v1 -stdlib=libc++ -lc++ -lc++abi
+  -lunwind -ltigercompat`. `spike/cxx64exc.cpp` (run it with `spike/run64.sh spike/cxx64exc.cpp spike/throwlib.cpp`)
+  covers 8 cases on the box and all pass: std::runtime_error by reference, catch by value, an 8-frame unwind, a
+  destructor during unwinding, a custom class thrown in a second translation unit and caught here, the reverse
+  direction caught by base class, a static-lib exception matching its std:: base, and rethrow preserving the type.
+- **The trap: `toolchain/sysroot-x86_64/usr/lib/libtigercompat.a` had two producers and the wrong one won.** A copy
+  built without the `__LP64__` fix to `_dyld_find_unwind_sections` was installed over ours, and the symptom is not a
+  link error but `libc++abi: terminating due to uncaught exception` at the first throw, because the shim silently
+  returns false and libunwind then finds no FDE. It also looks like a source bug rather than a stale file, which is
+  what made it survive a report and a round of debugging. **Build it only with `make -C compat ARCH=x86_64 install`.**
+  To check a suspect archive in one step, call `_dyld_find_unwind_sections` on `&main` from a 64-bit C program and
+  print the result: 1 with non-null section pointers is good, 0 is the stale archive.
