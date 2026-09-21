@@ -217,9 +217,12 @@ which Tiger exports. Nothing to do.
 **Descriptors and the system font.** Tiger's `CTFontCreateUIFontForLocale` is an empty
 stub, so there is no UI font API to forward to and no way to ask CoreText what the system
 font is. `CTFontCreateUIFontForLanguage` and `CTFontDescriptorCreateForUIType` are built
-from Apple's own table instead, decoded out of 10.5.8: a 32-entry array at `__DATA+0x460`
-of records `{ int uiType; CFStringRef psName; float size; CFStringRef cssName; }`,
-terminated by `-1`. Leopard's `CTFontCreateUIFontForLanguage` is a four-line wrapper over
+from Apple's own table instead, decoded out of **`refs/leopard/CoreText.i386`, the 10.5.8
+reference binary** and not anything on the box: a 32-entry array at `__DATA+0x460` of
+records `{ int uiType; CFStringRef psName; float size; CFStringRef cssName; }`, terminated
+by `-1`. That file is a checked-in reference (md5 `e4425665…`), so no update to the target
+machine can move it; re-decoded after Security Update 2009-005 and it still yields the
+same 32 entries and the same terminator. Leopard's `CTFontCreateUIFontForLanguage` is a four-line wrapper over
 a lookup in it, and its `CTFontDescriptorCreateForUIType` never reads the language
 argument, so neither does this. All 27 rows plus the five 1000-series rows are
 transcribed into `ctcompat.c`, and the test checks thirteen of them against the box.
@@ -683,6 +686,11 @@ poisoned-buffer check, precisely because normal Tiger use will never reach them.
 The box took Security Update 2009-005, QuickTime 7.6.4, an ImageIO update and Safari
 4.1.3 on 2026-09-20. That update patches ATS and CoreGraphics, which these adapters lean
 on heavily, so every fact below them was re-checked rather than assumed.
+
+Note which binaries this concerns. Every *Tiger* fact below was read from `sysroot/`, the
+mirror of the box, and that mirror is what went stale. The 10.5.8 and 9A241 references in
+`refs/` are checked-in files that no update to the box can touch, so the UI font table and
+everything else derived from them is unaffected by definition.
 
 **All three binaries changed. CoreText's version string did not.**
 
