@@ -691,3 +691,8 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   bundles the decollided private QuartzCore. Tiger's system QuartzCore ALSO loads transitively via AppKit in any Cocoa app,
   so decollide.py is mandatory for every UI-side process. An NSOpenGLView's surface composites over sibling views: dock the
   window's NSScroller beside the page view, never over it. The box's stderr-to-file is fully buffered (use setvbuf or fflush).
+- FONT HANDLE PROVEN (logs/hb-vs-ct.md, cf33772): HarfBuzz (64-bit layout) vs Tiger CoreText (32-bit raster) on identical font
+  bytes: run width within 0.031 pt, per glyph 0.008 pt, metrics 0.008 pt incl. line gap, 69 comparisons, 5 fonts (DejaVu OT,
+  Helvetica AAT+kern, Lucida Grande AAT, Geeza Pro morx Arabic, Hiragino OT CJK). HarfBuzz's ot shaper handles morx/kerx.
+  Apple-format kern is distributed differently per glyph (CT on the leading glyph, HB split) but run widths agree; harmless since
+  HB owns positions. Tiger can't join OpenType-only Arabic; HB can. Compare only glyphs the font covers (CTLine falls back).
