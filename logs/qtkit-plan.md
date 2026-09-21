@@ -169,9 +169,8 @@ union exposing the raw `QTMovie*`) — **`PlatformMedia`/`platformMedia()` no
 longer exist anywhere in `MediaPlayerPrivate.h` or `MediaPlayer.h`** (grepped,
 zero hits). This was WebKit1's way of handing the embedding app the live
 `QTMovie*`/`QTMovieView*` for e.g. `-[WebView _mediaPlayerProxy]`-style APIs.
-Before dropping it silently, grep `Source/WebKitLegacy/mac` for any call site
-that still expects it (not done in this pass — flagged). If nothing calls
-it, delete the override, saving ~15 LOC.
+**Confirmed in §6: zero real callers anywhere in `WebCore` or
+`WebKitLegacy`.** Delete the override, saving ~15 LOC.
 
 ## 2. What Tiger's QTKit actually exports
 
@@ -371,7 +370,7 @@ OpenGL path).
 | P2 | Port `MediaPlayerPrivateQTKit.{h,mm}` body: apply the renames (§1b), stub/implement the newly-required pure virtuals (§1c), drop `platformMedia()` (§1e, pending the WebKitLegacy grep) | 150-250 (mostly mechanical edits to the existing 1727+225 LOC, not new code) | P1 |
 | P3 | Delete `createQTMovieLayer`/`destroyQTMovieLayer`/`QTMovieLayer` member (~230 LOC gross deletion including the `SOFT_LINK_CLASS(QTKit, QTMovieLayer)` machinery) and `createQTVideoRenderer`/`destroyQTVideoRenderer`/`QTVideoRendererWebKitOnly` member (~150 LOC gross deletion) | −380 net | P2 |
 | P4 | New `paint()`/`paintCurrentFrameInContext()` body using `frameImageAtTime:withAttributes:error:` (§4a) + repaint timer | 80-120 | P3, P0 |
-| P5 | `seekToTarget` → `MediaTimePromise` adaptation (§1c) — read one other backend's implementation first | 40-80 | P2 |
+| P5 | `seekToTarget` → `MediaTimePromise` adaptation (§1c, worked out concretely in §7) | 40-60 | P2 |
 | P6 | `QTVisualContextRef` local typedef (§2, if the CARenderer-era path in §4b ever needs it — not needed for P0-P5) | 1 | only if §4b is pursued |
 | P7 | `getSupportedTypes`/`supportsTypeAndCodecs` — reuse the 2018 code's UTI-based type list logic essentially unchanged, just the `HashSet<>` template-argument fix (§1a) | 10-20 | P1 |
 | P8 | `ENABLE_VIDEO` flag flip: remove `ENABLE_VIDEO` from the `OptionsCocoa.cmake:171` TIGER off-list; audit what that pulls back in (`ENABLE_MEDIA_SOURCE`/`ENABLE_MEDIA_STREAM`/`ENABLE_ENCRYPTED_MEDIA`/etc. all `WEBKIT_OPTION_DEPEND` on it per `WebKitFeatures.cmake:341-355` — **keep those individually off**, only `ENABLE_VIDEO` itself should flip) | ~5 (a one-line removal plus explicit off-overrides for the dependents) | P1-P7 landed |
@@ -411,18 +410,195 @@ mapping) needs no changes at all and carries over directly.
   `ENABLE_MEDIA_CONTROLS_CONTEXT_MENUS` is probably fine to leave enabled
   (cheap, no new platform surface); the rest should stay off.
 
+## 6. `platformMedia()` — confirmed dead, safe to delete
+
+Grepped for real callers, not just the substring:
+
+```
+grep -rn "platformMedia\|PlatformMedia\b" Source/WebKitLegacy/  → zero hits
+grep -rln "platformMedia\|PlatformMedia\b" Source/WebCore/      → three files
+```
+
+The three `Source/WebCore` hits are all false positives, an unrelated
+`platformMedia*` naming coincidence, not the removed `PlatformMedia` tagged
+union:
+
+- `platform/playstation/MIMETypeRegistryPlayStation.cpp` — a local function
+  named `platformMediaTypes()` (MIME-type-to-extension table for PlayStation's
+  media files, nothing to do with `MediaPlayerPrivateInterface`).
+- `platform/graphics/avfoundation/objc/WebCoreAVFResourceLoader.{h,mm}` — a
+  member `m_platformMediaLoader` of type `Ref<PlatformMediaResourceLoader>`,
+  which is a *resource-loading* class (`PlatformMediaResourceLoader`, the
+  thing that fetches bytes for an in-progress AVAsset load), unrelated to the
+  removed `PlatformMedia` union that used to expose a raw `QTMovie*`/
+  `AVPlayer*` handle to the embedder.
+
+Also checked `Source/WebKitLegacy/mac/WebView/WebVideoFullscreenController.{h,mm}`
+and `WebView.mm`/`WebViewData.h` specifically, since those are WebKitLegacy's
+video-adjacent files (grepped for `QTMovie`, `QTKit`,
+`MediaPlayerPrivateQTKit`, `WebVideoFullscreen`, `platformMedia`,
+`PlatformMedia`): `WebVideoFullscreenController.{h,mm}` today is purely
+`CALayer`/AppKit-window based (a plain `NSWindowController` hosting a
+`WebVideoFullscreenOverlayLayer : CALayer`) — **zero** QTKit dependency of
+any kind, confirming this class was already migrated off the old
+`platformMedia()`-based handle-passing pattern before it was ever removed.
+`WebView.mm` has exactly one QuickTime-adjacent hit, a stale comment at
+`:3180` about "the QuickTime Cocoa Plug-in" (an NPAPI plugin — NPAPI no
+longer exists in this tree at all, plan §5.4), not live code.
+
+**Conclusion: `platformMedia() const override` can simply be deleted** from
+the ported `MediaPlayerPrivateQTKit.h`/`.mm`, with no compensating API needed
+anywhere in `WebKitLegacy`. Saves the ~15 LOC estimated in §1e; that estimate
+stands, just now confirmed rather than flagged.
+
+## 7. `seekToTarget`/`MediaTimePromise` — the concrete adaptation
+
+`MediaTimePromise` (`platform/MediaPromiseTypes.h:35`) is
+`NativePromise<MediaTime, PlatformMediaError>` (`platform/PlatformMediaError.h:33`
+lists the error enum: `AppendError`, `ClientDisconnected`, `BufferRemoved`,
+`SourceRemoved`, `IPCError`, `ParsingError`, `MemoryError`, **`Cancelled`**,
+`LogicError`, `DecoderCreationError`, `NotSupportedError`, `NetworkError`,
+`NotReady`, `AudioDecodingError`, `VideoDecodingError`, `InvalidState`,
+`CDMInstanceKeyNeeded`, ...). `MediaPlayer::seekToTarget` (`MediaPlayer.h:494`)
+just forwards to the private interface's override.
+
+Read two existing implementations, `MediaPlayerPrivateMediaFoundation::seekToTarget`
+(`platform/graphics/win/MediaPlayerPrivateMediaFoundation.cpp:284-297`) and
+`MediaPlayerPrivateGStreamer::seekToTarget`
+(`platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp:688-`). Both
+follow the same shape, which `WTF/wtf/NativePromise.h` supports directly:
+
+- A member `std::optional<MediaTimePromise::AutoRejectProducer> m_seekPromise;`
+  — `AutoRejectProducer` auto-rejects with a default reason if the producer is
+  destroyed (object torn down, or superseded by a new seek) without an
+  explicit `resolve()`/`reject()` call first.
+- `Producer`/`AutoRejectProducer` has `resolve(value)`, `reject(value)`, a
+  `.promise()` accessor, and an implicit `operator Ref<PromiseType>()`
+  (`NativePromise.h:894,903`) — so `return *m_seekPromise;` or
+  `return m_seekPromise->promise();` both work as the function's return
+  expression once the producer is `.emplace()`d.
+- `MediaTimePromise::createAndResolve(value)` /
+  `MediaTimePromise::createAndReject(error)` static helpers exist for the
+  already-settled cases (GStreamer uses these for "already at the requested
+  position" and "live stream, report current position" — both skip the
+  producer machinery entirely).
+- If a previous seek is still pending when a new one starts, both backends
+  reject the old producer with `PlatformMediaError::Cancelled` before starting
+  the new one (`std::exchange(m_seekPromise, std::nullopt)` then
+  `->reject(...)`), rather than leaving two seeks in flight.
+- Where the two backends differ is only in *when* they resolve: MediaFoundation
+  starts an async session transition and resolves later from a COM callback
+  (`onSessionStarted()`, `MediaPlayerPrivateMediaFoundation.cpp:889-899`,
+  `std::exchange(m_seekPromise, std::nullopt)->resolve(currentTime())`);
+  GStreamer resolves from its own bus-message/pad-probe seek-completion
+  handler (not fully read in this pass, same idiom).
+
+**QTKit's actual seek operation, per the 2018 code
+(`MediaPlayerPrivateQTKit.mm:632-701`, `seek()`/`doSeek()`/`cancelSeek()`/
+`seekTimerFired()`), is synchronous in the common case and polls-on-a-timer
+in the uncommon case:**
+
+- `doSeek()` (`:655-670`) calls `[m_qtMovie setCurrentTime:qttime]`
+  directly — this **blocks until the seek completes** (QTKit's whole API is
+  synchronous; there is no async seek primitive to bridge to). It's callable
+  immediately whenever `maxMediaTimeSeekable() >= targetTime`, i.e. the movie
+  has already buffered/loaded past the target point.
+- When the target is beyond what's currently loaded
+  (`maxMediaTimeSeekable() < targetTime`), the 2018 code can't call
+  `setCurrentTime:` yet — QTKit doesn't have a promise/callback for "notify me
+  once buffered this far," so it polls: `m_seekTimer.start(0_s, 500_ms)`
+  (`seek():651`) re-checks every 500ms in `seekTimerFired()` (`:682-699`)
+  until either the range extends far enough (calls `doSeek()`) or the network
+  state gives up (`Empty`/`Loaded` with no further loading expected).
+
+**Concrete adaptation** — keep the existing synchronous `doSeek()` body and
+the existing timer-retry machinery for the not-yet-buffered case verbatim
+(they need no QTKit-API changes, only the wrapper around them changes), and
+replace `seek(const MediaTime&)`'s void return with a promise:
+
+```cpp
+// MediaPlayerPrivateQTKit.h
+Ref<MediaTimePromise> seekToTarget(const SeekTarget&) override;
+// ... keep the private doSeek()/cancelSeek()/seekTimerFired() members as-is,
+// they become implementation details seekToTarget drives.
+std::optional<MediaTimePromise::AutoRejectProducer> m_seekPromise;
+
+// MediaPlayerPrivateQTKit.mm
+Ref<MediaTimePromise> MediaPlayerPrivateQTKit::seekToTarget(const SeekTarget& inTarget)
+{
+    MediaTime time = std::min(inTarget.time, durationMediaTime());
+
+    // Reject (not silently drop) a seek still in flight when a new one supersedes it,
+    // matching the MediaFoundation/GStreamer precedent.
+    if (auto previous = std::exchange(m_seekPromise, std::nullopt))
+        previous->reject(PlatformMediaError::Cancelled);
+
+    if (!metaDataAvailable())
+        return MediaTimePromise::createAndReject(PlatformMediaError::NotReady);
+
+    if (time == currentMediaTime())
+        return MediaTimePromise::createAndResolve(time);
+
+    m_seekTo = time;   // existing 2018 member, unchanged meaning
+    m_seekPromise.emplace(PlatformMediaError::Cancelled);
+    Ref promise = m_seekPromise->promise();
+
+    if (maxMediaTimeSeekable() >= m_seekTo) {
+        // Common case: QTKit's setCurrentTime: is synchronous, so doSeek()
+        // has already completed the seek by the time it returns below.
+        doSeek();
+        std::exchange(m_seekPromise, std::nullopt)->resolve(currentMediaTime());
+    } else {
+        // Rare case: target isn't buffered yet. Reuse the existing 500ms
+        // poll loop unchanged; it calls doSeek() once the range catches up.
+        // seekTimerFired() (unchanged from 2018) needs one new line at its
+        // "seek completed" exit (the `cancelSeek(); updateStates();
+        // m_player->timeChanged();` branch) to also resolve m_seekPromise,
+        // and its give-up branch (Empty/Loaded network state) to reject it
+        // with PlatformMediaError::NetworkError instead of silently
+        // abandoning the seek the way the 2018 void-returning version did.
+        m_seekTimer.start(0_s, 500_ms);
+    }
+
+    return promise;
+}
+```
+
+This keeps essentially all of the 2018 seek logic (`doSeek()`, the
+buffered-range check, the 500ms retry timer) unchanged, and only wraps it:
+the two exit points of `seekTimerFired()` that used to just call
+`m_player->timeChanged()` need one added line each
+(`std::exchange(m_seekPromise, std::nullopt)->resolve(...)` on success,
+`->reject(PlatformMediaError::NetworkError)` on give-up) so the promise
+representing whichever `seekToTarget()` call is still pending gets settled
+from the timer callback instead of being silently forgotten. This runs on
+the main thread throughout — QTKit's `NSNotificationCenter`-based callbacks
+and `Timer` both dispatch there already, so no thread-hop is needed (unlike
+MediaFoundation's COM callback or GStreamer's bus-message thread, both of
+which have to bounce back to the main thread before touching `m_seekPromise`;
+QTKit's `doSeek()` is already called from the main thread in every case).
+
+Revises the P5 estimate in §5: this is closer to **40-60 LOC** (a rewritten
+`seekToTarget()` wrapper plus two one-line additions inside the unchanged
+`seekTimerFired()`), not an open-ended unknown — the original "40-80,
+read one other backend first" placeholder in §1c/P5 is now resolved.
+
 ## Not done in this pass
 
-- Did not grep `Source/WebKitLegacy/mac` for callers of `platformMedia()`
-  (§1e) — needed before deleting that override.
-- Did not read `MediaTimePromise.h` or another backend's `seekToTarget`
-  implementation (§1c/P5) — needed before writing the seek adaptation.
 - Did not spike-test `frameImageAtTime:withAttributes:error:`'s actual
   runtime return type on real Tiger hardware (§4a/P0) — the header alone
   doesn't prove it returns a `CGImageRef` and not an `NSImage`/`CIImage`
-  despite asking via `QTMovieFrameImageType`.
+  despite asking via `QTMovieFrameImageType`. (Being spiked separately on
+  the box by another agent as of this writing.)
 - Did not check whether `/System/Library/QuickTime/*.component` (the actual
   H.264/AAC codec components) are present in this project's `sysroot/`
   mirror — the mirror currently has no `sysroot/System/Library/QuickTime/`
   directory at all. If codec components aren't mirrored, add them (they're
   needed at runtime regardless of anything WebKit-side).
+- Did not fully read `MediaPlayerPrivateGStreamer::seekToTarget`'s bus-message
+  seek-completion handler (only its first ~35 lines and the producer-setup
+  idiom) — not needed for the QTKit adaptation above since QTKit's seek
+  completion detection (the existing `seekTimerFired()`/network-state check)
+  is already fully specified by the 2018 code being ported, but flagged in
+  case a future pass wants the GStreamer completion-detection idiom for
+  comparison.
