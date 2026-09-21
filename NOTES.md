@@ -1104,3 +1104,8 @@ Added to the ARTIFACT OWNERSHIP MAP above.
 - Wire-flag decisions: .messages.in in scope with .serialization.in; PLATFORM(MAC) -> sixth flag TIGER_WIRE_MAC = 1 on
   every side (Mac product; the 64-bit side carries the fields), distinct from TIGER_WIRE_APPKIT. Remap tool:
   tools/tiger-wire-remap.py (objcrt 214c214), dry-run by default, consumes the probe's list.
+- PORT=Tiger lands (wkcmake, WebKit 9fa48ff6 / fa0f5eb; rm guard tools/rm-build-tree.sh ae0608f): the x86_64 pair
+  configures with CG/CT/CF/AppKit off, cairo/curl/unix sockets/coordinated layers on. Wire flags in
+  wtf/PlatformTigerWire.h; unix domain sockets forced on both sides. Ordering trap: the flag record must be written at
+  the END of the options file or it reports everything unset (looks like agreement). UI (and GPU) trees still on the
+  Cocoa port for ObjC/ARC/overlay paths, so the check reports two port-specific options divergent until they migrate.
