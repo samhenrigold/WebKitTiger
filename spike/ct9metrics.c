@@ -10,7 +10,12 @@
  * which ATS-registers it process-wide, so 9A241's CoreText can then resolve it
  * by PostScript name - the same trick the web-font path relies on.
  *
- * Run on the box: ct9metrics <DejaVuSans.ttf>
+ * Run on the box: ct9metrics <DejaVuSans.ttf> [<harness-dir>]
+ *
+ * The harness directory defaults to /tmp/ct9 and must be the same path the
+ * framework was patched with: repoint-imports.py writes it into an LC_LOAD_DYLIB
+ * and install_name_tool into the install name, so it is baked into the binary,
+ * not just into this dlopen call.
  */
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreText/CoreText.h>
@@ -25,6 +30,10 @@ typedef CFTypeID (*typeid_t)(void);
 
 int main(int argc, char **argv) {
     const char *path = argc > 1 ? argv[1] : "DejaVuSans.ttf";
+    const char *dir  = argc > 2 ? argv[2] : "/tmp/ct9";
+    char shimPath[512], fwPath[512];
+    snprintf(shimPath, sizeof shimPath, "%s/ct9shim.dylib", dir);
+    snprintf(fwPath,   sizeof fwPath,   "%s/LeopardCT9", dir);
     FILE *f = fopen(path, "rb");
     if (!f) { printf("FATAL no font\n"); return 2; }
     fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
@@ -35,9 +44,9 @@ int main(int argc, char **argv) {
     CTFontDescriptorRef fd = CTFontManagerCreateFontDescriptorFromData(data);
     if (!fd) { printf("FATAL no descriptor\n"); return 3; }
 
-    void *sh = dlopen("/tmp/ct9/ct9shim.dylib", RTLD_LAZY | RTLD_GLOBAL);
+    void *sh = dlopen(shimPath, RTLD_LAZY | RTLD_GLOBAL);
     void (*bind)(unsigned long, void *) = sh ? dlsym(sh, "ct9_bind") : NULL;
-    void *h = dlopen("/tmp/ct9/LeopardCT9", RTLD_LAZY | RTLD_LOCAL);
+    void *h = dlopen(fwPath, RTLD_LAZY | RTLD_LOCAL);
     printf("9A241 CoreText loaded: %s\n", h ? "yes" : dlerror());
     if (!h) return 4;
 
