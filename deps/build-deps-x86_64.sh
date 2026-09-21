@@ -68,11 +68,9 @@ build nghttp2 nghttp2-1.65.0 --enable-lib-only \
   ac_cv_func_clock_gettime=yes ac_cv_search_clock_gettime="none required"
 
 # --disable-hardening: same reason as the i386 build (see deps/build-c-deps.sh).
-# apps/ (ocspcheck) is skipped: linking any x86_64 executable against libcrypto.a hits a
-# cctools ld64 crash (ld::passes::stubs::x86_64::classic::StubHelperAtom -- an assertion
-# failure inside the stub pass, 100% reproducible even for a single HMAC_CTX_new() call).
-# This is a toolchain bug outside deps' scope, reported upstream (see team chat); it also
-# currently blocks curl (see build_curl below, left unbuilt).
+# apps/ (ocspcheck) is skipped: it hit the x86_64 classic-stub ld64 crash that's since been
+# fixed (toolchain/patches/cctools-ld64-x86_64-classic-stubs.patch) -- not worth rebuilding
+# for a CLI tool we don't need, but note the crash is gone if you ever want it.
 build_libressl64() {
   local dir=x86_64/libressl-4.1.0
   log "libressl configure"
@@ -88,22 +86,25 @@ build_libressl64() {
 }
 build_libressl64
 
-# --- curl: BLOCKED on the cctools ld64 crash above (curl's configure link-tests against
-# libcrypto crash the same way). Uncomment once the linker bug is fixed. ---
-# build_curl64() {
-#   local dir=x86_64/curl-8.14.1
-#   (cd $dir && ./configure --host=$HOST --prefix=$P --disable-shared --enable-static \
-#     --with-openssl=$P --with-zlib=$P --with-brotli=$P --with-nghttp2=$P \
-#     --without-libpsl --without-libidn2 --without-zstd --disable-ipv6 \
-#     --disable-ldap --disable-ldaps --disable-rtsp --disable-manual --without-ca-path --with-ca-bundle=$P/etc/ssl/cacert.pem \
-#     ac_cv_func_clock_gettime=yes ac_cv_func_pthread_create=yes) \
-#     > $WKT/logs/dep64-curl.log 2>&1 || return 1
-#   sed -i '' 's/#define HAVE_BUILTIN_AVAILABLE 1/#define HAVE_BUILTIN_AVAILABLE 0/' $dir/lib/curl_config.h
-#   (cd $dir/lib && make -j8 && make install) >> $WKT/logs/dep64-curl.log 2>&1 || return 1
-#   (cd $dir/include && make install) >> $WKT/logs/dep64-curl.log 2>&1 || return 1
-#   echo "curl OK"
-# }
-# build_curl64
+# --- curl: with OpenSSL(LibreSSL)+zlib+brotli+nghttp2, HTTP/2 enabled. Was blocked on the
+# cctools ld64 x86_64 classic-stub crash (see libressl above); fixed upstream, curl links
+# and runs fine now -- verified with a live HTTP/2 GET over TLS on the Tiger box.
+build_curl64() {
+  local dir=x86_64/curl-8.14.1
+  (cd $dir && ./configure --host=$HOST --prefix=$P --disable-shared --enable-static \
+    --with-openssl=$P --with-zlib=$P --with-brotli=$P --with-nghttp2=$P \
+    --without-libpsl --without-libidn2 --without-zstd --disable-ipv6 \
+    --disable-ldap --disable-ldaps --disable-rtsp --disable-manual --without-ca-path --with-ca-bundle=$P/etc/ssl/cacert.pem \
+    ac_cv_func_clock_gettime=yes ac_cv_func_pthread_create=yes) \
+    > $WKT/logs/dep64-curl.log 2>&1 || { echo "curl CONFIGURE FAILED"; tail -40 $WKT/logs/dep64-curl.log; return 1; }
+  # See deps/build-c-deps.sh's build_curl for why: __builtin_available(macOS 10.12...) in
+  # curl's own curlx_now() needs a 10.7+-only compiler-rt shim we don't have.
+  sed -i '' 's/#define HAVE_BUILTIN_AVAILABLE 1/#define HAVE_BUILTIN_AVAILABLE 0/' $dir/lib/curl_config.h
+  (cd $dir/lib && make -j8 && make install) >> $WKT/logs/dep64-curl.log 2>&1 || { echo "curl MAKE FAILED"; grep -E "error:" $WKT/logs/dep64-curl.log | head -20; return 1; }
+  (cd $dir/include && make install) >> $WKT/logs/dep64-curl.log 2>&1 || { echo "curl INSTALL FAILED"; tail -30 $WKT/logs/dep64-curl.log; return 1; }
+  echo "curl OK"
+}
+build_curl64
 
 # sqlite needs its own recipe (skips the .dylib target `all` always builds); see
 # deps/build-c-deps.sh's build_sqlite for the full explanation.
