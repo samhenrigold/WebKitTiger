@@ -1045,3 +1045,21 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   nscompat (pixel compare), cahost (scene applier), browsershell (native menus), media64 (MSE scanner), leopard
   (debug64.md), ld64fix (fresh-clone check), remirror. Finished tracks stopped. Deferred work is listed in
   logs/n1-briefs.md and the per-track READMEs.
+- **Fresh-clone audit (23:10): `make -C compat ARCH=x86_64` does not build from a clean clone of HEAD.** A real
+  `git clone` of the repo, pointed at the same toolchain/ and sdk/ (outside git by design) and installed into a scratch
+  PREFIX, builds compat i386, dispatch i386 and dispatch x86_64 fine, and `spike/run64.sh spike/cxx64exc.cpp
+  spike/throwlib.cpp` passes from the clone. compat x86_64 fails on `cfcompat.c:87: unknown type name
+  'dispatch_queue_t'`, then on CarbonCore's mac68k alignment pragma. Copying the **working tree's** cfcompat.c over the
+  clone's makes it build, so the only missing piece is uncommitted source, not a missing file: compat/ is otherwise
+  fully tracked (the sole extra files on disk are obj/ and obj-x86_64/ build outputs).
+  - The uncommitted change is the `#ifndef __LP64__` guard around the notify/CoreFoundation half of cfcompat.c, plus
+    the mach_header_64 arithmetic in `_dyld_get_image_uuid`. Whoever owns that, please commit it.
+  - **How HEAD got into that state is mine, and it refines the git rule.** `git commit -o compat/Makefile` commits
+    that file's **entire working-tree content**, including another agent's in-flight edit to the same file. My 2c6d1db
+    swept in their line adding cfcompat.c to `C_SRCS_x86_64` while their matching cfcompat.c change stayed uncommitted,
+    so HEAD gained the caller without the callee. **Path scoping protects other files, not other people's edits to
+    your file.** Before `commit -o`, run `git diff -- <the file>` and check that every hunk is yours.
+  - Also uncommitted and not needed by either build: the LP64 `getsegmentdata` in
+    compat/include/sdk-fill/mach-o/getsect.h, and compat/include/TigerCompat/AquaControls.h.
+  - Clean-clone testing is cheap and worth repeating: it is the only check that distinguishes "builds here" from
+    "builds". Seed a scratch PREFIX from the real sysroot first, or the missing staged headers drown the real signal.
