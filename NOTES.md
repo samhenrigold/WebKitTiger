@@ -246,3 +246,16 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   to modern; it lacks only OpenType *joining* (initial/medial/final selection by the shaper) and reordering, i.e. complex scripts in
   fonts without morx. 41/49 of Tiger's font files have morx/mort; the six Hiragino CJK faces are OpenType-only (costs vertical
   forms/ruby). HarfBuzz fallback scope: complex scripts in AAT-less fonts. Glyph rasterization geometry is identical to modern.
+
+## Linking libtigercompat (2026-09-20, audit track)
+- **`-ObjC` is mandatory and its absence fails silently.** A category in a static archive is only pulled in when
+  something references a symbol in the same object file, so without `-ObjC` every nscompat category is absent at
+  runtime with no link error and no warning. Symptom is a selector-not-found for a method that *is* shimmed
+  (found via `-[NSCFString stringByReplacingOccurrencesOfString:withString:]`).
+- `-ObjC` force-loads the whole archive, so the link line then also needs `-ltigerdispatch -framework AppKit
+  -framework ApplicationServices` (nscompat-appkit.m.o wants NSColor/CGColorCreate, nscompat-operation.m.o wants
+  dispatch_get_{global,main}_queue). Working line: spike/run-fndbehaviour.sh.
+- Differential probes beat single-platform ones: build one source for Tiger *and* the host, print identical
+  KEY=value lines, diff. spike/{cgbehaviour.c,fndbehaviour.m} do this. It caught two of my own broken tests that
+  a Tiger-only run reports as agreement: a transparency-layer case that measured nothing, and a y-axis mistake
+  that made every point sample read an empty pixel on both platforms.
