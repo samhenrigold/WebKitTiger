@@ -3262,6 +3262,14 @@ a struct whose serializer lost a member and whose header did not fails as
   been built and then removed.
 - `ps -ax | grep <AppName>` matches the ssh wrapper, not the app.
 
+### The wire decision, approved by the coordinator
+
+> **Anything on the wire exists on both ends or on neither.** A message the x86_64 side cannot
+> encode has no business in the i386 side's receiver table, so `PLATFORM(COCOA)` on a message or
+> serializer block becomes `PLATFORM(COCOA) && !PLATFORM(TIGER)`. Attributed strings, the
+> pasteboard, accessibility tokens and immediate action come back later as neutral types on both
+> sides, one coordinated change each. **This is settled; do not relitigate it.**
+
 ### What is left
 
 Twenty-five targets, and the census names every one: `UIProcess/PageClient.h` (34 errors — the
