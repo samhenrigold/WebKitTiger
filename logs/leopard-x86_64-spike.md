@@ -167,8 +167,14 @@ version of the test got wrong, and fixing that did not change the fault. Tracing
 `vproc_swap_integer` called twice immediately before the crash, but making it report success
 rather than failure did not help either.
 
-**It is also not the cross-linker.** cctools ld64 has a known x86_64 crash in its classic
-stub pass, which raised the possibility that it had quietly mis-linked the shim. So the
+**It is also not the cross-linker.** cctools ld64 had a known x86_64 crash in its classic
+stub pass, which raised the possibility that it had quietly mis-linked the shim. (For the
+record, since an early guess here was wrong and the correction matters downstream: the
+trigger was never exception handling. It was any x86_64 link below 10.6 whose stubs include
+a **global weak definition**. Plain C with no weak symbols, which is all this spike links,
+is the one case that always worked, so nothing here was evidence either way. Any C++ would
+have hit it, inline and template functions and `operator new` all being weak. The linker is
+fixed; the rule is recorded because the 64-bit content process would be entirely C++.) So the
 shim, the stubs and the probe were all recompiled to objects, copied to the box, and
 relinked there with Xcode 2.5's own `ld64-62.1`. Both builds crash at the same call:
 
@@ -325,13 +331,62 @@ runtime work at all here, and a subtly wrong version of it does not fail at load
 corrupts the class graph and faults much later, in code that has nothing to do with the
 bug.
 
-## What is left: both frameworks hang on session services
+## What is left: both frameworks block on the window server
 
-With the class graph correct, `CGBitmapContextCreate` no longer crashes. It **spins**, at
-around 44% CPU, with no further calls into the shim. `CTFontCreateWithName` hangs the same
-way. Neither leaves a crash log, so both are hangs rather than faults.
+With the class graph correct, `CGBitmapContextCreate` no longer crashes. It **blocks**.
+`CTFontCreateWithName` blocks the same way. Neither leaves a crash log.
 
-The reason is visible in the binaries. Leopard's CoreGraphics is bound to the window
+### The stack, exactly
+
+Tiger's gdb rejects binaries from our cctools linker, because it does not understand
+`LC_VERSION_MIN_MACOSX`, `LC_FUNCTION_STARTS` or `LC_DATA_IN_CODE` (the
+`unknown load command 0x24/0x26/0x29` noise). Apple's own ld64-97.17, now at
+`toolchain/apple-ld64-97/ld`, emits none of those. Relinking the probe and the two shim
+libraries with it gives a binary gdb will attach to, and the answer is unambiguous:
+
+```
+#0  mach_msg_trap
+#1  mach_msg
+#2  _CGSGetCoreGraphicsServerVersion
+#3  connectAndCheck
+#4  CGSServerPort
+#5  CGSGetDisplayIsLCD
+#6  get_font_rendering_defaults
+#7  pthread_once
+#8  CGFontDefaultAllowsFontSmoothing
+#9  CGRenderingStateCreate
+#10 CGContextCreateWithDelegate
+#11 createBitmapContext
+#12 CGBitmapContextCreate
+#13 main
+```
+
+Read upwards, that is: **creating any bitmap context asks the window server whether the
+display is an LCD, in order to decide font smoothing.** It is behind a `pthread_once`, so
+it happens once per process, and on this box it never returns. Tiger's WindowServer is
+there and answers the lookup, but it is a 32-bit Tiger-era server and does not reply to
+Leopard's message, so the process waits in `mach_msg` forever.
+
+This is far narrower than "CoreGraphics needs the window server". The dependency is a
+single font-smoothing default, on a path that has nothing else to do with the window
+server, reached from the most basic context constructor there is.
+
+### An attempt to route around it, which did not work
+
+If the bootstrap lookup failed rather than succeeding-then-hanging, CoreGraphics might take
+a no-server path. The shim can intercept `bootstrap_look_up` under flat namespace and
+return `BOOTSTRAP_UNKNOWN_SERVICE` for the CoreGraphics service names, behind
+`LEO64_NO_WINDOWSERVER`. It makes no difference, and tracing shows **the interception is
+never reached**: CoreGraphics obtains its server port some other way, presumably a direct
+MIG call on the bootstrap port rather than the libSystem wrapper. Other shim functions do
+get called from the same process, so the override itself is live.
+
+That leaves the options as they were: find a CoreGraphics path that never initialises a
+rendering state, or answer Leopard's window-server protocol.
+
+### The wider pattern
+
+The reason for all of this is visible in the binaries. Leopard's CoreGraphics is bound to the window
 server: it carries `com.apple.coregraphics` bootstrap service names, a `CGSDisplayNotifyProc`
 with a full set of display-reconfiguration notifications, and `CGX*` entry points. ATS is
 bound to the font server, looking up `com.apple.ATS`. Both are per-session Mach services,

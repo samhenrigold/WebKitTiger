@@ -31,6 +31,7 @@
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
 #include <errno.h>
+#include <dlfcn.h>
 #include <stdio.h>
 
 /* Set LEO64_TRACE to see which of these the Leopard stack actually reaches. */
@@ -78,8 +79,8 @@ int mach_vm_purgable_control(mach_port_t t, uint64_t a, int c, int *s) { (void)t
 int vproc_swap_integer(void *v, int k, int64_t *in, int64_t *out) { trace("vproc_swap_integer"); (void)v; (void)k; (void)in; if (out) *out = 0; return 0; }
 
 /* launchd bootstrap: Leopard's *2 forms over Tiger's originals */
-extern kern_return_t bootstrap_look_up(mach_port_t, const char *, mach_port_t *);
 extern kern_return_t bootstrap_register(mach_port_t, const char *, mach_port_t);
+kern_return_t bootstrap_look_up(mach_port_t, const char *, mach_port_t *);
 kern_return_t bootstrap_look_up2(mach_port_t bp, const char *name, mach_port_t *sp, mach_port_t target, uint64_t flags) {
     (void)target; (void)flags; return bootstrap_look_up(bp, name, sp);
 }
@@ -87,6 +88,32 @@ kern_return_t bootstrap_register2(mach_port_t bp, const char *name, mach_port_t 
     (void)flags; return bootstrap_register(bp, name, sp);
 }
 const char *bootstrap_strerror(kern_return_t r) { return r == KERN_SUCCESS ? "success" : "bootstrap error"; }
+
+/* Deny the window server, on purpose.
+ *
+ * CGBitmapContextCreate reaches CGSServerPort by way of CGRenderingStateCreate ->
+ * CGFontDefaultAllowsFontSmoothing -> get_font_rendering_defaults -> CGSGetDisplayIsLCD:
+ * creating any bitmap context asks the window server whether the display is an LCD, to
+ * decide font smoothing. Tiger's WindowServer does answer a bootstrap lookup, but it is a
+ * 32-bit Tiger-era server and never replies to Leopard's message, so the process blocks in
+ * mach_msg forever behind a pthread_once.
+ *
+ * Failing the lookup instead gives CoreGraphics the chance to take its no-server path.
+ * Opt-in, because it is a lie to the framework: set LEO64_NO_WINDOWSERVER.
+ */
+#define BOOTSTRAP_UNKNOWN_SERVICE 1102
+kern_return_t bootstrap_look_up(mach_port_t bp, const char *name, mach_port_t *sp) {
+    static kern_return_t (*real)(mach_port_t, const char *, mach_port_t *);
+    static int deny = -1;
+    if (deny < 0) deny = getenv("LEO64_NO_WINDOWSERVER") ? 1 : 0;
+    if (deny && name && (strstr(name, "coregraphics") || strstr(name, "CoreGraphics"))) {
+        trace("bootstrap_look_up denied (window server)");
+        if (sp) *sp = 0;
+        return BOOTSTRAP_UNKNOWN_SERVICE;
+    }
+    if (!real) real = (kern_return_t (*)(mach_port_t, const char *, mach_port_t *))dlsym(RTLD_NEXT, "bootstrap_look_up");
+    return real ? real(bp, name, sp) : BOOTSTRAP_UNKNOWN_SERVICE;
+}
 
 /* CommonCrypto arrived in 10.5; CoreGraphics uses it only for encrypted PDF. */
 int CCCryptorCreate(uint32_t op, uint32_t alg, uint32_t opts, const void *k, size_t kl,
