@@ -291,6 +291,184 @@ has a strictly bigger version of the same class of problem. **Flagged as the
 single highest-risk design point in this whole document, not resolved
 here.**
 
+### 3a. Survey update (2026-09-20): how `WebViewImpl`/`WebPageProxy` actually
+answer the six synchronous queries today, and the recommended Tiger mapping
+
+Direct read of `Source/WebKit/UIProcess/mac/WebViewImpl.mm` and
+`Source/WebKit/UIProcess/WebPageProxy.cpp` (both files, current tree,
+`d2f52605` per `NOTES.md`), specifically the six methods §1b's table names:
+`selectedRange`, `markedRange`, `hasMarkedText`,
+`attributedSubstringForProposedRange`, `firstRectForCharacterRange`,
+`characterIndexForPoint`. **Two things in this section's original framing
+turn out to be wrong, corrected below**: (1) these are not answered from a
+cached `EditorState`/`postLayoutData` at all — there is no cache in the
+loop; (2) the actual synchronous `NSTextInputClient` protocol methods
+(no `WithCompletionHandler`/no `Async` suffix) are **dead code**, not the
+live implementation.
+
+**Finding 1 — the truly synchronous `NSTextInputClient` methods are stubs.**
+`WebViewImpl.mm:6725-6763`:
+
+```cpp
+// Synchronous NSTextInputClient is still implemented to catch spurious sync calls. Remove when that is no longer needed.
+
+NSRange WebViewImpl::selectedRange() { return NSMakeRange(NSNotFound, 0); }
+bool WebViewImpl::hasMarkedText() { ASSERT_NOT_REACHED(); return NO; }
+NSRange WebViewImpl::markedRange() { ASSERT_NOT_REACHED(); return NSMakeRange(NSNotFound, 0); }
+NSAttributedString *WebViewImpl::attributedSubstringForProposedRange(...) { ASSERT_NOT_REACHED(); return nil; }
+NSUInteger WebViewImpl::characterIndexForPoint(NSPoint) { ASSERT_NOT_REACHED(); return 0; }
+NSRect WebViewImpl::firstRectForCharacterRange(...) { ASSERT_NOT_REACHED(); return NSZeroRect; }
+```
+
+The comment says it all: these exist only to catch AppKit spuriously calling
+the *old*, pre-async `NSTextInputClient` entry points, which the code
+expects never to happen on a current OS. **Modern AppKit (10.6+) added an
+async completion-handler-based extension to `NSTextInputContext`
+(`selectedRangeWithCompletionHandler:` etc.) that supersedes the classic
+synchronous protocol entirely** when the input context/client opts in — this
+is the actual live implementation, at `WebViewImpl.mm:6187-6395`. **This is
+the load-bearing fact for Tiger**: upstream didn't solve "how do you answer
+a synchronous query with data that lives in another process" — it made the
+query itself asynchronous, which requires an AppKit version Tiger doesn't
+have. There is no synchronous-answer machinery to port; Tiger has to invent
+one, because Tiger's `NSTextInput`/`NSInputManager` (`NSInputManager.h`,
+confirmed unchanged since 2005 in the 10.4u SDK) has no async variant of
+any of these six methods at all — none of the `WithCompletionHandler`
+methods' *names* even exist as options on Tiger's protocol.
+
+**Finding 2 — the six real implementations are fresh, uncached async IPC,
+every single call, with no `EditorState`/`postLayoutData` involved.**
+`WebViewImpl.mm:6187-6395` (`selectedRangeWithCompletionHandler`,
+`markedRangeWithCompletionHandler`, `hasMarkedTextWithCompletionHandler`,
+`attributedSubstringForProposedRange`, `firstRectForCharacterRange`,
+`characterIndexForPoint`) each call straight into `WebPageProxy`
+(`getSelectedRangeAsync`/`getMarkedRangeAsync`/`hasMarkedText`/
+`attributedSubstringForCharacterRangeAsync`/`firstRectForCharacterRangeAsync`/
+`characterIndexForPointAsync`, `WebPageProxy.cpp:16866-16916`), and every one
+of those does exactly one thing: `sendWithAsyncReplyToFocusedOrMainFrameProcess(...)`
+— a genuine, uncached async IPC round trip to the content process, per call,
+every time. **`grep`-checked directly: neither `waitForAndDispatchImmediately`
+nor `sendSync` appears anywhere in this code path** — both do exist
+elsewhere in `WebPageProxy.cpp` (`:10408` for subframe creation, `:19569`
+for site-isolation message forwarding), so blocking/synchronous IPC is a
+tool this codebase has and uses in general, but **deliberately not here**.
+On the content-process side (`WebPageCocoa.mm:2207-2288`), the handlers
+answer straight from live `WebCore::Editor`/`FrameSelection` state at the
+moment the IPC message is handled (`focusedOrMainFrame->editor().hasComposition()`,
+`frame->selection().selection().toNormalizedRange()`,
+`frame->editor()->firstRectForRange(*range)`, etc.) — **not** from
+`EditorState`/`postLayoutData` either. `EditorState`'s
+`hasPostLayoutData()`/`postLayoutData` split (`EditorState.h:158-159`) is a
+real mechanism, but it belongs to a completely different data path: the
+proactive `EditorState` *push* from content process to UI process on every
+selection/composition change (feeds Touch Bar formatting flags, spell-check
+candidate requests, `canCut`/`canCopy`/`canPaste`, `isContentEditable`
+gating — all read via `m_page->editorState()` at call sites like
+`WebViewImpl.mm:3825,7471-7477`). **The team lead's hypothesis that the
+pre-layout/post-layout split is what avoids stale answers for the six sync
+queries does not hold up under direct reading — corrected here.** That
+split's job is to avoid a partial/pre-layout `EditorState` snapshot being
+used for the *push*-driven consumers; the six query methods never consult
+`postLayoutData` at all, because they never consult `EditorState` at all —
+they get a fresh, authoritative, live answer via IPC every time, which is
+strictly better than any cache and is only possible because the query
+itself is async.
+
+**Finding 3 — the one place upstream does patch a query answer locally is
+narrower than a general cache, and doesn't actually apply to Tiger's
+architecture.** `selectedRangeWithCompletionHandler` and
+`attributedSubstringForProposedRange` locally "stage" the cumulative effect
+of the *current keydown's not-yet-IPC'd* `KeypressCommand`s
+(`m_collectedKeypressCommands`/`m_stagedMarkedRange`,
+`WebViewImpl.mm:6203-6222,6299-6320`) on top of the fresh IPC reply — this
+exists because modern AppKit's `NSTextInputContext handleEventByInputMethod:`
+is itself asynchronous (an XPC round trip to the input method), so a
+modeless IME (Vietnamese Telex, Korean Hangul) can call `insertText:` and
+then immediately poll `selectedRange` *before* the UI process has even sent
+that `insertText:`'s `KeypressCommand` over IPC to the content process —
+see the extensive comment at `:6193-6201`. **This exact race is structurally
+impossible on Tiger**: `-interpretKeyEvents:` (`NSInputManager`) is fully
+synchronous and single-threaded — every `doCommandBySelector:`/`insertText:`/
+`setMarkedText:selectedRange:` callback for one keydown happens in order, on
+the same call stack, before `-interpretKeyEvents:` returns, and *nothing* is
+sent over IPC to the content process until after it returns (per §1a). So a
+Tiger IME polling `markedRange`/`selectedRange` **from within its own
+callback during that same `-interpretKeyEvents:` call** (the direct Tiger
+analog of upstream's race) can be answered with **zero staleness** — the
+answer is sitting in the current call's local, not-yet-dispatched state,
+same process, same stack frame, no IPC involved yet. `spike/TigerBrowser`'s
+existing `_pending*`/`_applied*` split already has exactly the right shape
+for this, just needs the distinction made explicit (see recommendation
+below): a query during the live `-interpretKeyEvents:` call should read
+`_pending*`, not `_applied*`.
+
+**Recommended Tiger mapping**, combining all three findings:
+
+1. **The six query methods must answer synchronously — there is no way
+   around this, and no upstream precedent solves it, because upstream's
+   equivalent surface is async and Tiger's isn't.** Blocking the UI
+   process's main thread on a real IPC round trip per query (`sendSync`
+   with a timeout) was considered and rejected: it's a tool the WebKit2
+   codebase has and uses elsewhere, but conspicuously *never* for text
+   input, and for good reason — an IME can poll these multiple times per
+   keystroke (candidate window repositioning, live preview), and a content
+   process that's busy (running a layout, a long JS task, blocked on a
+   dispatch_sync from a `WebCore::Editor` command Tiger's UI process itself
+   just sent) would freeze IME interaction, which is far more visible and
+   annoying than a stale answer. A bounded synchronous wait only trades
+   "always somewhat stale" for "usually correct, occasionally the whole UI
+   process hangs for the timeout" — worse, not better.
+2. **Two-tier local answer, not one cache:**
+   - **During the current `-interpretKeyEvents:` call** (a real, cheaply
+     detectable state — set a `BOOL _inInterpretKeyEvents` flag around the
+     call in `-keyDown:`): answer `hasMarkedText`/`markedRange`/
+     `selectedRange`/`attributedSubstringFromRange:` from the **pending**
+     (not-yet-IPC'd) local state, per Finding 3 — this is the direct,
+     zero-staleness Tiger analog of upstream's staging trick, and covers
+     exactly the same class of IME (a composing input method verifying its
+     own just-issued edit before returning control).
+   - **Outside that window** (a query triggered by anything else — a
+     candidate-window repaint timer, a second unrelated event, `NSTextInput`
+     being polled from outside a keydown at all): answer from the last
+     **applied** state, i.e. the most recent `EditorState` actually
+     confirmed by the content process over async IPC. This is where real
+     staleness is unavoidable — bounded by one keydown's round-trip
+     latency, exactly as `spike/TigerBrowser`'s existing spike models it.
+   - `firstRectForCharacterRange:`/`characterIndexForPoint:` are geometry
+     queries an IME uses to position its candidate window; per the plan's
+     original note these are the highest-visible-cost case of staleness
+     (a wrong rect, not just a logically-stale range) — same two-tier
+     answer applies, but flag this pair for extra scrutiny once real
+     layout geometry (not the spike's fixed stub rect) is wired up, since
+     a resize/scroll between "applied" and "now" moves the rect independent
+     of any edit at all.
+3. **The UI process must push a fresh `EditorState`-equivalent to the "applied"
+   cache on every content-process reply that changes selection/composition** —
+   not just after `setCompositionAsync`/`confirmCompositionAsync`/
+   `insertTextAsync`, but after *any* IPC that could move the selection
+   (a `KeypressCommand` batch execution, a mouse-driven selection change
+   forwarded from the UI process itself, a JS-driven `document.execCommand`,
+   etc.) — mirroring the general proactive `EditorState` push upstream
+   already has (`WebViewImpl.mm:3228`'s `selectionDidChange`, not read in
+   full in this pass, flagged again) rather than only updating the cache
+   from the narrow keydown-round-trip path the spike currently models.
+   Missing this would let the "applied" cache go stale for reasons that
+   have nothing to do with typing at all (e.g. the content process
+   processing an in-page `<a>` focus jump), which the spike's current
+   design doesn't yet account for.
+4. **`conversationIdentifier`** needs no IPC or caching at all on either
+   architecture — trivially answerable locally (`spike/TigerBrowser` already
+   returns `(long)self`; upstream doesn't implement it as a real
+   `WebViewImpl` method at all, confirmed by its absence from both the
+   `WithCompletionHandler` list and the stub list above — Tiger's version is
+   fine as-is).
+5. **Dead-key/IME composition testing via `CGEventPost`/
+   `CGEventCreateKeyboardEvent`** (to genuinely exercise `setMarkedText:`
+   through the real HID/TSM pipeline, per the prior spike's finding that a
+   hand-built `NSEvent` cannot) **stays deferred until the box is quiet** —
+   noted, not attempted, in this pass; it needs frontmost-window focus that
+   concurrent teammate GUI tests on the shared box have been unreliable for.
+
 ## 4. Spelling / dictation / autocorrect scope
 
 `webkitlegacy-plan.md` §4.3 ("WebEditorClient — spellcheck off") and
