@@ -911,3 +911,12 @@ build. Link line and test binary: deps/spike-tests/test_curl_smoke.c.
   forced identical) separate from framework-availability flags; never PLATFORM(COCOA)=1 wholesale on x86_64. Fifth
   offender class: ArgumentCoder<std::span<T>> bulk-writes sizeof(T); static_assert on element layout (objcrt).
   Generated coders inherit wireAlignmentOf via encodeSpan, no regeneration needed.
+- IPC cross-ABI PROVEN on the box (objcrt 7218457, spike/ipcabi): unpatched, i386 encoder vs x86_64 decoder disagree on
+  21/22 field offsets (first uint64 at 4 vs 8; a 96-byte message read as 136), both directions; patched, all 22 agree,
+  112 bytes both sides. Caveat: harness uses the real wtf/ArgumentCoder.h but transcribes Encoder::grow/Decoder::decodeSpan
+  (MessageNames.h is not generated until WebKit2 configures); re-point at the real classes once wkcmake's WK2 switch is on.
+- Text input (browsershell b249583, textinput-plan.md 3a): upstream's synchronous NSTextInputClient methods are dead
+  stubs; the real ones are uncached async IPC round trips per call (no sendSync, no EditorState involvement). Tiger
+  mapping: two-tier local answer, "pending" state while inside the synchronous -interpretKeyEvents: (zero staleness,
+  better than upstream's staging trick), "applied" IPC-confirmed state otherwise; never block. UI process must refresh
+  "applied" on every selection-moving reply, not just keydown.
