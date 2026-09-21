@@ -1179,3 +1179,4 @@ No subagents remain. Last committed state per critical track, and what was still
 - leopard: logs/debug64.md never delivered.
 - wire: remap patch toolchain/patches/webkit-ipc-wire-flags.patch (2 conditionals) done; probe tools/check-wire-flags.py done.
 Next step when work resumes: wkcmake's item first (it gates everything), then jsc64's GC/signal proofs, then the font cascade.
+- Left uncommitted on purpose (mid-edit when their agents were stopped): spike/fontmanifest.c (ctcompat's BMP coverage-range export via CTFontCopyCharacterSet, looks complete but not built through its Makefile) and refs/leopard/tools/repoint-imports.py (leopard's rewrite, 57 lines removed, state unknown). Committed jsc64's core2 floor + build-jsc64 ignore as 1 commit.
