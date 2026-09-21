@@ -51,7 +51,27 @@ typedef enum _NSEventType {		/* various types of events */
 #endif
         NSOtherMouseDown	= 25,
         NSOtherMouseUp		= 26,
-        NSOtherMouseDragged	= 27
+        NSOtherMouseDragged	= 27,
+/* TIGER: the enum has to be widened here, not extended from outside. An
+   unscoped enum with no fixed underlying type takes its VALUE RANGE from its
+   enumerators, so a 1..27 enum is five bits wide and ((NSEventType)34) is not a
+   constant expression in C++ -- which is how PlatformEventFactoryMac.mm writes
+   `case NSEventTypePressure:`, and it is an error, not a warning. Naming the
+   post-10.4 event types as real enumerators widens the range and lets every one
+   of them be a case label. Tiger's window server never delivers any of them, so
+   the arms are dead code; the values are Apple's, so a comparison against a
+   live event is simply always false. */
+        NSEventTypeGesture      = 29,
+        NSEventTypeMagnify      = 30,
+        NSEventTypeSwipe        = 31,
+        NSEventTypeRotate       = 18,
+        NSEventTypeBeginGesture = 19,
+        NSEventTypeEndGesture   = 20,
+        NSEventTypeSmartMagnify = 32,
+        NSEventTypeQuickLook    = 33,
+        NSEventTypePressure     = 34,
+        NSEventTypeDirectTouch  = 37,
+        NSEventTypeChangeMode   = 38
 } NSEventType;
 
 enum {					/* masks for the types of events */
@@ -392,9 +412,9 @@ enum {		/* event subtypes for mouse events */
 #define NSEventTypeOtherMouseUp         NSOtherMouseUp
 #define NSEventTypeOtherMouseDragged    NSOtherMouseDragged
 
-/* 10.10, force touch. Tiger's window server never delivers it; the real value
-   is used so a comparison against a live event is simply always false. */
-#define NSEventTypePressure             ((NSEventType)34)
+/* NSEventTypePressure and the gesture types are enumerators of NSEventType
+   itself, up in the declaration -- see the comment there for why they cannot be
+   macros. */
 
 /* ---- NSEventMask, renamed in 10.12 ----------------------------------- */
 #define NSEventMaskLeftMouseDown        NSLeftMouseDownMask

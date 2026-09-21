@@ -185,6 +185,18 @@ enum {
 @end
 
 /* -------------------------------------------------------------------------
+ * NSWindow point conversion, 10.14. A pure rename of Tiger's
+ * -convertBaseToScreen: / -convertScreenToBase:, which take and return the same
+ * window-base coordinates. PlatformEventFactoryMac.mm calls the new spelling;
+ * without it the expression's type collapses to id and the flipScreenPoint
+ * overload stops resolving.
+ * ------------------------------------------------------------------------- */
+@interface NSWindow (TigerCompatPointConversion)
+- (NSPoint)convertPointToScreen:(NSPoint)point;
+- (NSPoint)convertPointFromScreen:(NSPoint)point;
+@end
+
+/* -------------------------------------------------------------------------
  * NSAppearance, 10.9. Tiger has no appearance object at all -- there is one
  * Aqua and no way to ask for another -- so this is a real class with a single
  * shared instance, not a wrapper around something.

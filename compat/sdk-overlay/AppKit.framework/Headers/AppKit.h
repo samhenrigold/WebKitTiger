@@ -287,6 +287,18 @@ static inline CGPoint NSPointToCGPoint(NSPoint p) { CGPoint q; q.x = p.x; q.y = 
 static inline NSRect NSRectFromCGRect(CGRect r) { NSRect s; s.origin = NSPointFromCGPoint(r.origin); s.size = NSSizeFromCGSize(r.size); return s; }
 static inline CGRect NSRectToCGRect(NSRect r) { CGRect s; s.origin = NSPointToCGPoint(r.origin); s.size = NSSizeToCGSize(r.size); return s; }
 
+/* NSScrollerKnobStyle, 10.7, named by PAL/pal/spi/mac/NSScrollerImpSPI.h. Tiger
+   has one scroller look and no knob styles; Default is what it draws. The
+   values are Apple's. NSScrollerStyle itself is NOT declared here -- WebCore's
+   own NSScrollerImpDetails.h declares that one, and a second typedef would be a
+   conflict rather than a shim. */
+typedef int NSScrollerKnobStyle;
+enum {
+    NSScrollerKnobStyleDefault = 0,
+    NSScrollerKnobStyleDark    = 1,
+    NSScrollerKnobStyleLight   = 2
+};
+
 /* NSImageHintCTM, 10.6. A key for the hints dictionary of the 10.6
    -drawInRect:fromRect:operation:fraction:respectFlipped:hints:, which Tiger's
    NSImage does not have -- so nothing on this system ever reads it. A macro

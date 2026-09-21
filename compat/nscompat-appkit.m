@@ -320,6 +320,15 @@
 @end
 
 /* =========================================================================
+ * NSWindow point conversion, 10.14.
+ * ========================================================================= */
+
+@implementation NSWindow (TigerCompatPointConversion)
+- (NSPoint)convertPointToScreen:(NSPoint)point { return [self convertBaseToScreen:point]; }
+- (NSPoint)convertPointFromScreen:(NSPoint)point { return [self convertScreenToBase:point]; }
+@end
+
+/* =========================================================================
  * NSAppearance, 10.9.
  *
  * One shared Aqua instance; Tiger has exactly one appearance and no way to ask
