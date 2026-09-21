@@ -34,6 +34,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   @implementation blocks (clang Sema errors) -> clang patch track.
 - TLS: use -femulated-tls (Tiger has no __thread). No stack protector (-fno-stack-protector). No @rpath on Tiger's dyld
   (use @executable_path/@loader_path). Link deployment target must stay 10.4 so ld emits classic (non-LC_DYLD_INFO) binaries.
+  Also never strip local symbols: see LINK RULE 2 below. Verified by stripping a test dylib, which turns every
+  protocol ext lookup into an empty result (no crash, no data).
 - Tiger libSystem lacks: posix_memalign, strnlen, memmem, getline, pthread_setname_np, pthread_threadid_np, clock_gettime,
   arc4random_buf, __cxa_thread_atexit, os_unfair_lock, dispatch_*, fstatat/openat, __stack_chk_guard, __bzero, backtrace,
   PTHREAD_RWLOCK_INITIALIZER, __eprintf (assert). Has: xlocale (newlocale/uselocale/strtod_l), mach_vm_*, kqueue, madvise, copyfile.
@@ -94,8 +96,17 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   so compat detects it by requiring the class to live in an image that has a __class_ext section and the ext pointer
   to land inside it. `class_copyPropertyList` / `property_getName` / `property_getAttributes` /
   `property_copyAttributeList` all return real data; on a Tiger-built class they correctly return nothing.
-  Not reachable: a protocol's **optional** methods and its properties. The old ABI chained that record through the
-  protocol's isa, which Tiger overwrites with the Protocol class at load. Those two return empty.
+  Protocol optional methods and properties are reachable too, via a second route. The old ABI chained that record
+  through the protocol's first word, which Tiger overwrites with the Protocol class at load, but clang also emits it
+  as the local data symbol `_OBJC_PROTOCOLEXT_<Name>`. compat finds the image whose `__OBJC,__protocol` section
+  contains the protocol, walks that image's LC_SYMTAB through LINKEDIT (dlsym cannot see local symbols), and caches
+  per protocol. Layout is clang's `struct _objc_protocol_extension` from CGObjCMac.cpp: { uint32 size,
+  optional_instance_methods, optional_class_methods, instance_properties, extendedMethodTypes, class_properties },
+  24 bytes on i386, with shorter records handled by checking `size`. This is what makes JSExport wrapper building
+  work, since JSExport protocols are mostly @property declarations.
+  Still empty by nature: `protocol_copyPropertyList2` with isRequiredProperty NO, since the old ABI keeps no separate
+  optional-property list. Note that properties declared after `@optional` also declare optional accessors, so the
+  optional instance method list legitimately contains those getters and setters.
 - Under ARC a bare `Protocol *` gets retain/release, and Tiger's Protocol descends from Object, so libobjc logs a
   one-time "Object compatibility method has been executed" warning. Harmless; WTF holds protocols
   `__unsafe_unretained` so it does not hit it. Our runtime.h spells the Protocol** out-params
