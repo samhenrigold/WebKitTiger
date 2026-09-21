@@ -282,6 +282,40 @@ static void testSystemFont(CTFontRef helvetica)
     expect(CTFontGetUIFontType(helvetica) == (CTFontUIFontType)kCTFontNoFontType,
         "CTFontGetUIFontType is kCTFontNoFontType for Helvetica");
 
+    /* Every UI font type against the 10.5 reference table. */
+    {
+        static const struct { int type; const char* name; float size; } expected[] = {
+            { 0, "Helvetica", 12 }, { 1, "Monaco", 10 }, { 2, "LucidaGrande", 13 },
+            { 3, "LucidaGrande-Bold", 13 }, { 4, "LucidaGrande", 11 },
+            { 5, "LucidaGrande-Bold", 11 }, { 6, "LucidaGrande", 9 },
+            { 7, "LucidaGrande-Bold", 9 }, { 10, "LucidaGrande", 10 },
+            { 12, "LucidaGrande", 14 }, { 18, "LucidaGrande-Bold", 13 },
+            { 20, "LucidaGrande-Bold", 9 }, { 26, "LucidaGrande", 12 }
+        };
+        unsigned i, wrong = 0;
+        for (i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i) {
+            CTFontRef uiFont = CTFontCreateUIFontForLanguage(expected[i].type, 0, NULL);
+            CFStringRef ps = uiFont ? CTFontCopyPostScriptName(uiFont) : NULL;
+            char got[64] = "(null)";
+            if (ps)
+                CFStringGetCString(ps, got, sizeof(got), kCFStringEncodingUTF8);
+            if (!uiFont || strcmp(got, expected[i].name)
+                || CTFontGetSize(uiFont) != expected[i].size) {
+                printf("     type %d: got %s@%.0f, want %s@%.0f\n", expected[i].type, got,
+                    uiFont ? (double)CTFontGetSize(uiFont) : 0.0,
+                    expected[i].name, (double)expected[i].size);
+                ++wrong;
+            }
+            if (ps)
+                CFRelease(ps);
+            if (uiFont)
+                CFRelease(uiFont);
+        }
+        expect(!wrong, "every UI font type matches the 10.5 reference table");
+        expect(CTFontCreateUIFontForLanguage(900, 0, NULL) == NULL,
+            "an unknown UI font type returns NULL, as the reference does");
+    }
+
     styleDescriptor = CTFontDescriptorCreateWithTextStyle(kCTUIFontTextStyleBody, NULL, NULL);
     expect(styleDescriptor != NULL, "CTFontDescriptorCreateWithTextStyle");
     if (styleDescriptor) {
@@ -300,6 +334,9 @@ static void testSystemFont(CTFontRef helvetica)
     size = CTFontDescriptorGetTextStyleSize(kCTUIFontTextStyleTitle1, NULL,
         kCTFontTextStylePlatformDefault, &weight, &lineSpacing);
     expect(size == 22.0 && weight == 0.0 && lineSpacing > 22.0, "CTFontDescriptorGetTextStyleSize");
+    expect(CTFontDescriptorGetTextStyleSize(kCTUIFontTextStyleHeadline, NULL,
+        kCTFontTextStylePlatformDefault, &weight, NULL) == 13.0 && weight == 0.3f,
+        "headline text style is 13pt semibold");
     printf("     title1: size=%.1f weight=%.2f lineSpacing=%.1f\n",
         (double)size, (double)weight, (double)lineSpacing);
 

@@ -101,10 +101,10 @@ really were closed:
   own `VORG` table, which is where a CJK font records per-glyph vertical origins, and
   falls back to the ascent only when there is no `VORG`. The horizontal half is half the
   advance either way.
-- `CTLineGetTrailingWhitespaceWidth`: Leopard's calls
-  `TLine::CountTrailingWhitespaceChars`. Tiger's CoreText contains that exact method, but
-  as a **local** symbol, so it cannot be linked against, and `CTLine` never hands back its
-  string. This walks the runs backwards instead, summing the advances of glyphs equal to
+- `CTLineGetTrailingWhitespaceWidth`: 10.5 does export this one, and Leopard's
+  implementation calls `TLine::CountTrailingWhitespaceChars`. Tiger's CoreText contains
+  that exact method, but as a **local** symbol, so it cannot be linked against, and
+  `CTLine` never hands back its string. This walks the runs backwards instead, summing the advances of glyphs equal to
   the run font's space glyph. Verified on the box against a line with two trailing spaces.
 - `CTLineGetBoundsWithOptions`: the obvious tier-1 source for the glyph-path and optical
   options is `CTLineGetImageBounds`, which on Tiger returns a constant. So the rect is
@@ -172,11 +172,29 @@ which Tiger exports. Nothing to do.
 
 **Descriptors and the system font.** Tiger's `CTFontCreateUIFontForLocale` is an empty
 stub, so there is no UI font API to forward to and no way to ask CoreText what the system
-font is. `CTFontCreateUIFontForLanguage` and `CTFontDescriptorCreateForUIType` are both
-built from a small table instead: Lucida Grande at the sizes AppKit uses on 10.4 (system
-13, small 11, mini 9, menu 14, label 10), Monaco 10 for the fixed-pitch user font,
-Helvetica 12 for the user font, and the bold face for the emphasized system type. Linking
-AppKit into a C compat library just to read `+[NSFont systemFontSize]` is not worth it.
+font is. `CTFontCreateUIFontForLanguage` and `CTFontDescriptorCreateForUIType` are built
+from Apple's own table instead, decoded out of 10.5.8: a 32-entry array at `__DATA+0x460`
+of records `{ int uiType; CFStringRef psName; float size; CFStringRef cssName; }`,
+terminated by `-1`. Leopard's `CTFontCreateUIFontForLanguage` is a four-line wrapper over
+a lookup in it, and its `CTFontDescriptorCreateForUIType` never reads the language
+argument, so neither does this. All 27 rows plus the five 1000-series rows are
+transcribed into `ctcompat.c`, and the test checks thirteen of them against the box.
+
+Two things fell out of getting this right, both of which had been wrong:
+
+- The table stores **PostScript** names, not family names. Using them means the bold rows
+  need no symbolic-trait matching at all: `LucidaGrande-Bold` resolves directly, and the
+  `CTFontCreateVariantWithMatchingSymbolicTraits` round-trip disappears from this path.
+- **`kCTFontUIFontMenuItem` is 12 and `kCTFontUIFontLabel` is 10.** This header had them
+  as 10 and 20, which is not a table problem but a constant problem: WebCore asks for
+  `kCTFontUIFontMenuItem` in two places, and would have been handed the label font.
+  The full 0..26 enum is now spelled out in both `CTCompat.h` and the overlay.
+
+Outside the accepted ranges the reference returns NULL and so does this, with one
+deliberate exception: types 27, 102, 103 and 104 are the italic and thin/light/ultralight
+system faces, SPI that postdates the reference entirely. Tiger has no such faces, and
+`SystemFontDatabaseCoreText` does reach them, so they fall back to the regular system
+font rather than to nothing.
 `CTFontDescriptorCreateLastResort` is `CTFontDescriptorCreateWithNameAndSize("LastResort", 0)`;
 Tiger ships LastResort.
 `CTFontDescriptorCreateCopyWithSymbolicTraits` realises the descriptor into a font, calls
@@ -189,7 +207,10 @@ returns NULL, where CoreText would too, but WebCore reads NULL as "descriptor un
 so the wrapper hands back the original and lets WebCore synthesise.
 `CTFontDescriptorCreateWithTextStyle` / `CTFontDescriptorGetTextStyleSize` map the
 `kCTUIFontTextStyle*` names onto a static macOS point-size table (Title0 26 … Caption2 10,
-Headline bold) and return a system-font descriptor at that size; Tiger has no Dynamic Type
+Headline semibold at 0.3, which is what the macOS metrics document; it was 0.4 here, which
+is Bold). These are 10.9+ API with no reference implementation to match. The `lineSpacing`
+out-parameter returns `size * 1.2`, an invented constant where real CoreText returns the
+style's designed leading; no caller in this checkout reads it and return a system-font descriptor at that size; Tiger has no Dynamic Type
 and no content-size category, so the size category argument is ignored.
 `CTFontDescriptorCreateForCSSFamily` maps the six `kCTFontCSSFamily*` keys onto Times /
 Helvetica / Courier / Apple Chancery / Papyrus / system font.
@@ -231,8 +252,11 @@ the lifetime of the container; a page that loads many web fonts leaks their byte
 there is no hardened font parser on Tiger, which is exactly why the `HAVE()` should be off.
 
 **Lines and frames.** `CTLineGetBoundsWithOptions` builds the rect from `CTLineGetTypographicBounds`, dropping
-leading when `kCTLineBoundsExcludeTypographicLeading` is set. The ink-bounds options are
-ignored, because Tiger's `CTLineGetImageBounds` returns a constant.
+leading when `kCTLineBoundsExcludeTypographicLeading` is set. The ink-bounds options,
+`UseGlyphPathBounds` and `UseOpticalBounds`, route to the `CTLineGetImageBounds` adapter,
+which computes real ink bounds from glyph bounding rects; Tiger's own
+`CTLineGetImageBounds` returns a constant and is no use. `ExcludeTypographicShifts` and
+`UseHangingPunctuation` are still ignored, and WebCore passes neither.
 `CTLineGetTrailingWhitespaceWidth` walks the runs backwards summing the advances of
 glyphs that match the run font's space glyph.
 `CTFrameGetLineOrigins` walks `CTFrameGetLines`, starting at the top of

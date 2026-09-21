@@ -145,67 +145,104 @@ static CFStringRef systemFontFamilyName(void)
     return TIGER_SYSTEM_FONT_FAMILY;
 }
 
-/* The font a UI type resolves to: family, default size, and whether it is bold. */
-static void uiFontForType(CTFontUIFontType type, CFStringRef* outFamily, CGFloat* outSize, int* outBold)
-{
-    *outFamily = TIGER_SYSTEM_FONT_FAMILY;
-    *outSize = 13;
-    *outBold = 0;
-    switch (type) {
-    case kCTFontUIFontEmphasizedSystem:
-        *outBold = 1;
-        break;
-    case kCTFontUIFontSmallSystem:
-        *outSize = 11;
-        break;
-    case kCTFontUIFontMiniSystem:
-        *outSize = 9;
-        break;
-    case kCTFontUIFontMenuItem:
-        *outSize = 14;
-        break;
-    case kCTFontUIFontLabel:
-        *outSize = 10;
-        break;
-    case kCTFontUIFontUserFixedPitch:
-        *outFamily = CFSTR("Monaco");
-        *outSize = 10;
-        break;
-    case kCTFontUIFontUser:
-        *outFamily = CFSTR("Helvetica");
-        *outSize = 12;
-        break;
-    default:
-        break;
-    }
-}
+/* Every UI font type, decoded from Mac OS X 10.5.8's CoreText: a 32-entry table
+ * at __DATA+0x460 of records { int uiType; CFStringRef psName; float size;
+ * CFStringRef cssName; }, terminated by -1. The sizes and the terminator were
+ * re-read out of refs/leopard/CoreText.i386 to confirm them. Leopard's
+ * CTFontCreateUIFontForLanguage is a four-line wrapper over a lookup in this
+ * table, and its CTFontDescriptorCreateForUIType never reads the language
+ * argument at all, so neither does this.
+ *
+ * The names are PostScript names, not family names, which is why the bold rows
+ * need no symbolic-trait matching: LucidaGrande-Bold resolves directly.
+ *
+ * The rows WebCore actually reaches are 5, 7, 18 and 20, through
+ * SystemFontDatabaseCoreText and RenderThemeMac's control fonts, plus 2, 4, 6
+ * and 12. An earlier version of this table answered "13pt regular Lucida
+ * Grande" for everything it did not name, which was wrong for 15 of the 27
+ * types and silently dropped bold on 5 of them. */
+static const struct { int type; const char* postScriptName; CGFloat size; } uiFontTable[] = {
+    {  0, "Helvetica",          12 },  /* User                   */
+    {  1, "Monaco",             10 },  /* UserFixedPitch         */
+    {  2, "LucidaGrande",       13 },  /* System                 */
+    {  3, "LucidaGrande-Bold",  13 },  /* EmphasizedSystem       */
+    {  4, "LucidaGrande",       11 },  /* SmallSystem            */
+    {  5, "LucidaGrande-Bold",  11 },  /* SmallEmphasizedSystem  */
+    {  6, "LucidaGrande",        9 },  /* MiniSystem             */
+    {  7, "LucidaGrande-Bold",   9 },  /* MiniEmphasizedSystem   */
+    {  8, "LucidaGrande",       12 },  /* Views                  */
+    {  9, "LucidaGrande",       13 },  /* Application            */
+    { 10, "LucidaGrande",       10 },  /* Label                  */
+    { 11, "LucidaGrande",       14 },  /* MenuTitle              */
+    { 12, "LucidaGrande",       14 },  /* MenuItem               */
+    { 13, "LucidaGrande",       14 },  /* MenuItemMark           */
+    { 14, "LucidaGrande",       14 },  /* MenuItemCmdKey         */
+    { 15, "LucidaGrande",       13 },  /* WindowTitle            */
+    { 16, "LucidaGrande",       13 },  /* PushButton             */
+    { 17, "LucidaGrande",       11 },  /* UtilityWindowTitle     */
+    { 18, "LucidaGrande-Bold",  13 },  /* AlertHeader            */
+    { 19, "LucidaGrande",        9 },  /* SystemDetail           */
+    { 20, "LucidaGrande-Bold",   9 },  /* EmphasizedSystemDetail */
+    { 21, "LucidaGrande",       11 },  /* Toolbar                */
+    { 22, "LucidaGrande",       10 },  /* SmallToolbar           */
+    { 23, "LucidaGrande",       13 },  /* Message                */
+    { 24, "LucidaGrande",       11 },  /* Palette                */
+    { 25, "LucidaGrande",       11 },  /* ToolTip                */
+    { 26, "LucidaGrande",       12 },  /* ControlContent         */
+    { 1000, "LucidaGrande-Bold", 12 },
+    { 1001, "LucidaGrande-Bold", 14 },
+    { 1002, "LucidaGrande-Bold", 14 },
+    { 1005, "LucidaGrande-Bold", 12 },
+    { 1006, "LucidaGrande-Bold", 12 }
+};
 
-/* Tiger's own CTFontCreateUIFontForLocale is a stub, so build the font from the
- * table. Everything that wants a UI font goes through here. */
+/* Tiger's own CTFontCreateUIFontForLocale is exported but its body is
+ * `xor eax, eax; ret`, so there is no UI font API to forward to and no way to
+ * ask CoreText what the system font is. Everything that wants one comes here. */
 static CTFontRef createUIFont(CTFontUIFontType type, CGFloat size, CFStringRef language)
 {
-    CFStringRef family;
-    CGFloat defaultSize;
-    int bold;
+    const char* postScriptName = NULL;
+    CGFloat defaultSize = 13;
+    CFStringRef name;
     CTFontDescriptorRef descriptor;
     CTFontRef font;
+    size_t i;
 
-    (void)language; /* Tiger has one system font, not one per script. */
-    uiFontForType(type, &family, &defaultSize, &bold);
-    if (!(size > 0))
-        size = defaultSize;
+    (void)language; /* The reference ignores it too. */
 
-    descriptor = CTFontDescriptorCreateWithNameAndSize(family, size);
-    if (!descriptor)
-        return NULL;
-    if (bold) {
-        CTFontDescriptorRef boldDescriptor =
-            CTFontDescriptorCreateCopyWithSymbolicTraits(descriptor, kCTFontTraitBold, kCTFontTraitBold);
-        if (boldDescriptor) {
-            CFRelease(descriptor);
-            descriptor = boldDescriptor;
+    for (i = 0; i < sizeof(uiFontTable) / sizeof(uiFontTable[0]); ++i) {
+        if (uiFontTable[i].type == (int)type) {
+            postScriptName = uiFontTable[i].postScriptName;
+            defaultSize = uiFontTable[i].size;
+            break;
         }
     }
+    if (!postScriptName) {
+        /* 27, 102, 103 and 104 are the italic and thin/light/ultralight system
+         * faces, SPI that postdates the reference, so it has nothing to say
+         * about them. Tiger has no such faces; hand back the regular system
+         * font rather than nothing, because SystemFontDatabaseCoreText does
+         * reach these and a null there loses the system font entirely.
+         * Everything else outside the table is NULL, as the reference does. */
+        switch (type) {
+        case 27: case 102: case 103: case 104:
+            postScriptName = "LucidaGrande";
+            defaultSize = 13;
+            break;
+        default:
+            return NULL;
+        }
+    }
+
+    if (!(size > 0))
+        size = defaultSize;
+    name = CFStringCreateWithCString(NULL, postScriptName, kCFStringEncodingASCII);
+    if (!name)
+        return NULL;
+    descriptor = CTFontDescriptorCreateWithNameAndSize(name, size);
+    CFRelease(name);
+    if (!descriptor)
+        return NULL;
     font = CTFontCreateWithFontDescriptor(descriptor, size, NULL);
     CFRelease(descriptor);
     return font;
@@ -353,8 +390,8 @@ static const struct { const CFStringRef* style; CGFloat size; CGFloat weight; } 
     { &kCTUIFontTextStyleTitle2, 17, 0.0 },
     { &kCTUIFontTextStyleTitle3, 15, 0.0 },
     { &kCTUIFontTextStyleTitle4, 13, 0.0 },
-    { &kCTUIFontTextStyleHeadline, 13, 0.4 },
-    { &kCTUIFontTextStyleShortHeadline, 13, 0.4 },
+    { &kCTUIFontTextStyleHeadline, 13, 0.3 },       /* semibold, per the macOS metrics */
+    { &kCTUIFontTextStyleShortHeadline, 13, 0.3 },
     { &kCTUIFontTextStyleBody, 13, 0.0 },
     { &kCTUIFontTextStyleShortBody, 13, 0.0 },
     { &kCTUIFontTextStyleTallBody, 13, 0.0 },
@@ -976,6 +1013,8 @@ bool CTFontManagerEnableAllUserFonts(bool postFontChangeNotification)
 
 /* ---- lines, runs, frames ----------------------------------------------- */
 
+CGRect TigerCTLineGetImageBounds(CTLineRef, CGContextRef);
+
 CGRect CTLineGetBoundsWithOptions(CTLineRef line, CTLineBoundsOptions options)
 {
     CGFloat ascent = 0, descent = 0, leading = 0;
@@ -983,6 +1022,12 @@ CGRect CTLineGetBoundsWithOptions(CTLineRef line, CTLineBoundsOptions options)
 
     if (!line)
         return CGRectZero;
+    /* Ink bounds, when asked for them. Tiger's own CTLineGetImageBounds returns
+     * a constant, but the adapter below computes them from glyph bounding
+     * rects, so this option can be honoured after all. */
+    if (options & (kCTLineBoundsUseGlyphPathBounds | kCTLineBoundsUseOpticalBounds))
+        return TigerCTLineGetImageBounds(line, NULL);
+
     width = CTLineGetTypographicBounds(line, CFRangeMake(0, 0), &ascent, &descent, &leading);
     if (options & kCTLineBoundsExcludeTypographicLeading)
         leading = 0;
