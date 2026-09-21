@@ -3,9 +3,14 @@
 Verdict up front: **none of the candidates are usable.** The Apple TV 3.0.2 QuartzCore remains
 the only foreign binary we can run. Tested live on `tiger` (10.4.11 / 8S2167), not inferred.
 
-CoreText is the interesting case and gets the long treatment below. It **does load**, once five
-non-lazy imports are supplied, and its Leopard-only exports are callable. It then cannot realize
-a single font, because CoreFoundation 476's object layout is compiled inline into it.
+CoreText from 10.5.8 is the interesting near-miss and gets the long treatment below. It **does
+load**, once five non-lazy imports are supplied, and its Leopard-only exports are callable. It
+then cannot realize a single font, because CoreFoundation 476's object layout is compiled inline
+into it.
+
+**A later addendum reverses this for one build.** CoreText from Leopard DP1 (9A241) *does* work
+on Tiger, with a four-symbol shim, and it is the real public CGFloat ABI. See the last section;
+it is the most useful result in this document.
 
 ## Where the binaries came from
 
@@ -365,3 +370,200 @@ ssh tiger 'cd /tmp/leopard && printf "run\nbt 12\nquit\n" | gdb -q ./cttest'
 # libobjc override
 ssh tiger 'DYLD_LIBRARY_PATH=/tmp/leopard/objcdir /tmp/leopard/objctest'
 ```
+
+
+---
+
+# Addendum: CoreText from Leopard DP1 (9A241) works on Tiger
+
+**This one runs.** With a four-symbol shim it loads on 10.4.11, produces correct glyph metrics
+and line layout, and exposes the public `CGFloat` ABI rather than Tiger's private `double` one.
+16 of 17 checks pass live, including a 400-cycle soak. It is the only foreign CoreText that works.
+
+## Why this build and not 10.5.8
+
+9A241 is from the Leopard developer-preview period, and it is a Tiger-generation binary that
+happens to carry the new API. That combination is what makes it work.
+
+| | Tiger 10.4.11 | **9A241 DP1** | 10.5.8 |
+|---|---|---|---|
+| CoreText version | 1.0.0, 243 exports | **1.0.0, 298 exports** | 110.5.0, 268 exports |
+| Links CoreFoundation | 368.31 | **401.0** | 476.19 |
+| Links ATS | 184.13.1 | **197.0** | 238.12 |
+| Links CoreGraphics | 258.77 | **288.0** | 409.3 |
+| Load commands | classic, prebound | **classic, prebound** | `LC_SEGMENT_SPLIT_INFO`, code signature |
+| Unresolved against Tiger | n/a | **3** | 39 |
+| Non-lazy unresolved | n/a | **1** | 5 |
+
+Every ATS and CoreGraphics private it wants already exists on Tiger. Its only unresolved imports
+are `___CFRuntimeClassTableSize` (non-lazy), `_object_getClass` and `_kill$UNIX2003` (both lazy).
+That is the whole gap.
+
+It is also prebound, which broke the patcher: a prebound Mach-O marks undefined symbols `N_PBUD`
+(0xc) rather than `N_UNDF`. `refs/leopard/tools/repoint-imports.py` now accepts both.
+
+## The scalar ABI, settled by disassembly
+
+`CTFontGetSize` in each build:
+
+```
+Tiger    jmp  __ZNK5TFont7GetSizeEv              ; tail call, returns TFont::GetSize()'s double
+9A241    calll __ZNK5TFont7GetSizeEv
+         fstpl -0x18(%ebp)                       ; double out
+         cvtsd2ss -0x18(%ebp), %xmm0             ; -> float
+         flds  -0xc(%ebp)                        ; returns float
+10.5.8   cvtsd2ss 0x4(%eax), %xmm0 ; flds        ; returns float
+```
+
+And `CTFontCreateWithName` in 9A241 reads its size argument with `movss 0xc(%ebp), %xmm0`
+followed by `cvtss2sd`, so the parameter is a 4-byte float.
+
+**Tiger's private CoreText takes and returns `double`; 9A241 takes and returns `CGFloat`, which is
+`float` on i386.** That confirms ctcompat's finding from the other direction, and it is now
+verified live: `CTFontGetSize` returns exactly 24 through a `float` prototype.
+
+9A241 also exports 11 `*TRANSITIONAL` entry points, which is Apple's own record of which
+functions changed shape in that migration:
+
+```
+CTFontGetAdvancesForGlyphsTRANSITIONAL        CTFontGetBoundingRectsForGlyphsTRANSITIONAL
+CTFontGetSideBearingsForGlyphsTRANSITIONAL    CTFontGetTransformedAdvancesForGlyphsTRANSITIONAL
+CTFontGetTransformedBoundingRectsForGlyphsTRANSITIONAL   CTLineGetTypographicBoundsTRANSITIONAL
+CTLineGetImageBoundsTRANSITIONAL              CTLineDrawTRANSITIONAL
+CTFontCopyDefaultCascadeListTRANSITIONAL      CTFontDescriptorCreateForUITypeTRANSITIONAL
+CTFontCollectionCreateWithFilterCallbackTRANSITIONAL
+```
+
+Every one is a metrics or drawing call, which is exactly where scalar width matters. That list is
+worth keeping as the authoritative map of the ABI break.
+
+## What it adds
+
+It provides **13 of the 66** functions in `logs/api/missing-CT.txt`:
+
+```
+CTFontCopyFullName          CTFontDescriptorCreateCopyWithAttributes
+CTFontCopyGraphicsFont      CTFontDescriptorCreateCopyWithFeature
+CTFontCreateForCharacters   CTFontDescriptorCreateCopyWithSymbolicTraits
+CTFontCreateUIFontForLanguage   CTFontDescriptorCreateForUIType
+CTFontGetGlyphCount         CTFontDescriptorCreateMatchingFontDescriptor
+CTFontGetLigatureCaretPositions CTFontDescriptorCreateMatchingFontDescriptors
+CTLineGetTrailingWhitespaceWidth
+```
+
+Against 10.5.8's 17 it is two ahead and six behind: it adds
+`CTFontDescriptorCreateCopyWithSymbolicTraits` and `CTFontDescriptorCreateForUIType`, and lacks
+`CTFontCopyAvailableTables`, `CTFontCreatePathForGlyph`,
+`CTFontDescriptorCreateWithAttributesAndOptions`, `CTFontGetVerticalTranslationsForGlyphs`,
+`CTFrameGetLineOrigins` and `CTFramesetterSuggestFrameSizeWithConstraints`. Since 10.5.8 does not
+run, 13 is the number that matters.
+
+Beyond the 66 it exports 78 symbols Tiger's CoreText lacks in total, including the whole
+`CTFontCollection*` and `CTGlyphInfo*` families, `CTRunGetPositions`/`CTRunGetPositionsPtr`,
+`CTRunGetTextMatrix`, and 25 `kCTFont*NameKey` attribute constants. It drops 23 Tiger symbols,
+all private (`CTGlyphStorageCreateMutableWithCallbacks`, `CTTypesetterCreateWithRuns`,
+`kCTFontTable*`, the `kCTFont*Type` UI constants), so Tiger's copy stays worth keeping for those.
+
+## The one real obstacle, and the fix
+
+9A241 has the same inlined CoreFoundation bridging test that kills 10.5.8. Both compile this in:
+
+```
+cmpl %edx, (%eax)          ; __CFRuntimeClassTableSize vs typeID
+jbe  <objc path>
+movl (%esi), %ecx          ; obj->isa
+cmpl (%eax,%edx,4), %ecx   ; vs __CFRuntimeObjCClassTable[typeID]
+je   <native>
+cmpl $0xfff, %ecx
+jbe  <native>
+<objc path: sel_registerName(...); objc_msgSend(obj, sel)>
+```
+
+Measured on the box, the reason it misfires is precise and it is a layout difference, not a bug:
+
+| | value |
+|---|---|
+| `CTFontGetTypeID()` | 100 |
+| a CTFont's isa | `0xa0813d20` |
+| Tiger's `__CFRuntimeObjCClassTable` | `0xa080b2a0`, holding `0xa0813d20` |
+| `__CFRuntimeObjCClassTable[100]` | `0x0` |
+
+**Tiger's CF 368 gives every unbridged object one shared sentinel, the table's own base address.
+CF 401 and later give each type its own entry.** So `isa == table[typeID]` fails, CoreText decides
+its own font is a bridged ObjC object, and `objc_msgSend` jumps through a class whose first word
+is zero. A `CFUUID` created by Tiger's CF carries the identical `0xa0813d20`, which confirms the
+sentinel reading.
+
+The fix follows directly. Both `___CFRuntimeClassTableSize` and `___CFRuntimeObjCClassTable` are
+imports, so both can be repointed at a private table. Fill every entry with Tiger's sentinel and
+the test agrees for all unbridged types. `refs/leopard-9a241/tools/ct9-shim.c` does this in a
+constructor, reading the sentinel out of Tiger's CoreFoundation by `dlsym`.
+
+Two types need more than the sentinel. `CTFontDescriptor` instances carry a C++ vtable pointer
+(`0x3017e0`, constant across instances) rather than the sentinel, so the host binds that one at
+run time via `ct9_bind(typeID, isa)` after creating one descriptor. Type ids are assigned in
+first-call order, so they must be read at run time, not hard-coded.
+
+## Live results
+
+`refs/leopard-9a241/tools/ct9-test.c`, on the 10.4.11 box:
+
+```
+bootstrap: CTFont typeID=100 isa=0xa0813d20; CTFontDescriptor typeID=101 isa=0x301790
+
+ok   CTFontCreateWithName
+ok   CTFontGetSize == 24 (CGFloat=float ABI)
+     full name "Helvetica", 1745 glyphs
+ok   CTFontCopyFullName [gained]
+ok   CTFontGetGlyphCount [gained]
+ok   CTFontCopyGraphicsFont [gained]
+ok   CTFontGetGlyphsForCharacters
+     advances 16.0078 13.3477 12 (Helvetica 24pt: expect 16.008 13.348 12)
+ok   CTFontGetAdvancesForGlyphs matches the font's real metrics
+ok   CTFontDescriptorCreateMatchingFontDescriptor [gained]
+     matching descriptors for Times: 4
+ok   CTFontDescriptorCreateMatchingFontDescriptors [gained]
+ok   CTLineCreateWithAttributedString
+     line w=114.738 ascent=18.4805 descent=5.51953
+ok   CTLineGetTypographicBounds matches Helvetica 24pt ascent
+ok   CTRunGetGlyphCount + CTRunGetGlyphsPtr
+ok   CTRunGetAdvances real (a stub on Tiger's own CT)
+     soak: 400 font+line cycles over 5 families
+ok   soak clean
+```
+
+The numbers are right, not merely non-zero. Helvetica's advances for `A`, `b`, `c` are 667, 556
+and 500 per 1000 em, so at 24pt they are 16.008, 13.344 and 12. Ascent 18.48 and descent 5.52 are
+0.770 and 0.230 of 24. `CTRunGetAdvances`, which is one of the six empty stubs in Tiger's own
+CoreText, returns real values here.
+
+`CTFontDescriptorCreateCopyWithSymbolicTraits` returned NULL at first because I passed an
+unresolved descriptor. Given a matched one it works and yields `Times Bold`, so it is fine; the
+failure was in the test, not the framework.
+
+The only item not confirmed is `CTFontCreateForCharacters`, which returned NULL under a
+three-argument call. This is the DP1 ancestor of the released `CTFontCreateForString` and its
+pre-release signature is not in the 10.5 SDK headers, so the call was probably wrong. Untested
+rather than broken.
+
+## What this is worth, and the caveats
+
+For ctcompat this is a reference implementation that runs: the 13 functions can be called and
+compared against, and the `CGFloat` ABI is confirmed by both disassembly and live behaviour.
+
+Before treating it as a dependency rather than a reference, four things need weighing:
+
+- **It is pre-release software.** DP1 is unshipped, and its CoreText is a moving target Apple
+  changed repeatedly before 10.5.0.
+- **It needs a patched binary and a bootstrap.** The framework must be rewritten by
+  `repoint-imports.py` and the host must call `ct9_bind` before use. That is a real deployment
+  step, not a drop-in.
+- **The bridge-table override is a deliberate lie to CoreText.** It tells CoreText that no CF
+  object is ever a bridged ObjC one. That is true in our process, which has no Foundation font
+  classes, but it would stop being true if anything ever did bridge these types.
+- **Tiger's own CoreText is still loaded** by ApplicationServices in every GUI process, so two
+  CoreTexts coexist with separate type ids. Objects must not cross between them. The install name
+  is private, so nothing binds to ours by accident.
+
+Kept at `refs/leopard-9a241/tools/` with a README: the shim, the test, the symbol list and the
+build recipe.

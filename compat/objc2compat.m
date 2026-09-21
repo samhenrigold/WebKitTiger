@@ -57,6 +57,8 @@ void objc_copyStruct(void *dest, const void *src, ptrdiff_t size, BOOL atomic, B
 #import <objc/runtime.h> /* our own declarations, so a signature mismatch is a build error */
 #include <mach-o/dyld.h>
 #include <mach-o/getsect.h>
+#include <mach-o/loader.h>
+#include <mach-o/nlist.h>
 #include <stdlib.h>
 #include <malloc/malloc.h>
 
@@ -414,6 +416,8 @@ void objc_removeAssociatedObjects(id object)
 struct tiger_property_list { uint32_t entsize; uint32_t count; struct objc_property first; };
 struct tiger_class_ext { uint32_t size; const void *weak_ivar_layout; struct tiger_property_list *propertyList; };
 
+static objc_property_t *tigerCopyPropertyList(struct tiger_property_list *list, unsigned int *outCount);
+
 const char *property_getName(objc_property_t p) { return p ? p->name : NULL; }
 const char *property_getAttributes(objc_property_t p) { return p ? p->attributes : NULL; }
 
@@ -446,8 +450,101 @@ static struct tiger_property_list *tigerClassPropertyList(Class cls)
 
 objc_property_t *class_copyPropertyList(Class cls, unsigned int *outCount)
 {
-    struct tiger_property_list *list = tigerClassPropertyList(cls);
-    unsigned n = list ? list->count : 0;
+    return tigerCopyPropertyList(tigerClassPropertyList(cls), outCount);
+}
+
+/* A protocol's optional methods and its properties live in an ext record that clang emits as the
+   local data symbol _OBJC_PROTOCOLEXT_<Name>. The old ABI reached it through the protocol's first
+   word, but Tiger's runtime overwrites that with the Protocol class at load, so we recover the
+   record by looking its symbol up in the defining image's symbol table instead. That only works
+   because this port never strips local symbols; see the link rule in NOTES.md. */
+struct tiger_protocol_ext {
+    uint32_t size;
+    struct objc_method_description_list *optional_instance_methods;
+    struct objc_method_description_list *optional_class_methods;
+    struct tiger_property_list *instance_properties;
+    const char **extendedMethodTypes;
+    struct tiger_property_list *class_properties;
+};
+
+/* ponytail: linear scan of one image's symbol table, which is large for something like WebKit.
+   The per-protocol cache below means we pay it once per protocol, never per query. */
+static void *tigerLookupLocalSymbol(const struct mach_header *mh, intptr_t slide, const char *name)
+{
+    const struct load_command *lc = (const struct load_command *)((const char *)mh + sizeof(struct mach_header));
+    const struct symtab_command *symtab = NULL;
+    uintptr_t linkedit = 0;
+    for (uint32_t i = 0; i < mh->ncmds; ++i) {
+        if (lc->cmd == LC_SEGMENT) {
+            const struct segment_command *seg = (const struct segment_command *)lc;
+            if (strcmp(seg->segname, SEG_LINKEDIT) == 0)
+                linkedit = (uintptr_t)slide + seg->vmaddr - seg->fileoff;
+        } else if (lc->cmd == LC_SYMTAB) {
+            symtab = (const struct symtab_command *)lc;
+        }
+        lc = (const struct load_command *)((const char *)lc + lc->cmdsize);
+    }
+    if (!symtab || !linkedit) return NULL;
+    const struct nlist *syms = (const struct nlist *)(linkedit + symtab->symoff);
+    const char *strings = (const char *)(linkedit + symtab->stroff);
+    for (uint32_t i = 0; i < symtab->nsyms; ++i) {
+        if (!syms[i].n_un.n_strx) continue;
+        if ((syms[i].n_type & N_TYPE) != N_SECT) continue;
+        if (strcmp(strings + syms[i].n_un.n_strx, name) == 0)
+            return (void *)(uintptr_t)(syms[i].n_value + slide);
+    }
+    return NULL;
+}
+
+#define TIGER_NO_PROTOCOL_EXT ((struct tiger_protocol_ext *)-1) /* negative cache: looked up, absent */
+
+static pthread_mutex_t protoExtLock = PTHREAD_MUTEX_INITIALIZER;
+static CFMutableDictionaryRef protoExtTable;
+
+static struct tiger_protocol_ext *tigerProtocolExt(Protocol *proto)
+{
+    if (!proto) return NULL;
+    pthread_mutex_lock(&protoExtLock);
+    if (protoExtTable) {
+        struct tiger_protocol_ext *hit = (struct tiger_protocol_ext *)CFDictionaryGetValue(protoExtTable, proto);
+        if (hit) {
+            pthread_mutex_unlock(&protoExtLock);
+            return hit == TIGER_NO_PROTOCOL_EXT ? NULL : hit;
+        }
+    }
+    pthread_mutex_unlock(&protoExtLock);
+
+    struct tiger_protocol_ext *ext = NULL;
+    char symbol[256];
+    const char *name = protocol_getName(proto);
+    /* Mach-O prepends an underscore, so clang's _OBJC_PROTOCOLEXT_X is __OBJC_PROTOCOLEXT_X here. */
+    snprintf(symbol, sizeof(symbol), "__OBJC_PROTOCOLEXT_%s", name ? name : "");
+
+    uint32_t images = _dyld_image_count();
+    for (uint32_t i = 0; i < images && !ext; ++i) {
+        const struct mach_header *mh = _dyld_get_image_header(i);
+        intptr_t slide = _dyld_get_image_vmaddr_slide(i);
+        const struct section *sect = getsectbynamefromheader(mh, "__OBJC", "__protocol");
+        if (!sect) continue;
+        uintptr_t lo = sect->addr + slide;
+        if ((uintptr_t)proto < lo || (uintptr_t)proto >= lo + sect->size) continue; /* not this image */
+        ext = (struct tiger_protocol_ext *)tigerLookupLocalSymbol(mh, slide, symbol);
+        /* A record older than ours stops before extendedMethodTypes; size tells us what is there. */
+        if (ext && ext->size < 4 * sizeof(void *)) ext = NULL;
+        break; /* the defining image is unique; if the symbol is gone it was stripped */
+    }
+
+    pthread_mutex_lock(&protoExtLock);
+    if (!protoExtTable)
+        protoExtTable = CFDictionaryCreateMutable(NULL, 0, NULL, NULL);
+    CFDictionarySetValue(protoExtTable, proto, ext ? ext : TIGER_NO_PROTOCOL_EXT);
+    pthread_mutex_unlock(&protoExtLock);
+    return ext;
+}
+
+static objc_property_t *tigerCopyPropertyList(struct tiger_property_list *list, unsigned int *outCount)
+{
+    unsigned n = (list && list->entsize == sizeof(struct objc_property)) ? list->count : 0;
     if (outCount) *outCount = n;
     if (!n) return NULL;
     objc_property_t *out = malloc((n + 1) * sizeof(*out));
@@ -456,14 +553,25 @@ objc_property_t *class_copyPropertyList(Class cls, unsigned int *outCount)
     return out;
 }
 
-/* A protocol's optional methods and its properties hang off an ext record that the old runtime
-   chained through the protocol's isa field. Tiger overwrites isa with the Protocol class at load,
-   so that record is unreachable and these come back empty. */
 objc_property_t *protocol_copyPropertyList(Protocol *proto, unsigned int *outCount)
 {
-    (void)proto;
-    if (outCount) *outCount = 0;
-    return NULL;
+    struct tiger_protocol_ext *ext = tigerProtocolExt(proto);
+    return tigerCopyPropertyList(ext ? ext->instance_properties : NULL, outCount);
+}
+
+/* The old ABI keeps no separate optional-property list, so isRequiredProperty NO is always empty. */
+objc_property_t *protocol_copyPropertyList2(Protocol *proto, unsigned int *outCount,
+                                            BOOL isRequiredProperty, BOOL isInstanceProperty)
+{
+    struct tiger_protocol_ext *ext = tigerProtocolExt(proto);
+    struct tiger_property_list *list = NULL;
+    if (ext && isRequiredProperty) {
+        if (isInstanceProperty)
+            list = ext->instance_properties;
+        else if (ext->size >= sizeof(struct tiger_protocol_ext))
+            list = ext->class_properties;
+    }
+    return tigerCopyPropertyList(list, outCount);
 }
 
 Protocol **class_copyProtocolList(Class cls, unsigned int *outCount)
@@ -499,10 +607,13 @@ struct objc_method_description *protocol_copyMethodDescriptionList(Protocol *pro
                                                                    BOOL isInstanceMethod, unsigned int *outCount)
 {
     struct tiger_protocol *p = (struct tiger_protocol *)proto;
-    /* Optional methods live in the unreachable ext record; only the required lists are in the protocol. */
     struct objc_method_description_list *list = NULL;
     if (p && isRequiredMethod)
         list = (struct objc_method_description_list *)(isInstanceMethod ? p->instance_methods : p->class_methods);
+    else if (p) {
+        struct tiger_protocol_ext *ext = tigerProtocolExt(proto);
+        if (ext) list = isInstanceMethod ? ext->optional_instance_methods : ext->optional_class_methods;
+    }
     unsigned n = list ? (unsigned)list->count : 0;
     if (outCount) *outCount = n;
     if (!n) return NULL;

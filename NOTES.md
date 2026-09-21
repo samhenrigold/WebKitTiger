@@ -184,3 +184,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - LINK RULE 2: never strip local symbols on this port (no `strip -x`, no `-Wl,-x`): protocol ext records
   (__OBJC_PROTOCOLEXT_*) are recovered by name from the symbol table for JSExport, since Tiger's runtime discards the pointer.
 - dispatch_once is now lock-free per libdispatch (a global mutex deadlocked cross-thread nested onces).
+- Leopard DP1 9A241 CoreText runs on Tiger with a patched binary + runtime CF-bridge-table bootstrap (refs/leopard-9a241/tools,
+  logs/leopard-backport.md): real CGFloat ABI, 13 of the 66 missing functions, CTRunGetPositions. Decision: oracle for testing
+  ctcompat, not a dependency (pre-release; two CoreTexts per process; objects must not cross). Its 11 TRANSITIONAL exports list
+  exactly which functions changed shape in the double->CGFloat migration.
+- CG ABI screen: 285 entry points, 1 genuine mismatch (a CGGState transform getter returning by value), adapted and tested.

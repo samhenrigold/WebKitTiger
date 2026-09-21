@@ -3,6 +3,7 @@
 #import <objc/runtime.h>
 #include <stdio.h>
 #include <string.h>
+#import "protolib.h"
 
 static int failures = 0;
 static void T(const char *what, int ok) { printf("%-46s %s\n", what, ok ? "PASS" : (++failures, "FAIL")); }
@@ -13,8 +14,13 @@ static void T(const char *what, int ok) { printf("%-46s %s\n", what, ok ? "PASS"
 
 @protocol TigerProto <TigerBase>
 @required - (int)protoMethod;
-@optional - (int)optionalProtoMethod;
-@property (nonatomic, readonly) int protoProperty;
+@optional
+- (int)optionalProtoMethod;
+- (int)secondOptionalProtoMethod;
++ (int)optionalProtoClassMethod;
+@property (nonatomic, copy) NSString *protoName;
+@property (nonatomic, assign) int protoCount;
+@property (nonatomic, readonly) double protoRatio;
 @end
 
 @interface Base : NSObject { int _a; double _b; }
@@ -31,6 +37,7 @@ static void T(const char *what, int ok) { printf("%-46s %s\n", what, ok ? "PASS"
 @implementation Derived
 - (int)value { return 2; }
 - (int)protoMethod { return 42; }
+- (void)baseProtoMethod { }
 @end
 
 @interface Plain : NSObject @end
@@ -162,10 +169,74 @@ int main(void)
     free(md);
     protocol_copyMethodDescriptionList(p, YES, NO, &mdn);
     T("no required class methods", mdn == 0);
-    protocol_copyMethodDescriptionList(p, NO, YES, &mdn);
-    T("known limit: optional methods unreachable", mdn == 0);
-    protocol_copyPropertyList(p, &pln);
-    T("known limit: protocol properties unreachable", pln == 0);
+    /* Optional methods and protocol properties, recovered from _OBJC_PROTOCOLEXT_TigerProto. */
+    struct objc_method_description *opt = protocol_copyMethodDescriptionList(p, NO, YES, &mdn);
+    int sawOpt1 = 0, sawOpt2 = 0;
+    for (unsigned i = 0; i < mdn; ++i) {
+        if (sel_isEqual(opt[i].name, @selector(optionalProtoMethod))) sawOpt1 = 1;
+        if (sel_isEqual(opt[i].name, @selector(secondOptionalProtoMethod))) sawOpt2 = 1;
+    }
+    int sawAccessor = 0, sawSetter = 0;
+    for (unsigned i = 0; i < mdn; ++i) {
+        if (sel_isEqual(opt[i].name, @selector(protoName))) sawAccessor = 1;
+        if (sel_isEqual(opt[i].name, @selector(setProtoName:))) sawSetter = 1;
+    }
+    /* 2 declared methods + 5 accessors: properties after @optional declare optional accessors too. */
+    T("optional instance methods recovered", mdn == 7 && sawOpt1 && sawOpt2);
+    T("optional property accessors included", sawAccessor && sawSetter);
+    free(opt);
+
+    struct objc_method_description *optc = protocol_copyMethodDescriptionList(p, NO, NO, &mdn);
+    T("optional class methods recovered", mdn == 1 && sel_isEqual(optc[0].name, @selector(optionalProtoClassMethod)));
+    free(optc);
+
+    objc_property_t *pp = protocol_copyPropertyList(p, &pln);
+    int sawName = 0, sawPCount = 0, sawRatio = 0;
+    for (unsigned i = 0; i < pln; ++i) {
+        const char *nm = property_getName(pp[i]);
+        if (!strcmp(nm, "protoName")) sawName = 1;
+        if (!strcmp(nm, "protoCount")) sawPCount = 1;
+        if (!strcmp(nm, "protoRatio")) sawRatio = 1;
+    }
+    T("protocol properties recovered", pln == 3 && sawName && sawPCount && sawRatio);
+    T("protocol property attributes parse", pln == 3 && property_getAttributes(pp[0])[0] == 'T');
+    free(pp);
+
+    pp = protocol_copyPropertyList2(p, &pln, YES, YES);
+    T("protocol_copyPropertyList2 instance", pln == 3);
+    free(pp);
+    protocol_copyPropertyList2(p, &pln, YES, NO);
+    T("protocol_copyPropertyList2 class (none declared)", pln == 0);
+    protocol_copyPropertyList2(p, &pln, NO, YES);
+    T("known limit: optional properties not separable", pln == 0);
+
+    T("protocol with no ext yields empty", protocol_copyPropertyList(objc_getProtocol("TigerBase"), &pln) == NULL && pln == 0);
+
+    /* Same again for a protocol defined in a second image. */
+    Protocol *dp = tigerDylibProtocol();
+    T("dylib protocol found", dp && strcmp(protocol_getName(dp), "TigerDylibProto") == 0);
+    struct objc_method_description *dreq = protocol_copyMethodDescriptionList(dp, YES, YES, &mdn);
+    T("dylib required method", mdn == 1 && sel_isEqual(dreq[0].name, @selector(dylibRequired)));
+    free(dreq);
+    struct objc_method_description *dopt = protocol_copyMethodDescriptionList(dp, NO, YES, &mdn);
+    T("dylib optional instance methods", mdn == 7); /* 2 declared + 5 accessors */
+    free(dopt);
+    protocol_copyMethodDescriptionList(dp, NO, NO, &mdn);
+    T("dylib optional class method", mdn == 1);
+    objc_property_t *dpp = protocol_copyPropertyList(dp, &pln);
+    int dAlpha = 0, dBeta = 0, dGamma = 0;
+    for (unsigned i = 0; i < pln; ++i) {
+        const char *nm = property_getName(dpp[i]);
+        if (!strcmp(nm, "alpha")) dAlpha = 1;
+        if (!strcmp(nm, "beta")) dBeta = 1;
+        if (!strcmp(nm, "gamma")) dGamma = 1;
+    }
+    T("dylib protocol properties recovered", pln == 3 && dAlpha && dBeta && dGamma);
+    free(dpp);
+    /* Second call must come from the cache and agree. */
+    dpp = protocol_copyPropertyList(dp, &pln);
+    T("cached lookup agrees", pln == 3);
+    free(dpp);
 
     unsigned prn = 0;
     objc_property_t *props = class_copyPropertyList([Props class], &prn);

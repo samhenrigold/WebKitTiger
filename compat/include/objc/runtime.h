@@ -68,11 +68,14 @@ Protocol *objc_getProtocol(const char *name);
 const char *protocol_getName(Protocol *p);
 BOOL protocol_isEqual(Protocol *a, Protocol *b);
 Protocol * TIGER_UNRETAINED *protocol_copyProtocolList(Protocol *proto, unsigned int *outCount);
-/* Tiger overwrites a protocol's isa at load, which is where the old ABI chained the record holding
-   optional methods and protocol properties. Optional methods and protocol properties come back empty. */
+/* Optional methods and protocol properties are recovered from the _OBJC_PROTOCOLEXT_<Name> symbol
+   in the defining image; they are empty if that image had its local symbols stripped. */
 struct objc_method_description *protocol_copyMethodDescriptionList(Protocol *proto, BOOL isRequiredMethod,
                                                                    BOOL isInstanceMethod, unsigned int *outCount);
 objc_property_t *protocol_copyPropertyList(Protocol *proto, unsigned int *outCount);
+/* The old ABI has no separate optional-property list, so isRequiredProperty NO returns empty. */
+objc_property_t *protocol_copyPropertyList2(Protocol *proto, unsigned int *outCount,
+                                            BOOL isRequiredProperty, BOOL isInstanceProperty);
 
 const char *property_getName(objc_property_t property);
 const char *property_getAttributes(objc_property_t property);
