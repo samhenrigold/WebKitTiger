@@ -728,3 +728,10 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
 - Aqua atlas done (spike/aquaatlas, 366 images, 18 controls, HIThemeDrawButton for window-inactive states): fallback artwork and
   the reference for compat/aquacontrols.m. Tool gotchas: CGBitmapContextGetData is NULL on Tiger unless you supply the buffer;
   a bare executable / first launch of a new bundle can't become active (inactive artwork); HIThemeDrawTrack draws whole scrollbars.
+- IPC cross-ABI patch (toolchain/patches/webkit-ipc-cross-abi.patch, objcrt, branch tiger-ipc-abi): FOURTH offender found:
+  Encoder/Decoder pad the wire by alignof(T), which is 4 for 64-bit scalars on i386 Darwin and 8 on x86_64, so every field after
+  the first uint64/double shifts. Fixed with a wireAlignmentOf (8-byte scalars aligned to 8 on both sides) plus the requires
+  clause banning long/unsigned long/size_t fields, UnixMessage framing fixed-width, ScrollSnapOffsetsInfo/PlatformXR fields
+  fixed. Both builds must run to catch every offender (ptrdiff_t is int on i386).
+- 64-bit os_log/os_unfair_lock/os_signpost: single home = libtigercompat.a (ARCH=x86_64 superset); no 64-bit libtigerdispatch
+  (dispatch queues need CFRunLoop; the web process uses WTF's generic RunLoop/WorkQueue).
