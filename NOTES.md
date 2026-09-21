@@ -302,3 +302,6 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   QTMovieFrameImageTypeCGImageRef is present (QTKit gates on QTKIT_VERSION, not OS version) and is the path: CGImage per frame,
   drawn in the software path, later a layer's contents. Registration is now a MediaPlayerFactory subclass. Codecs: H.264
   Baseline/Main + AAC/MP3 in MOV/MP4 only (no WebM/AV1/Opus). Apple TV QuickTime is identical to Tiger's.
+- Compositing design (logs/ca-hosting-design.md): PlatformCALayerTiger as a sibling of PlatformCALayerCocoa; TileController/
+  TileGrid port as-is (they already use plain CALayers); derive zPosition in setTransform for non-affine transforms or 3D
+  elements vanish; phase 1 = USE_CA on with AnimatedOpacityTrigger only, HAVE_IOSURFACE off; ~2400 new LOC through phase 2.
