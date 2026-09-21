@@ -81,6 +81,24 @@
 @end
 
 /* =========================================================================
+ * Layout direction
+ * ========================================================================= */
+
+@implementation NSMenu (TigerCompat)
+- (NSUserInterfaceLayoutDirection)userInterfaceLayoutDirection
+{
+    return NSUserInterfaceLayoutDirectionLeftToRight;
+}
+@end
+
+@implementation NSView (TigerCompatLayoutDirection)
+- (NSUserInterfaceLayoutDirection)userInterfaceLayoutDirection
+{
+    return NSUserInterfaceLayoutDirectionLeftToRight;
+}
+@end
+
+/* =========================================================================
  * NSColor
  * ========================================================================= */
 

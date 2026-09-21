@@ -27,6 +27,12 @@ link_framework() {
         fi
         ln -sfn "$header" "$dest/$base"
     done
+
+    # WARNING for anyone adding an overlaid header by hand: every entry above is
+    # a symlink INTO THE SDK, and both shell redirection and a plain open(,'w')
+    # follow it. "cat $SDK/Foo.h > $dest/Foo.h" therefore truncates the SDK's own
+    # header and then cats the file into itself, which eats the disk. Delete the
+    # symlink first, or read the SDK copy fully into memory before writing.
 }
 
 link_framework Foundation "$SDK"

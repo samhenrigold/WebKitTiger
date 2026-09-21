@@ -74,6 +74,9 @@ declare the class. The class itself lives in `compat/nscompat-maptable.m`.
 |---|---|
 | `NSEvent.h` | The 10.12 `NSEventType*` / `NSEventMask*` / `NSEventModifierFlag*` renames, plus `NSEventModifierFlags` and the `NSEventPhase` type |
 | `NSWindow.h` | The 10.12 `NSWindowStyleMask*` renames |
+| `NSApplication.h` | `__unsafe_unretained` on an `id *` instance variable |
+| `NSCell.h` | The 10.10 `NSControlSize*` renames |
+| `AppKit.h` | `NSUserInterfaceLayoutDirection` and its two enumerators |
 
 **The renames.** In 10.12 Apple respelled every event type, event mask and
 modifier flag without changing a single value. WebKit uses the new spelling at
@@ -92,13 +95,15 @@ accessors that return one live in `<TigerCompat/AppKitCompat.h>` with the rest
 of the 10.7+ NSEvent methods, which need implementations rather than header
 surgery.
 
-**NSApplication.h is deliberately not overlaid.** `id *_hiddenList;` in it is
-the same shape as the `NSNetServices.h` ivar below, and it did fail to parse
-under ARC at one point, but it no longer does with the patched clang, in any
-combination of `-fobjc-arc`, `-Xclang -fobjc-arc`, `-Wall`, ObjC and ObjC++ that
-was tried. So there is nothing to fix. Those two are the only `id *` instance
-variables in the whole 10.4 AppKit and Foundation header set, so if the
-diagnostic ever comes back, that pair is the complete list.
+**NSApplication.h.** `id *_hiddenList;` is the same ARC error as
+`NSNetServices.h` below. Those two are the only `id *` instance variables in the
+whole 10.4 AppKit and Foundation header set, so that pair is complete.
+
+**AppKit.h is the umbrella, and that is the point.** `NSUserInterfaceLayoutDirection`
+is an AppKit-wide 10.6 type with no natural leaf header in the 10.4 SDK. The
+umbrella is the safe place to hook: every AppKit translation unit reaches it,
+and unlike a leaf header it cannot be included partway through the framework's
+own emission, which is the trap the CoreGraphics section below describes.
 
 ## CoreFoundation.framework/Headers
 

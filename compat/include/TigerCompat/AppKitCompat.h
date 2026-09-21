@@ -99,6 +99,24 @@ typedef struct NSEdgeInsets {
 @end
 
 /* -------------------------------------------------------------------------
+ * User interface layout direction. The type and its two enumerators are in the
+ * SDK overlay, since they need no implementation; these accessors do.
+ *
+ * Tiger's AppKit has no right-to-left support at all, so left-to-right is not a
+ * simplification, it is the only thing this system does.
+ * ------------------------------------------------------------------------- */
+@interface NSMenu (TigerCompat)
+/* 10.11. PAL's PopupMenu.mm reads this to decide which edge to align the
+ * <select> popup to. */
+@property (readonly) NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
+@end
+
+@interface NSView (TigerCompatLayoutDirection)
+/* 10.6. WebView.mm:9647 reads it off itself to pick a popover edge. */
+@property (readonly) NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
+@end
+
+/* -------------------------------------------------------------------------
  * NSColor. Twelve semantic colours that were renamed or added after 10.4,
  * mapped onto the Aqua colours the old theme used. See plan section 4.5:
  * Tiger's NSColor.h already has everything else, and its component getters

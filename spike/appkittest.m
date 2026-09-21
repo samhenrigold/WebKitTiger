@@ -115,6 +115,38 @@ static BOOL sameColor(NSColor *a, NSColor *b)
                && b > 0.74f && b < 0.76f);
     }
 
+    /* ---- the PAL PopupMenu.mm and WebView.mm shapes ---- */
+    {
+        expect("NSControlSize renames match the old spellings",
+               NSControlSizeRegular == NSRegularControlSize
+               && NSControlSizeSmall == NSSmallControlSize
+               && NSControlSizeMini == NSMiniControlSize);
+        expect("NSControlSizeLarge is distinct",
+               NSControlSizeLarge != NSControlSizeRegular
+               && NSControlSizeLarge != NSControlSizeSmall
+               && NSControlSizeLarge != NSControlSizeMini);
+
+        NSMenu *menu = [[NSMenu alloc] initWithTitle:@"probe"];
+        expect("NSMenu -userInterfaceLayoutDirection is LeftToRight",
+               [menu userInterfaceLayoutDirection] == NSUserInterfaceLayoutDirectionLeftToRight);
+        /* PopupMenu.mm spells it with dot syntax. */
+        expect("dot syntax on NSMenu",
+               menu.userInterfaceLayoutDirection != NSUserInterfaceLayoutDirectionRightToLeft);
+
+        NSView *probeView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 10, 10)];
+        expect("NSView -userInterfaceLayoutDirection is LeftToRight",
+               probeView.userInterfaceLayoutDirection == NSUserInterfaceLayoutDirectionLeftToRight);
+
+        /* NSNotificationName is a real type, usable where WebKit's SPI headers
+           declare notification names with it. */
+        NSNotificationName probeName = @"TigerProbeNotification";
+        expect("NSNotificationName", [probeName isEqualToString:@"TigerProbeNotification"]);
+#if !__has_feature(objc_arc)
+        [menu release];
+        [probeView release];
+#endif
+    }
+
     /* ---- NSScreen ---- */
     {
         NSScreen *main = [NSScreen mainScreen];
