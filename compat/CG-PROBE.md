@@ -57,10 +57,25 @@ only shows against a global alpha, and a y-axis mistake that made every point sa
 empty pixel on both platforms, which reads as agreement rather than as a broken test. Neither
 was visible from Tiger's output alone.
 
-**A check is only as good as its discrimination.** The first version of the blend check used an
-opaque source, which makes Copy and Normal produce the same pixel, so it passed on a CG that
-ignores Copy completely. The source is half alpha now. Worth remembering before trusting any
-"matches" line here.
+**Before trusting a check, ask what would make it fail. If there is no answer, it is not a
+check yet.** That is the general form, from the CoreText track, and it is cheaper to apply than
+remembering the specific traps below. Every one of them was a check that could only have
+passed; the mechanisms differ and the failure does not.
+
+- The first blend check used an opaque source, which makes Copy and Normal produce the same
+  pixel, so it passed against a CG that ignores Copy completely. The source is half alpha now.
+- A transparency-layer check measured nothing, because layer grouping only shows against a
+  global alpha and the probe set a per-fill alpha.
+- A y-axis mistake made every point sample read an empty pixel on both platforms, which reads
+  as agreement rather than as a broken test.
+- Zeroing an output buffer hid a function that writes fewer elements than its count promises,
+  because the zeros read as a correct answer.
+- Comparing a font metric by font *name* across two machines measures the difference between
+  two font files as much as between two implementations. Hand both sides identical bytes. That
+  one is the CoreText track's; see `compat/CT-SURVEY.md`. Nothing here is font-shaped, but the
+  shape recurs wherever a check names a resource instead of supplying it.
+
+Worth remembering before trusting any "matches" line in this document.
 
 ## Result
 
