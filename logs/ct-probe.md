@@ -445,3 +445,52 @@ could see it.
 Stated as a rule: the Leopard oracle answers "is this faithful to the era", this probe
 answers "is this right today", and a divergence that predates Leopard is invisible to the
 first and visible to the second. Both are worth running.
+
+
+---
+
+# Re-verified after Security Update 2009-005
+
+The box was updated on 2026-09-20 at 21:50 with Security Update 2009-005, QuickTime 7.6.4,
+ImageIO and Safari 4.1.3. Five of the libraries these probes exercise were replaced:
+
+| | before | after |
+|---|---|---|
+| CoreFoundation | 368.31.0 | 368.35.0 |
+| ATS | 184.13.1 | 184.17.0 |
+| CoreGraphics | 258.77.0 | 258.85.0 |
+| Foundation | 567.36.0 | 567.42.0 |
+| libSystem | 88.3.9 | 88.3.11 |
+
+CoreText's binary was rewritten at the same timestamp but keeps version 1.0.0 and the same
+889,256 bytes.
+
+**Nothing changed.** All three probes were rebuilt and re-run, and every dump is
+byte-identical to the committed pre-update run: `ctprobe` still 189 matched, 2 near, 43
+differing; `ctshape` identical on all three fonts; `ctdraw` identical at both sizes and both
+paths. The font table survey over the box is unchanged, and no font file was touched, only
+the `/Library/Fonts` directory mtime.
+
+**The 9A241 rig survives, which was the open risk.** Its CoreFoundation bridge bootstrap
+depends on CF internals and CF is one of the libraries that moved. The framework still
+loads, the sentinel is still `0xa0813d20` at the same address, and `ct9metrics` returns the
+same numbers. The bootstrap reads that sentinel at run time rather than assuming it, which
+is what made it survive; a hardcoded value would have been a coin flip.
+
+**The `sysroot/` mirror is now stale in content but not in API surface.** Comparing exports
+between the box's new binaries and the mirror:
+
+| library | exports before | after | added | removed |
+|---|---|---|---|---|
+| CoreFoundation | 2484 | 2484 | 0 | 0 |
+| ATS | 419 | 419 | 0 | 0 |
+| CoreGraphics | 3568 | 3568 | 0 | 0 |
+| CoreText | 243 | 243 | 0 | 0 |
+| Foundation | 1516 | 1517 | **1** | 0 |
+| libSystem | 3413 | 3413 | 0 | 0 |
+
+The single addition is `_NSHTTPCookieHTTPOnly`, which is the HttpOnly cookie support the
+security update brought. Nothing else in the linkable surface moved, so symbol resolution
+and the `logs/api/tiger-*.txt` export lists remain correct. Refreshing the mirror is
+therefore optional rather than urgent, and only matters to anyone who wants that one
+Foundation constant.
