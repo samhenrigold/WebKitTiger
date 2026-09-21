@@ -289,3 +289,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   repaint. CA render 0.5-0.9 ms/frame; tile paint ~5 ms; 12 live tiles ~32 MB RSS. hitTest: works. CATiledLayer draws NOTHING
   under CARenderer (delegate runs, no output): use manual tiles. Layers with non-affine CATransform3D depth-sort behind opaque
   siblings: set zPosition. geometryFlipped cascades to the whole subtree; no -geometryFlipped getter (use valueForKey:).
+- CommonCrypto on Tiger: CommonDigest only (MD2/4/5, SHA1/256/384/512; no SHA224), no CommonCryptor/CCHmac/PBKDF/CCRandom.
+  WebCrypto symmetric algorithms excluded; digests stay; LibreSSL is the eventual answer.
+- Overlay: NSPoint/NSSize/NSRect unified with the CG types (NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES, as 10.5 did); CFBase.h
+  gained CF_ENUM/CF_OPTIONS. WEBKIT_MAX_BUNDLE_SIZE is 16 under TIGER (non-modular 10.4 headers overflow clang's source locations).
