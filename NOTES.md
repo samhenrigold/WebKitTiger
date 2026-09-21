@@ -686,7 +686,8 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
 - ARTIFACT OWNERSHIP MAP (single producer each): libtigercompat.a (compat/Makefile, both arches); libtigerdispatch.a
   (compat/dispatch/Makefile, i386 only, not needed 64-bit); libc++/libc++abi/libunwind i386 (build/runtimes-i386 via the cmake in
   logs/runtimes-configure.log) and x86_64 (jsc64's build dir, same recipe; record its path in logs/jsc64-spike.md); compiler-rt
-  builtins i386 (build/builtins-i386, by-hand script in NOTES) and x86_64 (jsc64); all third-party deps i386
+  builtins i386 (toolchain/build-builtins-i386.sh -> build/builtins-i386, compiles compiler-rt's builtins/*.c and
+  i386/*.S directly, no CMake) and x86_64 (jsc64); all third-party deps i386
   (deps/build-c-deps.sh) and x86_64 (deps/build-deps-x86_64.sh); ffmpeg x86_64 (deps/build-ffmpeg64.sh); sdk overlay
   (compat/sdk-overlay/make-overlay.sh + per-framework owners); QuartzCore private bundle (spike/CAHost/rebundle.sh + decollide.py).
   If you need a rebuild, run the owner's script; never copy artifacts by hand.
@@ -997,3 +998,23 @@ that was actually affected by their absence (only ICU, already fixed). No change
   TIGER_WIRE_* remap across 69 files and the font cascade). NullImageBufferBackend already exists (157 lines, used by
   RemoteRenderingBackend), so the pixel-less backend brief is ~30 lines of wiring. Long pole: 64-bit FontCache/
   FontCascade over the manifest (fallback decided entirely in the recording process).
+
+## build/builtins-i386 rebuilt (2026-09-20, deps agent)
+Restored after the build/ deletion. No dedicated build script actually existed before this
+(NOTES previously said "by-hand script in NOTES" but no such script was ever committed) --
+compiler-rt is not part of the build/runtimes-i386 CMake build (that one is libc++/libc++abi/
+libunwind only) and its own CMake machinery targets Darwin's multi-arch fat-archive layout,
+which fights being pointed at one bare-metal-style Mach-O target directly. Wrote
+toolchain/build-builtins-i386.sh: compiles compiler-rt's builtins/*.c directly with the raw
+cross-compiler (not the tiger-clang wrapper -- compiler-rt shouldn't see -include
+tigerprelude.h), then i386/*.S + i386/*.c for the symbols that have i386-specific asm (better
+carry-chain codegen; the generic .c version of the same symbol is dropped to avoid duplicate
+definitions), archives the result. Excludes crtbegin.c/crtend.c (ELF-only section attrs, never
+apply to Mach-O), apple_versioning.c and os_version_check.c (need Availability.h/dispatch.h we
+don't have; os_version_check.c is deliberately not wanted anyway --
+__isPlatformVersionAtLeast/__isOSVersionAtLeast are reimplemented for Tiger in
+compat/availability.c instead), and clear_cache.c (needs libkern/OSCacheControl.h, not needed
+by anything current). Verified: spike/exctest.mm and spike/runfstest.sh (spike/fstest.cpp)
+both pass on the box against the rebuilt archive. x86_64's libclang_rt.builtins-x86_64.a lives
+in toolchain/sysroot-x86_64/usr/lib (jsc64's build), outside build/, so it was never at risk.
+Added to the ARTIFACT OWNERSHIP MAP above.
