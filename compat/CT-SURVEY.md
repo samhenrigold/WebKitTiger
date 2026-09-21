@@ -442,6 +442,23 @@ them as known rather than counting them:
   `HiraKakuPro-W3` separately where DP1 has the merged `AquaKana-HiraKaku`. The entries
   either side of that pair are identical. Ours faithfully returns Tiger's own list.
 
+### What the oracle cannot see
+
+A clean oracle run means the shim is faithful **to the era**, not that it is correct
+today, and the two come apart whenever Apple changed a behaviour after DP1. Cap height is
+the measured case: 9A241 returns the same quantised values as unfixed Tiger, not merely
+the same direction but the same digits at every size, 7.0 at 9pt where modern says 6.618.
+Ascent agrees across all three, so this is specific to the quantised metrics rather than a
+general disagreement between the eras. The oracle compared cap height happily and found
+nothing, because both implementations sat on the same side of a change that came later.
+
+So the two runtime checks have different ranges, and neither subsumes the other.
+`spike/ctoracle.c` answers whether a shim matches a real Apple CoreText of Tiger's
+generation, which is the right question for anything where Tiger-era semantics are what
+WebCore's fallback paths expect. `spike/ctprobe.c` answers whether it matches CoreText
+today, which is the right question for anything feeding layout. A divergence introduced
+after DP1 is invisible to the first and visible to the second.
+
 Three things the oracle simply cannot answer, marked n/a: its `CTFontCreateForCharacters`
 is an empty stub, so it has no CJK fallback to compare against (ours returns
 HiraKakuPro-W3), and its advances entry point returns NaN for fonts created on its own
@@ -672,7 +689,13 @@ activation is the only way to make a descriptor resolvable at all.
 The consequence is a real behavioural difference, not just an implementation one. A web
 font loaded on Tiger becomes visible process-wide: it will appear in
 `CTFontManagerCopyAvailableFontFamilyNames` and can shadow an installed family of the
-same name. ATS offers no unregistered-but-resolvable mode to avoid it. Worth knowing
+same name.
+
+The same property turns out to be useful in a way it was not designed for. Loading a font
+through `CTFontManagerCreateFontDescriptorFromData` makes it resolvable by PostScript name
+to *any* CoreText in the process, including the 9A241 build used as an oracle, which has
+no `CTFontManager` of its own at all. That is how the metric comparison above got the same
+font bytes into both implementations. ATS offers no unregistered-but-resolvable mode to avoid it. Worth knowing
 before debugging a page whose `@font-face` named "Arial" appears to affect unrelated text.
 
 ## Leopard's CoreText cannot be used directly
