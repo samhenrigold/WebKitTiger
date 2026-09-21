@@ -666,3 +666,7 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   what made it survive a report and a round of debugging. **Build it only with `make -C compat ARCH=x86_64 install`.**
   To check a suspect archive in one step, call `_dyld_find_unwind_sections` on `&main` from a 64-bit C program and
   print the result: 1 with non-null section pointers is good, 0 is the stale archive.
+- RULE: staged artifacts in toolchain/sysroot-*/usr have ONE producer. libtigercompat.a comes only from
+  `make -C compat install` (i386) / `make -C compat ARCH=x86_64 install`; never hand-build and copy it. A stale archive
+  broke every 64-bit throw for an hour (two producers). Check: a 64-bit C program calling _dyld_find_unwind_sections(&main,..)
+  must return 1. Canonical 64-bit C++ link line is in spike/run64.sh (spike/cxx64exc.cpp: 8 exception cases pass).
