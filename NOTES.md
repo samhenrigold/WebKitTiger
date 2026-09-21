@@ -920,3 +920,43 @@ build. Link line and test binary: deps/spike-tests/test_curl_smoke.c.
   mapping: two-tier local answer, "pending" state while inside the synchronous -interpretKeyEvents: (zero staleness,
   better than upstream's staging trick), "applied" IPC-confirmed state otherwise; never block. UI process must refresh
   "applied" on every selection-moving reply, not just keydown.
+
+## x86_64 build-flags audit (2026-09-20, deps agent)
+Checked every x86_64 lib's *actual* compiler invocation (config.log / build.ninja /
+CMakeCache-equivalent, not the build script's intent) for -march/-mtune, optimization
+level, SIMD codegen, and Rosetta cross-compile contamination (see "Rosetta cross-compile
+trap" above). Verified CMake's CMAKE_CROSSCOMPILING specifically with a throwaway
+CMakeLists.txt + the real toolchain file: it comes out TRUE because CMAKE_SYSTEM_PROCESSOR
+(x86_64) differs from CMAKE_HOST_SYSTEM_PROCESSOR (arm64), independent of the explicit
+`set(CMAKE_CROSSCOMPILING ON)` added earlier as a defensive measure -- so that line was
+insurance, not a fix for an actual bug. No offenders found; nothing needed rebuilding.
+
+| lib | flags | SIMD |
+|---|---|---|
+| zlib | -O3 -march=core2 -mtune=core2 | n/a |
+| brotli | -O3 -march=core2 -mtune=core2 | n/a |
+| nghttp2 | -O3 -march=core2 -mtune=core2 | n/a |
+| LibreSSL | -O3 -march=core2 -mtune=core2 | n/a (LibreSSL's own asm is a separate build-time choice, not audited here) |
+| curl | -O3 -march=core2 -mtune=core2 | n/a |
+| sqlite | -O3 -march=core2 -mtune=core2 | n/a |
+| libxml2 | -O3 -march=core2 -mtune=core2 | n/a |
+| libxslt | -O3 -march=core2 -mtune=core2 | n/a |
+| libpng | -O3 -march=core2 -mtune=core2 | Intel SSE ON (PNG_INTEL_SSE_TRUE, decided by host_cpu=x86_64 string match, not a run-test; intel_init.o present) |
+| libjpeg-turbo | -O3 -march=core2 -mtune=core2 | ON (WITH_SIMD=1; jsimd.c.o + jsimdcpu.asm.o + sse2/avx2 *.asm.o all present; runtime-dispatches to SSE2 on Core 2) |
+| libwebp | -O3 -march=core2 -mtune=core2 | SSE2 + SSE4.1 ON (compile-only `-c` capability probes, not run-tests; *_sse2.o and *_sse41.o present) |
+| dav1d | -O3 -march=core2 -mtune=core2 | ON (nasm-assembled *_sse.obj/avx2/avx512 tiers present; dav1d's "_sse" tier is SSSE3-and-up code despite the filename) |
+| libavif | -O3 -march=core2 -mtune=core2 | inherits dav1d's SIMD |
+| freetype | -O3 -march=core2 -mtune=core2 | n/a |
+| expat | -O3 -march=core2 -mtune=core2 | n/a |
+| fontconfig | -O3 -march=core2 -mtune=core2 | n/a |
+| pixman | -O3 -march=core2 -mtune=core2 | SSSE3 ON ("Checking if SSSE3 Intrinsic Support compiles: YES", compile-only) |
+| cairo | -O3 -march=core2 -mtune=core2 | inherits pixman's SIMD |
+| ICU 76.1 | -O2 -O3 -march=core2 -mtune=core2 (ICU's own RELEASE_CFLAGS=-O2 preset, then our -O3 appended after -- -O3 wins) | n/a |
+| HarfBuzz | -O3 -march=core2 -mtune=core2 | n/a (no hand-written SIMD in this build; relies on -O3 auto-vec) |
+
+None lacked -march/-mtune, none built at -O0/-O1/-g-only, no SIMD path was silently
+disabled by a Rosetta-fooled probe (all the relevant checks -- libpng's PNG_INTEL_SSE
+branch, libwebp's -msse2/-msse4.1 capability checks, pixman's SSSE3 intrinsic check -- are
+either host_cpu string matches or compile-only `-c` probes, never execute a conftest), and
+cross_compiling/needs_exe_wrapper/CMAKE_CROSSCOMPILING were correctly set for every build
+that was actually affected by their absence (only ICU, already fixed). No changes made.
