@@ -422,3 +422,9 @@ one triage pass before it was noticed. See the triage table at the end of
   on Tiger's x86_64 libSystem. Rendering backend inside the content process: decided by the spikes (Leopard x86_64 CG/CT
   loaded privately vs cairo/freetype/harfbuzz). WebKitLegacy is no longer the target; the 32-bit WebCore work continues only as
   far as it transfers (generic Tiger gates, compat layer for the UI side).
+- 2021 pin (logs/jit-pin-2021-plan.md): x86-32 JIT alive on GTK/WPE Linux CI until deletion 2021-08-20 (bug 229331); pin point
+  82044153d434; cheaper port (OptionsMac.cmake + curl WK1 backend still in-tree) but freezes platform/security at 2021 and
+  Mac x86-32 JIT correctness was never bot-tested. Status: fallback only, given the user's 64-bit/latest direction.
+- Post-update ABI screen: 510 functions, no new hits (dd2d487). WebCore 32-bit compile: 51 failures left, named list.
+- qtkit-plan §9: QTVisualContext C API lives in QuickTime.framework (present on 7.6.4); video as a GL quad in the CARenderer
+  frame (no IOSurface, so no zero-copy CALayer.contents). Relevant only to a 32-bit media path now.
