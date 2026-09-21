@@ -904,3 +904,10 @@ build. Link line and test binary: deps/spike-tests/test_curl_smoke.c.
   running test passed in both.
 - build/builtins-i386 (compiler-rt builtins) went with the build/ deletion; i386 C++ spikes cannot link until deps
   restores it (assigned).
+- Serializer symmetry guard (wcplan 4a903f0, logs/serializer-asymmetry.md): hashing generated serializer .cpp CANNOT
+  detect divergence (conditionals are emitted verbatim and evaluated by each side's compiler). Guard = preprocessor
+  probe built from every conditional in the shared .in files, preprocessed per side, diffed. 293 distinct conditionals
+  over 650 inputs; 69 serialization inputs disagree between our sides today. Fix: TIGER_WIRE_* flags (wire shape,
+  forced identical) separate from framework-availability flags; never PLATFORM(COCOA)=1 wholesale on x86_64. Fifth
+  offender class: ArgumentCoder<std::span<T>> bulk-writes sizeof(T); static_assert on element layout (objcrt).
+  Generated coders inherit wireAlignmentOf via encodeSpan, no regeneration needed.
