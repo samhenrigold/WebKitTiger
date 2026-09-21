@@ -569,3 +569,8 @@ one triage pass before it was noticed. See the triage table at the end of
   and run-time probes report macOS 27's behavior (ICU silently built an empty data lib). Force cross_compiling=yes /
   needs_exe_wrapper=true / CMAKE_CROSSCOMPILING=ON for every x86_64 build; the i386 builds never hit this (Rosetta can't run i386).
 - fontconfig: generated-file steps must not see the wrapper's -include tigerprelude.h (override $(CPP) for gperf generation).
+- WIDGET LAYER CORRECTION (user, 00:05): live on-screen NSViews can't be drawn over by page content (z-order train wreck).
+  Design: real AppKit controls hosted in an OFFSCREEN NSWindow in the UI process, captured to bitmaps on state change
+  (cacheDisplayInRect:) and composited as CALayers in the page's layer tree (proper z-order/clipping/transforms); events
+  translated and forwarded; AppKit modal tracking loops replaced by explicit highlight/click/value updates; NSMenu popups stay
+  real windows. Prototype: CAHost phase 4 (revised).
