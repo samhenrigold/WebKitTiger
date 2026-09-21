@@ -788,13 +788,17 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
     include, not compile and then die on undefined `dispatch_*` at link time. `dispatch_*` cannot exist in 64-bit,
     since the main queue needs CFRunLoop and Tiger has no x86_64 CoreFoundation. A stale `dispatch/` left in
     sysroot-x86_64 from the hand-rolled era was removed; nothing regenerates it. Verified: the include now fails.
-- `compat/include/sdk-fill/Availability.h` was **restored** (23:15) from the staged copy in
+- **[WRONG, see the correction further down; do not act on this entry.]**
+  `compat/include/sdk-fill/Availability.h` was **restored** (23:15) from the staged copy in
   `toolchain/sysroot-i386/usr/include/sdk-fill/`, which still had it intact from 19:56. It had been created but never
   committed, so it existed only as the derived copy and vanished from the source tree; it is committed now. It is also
   staged into the **x86_64** sysroot for the first time. This is the second time this class of loss has happened here
-  (see the Housekeeping note about six overlay availability headers). **A header that only exists staged is a header
-  you have already lost**: `git status` cannot show a file that was never added, so commit new files in sdk-fill and
-  the overlay the same day they are written.
+  (see the Housekeeping note about six overlay availability headers). **The rule below is still right, the example
+  is not**: this particular header was never lost, it had simply moved to the overlay. **A header that only exists
+  staged is a header you have already lost**, because `git status` cannot show a file that was never added, so commit
+  new files in sdk-fill and the overlay the same day they are written. But before "restoring" one from a sysroot,
+  check whether the canonical copy moved: a staged file is evidence that something once built, not that the source
+  tree is missing anything.
 - MSE demux proven with libavformat (2026-09-20, media64 track, logs/mse-demux.md, spike/msebench.c): **no fMP4 box
   parser needed**, but the obvious design fails. One long-lived AVFormatContext per SourceBuffer over a growing
   append buffer (read callback returning EAGAIN when starved) decodes the first segment and then nothing, for mov
