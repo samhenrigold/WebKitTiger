@@ -343,6 +343,16 @@ we were about to answer ourselves:
 - The whole `uuid_*` family for NSUUID, which an early survey of mine wrongly
   called missing after a truncated grep.
 
+Before trusting an export list, check it filters on **defined** symbols. A list
+built without that filter contains everything the binary imports as well, so a
+"present-but-undeclared" check against one reports capabilities the framework
+does not have. The cgcompat track hit this: `logs/api/tiger-ImageIO.txt` listed
+699 names where ImageIO defines 269, the other 430 being CoreFoundation and libc
+imports. Verified clean for the lists used here: `tiger-CF.txt` contains none of
+`objc_msgSend`, `malloc` or `pthread_mutex_lock`, all of which CoreFoundation
+imports. The four symbols above are `T` in the binaries and are exercised by
+passing tests on the box, which is the stronger check of the two.
+
 The corollary that bit twice: **the export list and the SDK header disagree
 often.** `logs/api/tiger-*.txt` is what the binary exports; the SDK is what 2005
 chose to declare. Check the export list, not just the header, before concluding
