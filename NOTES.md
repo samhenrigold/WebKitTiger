@@ -181,3 +181,6 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   prologue reads (tiger-otool -tV) with the modern prototype's i386 cdecl argument size; hand-check candidates. Found CTLineDraw's
   extra CFRange. Run it on any framework we call by name. Tiger's malloc zone ABI is version 3 (no memalign field), so
   malloc_zone_memalign cannot be offered; posix_memalign's mmap path matches Snow Leopard's Libc step for step.
+- LINK RULE 2: never strip local symbols on this port (no `strip -x`, no `-Wl,-x`): protocol ext records
+  (__OBJC_PROTOCOLEXT_*) are recovered by name from the symbol table for JSExport, since Tiger's runtime discards the pointer.
+- dispatch_once is now lock-free per libdispatch (a global mutex deadlocked cross-thread nested onces).
