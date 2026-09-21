@@ -533,3 +533,13 @@ one triage pass before it was noticed. See the triage table at the end of
   `ld64 -arch x86_64 /usr/lib/crt1.o foo.o -lSystem -macosx_version_min 10.4 -o foo`, and for a dylib
   `-dylib /usr/lib/dylib1.o ... -dylib_install_name <path> -dylib_compatibility_version/-dylib_current_version`.
   Not needed for the build: the cross linker is correct now.
+- Reference linker: toolchain/apple-ld64-97/ld (Apple ld64-97.17 from Xcode 3.2.6, run via `arch -x86_64`; classic options; pass
+  archives by full path; add crt1.o/dylib1.o yourself). Our patched cctools ld64 matches its behavior (classic dyld_stub_binding
+  _helper path, no LC_DYLD_INFO). sdk/MacOSX10.6.sdk added (read-only, reference headers).
+- gdb 6.3 on the box rejects cctools-ld64 output (LC_VERSION_MIN_MACOSX 0x24, LC_FUNCTION_STARTS 0x26, LC_DATA_IN_CODE 0x29).
+  For debuggable binaries link with the reference ld64-97 (emits none of them) or try -no_function_starts -no_data_in_code_info.
+- UI-side video via QuickTime's OpenGL visual context (spike/CAHost/CAVideo.m): real-time to 1024x576; 720p 7-8 of 15 fps
+  (decode-bound); QTKit's setVisualContext: drags in Core Image, so use the C Movie API (NewMovieFromProperties +
+  SetMovieVisualContext + MoviesTask). BLOCKER FIXED: the Apple TV QuartzCore duplicates 207 Core Image class names and poisons
+  +[CIFilter filterWithName:] in any process that loads both; spike/CAHost/decollide.py renames its CI* strings to ZI* (rebundle.sh
+  runs it). Any UI process loading the private QuartzCore needs this.
