@@ -164,3 +164,105 @@ NOARC=1 spike/run.sh spike/nscompattest.mm -ltigerdispatch
 | NSURL resource values | Tiger has no resource-value store. The getter reports nil and the setter succeeds without doing anything, which is right for the one WebKit writer (the backup-exclusion flag) |
 | zeroing-weak NSMapTable | impossible on the fragile runtime; degraded to non-retained, so entries dangle instead of zeroing |
 | per-queue NSOperationQueue concurrency width, operation dependencies, KVO on isFinished, cancelling a started operation | not needed by the three WebCore call sites |
+
+---
+
+# Triage of the AppKit/Foundation selector gaps
+
+Input: `logs/appkit-selector-gaps.md`, the audit track's list of 48 selectors
+WebKit's Mac code sends that Tiger does not implement and compat did not shim.
+That file is explicit that it is a starting list rather than a work queue, and
+this is the triage it asks for.
+
+Method: for each selector, find every call site by its **first keyword** rather
+than by the joined-up selector string, walk the preprocessor stack to the site,
+and record the enclosing `HAVE()` / `ENABLE()` / `USE()` gates. Then check the
+gate's current value for this port against `OptionsCocoa.cmake`'s TIGER list and
+the `PLATFORM(TIGER)` blocks in `PlatformEnableCocoa.h` and `PlatformHave.h`.
+
+Matching by the first keyword matters. An earlier pass of mine searched for the
+whole selector with its colons joined (`propertyListWithData:options:format:error:`)
+and reported three live sites as "not found", because a real call site has the
+arguments interleaved. To ask whether a multi-part selector is used,
+reconstruct it from the keyword parts; never grep it as a literal.
+
+## (d) Live, ungated, shimmable — done
+
+All implemented in `compat/nscompat.m` or `compat/nscompat-appkit.m`, declared in
+`NSCompat.h` or `AppKitCompat.h`, and checked on the Tiger box in MRR and ARC.
+
+| Selector | Tiger equivalent used | Sites |
+|---|---|---|
+| `NSWorkspace` `accessibilityDisplayShouldIncreaseContrast` / `…DifferentiateWithoutColor` / `…InvertColors` / `…ReduceMotion` | none needed; Tiger has no such settings, so `NO` is the state of the machine | 7 |
+| `+[NSEvent pressedMouseButtons]` | `CGEventSourceButtonState`, which is in the 10.4 SDK — a real query, not a stub | 9 |
+| `+[NSMenu menuTypeForEvent:]` | right-click or control-click, which is how Tiger raised a context menu | 2 |
+| `+[NSRunLoop mainRunLoop]` | captured at load, as `+[NSThread mainThread]` already is | 2 |
+| `+[NSCalendar calendarWithIdentifier:]` | `-initWithCalendarIdentifier:` | 1 |
+| `-[NSProcessInfo disableSuddenTermination]` / `-enableSuddenTermination` | counting no-ops; sudden termination is a launchd contract Tiger has no part of | 4 |
+| `+[NSPropertyListSerialization propertyListWithData:options:format:error:]` | `+propertyListFromData:mutabilityOption:format:errorDescription:`, text carried into the `NSError` | 2 |
+| `+[NSGraphicsContext graphicsContextWithCGContext:flipped:]` | `+graphicsContextWithGraphicsPort:flipped:`; Tiger's graphics port already is a `CGContextRef` | 2 |
+| `+[NSCursor contextualMenuCursor]` / `+dragCopyCursor` | `+arrowCursor`; Tiger draws no distinct pointer for either situation | 2 |
+| `-[NSSpellChecker updatePanels]` | no-op; Tiger has only the spelling panel, refreshed by a call WebKit makes separately | 10 |
+| `-[NSNumber initWithInteger:]` | `-initWithInt:` | 1 |
+
+## (a) Behind a gate already off for this port — no shim
+
+| Selector | Gate | Where it is turned off |
+|---|---|---|
+| `systemUptime` | `ENABLE(VIDEO_PRESENTATION_MODE)` | `OptionsCocoa.cmake` TIGER list, and again in `PlatformEnableCocoa.h` |
+| `beginGrouping`, `endGrouping` | `ENABLE(VIDEO)` | `OptionsCocoa.cmake` TIGER list |
+| `serviceRolloverButtonCellForStyle:` | `ENABLE(SERVICE_CONTROLS)` | same |
+| `removeFromSuperlayer`, `setAnchorPoint:`, `valueWithCATransform3D:` | `ENABLE(RESOURCE_USAGE)`, `ENABLE(REMOTE_INSPECTOR)`, `ENABLE(VIDEO_PRESENTATION_MODE)` | same; and these are CoreAnimation, which belongs to the atv track rather than to compat |
+
+## (b) In a file or branch this port does not build
+
+| Selector | Why |
+|---|---|
+| `initWithCGImage:size:` | `PLATFORM(IOS_FAMILY) && ENABLE(DRAG_SUPPORT)` — the iOS branch |
+
+## (c) A concept Tiger lacks by definition — gate it, do not shim it
+
+Sent to wkcmake with the sites. Each of these gates is currently **on** for
+Tiger, because it defaults on for `PLATFORM(MAC)` with no version check and is
+not yet in a `PLATFORM(TIGER)` block. The argument against shimming is the one
+the HDR case established: a `HAVE()` is a claim about what the platform can do,
+and a stub makes the claim true at the link level while it stays false at the
+behaviour level.
+
+| Selectors | Gate | Concept, and when it arrived |
+|---|---|---|
+| `currentDrawingAppearance`, `setCurrentAppearance:`, `appearanceNamed:` | `USE(APPKIT)`, so effectively ungated | `NSAppearance`, 10.9 and 10.14. The porting plan already routes these to a no-op constructor and destructor in `LocalDefaultSystemAppearance.mm`, so this is a WebCore edit rather than a gate or a shim |
+| `preferredScrollerStyle` | `USE(APPKIT)` | `NSScrollerStyle`, 10.7. Belongs to the `ScrollbarThemeMac` rewrite in plan section 4.3a |
+| `beginActivityWithOptions:reason:`, `endActivity:` | `HAVE(NS_ACTIVITY)`, `PlatformHave.h:420` | 10.9 power-management contract with launchd |
+| `isAutomaticTextCompletionEnabled` | `HAVE(TOUCH_BAR)`, `PlatformHave.h:424` | 10.12.2 |
+| `dismissCorrectionIndicatorForView:` | `USE(AUTOCORRECTION_PANEL)`, `PlatformUse.h:194` | 10.7 correction indicator |
+| `substitutionsPanel` | `USE(AUTOMATIC_TEXT_REPLACEMENT)`, `PlatformUse.h:190` | 10.6 substitutions panel |
+| `grammarCheckingEnabled` | `USE(NSSPELLCHECKER_GRAMMAR_CHECKING_POLICY)`, `PlatformUse.h:371` | 10.12 |
+| `valueWithCGRect:` | `ENABLE(REVEAL)` | Reveal is 10.14 |
+
+## (e) Not gaps at all
+
+Three of the 48 are artefacts of the heuristic. One in sixteen is a good rate
+for one, and the list says up front that it is heuristic.
+
+| Entry | What it actually is |
+|---|---|
+| `propertyListFromData:` | inside a `LOG` format string at `WebArchive.mm:205`. Tiger has the method anyway |
+| `setDocumentView` | the real send is `setDocumentView:`, which Tiger has. The zero-argument matcher dropped the colon |
+| `drawFocusRingMaskWithFrame` | inside a `FIXME` comment at `ControlMac.mm:256` |
+
+## Remaining, and why they are not resolved here
+
+`blockQuoteIntentWithIdentity:nestedInsideIntent:` (`NSPresentationIntent`, 12.0),
+`initWithPasteboardPropertyList:ofType:` (`NSPasteboardReading`, 10.6),
+`discardMarkedText` (`NSTextInputContext`, 10.6), `removeMonitor:` (local event
+monitors, 10.6), `deletesAutospaceBeforeString:language:`,
+`updateSpellingPanelWithGrammarString:detail:`, `standardQuickLookMenuItem`,
+`standardShareMenuItemForItems:`, `requestBubbleClosureUnanchorOnFailure:`,
+`writeToURL:options:originalContentsURL:error:`.
+
+These are all in `WebKitLegacy/mac` UI paths, and several sit next to features
+whose switches that layer has not been configured with yet. Deciding between a
+shim and a gate needs that configuration first, and guessing now would mean
+writing stubs for code that may not be compiled. They are listed so the next
+pass starts from a known set rather than from another grep.
