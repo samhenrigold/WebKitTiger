@@ -1,0 +1,47 @@
+=== unit tests ===
+ISO-BMFF:
+  ok   empty buffer -> 0
+  ok   moof alone (mdat never arrived) -> 0
+  ok   moof+mdat -> 156
+  ok   moof+mdat short by one byte -> 0
+  ok   only the moof header -> 0
+  ok   less than one box header -> 0
+  ok   fragment then a bare moof -> 156
+  ok   two whole fragments -> 272
+  ok   styp+sidx+moof+mdat -> whole buffer
+  ok   64-bit largesize mdat -> whole buffer
+  ok   64-bit largesize mdat short by one -> 0
+  ok   64-bit header itself truncated -> 0
+  ok   trailing size-0 mdat is never complete -> 120
+  ok   size-0 mdat alone -> 0
+  ok   size smaller than the box header -> 0
+  ok   absurd trailing size -> 156
+EBML/WebM:
+  ok   empty buffer -> 0
+  ok   one Cluster -> whole buffer
+  ok   Cluster short by one byte -> 0
+  ok   only the element ID -> 0
+  ok   two Clusters -> whole buffer
+  ok   second Cluster incomplete -> 72
+  ok   trailing Cues does not extend the prefix -> 72
+  ok   unknown-size Cluster is never complete -> 72
+  ok   invalid leading byte 0x00 -> 0
+
+=== pipeline: fragmented MP4 ===
+fMP4 H.264: reference (whole-segment appends) = 900 packets
+fMP4 H.264: 4 top-level boundaries in segment 1, testing 193 cut positions
+  ok   fMP4 H.264: all 193 cut positions yield 900 packets
+fMP4 H.264: 2669 appends had no complete fragment yet and were buffered
+  ok   fMP4 H.264: cut at 550210 decodes 900/900 frames
+  ok   fMP4 H.264: cut at 275434 decodes 900/900 frames
+  ok   fMP4 H.264: cut at 368 decodes 900/900 frames
+
+=== pipeline: WebM ===
+WebM VP9: reference (whole-segment appends) = 900 packets
+WebM VP9: 1 top-level boundaries in segment 1, testing 172 cut positions
+  ok   WebM VP9: all 172 cut positions yield 900 packets
+WebM VP9: 2505 appends had no complete fragment yet and were buffered
+  ok   WebM VP9: cut at 686037 decodes 900/900 frames
+  ok   WebM VP9: cut at 343018 decodes 900/900 frames
+
+PASSED (0 failures)

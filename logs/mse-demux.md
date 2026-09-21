@@ -160,3 +160,42 @@ moves from 900 to about 700 for the parse side, plus ~120 for the two scanners.
   unchanged but were not measured.
 - Decode timings in this log were taken while other agents were loading the box and
   are not throughput numbers; `logs/decodebench-tiger.txt` has the clean ones.
+
+## Addendum: the scanner is written and tested (`spike/msescan.c`)
+
+`mse_scan_mp4()` and `mse_scan_webm()` are now a standalone unit (`spike/msescan.h`
++ `spike/msescan.c`, 95 lines of code) with no dependency on libavformat: pure
+functions returning the byte length of the leading prefix that is safe to parse.
+Tests live in `spike/msescantest.c`, run by `spike/run-msescantest.sh`; results in
+`logs/msescantest-tiger.txt`. All run on the box.
+
+25 synthetic unit tests pass, including the adversarial cases:
+
+- a `moof` whose `mdat` never arrives returns 0, and a fragment followed by a bare
+  `moof` returns the end of the first fragment;
+- an `mdat` declared with size 0 ("extends to end of file") is never complete,
+  since a growing buffer has no end, so the walk stops in front of it;
+- 64-bit `largesize` boxes, a truncated 64-bit header, a size smaller than the box
+  header, and an absurd trailing size are all handled;
+- for WebM, a Cluster short by one byte, a trailing `Cues` that must not extend the
+  prefix, an unknown-size (all-ones) Cluster, and an invalid `0x00` leading byte.
+
+The pipeline sweep feeds all 15 segments of each stream, splitting **every**
+segment in two at the same absolute byte offset, over 193 offsets for fMP4 and 172
+for WebM. The offsets cover every byte in the first 128, every offset within +/-3 of
+each top-level boundary of segment 1, and a 40-step stride across the segment.
+
+| Stream | Cut positions | Packets at every cut | Deep cuts decoded |
+|---|---|---|---|
+| fMP4 H.264 720p | 193 | 900 / 900 | whole-segment, mid-`mdat`, mid-`moof` |
+| WebM VP9 720p | 172 | 900 / 900 | whole-segment, mid-Cluster |
+
+900 rather than the 600 in the tables above simply because this test feeds all 15
+segments (30 s at 30 fps) instead of skipping five for a seek phase.
+
+One further finding, from making the test work: the decoder must be built from
+**init segment + first complete fragment**, not from the init segment alone.
+Matroska will not `avformat_open_input` without a Cluster at all. That is the same
+constraint the streaming model hit, and it means `SourceBufferPrivateFFmpeg` reports
+its `InitializationSegment` upward after the first complete fragment parses, not the
+moment the init segment is appended.
