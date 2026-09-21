@@ -963,3 +963,12 @@ that was actually affected by their absence (only ICU, already fixed). No change
 - RULE: nothing under build/ is removed except via tools/rm-build-tree.sh (ld64fix's name-validating guard with
   self-test; wkcmake committing). An inline rm -rf is unreviewable. Note the guard's own first version refused every
   legitimate path (mktemp -d returns /var/folders, a symlink to /private/var); only its self-test caught it.
+- Remoting recipe (leopard 0c0fdac, logs/wincairo-remoting-recipe.md): upstream Win is SKIA now (OptionsWin.cmake:91),
+  Cairo only in the else arm; no OptionsWinCairo.cmake. The wire is RemoteGraphicsContext (103 messages), NOT
+  RemoteDisplayListRecorder (its .messages.in is in no build). One switch, USE_GRAPHICS_LAYER_WC, selects DrawingAreaWC
+  and defaults DOM/canvas/WebGL to the GPU process. ColorSpace already has a neutral arm (neither CG nor Skia);
+  ShareableBitmapConfiguration inherits the CG problem; FontPlatformDataAttributes needs new work (no font identity in
+  the neutral arms). Recommendation: web process keeps a LOCAL software raster (cairo/pixman x86_64 already built) for
+  image decoding, font metrics, stroke hit-testing, toDataURL; it may allocate pixels but never present them. Layer
+  children arrive as wholesale replacement (maps to a sublayers assignment); CA runs animations itself; replicas have
+  no CA equivalent.
