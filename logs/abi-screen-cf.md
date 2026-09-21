@@ -377,6 +377,58 @@ out-of-line declaration anywhere (`CGPointEqualToPoint`, `CGSizeApplyAffineTrans
 and friends), the same class as `CFRangeMake`: they are inlined at every call site and
 never reach the dynamic linker, so there is nothing to screen.
 
+## Post-update re-run, 2026-09-20 22:00 EDT
+
+The box took Security Update 2009-005 and the rest of Tiger's final updates at 21:50
+(NOTES: "BOX STATE FROZEN"). CoreGraphics, CoreText, ATS and ImageIO changed bytes with
+identical export sets, and CoreFoundation, LaunchServices, HIServices and Security
+changed too, by prebinding. Every measurement in the sections above predates that, so
+the whole screen was re-run against the frozen state.
+
+**Result: no new hits. Every count and every named function is identical to the
+pre-update run.** The three reports differ only in the header line naming the binary
+directory.
+
+| framework | screened | over-reads | under-reads | undetermined | change |
+|---|---|---|---|---|---|
+| CoreFoundation + ATS + LaunchServices + HIServices + Security | 206 | 0 | 0 | 1 | none |
+| CoreGraphics | 250 | 1 (`CGGStateGetCTM`) | 4 | 9 | none |
+| CoreText | 54 | 6 | 3 | 3 | none |
+
+The all-exports stub sweep over CoreText's 155 public-shaped exports is also unchanged:
+the same four empty (`CTRunDraw`, `CTRunGetAdvances`, `CTRunGetGlyphs`,
+`CTRunGetStringIndices`), the same three constant-return
+(`CTFontCreateUIFontForLocale`, `CTFontCreateWithQuickdrawNameAndStyle`,
+`CTRunGetEmbeddedObject`) and the same two global-return (`CTLineGetImageBounds`,
+`CTRunGetImageBounds`). The CoreText positive control still flags `CTLineDraw` and
+`CTLineGetTypographicBounds` against the post-update binary, so the re-run measured
+something rather than no-opping.
+
+**Which bytes were screened.** `sysroot/` had not been re-mirrored when this ran, and
+its copies of all eight binaries differ from the box. Rather than assume prebinding is
+semantically inert, every binary was screened at its current on-box bytes and each md5
+checked against `ssh tiger md5 -q <path>` first:
+
+| binary | source | md5 |
+|---|---|---|
+| CoreGraphics | `refs/tiger-postupdate/` | `09cfb0ff555a6c4ea492ef1ea4e2f029` |
+| CoreText | `refs/tiger-postupdate/` | `8328cb19a7f62214d4554e36ce4e42cb` |
+| ATS | `refs/tiger-postupdate/` | `286b2aa3117c19800254a2128b2847f6` |
+| ImageIO | `refs/tiger-postupdate/` | `2e7ef719ae256a3172be1e878759c770` |
+| CoreFoundation | fetched from the box | `c5de8961187c67abd4c15af2bdfef1ce` |
+| LaunchServices | fetched from the box | `e9d66e8902c0897361f6777b0198ba25` |
+| HIServices | fetched from the box | `b05b423c364fe751a0b0505169d19ef3` |
+| Security | fetched from the box | `4eda74b82bbeae3f2dfa59c1a72ee0d6` |
+
+The four in `refs/tiger-postupdate/` (fetched by ctcompat/cgcompat) were verified to
+match the box exactly. `tools/abi-screen.py` grew a `--binaries=<dir>` option for this,
+which substitutes `<dir>/<Framework>` for the `sysroot/` copy; once the re-mirror lands
+the flag can be dropped and the plain invocation screens the same bytes.
+
+This corroborates ctcompat's finding that the 29 load-bearing CoreText functions are
+byte-identical across the update, and extends it: the argument footprints of all 510
+screened functions are unchanged too, as is every stub verdict.
+
 ## Appendix: all 206 screened functions
 
 | function | framework | call sites | modern i386 arg bytes | Tiger arg bytes | verdict |

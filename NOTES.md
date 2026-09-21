@@ -235,6 +235,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   own bullets/sections and include NOTES.md in your path-scoped commit; don't rewrite others' text.
 - HarfBuzz 14.5 (meson, static, OT shaper only) is in the sysroot; deps/spike-tests/test_harfbuzz.c shaped Latin and Arabic on the box.
 - Static ABI screening is complete (tools/abi-screen.py, logs/abi-screen-cf.md): 510 functions, every over-read already adapted.
+  Re-run 22:00 against the FROZEN post-update binaries (md5-verified against the box; `--binaries=<dir>` overrides sysroot/ until
+  the re-mirror lands): every count and every named function identical to the pre-update run, stub sweep included. No new hits.
 - CG behavioral probing complete (logs/shim-audit.md, spike/): pattern tiling, transparency layers under CTMs, dash phase,
   clip-to-rects, masking colors all match modern. cgcompat's CGContextDrawTiledImage loop seamed at fractional origins;
   fixed in ce943a5 by bracketing the loop with antialiasing off, so adjacent tiles' shared edge snaps the same way for both

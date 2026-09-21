@@ -22,6 +22,9 @@ parameter Tiger declares but never reads.
 
 Usage:  tools/abi-screen.py <framework> [<framework> ...]
         tools/abi-screen.py --control            # re-run the CoreText positive control
+        tools/abi-screen.py --binaries=<dir> ... # screen <dir>/<Framework> instead of
+                                                 # sysroot/, for a box state sysroot has
+                                                 # not been re-mirrored to yet
 
 Frameworks are named in FRAMEWORKS below. Run from the project root.
 """
@@ -437,6 +440,11 @@ FP8 = {"movsd", "fldl", "fstl", "fstpl", "addsd", "mulsd", "subsd", "divsd", "mo
 
 def main(argv):
     control = "--control" in argv
+    override = next((a.split("=", 1)[1] for a in argv if a.startswith("--binaries=")), None)
+    if override:
+        for k, (path, pre) in list(FRAMEWORKS.items()):
+            cand = os.path.join(override, k)
+            if os.path.exists(cand): FRAMEWORKS[k] = (cand, pre)
     fws = [a for a in argv if not a.startswith("--")] or ["CoreFoundation"]
     if control: fws = ["CoreText"]
     workdir = os.environ.get("TMPDIR", "/tmp")
@@ -505,7 +513,8 @@ def main(argv):
             # CGRectIsNull only needs a CGRect's origin to answer.
             under.append(row)
 
-    print("frameworks: %s" % ", ".join(fws))
+    print("frameworks: %s%s" % (", ".join(fws),
+          ("   [binaries from %s]" % override) if override else ""))
     print("screened %d functions (%d call sites)  clean=%d over-reads=%d "
           "under-reads=%d undetermined=%d"
           % (len(screened), sum(counts.get(n, 0) for n in screened),
