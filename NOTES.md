@@ -567,8 +567,11 @@ one triage pass before it was noticed. See the triage table at the end of
   on the C API (~3-4.2k LOC) not WKWebView (~27k + RemoteLayerTree). Backing-store DrawingArea is alive (Windows/PlayStation);
   one missing file: a CG backing store (~150-200 LOC) for the UI side. Two build dirs + one shared feature-flag fragment + a step
   diffing the generated IPC trees. NetworkProcess stays separate (curl sources exist; 81-line entry point). Content-process side
-  ~1.4-1.6k LOC. BUILD RULE: both architectures must be compiled with the same clang (long long alignment 8 on i386 Darwin under
-  clang; Tiger's gcc says 4). Consequence for rendering branch (a): WebCore with USE(CG)/USE(CORE_TEXT) but PLATFORM(COCOA) off,
+  ~1.4-1.6k LOC. BUILD RULE: both architectures must be compiled with the same clang, so that sizeof and alignof agree for every
+  non-scalar wire type. The reason once given here was backwards and is corrected below: our clang reports alignof(long long)
+  and alignof(double) as 4 on i386 (the correct ABI alignment) against 8 on x86_64, so 64-bit scalars were NOT safe by
+  default; wireAlignmentOf in the cross-ABI patch is what makes them agree.
+  Consequence for rendering branch (a): WebCore with USE(CG)/USE(CORE_TEXT) but PLATFORM(COCOA) off,
   the old Apple-Windows-port shape.
 - ld64 x86_64 crash trigger CORRECTED: global weak definitions (every C++ program; libcrypto's __explicit_bzero_hook), not EH.
   Fixed; "no unwind tables" is not a safety test.
@@ -734,8 +737,11 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
 - IPC cross-ABI patch (toolchain/patches/webkit-ipc-cross-abi.patch, objcrt, branch tiger-ipc-abi): FOURTH offender found:
   Encoder/Decoder pad the wire by alignof(T), which is 4 for 64-bit scalars on i386 Darwin and 8 on x86_64, so every field after
   the first uint64/double shifts. Fixed with a wireAlignmentOf (8-byte scalars aligned to 8 on both sides) plus the requires
-  clause banning long/unsigned long/size_t fields, UnixMessage framing fixed-width, ScrollSnapOffsetsInfo/PlatformXR fields
-  fixed. Both builds must run to catch every offender (ptrdiff_t is int on i386).
+  clause banning long/unsigned long/size_t/long double fields, UnixMessage framing fixed-width,
+  ScrollSnapOffsetsInfo/PlatformXR fields fixed. Both builds must run to catch every offender (ptrdiff_t is int on i386, so
+  it only trips the x86_64 build). Verified by compiling wtf/ArgumentCoder.h for both targets, positive and negative;
+  the include roots are compat/sdk-overlay/usr/include then compat/include, and the overlay alone is sufficient.
+  UnixMessage.h cannot be syntax-checked standalone (Encoder.h pulls the generated MessageNames.h).
 - 64-bit os_log/os_unfair_lock/os_signpost: REVERSED (commits 2c6d1db + 833495c crossed and briefly left no 64-bit impl).
   Final: x86_64 libtigerdispatch.a (os.c ONLY, no dispatch_* since Tiger has no x86_64 CF for the main queue) owns os_*;
   x86_64 libtigercompat.a is 4 members (availability/libcompat/tlv/runtime) and stages no dispatch headers, so a 64-bit
