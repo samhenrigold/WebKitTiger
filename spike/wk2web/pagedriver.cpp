@@ -35,6 +35,7 @@
 #include "LoadParameters.h"
 #include "MessageNames.h"
 #include "NetworkProcessConnectionParameters.h"
+#include "ContentAsStringIncludesChildFrames.h"
 #include "DrawingAreaMessages.h"
 #include "DrawingAreaProxyMessages.h"
 #include "FrameInfoData.h"
@@ -47,7 +48,11 @@
 #include "RemoteWCLayerTreeHostMessages.h"
 #include "WebKit2Initialize.h"
 #include "WebPageCreationParameters.h"
+#include "WebEvent.h"
+#include "WebKeyboardEvent.h"
+#include "WebMouseEvent.h"
 #include "WebPageMessages.h"
+#include "WebWheelEvent.h"
 #include "WebPageProxyMessages.h"
 #include "WebProcessCreationParameters.h"
 #include "WebProcessDataStoreParameters.h"
@@ -293,6 +298,16 @@ public:
 
     int run();
 
+    void setExpectations(String&& expectText, String&& typeText, int clickX, int clickY, int wheelBy, bool assertPage)
+    {
+        m_expectText = WTF::move(expectText);
+        m_typeText = WTF::move(typeText);
+        m_clickX = clickX;
+        m_clickY = clickY;
+        m_wheelBy = wheelBy;
+        m_assertPage = assertPage;
+    }
+
 private:
     const char* nameFor(IPC::Connection& connection) const
     {
@@ -379,6 +394,25 @@ private:
     bool m_finished { false };
     bool m_sawUpdateWithTile { false };
     bool m_renderedCorrectly { false };
+    String m_expectText;
+    String m_typeText;
+    int m_clickX { -1 };
+    int m_clickY { -1 };
+    int m_wheelBy { 0 };
+    bool m_assertPage { false };
+    bool m_allAssertionsPassed { true };
+    bool m_wheelProbeArmed { false };
+    bool m_sawScrollOffset { false };
+    unsigned m_wheelPixelBefore { 0 };
+    unsigned m_wheelPixelAfter { 0 };
+    WebCore::PageIdentifier m_pageIdentifier { WebCore::PageIdentifier::generate() };
+    WebCore::FrameIdentifier m_mainFrameIdentifier { WebCore::FrameIdentifier::generate() };
+
+    String contentsAsString();
+    String renderTree();
+    void sendMouseClick(int x, int y);
+    void typeText(const String&);
+    void sendWheel(int deltaY);
     unsigned m_updateCount { 0 };
     unsigned m_updatesBeforeForce { 0 };
     bool m_verbose { !!getenv("PAGEDRIVER_VERBOSE") };
@@ -447,6 +481,15 @@ void PageDriver::dumpBitmap(WebCore::ShareableBitmap& bitmap, const char* source
         m_renderedCorrectly = divIsRed && backgroundIsWhite && headingInk > 200;
     }
 
+    if (size.width() > 400 && size.height() > 100 && opaque > 400000) {
+        auto row = pixels.subspan(static_cast<size_t>(100) * bitmap.bytesPerRow());
+        unsigned rgb = (row[400 * 4 + 2] << 16) | (row[400 * 4 + 1] << 8) | row[400 * 4 + 0];
+        if (m_wheelProbeArmed)
+            m_wheelPixelAfter = rgb;
+        else
+            m_wheelPixelBefore = rgb;
+    }
+
     if (!m_pngPath)
         return;
     if (writePNG(m_pngPath, pixels, size.width(), size.height(), bitmap.bytesPerRow())) {
@@ -501,12 +544,130 @@ void PageDriver::wcUpdate(WebKit::WCUpdateInfo&& update, CompletionHandler<void(
     reply(std::nullopt);
 }
 
+
+String PageDriver::contentsAsString()
+{
+    String contents;
+    bool done = false;
+    m_toWebProcess->sendWithAsyncReply(Messages::WebPage::GetContentsAsString(
+        WebKit::ContentAsStringIncludesChildFrames::No),
+        [&](String&& result) { contents = WTF::move(result); done = true; },
+        m_pageIdentifier.toUInt64());
+    double deadline = millisecondsNow() + 10000;
+    while (!done && !m_finished && millisecondsNow() < deadline)
+        RunLoop::cycle();
+    return contents;
+}
+
+String PageDriver::renderTree()
+{
+    String tree;
+    bool done = false;
+    m_toWebProcess->sendWithAsyncReply(Messages::WebPage::GetRenderTreeExternalRepresentation(),
+        [&](String&& result) { tree = WTF::move(result); done = true; },
+        m_pageIdentifier.toUInt64());
+    double deadline = millisecondsNow() + 10000;
+    while (!done && !m_finished && millisecondsNow() < deadline)
+        RunLoop::cycle();
+    return tree;
+}
+
+// A press and a release at the same point, which is what a click is on the wire.
+// The page is at the origin of the "screen" here, so position and globalPosition
+// are the same.
+void PageDriver::sendMouseClick(int x, int y)
+{
+    printf("MouseEvent: click at (%d,%d)\n", x, y);
+    for (auto type : { WebKit::WebEventType::MouseDown, WebKit::WebEventType::MouseUp }) {
+        WebKit::WebEventData eventData { type, { }, MonotonicTime::now() };
+        WebKit::WebMouseEventData mouseData;
+        mouseData.button = WebKit::WebMouseEventButton::Left;
+        mouseData.buttons = type == WebKit::WebEventType::MouseDown ? 1 : 0;
+        mouseData.position = WebCore::DoublePoint(x, y);
+        mouseData.globalPosition = WebCore::DoublePoint(x, y);
+        mouseData.clickCount = 1;
+
+        bool done = false;
+        m_toWebProcess->sendWithAsyncReply(Messages::WebPage::MouseEvent(m_mainFrameIdentifier,
+            WebKit::WebMouseEvent::create(WTF::move(eventData), WTF::move(mouseData)), std::nullopt),
+            [&](bool handled, std::optional<WebCore::RemoteUserInputEventData>&&) {
+                printf("  %s handled=%d\n", type == WebKit::WebEventType::MouseDown ? "down" : "up  ", handled);
+                done = true;
+            }, m_pageIdentifier.toUInt64());
+        double deadline = millisecondsNow() + 5000;
+        while (!done && !m_finished && millisecondsNow() < deadline)
+            RunLoop::cycle();
+    }
+}
+
+void PageDriver::typeText(const String& text)
+{
+    printf("KeyEvent: typing \"%s\"\n", text.utf8().data());
+    for (unsigned i = 0; i < text.length(); i++) {
+        auto character = text.substring(i, 1);
+        // KeyDown then KeyUp. The text the editor inserts comes from the event's
+        // text field; windowsVirtualKeyCode is what the editing commands key off.
+        for (auto type : { WebKit::WebEventType::KeyDown, WebKit::WebEventType::KeyUp }) {
+            WebKit::WebEventData eventData { type, { }, MonotonicTime::now() };
+            WebKit::WebKeyboardEventData keyData;
+            keyData.text = character;
+            keyData.unmodifiedText = character;
+            keyData.key = character;
+            keyData.code = makeString("Key"_s, character.convertToASCIIUppercase());
+            keyData.keyIdentifier = character;
+            keyData.windowsVirtualKeyCode = toASCIIUpper(character[0]);
+            keyData.isKeypad = false;
+            keyData.isSystemKey = false;
+
+            bool done = false;
+            m_toWebProcess->sendWithAsyncReply(Messages::WebPage::KeyEvent(m_mainFrameIdentifier,
+                WebKit::WebKeyboardEvent::create(WTF::move(eventData), WTF::move(keyData))),
+                [&](bool) { done = true; }, m_pageIdentifier.toUInt64());
+            double deadline = millisecondsNow() + 5000;
+            while (!done && !m_finished && millisecondsNow() < deadline)
+                RunLoop::cycle();
+        }
+    }
+}
+
+void PageDriver::sendWheel(int deltaY)
+{
+    printf("WheelEvent: scrolling by %d\n", deltaY);
+    WebKit::WebEventData eventData { WebKit::WebEventType::Wheel, { }, MonotonicTime::now() };
+    WebKit::WebWheelEventData wheelData;
+    wheelData.position = WebCore::IntPoint(400, 300);
+    wheelData.globalPosition = WebCore::IntPoint(400, 300);
+    wheelData.delta = WebCore::FloatSize(0, -deltaY);
+    wheelData.wheelTicks = WebCore::FloatSize(0, -deltaY / 40.0f);
+    wheelData.granularity = WebKit::WebWheelEventGranularity::ScrollByPixelWheelEvent;
+
+    bool done = false;
+    m_toWebProcess->sendWithAsyncReply(Messages::WebPage::HandleWheelEvent(m_mainFrameIdentifier,
+        WebKit::WebWheelEvent::create(WTF::move(eventData), WTF::move(wheelData)),
+        WebCore::WheelEventProcessingSteps::SynchronousScrolling, std::nullopt),
+        [&](std::optional<WebCore::ScrollingNodeID>&&, std::optional<WebCore::WheelScrollGestureState>&&,
+            bool handled, std::optional<WebCore::RemoteUserInputEventData>&&) {
+            printf("  wheel handled=%d\n", handled);
+            done = true;
+        }, m_pageIdentifier.toUInt64());
+    double deadline = millisecondsNow() + 5000;
+    while (!done && !m_finished && millisecondsNow() < deadline)
+        RunLoop::cycle();
+}
+
 void PageDriver::drawingAreaUpdate(uint64_t backingStoreStateID, WebKit::UpdateInfo&& updateInfo)
 {
     m_updateCount++;
     printf("\n=== DrawingAreaProxy::Update %u (state %llu), %.0f ms after LoadRequest ===\n",
         m_updateCount, static_cast<unsigned long long>(backingStoreStateID),
         millisecondsNow() - m_loadRequestedAt);
+    if (!updateInfo.scrollOffset.isZero())
+        printf("  scrollOffset (%d,%d) scrollRect %dx%d@%d,%d\n",
+            updateInfo.scrollOffset.width(), updateInfo.scrollOffset.height(),
+            updateInfo.scrollRect.width(), updateInfo.scrollRect.height(),
+            updateInfo.scrollRect.x(), updateInfo.scrollRect.y());
+    if (!updateInfo.scrollOffset.isZero())
+        m_sawScrollOffset = true;
     printf("viewSize %dx%d  scale %.1f  updateBounds %dx%d@%d,%d  rects=%zu  bitmap=%s\n",
         updateInfo.viewSize.width(), updateInfo.viewSize.height(), updateInfo.deviceScaleFactor,
         updateInfo.updateRectBounds.width(), updateInfo.updateRectBounds.height(),
@@ -586,7 +747,7 @@ int PageDriver::run()
     m_toWebProcess->send(Messages::WebProcess::SetWebsiteDataStoreParameters(WTF::move(webDataStoreParameters)), 0);
 
     // --- the page -------------------------------------------------------------
-    auto pageIdentifier = WebCore::PageIdentifier::generate();
+    auto pageIdentifier = m_pageIdentifier;
     WebKit::WebPreferencesStore preferences;
     // Without this DrawingAreaWC asks a GPU process that does not exist for its
     // image buffers and no pixels ever come back. Off means cairo, in process.
@@ -617,7 +778,7 @@ int PageDriver::run()
         .viewScaleFactor = 1,
         .visitedLinkTableID = WebKit::VisitedLinkTableIdentifier::generate(),
         .userContentControllerParameters = { .identifier = WebKit::UserContentControllerIdentifier::generate() },
-        .mainFrameIdentifier = WebCore::FrameIdentifier::generate(),
+        .mainFrameIdentifier = m_mainFrameIdentifier,
     };
     m_toWebProcess->send(Messages::WebProcess::CreateWebPage(pageIdentifier, WTF::move(pageParameters)), 0);
     printf("CreateWebPage %llu, 800x600\n", static_cast<unsigned long long>(pageIdentifier.toUInt64()));
@@ -658,6 +819,90 @@ int PageDriver::run()
     while (millisecondsNow() < settle && !m_finished)
         RunLoop::cycle();
 
+    // --- what the run was actually asked to prove ----------------------------
+    auto vsync = [&](double milliseconds) {
+        double until = millisecondsNow() + milliseconds;
+        double nextTick = 0;
+        while (millisecondsNow() < until && !m_finished) {
+            if (millisecondsNow() >= nextTick) {
+                m_toWebProcess->send(Messages::DrawingArea::DisplayDidRefresh(MonotonicTime::now()),
+                    m_drawingAreaIdentifier.toUInt64());
+                nextTick = millisecondsNow() + 16;
+            }
+            RunLoop::cycle();
+        }
+    };
+
+    if (!m_expectText.isEmpty()) {
+        // Poll rather than guess a settling time: script.html finishes during the
+        // load, domloop.html needs sixty frames of rAF, which on this port only
+        // advance while the driver is answering with DisplayDidRefresh.
+        double deadline = millisecondsNow() + 120000;
+        String contents;
+        bool found = false;
+        double startedAt = millisecondsNow();
+        while (millisecondsNow() < deadline && !m_finished) {
+            contents = contentsAsString();
+            if (contents.contains(m_expectText)) {
+                found = true;
+                break;
+            }
+            vsync(250);
+        }
+        printf("\nexpect-text \"%s\": %s after %.0f ms\n", m_expectText.utf8().data(),
+            found ? "PASS" : "FAIL", millisecondsNow() - startedAt);
+        for (auto line : StringView(contents).split('\n')) {
+            if (line.contains("RESULT"_s))
+                printf("  page says: %s\n", line.toString().utf8().data());
+        }
+        if (!found)
+            m_allAssertionsPassed = false;
+    }
+
+    if (m_clickX >= 0) {
+        sendMouseClick(m_clickX, m_clickY);
+        vsync(200);
+    }
+
+    if (!m_typeText.isEmpty()) {
+        typeText(m_typeText);
+        vsync(500);
+        auto tree = renderTree();
+        bool typed = tree.contains(m_typeText);
+        printf("typed text \"%s\" visible in the render tree: %s\n",
+            m_typeText.utf8().data(), typed ? "PASS" : "FAIL");
+        if (!typed) {
+            m_allAssertionsPassed = false;
+            printf("--- render tree ---\n%s\n", tree.utf8().data());
+        } else {
+            for (auto line : StringView(tree).split('\n')) {
+                if (line.contains(m_typeText))
+                    printf("  %s\n", line.toString().utf8().data());
+            }
+        }
+    }
+
+    if (m_wheelBy) {
+        // Pixels, not the render tree: externalRepresentation only prints
+        // "scrolled to" for layers that have their own scroll offset, so a main
+        // frame that scrolled looks identical in the text. tall.html puts a
+        // #1E8C32 band at document y=400..800, so after scrolling down 400 the
+        // view's y=100 is inside it and before the scroll it is white.
+        m_wheelProbeArmed = true;
+        sendWheel(m_wheelBy);
+        vsync(600);
+        // WebCore scrolls by blitting and repaints only the exposed band, so ask
+        // for a whole-view repaint before reading a pixel out of it.
+        m_toWebProcess->send(Messages::DrawingArea::ForceUpdate(), m_drawingAreaIdentifier.toUInt64());
+        vsync(2000);
+        printf("wheel: update carried a scrollOffset: %s\n", m_sawScrollOffset ? "PASS" : "FAIL");
+        printf("wheel: pixel (400,100) was #%06X before, #%06X after  %s (want #1E8C32)\n",
+            m_wheelPixelBefore, m_wheelPixelAfter,
+            m_wheelPixelAfter == 0x1E8C32 ? "PASS" : "FAIL");
+        if (m_wheelPixelAfter != 0x1E8C32 || !m_sawScrollOffset)
+            m_allAssertionsPassed = false;
+    }
+
     printf("\nweb process RSS after the load: %ld KB (%.1f MB)\n", residentKilobytes(m_webProcess), residentKilobytes(m_webProcess) / 1024.0);
     printf("network process RSS:            %ld KB\n", residentKilobytes(m_networkProcess));
     printf("WC updates received:            %u%s\n", m_updateCount, m_sawUpdateWithTile ? ", at least one with a tile" : "");
@@ -682,19 +927,63 @@ int PageDriver::run()
     waitpid(m_webProcess, &status, 0);
     waitpid(m_networkProcess, &status, 0);
 
-    printf("page rendered correctly:        %s\n", m_renderedCorrectly ? "YES" : "NO");
-    return m_loadFinished && m_sawUpdateWithTile && m_renderedCorrectly ? 0 : 1;
+    if (m_assertPage)
+        printf("page rendered correctly:        %s\n", m_renderedCorrectly ? "YES" : "NO");
+    printf("all assertions:                 %s\n", m_allAssertionsPassed ? "PASS" : "FAIL");
+    bool pixelsOK = !m_assertPage || m_renderedCorrectly;
+    return m_loadFinished && m_allAssertionsPassed && pixelsOK ? 0 : 1;
 }
 
 } // namespace
 
 int main(int argc, char** argv)
 {
-    if (argc < 4) {
-        fprintf(stderr, "usage: %s <TigerWebProcess> <TigerNetworkProcess> <url> [<png-out>]\n", argv[0]);
+    Vector<const char*> positional;
+    String expectText;
+    String typeText;
+    int clickX = -1, clickY = -1;
+    int wheelBy = 0;
+    bool assertPage = false;
+
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "--expect-text") && i + 1 < argc) {
+            expectText = String::fromUTF8(argv[++i]);
+            continue;
+        }
+        if (!strcmp(argv[i], "--click") && i + 2 < argc) {
+            clickX = atoi(argv[++i]);
+            clickY = atoi(argv[++i]);
+            continue;
+        }
+        if (!strcmp(argv[i], "--type") && i + 1 < argc) {
+            typeText = String::fromUTF8(argv[++i]);
+            continue;
+        }
+        if (!strcmp(argv[i], "--wheel") && i + 1 < argc) {
+            wheelBy = atoi(argv[++i]);
+            continue;
+        }
+        if (!strcmp(argv[i], "--assert-page")) {
+            assertPage = true;
+            continue;
+        }
+        positional.append(argv[i]);
+    }
+
+    if (positional.size() < 3) {
+        fprintf(stderr,
+            "usage: %s [options] <TigerWebProcess> <TigerNetworkProcess> <url> [<png-out>]\n"
+            "  --assert-page            the three page.html pixel assertions\n"
+            "  --expect-text <s>        poll GetContentsAsString until it contains <s>\n"
+            "  --click <x> <y>          a left click at view coordinates\n"
+            "  --type <text>            key events for <text>, after the click\n"
+            "  --wheel <dy>             one wheel event scrolling down by <dy>\n", argv[0]);
         return 2;
     }
+
     WebKit::InitializeWebKit2();
-    PageDriver driver(argv[1], argv[2], String::fromUTF8(argv[3]), argc > 4 ? argv[4] : "/tmp/tiger-tile.png");
+    PageDriver driver(positional[0], positional[1], String::fromUTF8(positional[2]),
+        positional.size() > 3 ? positional[3] : "/tmp/tiger-tile.png");
+    driver.setExpectations(WTF::move(expectText), WTF::move(typeText), clickX, clickY, wheelBy, assertPage);
     return driver.run();
 }

@@ -2434,3 +2434,66 @@ flips the preference and wonders why the page went blank.
   compiled in `build/tiger-gpu`, and doing it by hand fails on `CoreIPCDateComponents.h`,
   `CoreIPCString.h`, `CoreIPCData.h` and `CoreIPCNSCFObject.h` wanting Objective-C++. Nothing
   font-shaped is left in that list.
+
+### 2026-09-21 — JavaScript, input and scrolling in a real page (wk2web)
+
+All through pagedriver on the 10.4.11 box, each with an assertion that fails the run.
+
+**1a. JavaScript: the 2M-iteration loop** (spike/TigerBrowser/testpages/script.html, served by
+boxserver.sh so the number is comparable with the i386 browser spike).
+
+    page says: RESULT sum=5999995 loopms=44        (61 ms on a second run)
+    DidFinishLoadForFrame 293 ms, web process RSS 44.7 MB
+
+  **44-61 ms inside a real page**, against 51 ms for the same loop in the standalone jsc64 binary,
+  59 ms for Safari 4.1.3's i386 JIT, and 2240 ms for the i386 C loop. The JIT is doing its job
+  through the full DOM stack, not just in the shell.
+
+**1b. 2,000 DOM nodes and 60 requestAnimationFrame frames** (domloop.html: build the nodes from
+script, mutate every node's backgroundColor each frame, write the per-frame cost back into the DOM).
+
+    page says: RESULT nodes=2000 buildms=22 frames=60 avgms=120 worstms=185
+    62 DrawingAreaProxy updates, DidFinishLoadForFrame 364 ms, RSS 67.9 MB
+
+  The interesting result is not the frame time, it is that **rAF runs at all**. There is no display
+  refresh monitor on this port, so frames only advance because the driver answers each update with
+  `DrawingArea::DisplayDidRefresh`. The loop closes: 60 frames, 62 paints. 120 ms a frame is 2,000
+  style mutations plus a full 800x600 repaint on a 2007 Core 2 with no partial invalidation from us,
+  so it is a floor to improve on, not a wall.
+
+**2a. Click and type.** A left press/release at (100,300) -- inside `RenderTextControl {INPUT}`,
+coordinates taken from the render tree -- then five key events for "tiger". Asserted against
+`WebPage::GetRenderTreeExternalRepresentation`: **the typed text appears in the render tree.** RSS
+43.4 MB.
+
+**2b. Wheel on a page taller than the view** (tall.html, 2800px tall, a #1E8C32 band at document
+y=400..800). One wheel event, 400px down:
+
+    scrollOffset (0,-24) (0,-14) (0,-338) (0,-24)   -- an animated scroll, four frames, 400px total
+    pixel (400,100) was #FFFFFF before, #1E8C32 after
+
+**TWO BUGS FOUND AND FIXED, both stubs I copied from PlayStation when the platform half went in,
+both invisible until something actually used them:**
+
+  1. `PlatformKeyboardEvent::disambiguateKeyDownEvent` (WebKit d0f94723). `EventHandler::keyEvent`
+     takes the single KeyDown the UI process sends and splits it into a RawKeyDown, which fires the
+     DOM keydown and runs editing commands, and a Char, which inserts the text -- by calling this
+     twice on copies. A no-op makes the two halves indistinguishable and typing does nothing.
+  2. `WebPage::handleEditingKeyboardEvent` (WebKit 51b8fb54). This is where insertion actually
+     happens; `WebEditorClient::handleKeyboardEvent` calls straight into it. Now WebPageWin's shape
+     plus a ten-entry key table (backspace, delete, arrows, home, end, return, tab, no modifiers),
+     because a real UI process will send Cocoa's key bindings as commands and this becomes the
+     insertion path only.
+
+**And one thing that was not a bug, worth writing down because it will mislead someone again.** The
+first scroll assertion failed and looked like "the wheel does nothing". It scrolled correctly: after
+a scroll WebCore blits and repaints only the newly exposed band, so the update's bitmap is 800x600
+with ~30,000 painted pixels and the rest transparent. A real UI process composites that onto its
+backing store using updateRectBounds/updateRects/scrollRect/scrollOffset (`DrawingAreaProxyWC::
+incorporateUpdate`); a driver that reads one tile in isolation is sampling memory nobody painted.
+pagedriver now samples only whole-view paints and asks for a `DrawingArea::ForceUpdate` after the
+wheel, and also asserts the scrollOffset the update carries, which is the direct evidence.
+
+**pagedriver options** now: `--assert-page`, `--expect-text` (polls `GetContentsAsString`),
+`--click x y`, `--type`, `--wheel`. Assertions run inside the driver against
+`GetRenderTreeExternalRepresentation`, not by grepping the web process's stderr.
