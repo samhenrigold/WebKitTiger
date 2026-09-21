@@ -1144,3 +1144,11 @@ Added to the ARTIFACT OWNERSHIP MAP above.
 - wkcmake 96f4d1bd (journal 4e02aef): GPU config in. Earlier "UI/GPU on Tiger port" report was half-done: ObjC enablement, fragile-runtime ARC flags, overlay/framework roots, CGBitmapInfo warning suppression and -ObjC static link set were still in OptionsCocoa. Now carried over and split by arch; x86_64 pair has no ObjC and no frameworks. Six pairs zero divergence. Cache-reading note: language enablement is not under the obvious CMAKE_<LANG>_COMPILER key; check the flags variable.
 - wcplan 4965813/800b66c: probe live; `.messages.in` was always in scope (394+256=650 inputs); added --write-files (emits paths for tiger-wire-remap.py --list); extractor now matches bare TIGER_WIRE_* so it stays sighted after the remap. First real result: 1/294 disagreement — USE(CAIRO) on in both x86_64 trees, off in UI, in two font serialization inputs.
   DECISION (already made 03:0x, restating): USE(CAIRO) is NOT a may-differ exception. It is the seventh remap flag: USE(CAIRO) in wire inputs → TIGER_WIRE_CAIRO, defined 0 on every side. Web's cairo raster is local and never on the wire. objcrt's remap covers it; wcplan's probe then sees TIGER_WIRE_CAIRO agree.
+
+## 2026-09-21 03:20 — browsershell wind-down: native menus spike (9101242, spike/TigerBrowser)
+
+- <select> popup = real NSPopUpButtonCell + -performClickWithFrame:inView: (public 10.4 API, equivalent of upstream's private PAL::popUpMenu()); one synchronous call does attach/track/dismiss; keyboard handling is AppKit's own. Context menu = real NSMenu via +popUpContextMenu:withEvent:forView:, leaf items carry tag+target/action to recover the choice.
+- Item model is plain NSDictionary (title/enabled/checked/separator/submenu), array order = index. That is the wire form for the UI process.
+- Scripting a synchronous tracking loop: timer in kCFRunLoopCommonModes scheduled before the call, posting via -[NSApp postEvent:atStart:NO]. 34/34 assertions; screenshots pixel-identical to a separately built reference NSPopUpButton by construction.
+- Tiger NSMenu gap vs upstream: essentially none (separators, submenus, state, enable, indentation, images, attributedTitle all present). Only old-Aqua limit: image and checkmark cannot share the gutter slot. No vibrancy/vector icons.
+- browsershell stopped after this report (budget).
