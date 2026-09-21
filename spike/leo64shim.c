@@ -121,11 +121,19 @@ int dlopen_preflight(const char *path) { trace("dlopen_preflight"); (void)path; 
 
 /* ---- the one that matters ----
  * objc4 learns about images through Leopard's dyld_register_image_state_change_handler,
- * which Tiger's dyld does not have. Tiger does have _dyld_register_func_for_add_image,
- * which calls back once per already-loaded image at registration and then per new one.
- * That is the same information one image at a time, so the handler is driven with a
- * one-element batch. objc4 registers for the bound state and only reads the mach
- * header and path out of each record.
+ * which Tiger's dyld does not have. Tiger has _dyld_register_func_for_add_image, which
+ * replays every already-loaded image at registration and then fires once per new one.
+ *
+ * The batch flag is not decoration. When objc4 registers with batch=true it expects one
+ * call carrying every image loaded so far, because it resolves cross-image superclass
+ * references within a batch. Feeding it one image at a time instead leaves a class whose
+ * superclass lives in a later image unlinked, and the runtime later dereferences that null
+ * superclass while flushing caches. That was a real crash here, inside libobjc at +0xfca3,
+ * reached from CGBitmapContextCreate.
+ *
+ * So: at registration, report every current image in a single batch, then report each
+ * genuinely new one as it arrives. Several handlers can be registered for different
+ * states, so they are kept in a small table rather than a single slot.
  */
 struct dyld_image_info {
     const struct mach_header *imageLoadAddress;
@@ -134,25 +142,60 @@ struct dyld_image_info {
 };
 typedef const char *(*state_handler)(int state, uint32_t count, const struct dyld_image_info info[]);
 
-static state_handler g_handler;
-static int           g_state;
+#define MAX_HANDLERS 8
+#define MAX_SEEN     512
+static struct { state_handler fn; int state; } g_handlers[MAX_HANDLERS];
+static int g_nhandlers;
+static const struct mach_header *g_seen[MAX_SEEN];
+static int g_nseen;
+
+static int already_seen(const struct mach_header *mh) {
+    for (int i = 0; i < g_nseen; i++) if (g_seen[i] == mh) return 1;
+    if (g_nseen < MAX_SEEN) g_seen[g_nseen++] = mh;
+    return 0;
+}
+
+static void fill(struct dyld_image_info *d, const struct mach_header *mh, const char *name) {
+    d->imageLoadAddress = mh;
+    d->imageFilePath = name ? name : "";
+    d->imageFileModDate = 0;
+}
 
 static void on_add_image(const struct mach_header *mh, intptr_t slide) {
     (void)slide;
-    if (!g_handler) return;
-    struct dyld_image_info one;
-    one.imageLoadAddress = mh;
-    one.imageFilePath = NULL;
+    if (already_seen(mh)) return;          /* the registration batch covered it */
+    const char *name = "";
     for (uint32_t i = 0; i < _dyld_image_count(); i++)
-        if (_dyld_get_image_header(i) == mh) { one.imageFilePath = _dyld_get_image_name(i); break; }
-    if (!one.imageFilePath) one.imageFilePath = "";
-    one.imageFileModDate = 0;
-    g_handler(g_state, 1, &one);
+        if (_dyld_get_image_header(i) == mh) { name = _dyld_get_image_name(i); break; }
+    struct dyld_image_info one;
+    fill(&one, mh, name);
+    trace("image added");
+    for (int i = 0; i < g_nhandlers; i++)
+        g_handlers[i].fn(g_handlers[i].state, 1, &one);
 }
 
 void dyld_register_image_state_change_handler(int state, int batch, state_handler handler) {
-    (void)batch;                       /* add_image already replays existing images */
-    g_handler = handler;
-    g_state = state;
-    _dyld_register_func_for_add_image(on_add_image);
+    static int registered_with_dyld;
+    if (g_nhandlers >= MAX_HANDLERS || !handler) return;
+    g_handlers[g_nhandlers].fn = handler;
+    g_handlers[g_nhandlers].state = state;
+    g_nhandlers++;
+    trace("dyld_register_image_state_change_handler");
+
+    uint32_t n = _dyld_image_count();
+    if (n > MAX_SEEN) n = MAX_SEEN;
+    struct dyld_image_info *all = (struct dyld_image_info *)malloc(n * sizeof *all);
+    if (all) {
+        for (uint32_t i = 0; i < n; i++) {
+            const struct mach_header *mh = _dyld_get_image_header(i);
+            fill(&all[i], mh, _dyld_get_image_name(i));
+            already_seen(mh);              /* record so on_add_image does not repeat it */
+        }
+        handler(state, n, all);            /* one batch, as a batch registration asks for */
+        free(all);
+    }
+    if (!registered_with_dyld) {
+        registered_with_dyld = 1;
+        _dyld_register_func_for_add_image(on_add_image);
+    }
 }

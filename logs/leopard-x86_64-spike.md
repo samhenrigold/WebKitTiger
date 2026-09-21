@@ -267,3 +267,131 @@ ssh tiger 'cd /tmp/leo64 && DYLD_LIBRARY_PATH=/tmp/leo64 DYLD_FORCE_FLAT_NAMESPA
 ```
 
 `LEO64_TRACE=1` makes the shim announce the calls it serves.
+
+
+---
+
+# Follow-up: the fault isolated, and what actually blocks graphics
+
+**The crash was mine, not CoreGraphics'.** Fixing it turned the crash into a hang, and the
+hang has a structural cause that decides the rendering branch.
+
+## Isolating it without a 64-bit debugger
+
+Tiger's gdb cannot help: `/usr/libexec/gdb/` has only `gdb-i386-apple-darwin` and
+`gdb-powerpc-apple-darwin`, and gdb itself is a 32-bit process, so inserting an x86_64
+shim into it fails before the inferior starts. CrashReporter is only half useful too:
+
+```
+Exception:  EXC_BAD_ACCESS (0x0001)
+Codes:      KERN_INVALID_ADDRESS (0x0001) at 0x00000020
+Unable to generate backtrace for 64 bit task.
+  rax: 0x0  rdi: 0x0  rsi: 0x0  rip: 0x0000000100a5eca3
+```
+
+No backtrace, but the registers are enough. A null dereference at offset 0x20, at a
+`rip` that repeats exactly across runs. Printing the image list with
+`_dyld_get_image_header` under the same load set places `0x100a5eca3` inside **libobjc**,
+which loads at `0x100a4f000`, so file offset **`0xfca3`**. Disassembling there:
+
+```
+fc0b  movq  0x20(%r12), %rax
+fc14  movq  0x28(%rax), %rax
+fc18  movq  %rax, 0x30(%rdx)
+fc54  movq  %rbx, %rdi
+fc57  callq _flushCaches
+```
+
+That is objc4 linking a class into its superclass's subclass list and flushing method
+caches. The null being dereferenced is a **superclass that was never resolved**.
+
+## The cause: a batch flag I treated as decoration
+
+`dyld_register_image_state_change_handler` takes a `batch` argument. When objc4 registers
+with it true, it expects **one call carrying every image loaded so far**, because it
+resolves cross-image superclass references within a batch. My shim drove the handler from
+Tiger's `_dyld_register_func_for_add_image`, which fires once per image, so objc4 saw a
+run of one-image batches. A class whose superclass lived in a later image stayed unlinked,
+and the runtime dereferenced that null superclass later, while CoreGraphics was building a
+bitmap context and messaging something.
+
+The fix, now in `spike/leo64shim.c`: enumerate every current image at registration and
+report them in a single batch, remember which have been reported, then report each
+genuinely new one as it arrives. Handlers are kept in a table rather than a single slot,
+since several can be registered for different states and the old code silently overwrote.
+
+**This is worth remembering beyond this spike.** The same hook is what makes the ObjC
+runtime work at all here, and a subtly wrong version of it does not fail at load: it
+corrupts the class graph and faults much later, in code that has nothing to do with the
+bug.
+
+## What is left: both frameworks hang on session services
+
+With the class graph correct, `CGBitmapContextCreate` no longer crashes. It **spins**, at
+around 44% CPU, with no further calls into the shim. `CTFontCreateWithName` hangs the same
+way. Neither leaves a crash log, so both are hangs rather than faults.
+
+The reason is visible in the binaries. Leopard's CoreGraphics is bound to the window
+server: it carries `com.apple.coregraphics` bootstrap service names, a `CGSDisplayNotifyProc`
+with a full set of display-reconfiguration notifications, and `CGX*` entry points. ATS is
+bound to the font server, looking up `com.apple.ATS`. Both are per-session Mach services,
+and on Tiger both are provided by **32-bit, Tiger-era servers**:
+
+```
+ATSServer: Mach-O universal binary with 2 architectures
+ATSServer (for architecture i386): Mach-O executable i386
+```
+
+So a 64-bit process can load these frameworks but cannot complete a handshake with the
+services they expect, because the only servers present speak the Tiger protocol from a
+32-bit process. This is the same shape as the Apple TV Core Animation finding: the binary
+loads, the protocol does not match.
+
+That is a structural wall, not a missing symbol, and no amount of shimming addresses it.
+Getting rendering out of this stack would mean either a CoreGraphics path that never
+touches the window server, which its own initialisation appears not to offer, or
+reimplementing the Leopard-side of two Mach protocols.
+
+`CTFontManagerCreateFontDescriptorFromData` is absent from 10.5.0 as it is from 10.5.8, so
+the web-font path would need `CGFontCreateWithDataProvider` regardless.
+
+## The honest namespace, working
+
+The flat-namespace caveat is now discharged. `spike/repoint-imports.py` handles 64-bit
+Mach-O: `nlist_64` is 16 bytes rather than 12, the header is 32, `LC_SEGMENT_64` keeps
+`nsects` at a different offset and its sections are 80 bytes with the file offset at 48.
+Both endiannesses and prebound `N_PBUD` symbols are handled, and the 32-bit path is
+unregressed, still patching the 9A241 CoreText case 4 for 4.
+
+Repointing CoreFoundation's 12 gaps, libobjc's 3 and libauto's 1 at the shim, then loading
+with **no `DYLD_FORCE_FLAT_NAMESPACE` and no `DYLD_INSERT_LIBRARIES`**:
+
+```
+ok   dlopen Leopard x86_64 CoreFoundation -> 0x100200ce0
+CFStringCreateWithCString -> 0x1006033c0
+CFStringGetLength         -> 23 (expect 23)
+CFGetTypeID               -> 7
+CFRunLoopGetCurrent       -> 0x100603480
+PASSED
+```
+
+Two-level namespace, each import bound to the library that really provides it. That is the
+shape a real build would take.
+
+The tool moved from `refs/leopard/tools/` to `spike/` in the process: `refs/` is gitignored
+because it holds large binaries, so the patcher had never been under version control.
+
+## Where this leaves the idea
+
+Unchanged and good for the JIT branch: 64-bit processes run, the Leopard userland loads
+properly rather than by a namespace trick, CoreFoundation works, and every JIT prerequisite
+passes.
+
+Blocked for the rendering branch, and now for a understood reason rather than an unknown
+one. Leopard's CoreGraphics and CoreText both want session services that Tiger can only
+offer in 32-bit Tiger-era form.
+
+If a 64-bit content process is still wanted, the realistic division is a 64-bit process
+that runs JavaScriptCore with a real JIT and does no drawing, handing layout and paint to
+the existing 32-bit side. Whether that split is worth its IPC is a different question from
+the one this spike answers.
