@@ -51,6 +51,28 @@ The total exceeds 144 because `CGContextGetType`, `CGColorSpaceCreateWithName` a
 `CGBlendMode` Porter-Duff values are handled here too. They are not in `missing-CG.txt`:
 Tiger exports the first two and the third is an enum, but the 10.4u SDK declares none of them.
 
+## Header and export list disagree in both directions
+
+Prompted by a CoreFoundation case where `CFRunLoopGetMain` is exported but undeclared in the
+10.4u SDK, the same check ran over this surface against the post-update binaries.
+
+Every one of the 144 names in `missing-CG.txt` is genuinely absent from Tiger's CoreGraphics,
+except the 20 already classified above as living in ImageIO, which the check re-confirms rather
+than contradicts. All seven names declared here as present-but-undeclared are still exported
+after the security update.
+
+Searching the gated list for Tiger exports under an older name turned up one lead, handed to
+the CoreText track rather than acted on here: `CGFontGetGlyphsForUnichars` may exist natively
+as `CGFontGetGlyphsForUnicodes`, whose prologue reads four arguments across 0x8 to 0x14,
+matching the modern prototype's shape. That track already implements the function through
+CoreText, so this is a possible simplification, not a gap, and the `CGFontGetGlyphAdvancesForStyle`
+precedent is the reason to measure it before trusting it: there, a byte-identical argument list
+still behaved differently.
+
+Nothing else in the gated list has a Tiger equivalent under another name. `CGStyleCreate`,
+`CGContextCreate`, `CGDataProviderCreateDirectAccess` and `CGPatternCreateWithImage2` all exist
+but are different functions, not older spellings.
+
 ## A caveat on the usage counts
 
 `logs/api/used-CG.txt` counts every occurrence of a name in `WebKit/Source`, and for SPI that
