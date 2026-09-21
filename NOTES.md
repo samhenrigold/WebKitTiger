@@ -510,3 +510,10 @@ one triage pass before it was noticed. See the triage table at the end of
     dyld ignores them (all three binaries run), so they are harmless, but they are the only load-command difference.
 - `sdk/MacOSX10.6.sdk` also came out of that dmg (`Packages/MacOSX10.6.pkg`), read-only like the other two, for reference
   headers only. Never build against it: it declares 10.6 API that Tiger does not have.
+- SPLIT-PROCESS PLAN (logs/split-process-plan.md, d970345): UNIX-domain-socket IPC (WebKit's unix transport; Mach path needs
+  libdispatch port sources), DrawingAreaCoordinatedGraphics non-accelerated path (tiles in shared memory -> UI process CA host),
+  clone the PlayStation port (cairo + curl, no GLib, no ObjC) for the content process; no x86_64 libdispatch needed
+  (RunLoopGeneric/WorkQueueGeneric). Cross-ABI IPC: 3 fixes + a guard; raw shared structs use the 4-byte rule, IPC::Encoder
+  uses _Alignof so the wire format agrees. Branch (a) (Leopard x86_64 CF/CG/CT) not to be gated on (chains into libobjc/libauto).
+  COSTS: CT/CG shim tracks become UI-process-only assets; controls look Adwaita unless ~2000 LOC of Aqua painters are written.
+  Milestone N0 = jsc64 with JIT running on the box; everything else waits on it.
