@@ -662,6 +662,44 @@ is the untested one**, and on Tiger the copying variants are the adapters over T
 empty stubs. `spike/cttest.c` exercises the copying adapters explicitly, including the
 poisoned-buffer check, precisely because normal Tiger use will never reach them.
 
+## Re-verified after Security Update 2009-005
+
+The box took Security Update 2009-005, QuickTime 7.6.4, an ImageIO update and Safari
+4.1.3 on 2026-09-20. That update patches ATS and CoreGraphics, which these adapters lean
+on heavily, so every fact below them was re-checked rather than assumed.
+
+**All three binaries changed. CoreText's version string did not.**
+
+| | before | after |
+|---|---|---|
+| CoreText version | 1.1.3, source 511200 | 1.1.3, source 511200 |
+| CoreText md5 | `b0b3ad60…` | `8328cb19…` |
+| ATS md5 | `b7d21be2…` | `286b2aa3…` |
+| CoreGraphics md5 | `515e0024…` | `09cfb0ff…` |
+
+So the version string is useless for detecting this, which is worth knowing before anyone
+relies on one. The binaries are the only truth.
+
+What did not change, checked rather than assumed:
+
+- **Export sets are identical.** CoreText 243, ATS 419, CoreGraphics 3568, with nothing
+  added or removed in any of the three. Every function the adapters call is still there.
+- **All 29 load-bearing functions are byte-identical in disassembly**, comparing
+  instruction streams with addresses stripped. That covers the six by-value `double` size
+  parameters, the nine non-functional exports, `CTLineDraw`'s `CFRange`, the
+  `CTFontCopyTable`, `CTFontGetAdvancesForGlyphs`, `CTFontGetBoundingRectsForGlyphs` and
+  `CTLineGetTypographicBounds` signatures, the paragraph-style specifier bound of 13, and
+  the entry points behind the UI font, cascade list and CSS family work.
+- **All three suites are unchanged**: 104 checks, 56 oracle comparisons, and a `ctprobe`
+  dump that is byte-identical to the pre-update run, 189 matched. The cap-height and
+  x-height sweep across four fonts is byte-identical too.
+
+One operational note for anyone re-running this. The box reboots for an update, so `/tmp`
+is cleared, which takes the 9A241 oracle at `/tmp/l9` and every deployed test binary with
+it. Reinstalling from `refs/leopard-9a241/tools/README` takes a minute and is easy to
+mistake for a real failure; the first run after an update reported every probe key as
+missing rather than differing, which is the shape that tells you the binary is not there.
+
 ## Do not trust the count files
 
 `logs/api/used-CT.txt` and `used-kCT.txt` count **identifier occurrences, not calls**, and
