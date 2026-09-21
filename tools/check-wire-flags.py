@@ -50,6 +50,13 @@ WEBKIT = os.path.join(ROOT, "WebKit")
 # A conditional token: ENABLE(X), USE(X), HAVE(X), PLATFORM(X), OS(X), CPU(X).
 TOKEN = re.compile(r"\b(ENABLE|USE|HAVE|PLATFORM|OS|CPU)\(([A-Za-z0-9_]+)\)")
 
+# After tools/tiger-wire-remap.py runs, the split-sensitive conditionals in the
+# generator inputs are bare TIGER_WIRE_* identifiers rather than the FOO(BAR)
+# form above, so the pattern that found them before the remap would go blind
+# afterwards -- exactly when the check matters most, since the whole point is
+# that these are 1 on every side.  Match them too.
+WIRE_TOKEN = re.compile(r"\bTIGER_WIRE_[A-Z0-9_]+\b")
+
 # Warning and diagnostic noise, dropped to keep the command line readable when it
 # fails.  Note -O is deliberately NOT dropped: wtf/Compiler.h:125 #errors out on a
 # release build without optimisation, so removing it breaks the preprocess.  The
@@ -82,19 +89,33 @@ def find_generator_inputs(shared_list=None):
 
 
 def extract_tokens(paths):
-    """Every distinct conditional token appearing in an #if or #elif."""
-    tokens = set()
+    """Distinct conditional tokens, and which files each one appears in.
+
+    Returns (sorted_tokens, {token: sorted_relative_paths}).  The second half is
+    what tools/tiger-wire-remap.py consumes: it takes a list of file paths, not
+    of flag names, so a disagreement has to be joined back to the files carrying
+    it before it is actionable.
+    """
+    where = {}
     for path in paths:
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
-                for line in f:
-                    stripped = line.lstrip()
-                    if stripped.startswith("#if") or stripped.startswith("#elif"):
-                        for kind, name in TOKEN.findall(stripped):
-                            tokens.add(f"{kind}({name})")
+                lines = f.readlines()
         except OSError as exc:
             print(f"warning: cannot read {path}: {exc}", file=sys.stderr)
-    return sorted(tokens)
+            continue
+
+        relative = os.path.relpath(path, WEBKIT)
+        for line in lines:
+            stripped = line.lstrip()
+            if not (stripped.startswith("#if") or stripped.startswith("#elif")):
+                continue
+            for kind, name in TOKEN.findall(stripped):
+                where.setdefault(f"{kind}({name})", set()).add(relative)
+            for wire in WIRE_TOKEN.findall(stripped):
+                where.setdefault(wire, set()).add(relative)
+
+    return sorted(where), {t: sorted(p) for t, p in where.items()}
 
 
 def write_probe(tokens, path):
@@ -210,14 +231,19 @@ def main():
                         help="a flag allowed to differ; repeatable. Each use needs a "
                              "reason in the caller, and the list should stay near-empty")
     parser.add_argument("--write-queue", metavar="FILE",
-                        help="write the disagreeing flags to FILE as a work queue")
+                        help="write the disagreeing flags to FILE, for a human")
+    parser.add_argument("--write-files", metavar="FILE",
+                        help="write the PATHS of the generator inputs carrying a "
+                             "disagreeing conditional, one per line, relative to "
+                             "WebKit/ -- this is what tools/tiger-wire-remap.py "
+                             "consumes with --list")
     parser.add_argument("--note", metavar="TEXT", action="append", default=[],
                         help="a line of context to record in the written queue; repeatable")
     parser.add_argument("-q", "--quiet", action="store_true")
     args = parser.parse_args()
 
     inputs = find_generator_inputs(args.shared_inputs)
-    tokens = extract_tokens(inputs)
+    tokens, token_files = extract_tokens(inputs)
     if not args.quiet:
         print(f"{len(inputs)} generator inputs, {len(tokens)} distinct conditionals")
 
@@ -264,8 +290,28 @@ def main():
                 tag = "excused" if token in allowed else "DISAGREE"
                 f.write(f"{tag} {token} {os.path.basename(os.path.normpath(args.build_a))}={va}"
                         f" {os.path.basename(os.path.normpath(args.build_b))}={vb}\n")
+                for path in token_files.get(token, []):
+                    f.write(f"    {path}\n")
         if not args.quiet:
             print(f"wrote {args.write_queue}")
+
+    if args.write_files:
+        # tiger-wire-remap.py --list wants paths, one per line, relative to its
+        # --root worktree, and skips blank and #-prefixed lines.
+        affected = sorted({p for token, _, _ in unexpected
+                           for p in token_files.get(token, [])})
+        with open(args.write_files, "w") as f:
+            f.write("# Generator inputs carrying a conditional that disagrees between\n")
+            f.write(f"# {args.build_a} and {args.build_b}.\n")
+            f.write("# Consumed by: tools/tiger-wire-remap.py --list <this file>\n")
+            f.write(f"# {len(affected)} file(s) from {len(unexpected)} disagreeing flag(s).\n")
+            for line in args.note:
+                f.write(f"# {line}\n")
+            f.write("#\n")
+            for path in affected:
+                f.write(f"{path}\n")
+        if not args.quiet:
+            print(f"wrote {args.write_files} ({len(affected)} files)")
 
     return 1 if unexpected else 0
 
