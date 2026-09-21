@@ -2553,3 +2553,78 @@ the PassKit fix, concentrated in `Shared/cocoa` (240) and `Shared/API` (80) — 
 split survey said must not be compiled, which is on because PLATFORM(COCOA) is true here. Two
 image-decoder flags also have to match the GPU tree: `USE_AVIF` and `USE_JPEGXL` were ON in
 build/tiger-ui-port's stale cache and OFF in build/tiger-gpu's.
+
+## 2026-09-21 — the wire flag sweep: 60 measured divergences, and why the CMake list was not enough
+
+The PassKit find above generalised: every `USE_*`/`HAVE_*`/`ENABLE_*` that a WTF platform header
+derives from `PLATFORM(MAC)`, `PLATFORM(COCOA)` or `OS(DARWIN)` is true on the i386 side of this
+port and false on the x86_64 side, and any such flag appearing in a `.serialization.in` or
+`.messages.in` condition makes the two processes compile different serializer sets out of
+byte-identical generated text. `tiger-check-ipc` cannot see it: the generated text matches and the
+flag is not a CMake variable, so its comparison records `<unset>` on both sides.
+
+**Measured, not reasoned.** Hand-evaluating the conditions was the first attempt and it was wrong
+twice. The method that held: a probe translation unit emitting `TIGERFLAG "NAME" NAME` for each of
+the 279 flags named in a wire condition, run through `clang -E -P` with each tree's *real* compile
+command line including `-include cmakeconfig.h`, once per architecture. Two traps, both of which
+would have produced a confidently wrong report:
+
+- Without `-include cmakeconfig.h` the probe measures header defaults, not build values.
+- Unquoted flag names macro-expand: `TIGERFLAG USE_CG = 1` prints `TIGERFLAG 1 = 1` and the flag
+  vanishes from the output. The first run reported three divergences instead of sixty. It was caught
+  by spot-checking `USE_CG`, which *must* differ, and finding it absent.
+
+**60 divergent. Four are deliberate** and already carried on the wire by `TIGER_WIRE_*` in
+`wtf/PlatformTigerWire.h` — `USE_CG`, `USE_CF`, `USE_APPKIT`, `ENABLE_WEBASSEMBLY`. They must not be
+touched. The other 56 split three ways by *why* they diverge, which is also how they get fixed:
+
+| How it diverges | Count | Fix |
+| --- | --- | --- |
+| Named in `TIGER_IPC_SHARED_FEATURES`, but silently dropped | 18 | one-line macro fix |
+| Not named in the shared list at all | 11 + 1 | added to the list |
+| Defined by the header *unconditionally*, so cmakeconfig.h cannot win | 27 | `PLATFORM(TIGER)` block in the header |
+
+**The macro bug is the interesting one.** `TIGER_SET_SHARED_FEATURE` looks the name up in
+`_WEBKIT_AVAILABLE_OPTIONS`; if it is not a CMake option it appended it to a diagnostic list and
+returned, setting nothing. Eighteen flags were listed in `TIGER_IPC_SHARED_FEATURES`, read as
+handled in review, and were in fact defined by `PlatformEnable*.h` from `PLATFORM(COCOA)` on one
+side only — `ENABLE_SCROLLING_THREAD`, `ENABLE_UI_SIDE_COMPOSITING`, `ENABLE_SEC_ITEM_SHIM`,
+`ENABLE_CFPREFS_DIRECT_MODE`, `ENABLE_CORE_IPC_SIGNPOSTS`, `ENABLE_REVEAL`, `ENABLE_IMAGE_ANALYSIS`,
+`ENABLE_APP_HIGHLIGHTS`, `ENABLE_MANAGED_DOMAINS`, `ENABLE_MEDIA_USAGE`, `ENABLE_DOM_AUDIO_SESSION`,
+`ENABLE_ROUTING_ARBITRATION`, `ENABLE_THREADED_ANIMATIONS`, `ENABLE_WEB_PUSH_NOTIFICATIONS`,
+`ENABLE_NETWORK_ISSUE_REPORTING`, `ENABLE_INSPECTOR_NETWORK_THROTTLING`,
+`ENABLE_ACCESSIBILITY_LOCAL_FRAME`, `ENABLE_INITIALIZE_ACCESSIBILITY_ON_DEMAND`. The fix is to call
+`SET_AND_EXPOSE_TO_BUILD` in that branch as well as recording the name; every one of these headers
+guards its define with `#if !defined(NAME)`, so cmakeconfig.h wins.
+
+Eleven more were simply never listed: `ENABLE_ACCESSIBILITY_ANIMATION_CONTROL`,
+`ENABLE_APPLE_PAY_NEW_BUTTON_TYPES`,
+`ENABLE_APPLE_PAY_UPDATE_SHIPPING_METHODS_WHEN_CHANGING_LINE_ITEMS`,
+`ENABLE_CONTEXT_MENU_QR_CODE_DETECTION`, `ENABLE_DESTINATION_COLOR_SPACE_DISPLAY_P3`, `ENABLE_OPUS`,
+`ENABLE_REMOTE_INSPECTOR_SERVICE_WORKER_AUTO_INSPECTION`, `ENABLE_VORBIS`, `ENABLE_VP9`,
+`ENABLE_WHEEL_EVENT_REGIONS`, `HAVE_AUDIO_COMPONENT_SERVER_REGISTRATIONS`.
+
+**One diverges the other way.** `ENABLE_ALL_LEGACY_REGISTERED_SPECIAL_URL_SCHEMES` is 0 on i386 and
+1 on x86_64. Aligned *up*, to 1: the x86_64 value is the one every load in netdriver and pagedriver
+has actually run under.
+
+**The 27 that headers define unconditionally** cannot be fixed from CMake at all, and get an
+appended `#if PLATFORM(TIGER)` / `#undef` / `#define … 0` block at the end of the file that defines
+them: four in `PlatformUse.h` (`USE_AUDIO_SESSION`, `USE_AUTOMATIC_TEXT_REPLACEMENT`,
+`USE_DICTATION_ALTERNATIVES`, `USE_UNIFIED_TEXT_CHECKING`), twenty-one in `PlatformHave.h`
+(the `HAVE_WK_SECURE_CODING_*` quartet, `HAVE_PASSKIT_FRAMEWORK` and `HAVE_PASSKIT_INSTALLMENTS`,
+`HAVE_SEC_KEYCHAIN`, `HAVE_COOKIE_CHANGE_LISTENER_API`, `HAVE_DISPLAY_LINK`, `HAVE_TOUCH_BAR`,
+`HAVE_AVASSETREADER` and the rest), `ENABLE_TILED_CA_DRAWING_AREA` in `PlatformEnable.h` and
+`ENABLE_MOMENTUM_EVENT_DISPATCHER` in `PlatformEnableCocoa.h`. The last two are *also* in the shared
+CMake list — that is not redundancy, it is the proof that listing them there never did anything.
+
+**Every one is neutralised to off on both sides rather than remapped, so no new `TIGER_WIRE_*` flag
+and no remap-tool run is needed.** A remap is for a capability the 64-bit side really has under a
+different name; none of these is. PassKit, Reveal, the scrolling thread, DisplayLink, the Secure
+Coding NSURL* paths: the x86_64 process cannot produce any of them, so the honest shared value is 0,
+and 0 is what the x86_64 side already compiles. In wire terms the whole sweep only *removes*
+serializers from the i386 side; it adds nothing to either.
+
+Delivered as one patch across four WTF headers and `OptionsTigerProcesses.cmake`, handed to gpu32b
+rather than applied, so it lands inside their single PCH invalidation instead of causing a second
+one in the middle of the i386 census.
