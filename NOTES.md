@@ -19,12 +19,16 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - `compat/dispatch/`      libtigerdispatch.a: libdispatch (GCD) + os_log/os_unfair_lock/os_signpost/sys/qos
                            polyfill on pthreads+mach+CFRunLoop. `make -C compat/dispatch install`.
                            API surface survey in compat/dispatch/SURVEY.md. Test: spike/dispatchtest.mm.
-                           **i386 only.** The 64-bit home of os.c is compat's archive: `make -C compat
-                           ARCH=x86_64 install` compiles it with compat/dispatch's include tree, so a
-                           64-bit binary links -ltigercompat for os_log/os_unfair_lock/os_signpost/qos.
-                           dispatch.c cannot go 64-bit at all: Tiger has no x86_64 CoreFoundation and the
-                           main queue needs CFRunLoop (its CF headers do not even parse at -target x86_64),
-                           so a 64-bit process gets the os_* surface and no queues. Test: spike/os64test.c.
+                           **64-bit:** `make -C compat/dispatch ARCH=x86_64 install` builds os.c only
+                           (os_log/os_unfair_lock/os_signpost/qos) into sysroot-x86_64; link -ltigerdispatch.
+                           This is the only producer of those symbols: compat's 64-bit archive deliberately
+                           does not carry os.c (2c6d1db), because two archives with os.o is what sent people
+                           hand-building libtigercompat.a. dispatch.c cannot go 64-bit at all: Tiger has no
+                           x86_64 CoreFoundation and the main queue needs CFRunLoop (its CF headers do not
+                           even parse at -target x86_64), so a 64-bit process gets the os_* surface and no
+                           queues. The 64-bit install stages os/ and sys/ but NOT dispatch/, so a 64-bit
+                           `#include <dispatch/dispatch.h>` fails at the include rather than at link time.
+                           Test: spike/os64test.c.
 - `deps/`                 third-party sources + build-c-deps.sh. `build/`, `logs/` scratch. `spike/` test programs.
 - `WebKit/`               sparse blobless checkout of WebKit main (d2f52605, 2026-09-20). This is the fork we patch.
 
