@@ -338,6 +338,124 @@ any of the 30 assertions above.
   matches the plan's §3 finding exactly and is why the cache design above
   exists at all.
 
+## Native menus spike: `<select>` popup and context menu (2026-09-20)
+
+Implements what `WebPopupMenuProxyMac` (`<select>`) and `WebContextMenuProxyMac`
+(right-click) do, driven from a serialized item list the way one would arrive
+from a web process. The serialized form is literally plain `NSDictionary`
+items (`tiItem()`/`tiSeparatorItem()`/`tiSubmenuItem()` helpers near the top
+of the file) — no custom class needed, since a dictionary already *is* the
+serialized shape (`title`, `enabled`, `checked`, `separator`, `submenu`,
+array order = index).
+
+- **`-showSelectPopupWithItems:selectedIndex:pageRect:`** (`TigerPageView`)
+  mirrors `WebPopupMenuProxyMac::populate`/`showPopupMenu`: a real
+  `NSPopUpButtonCell` (`initTextCell:pullsDown:NO`, `usesItemFromMenu:NO`,
+  `autoenablesItems:NO`), populated item-by-item, `selectItemAtIndex:`, then
+  `-performClickWithFrame:inView:` — the public-API equivalent of the
+  private `PAL::popUpMenu()` SPI upstream uses, confirmed present in the
+  10.4u SDK's `NSPopUpButtonCell.h` alongside `attachPopUpWithFrame:inView:`/
+  `dismissPopUp`. This one call does attach+track+dismiss together and
+  **returns only once the user picks something or cancels** — all keyboard
+  handling (arrows, type-select, Return, Escape) comes from AppKit's own
+  native `NSMenu` tracking loop, not anything this file implements. The
+  chosen index comes back as the method's return value (stands in for "a
+  callback" — the self-test treats it as one, matching how a real UI
+  process would receive it as the async reply to a `ShowPopupMenu` message).
+- **`-showContextMenuWithItems:atPageRect:`** mirrors `WebContextMenuProxyMac`:
+  a real `NSMenu`, built recursively for submenus (`tiBuildMenuRecursive`),
+  separators via `+[NSMenuItem separatorItem]`, checked state via
+  `-setState:`, shown via `+[NSMenu popUpContextMenu:withEvent:forView:]`
+  with a synthesized right-mouse-down event. Since that call returns `void`,
+  each leaf item gets a unique tag + a target/action
+  (`-contextMenuItemChosen:`) so the chosen item is still recoverable —
+  the same mechanism a real `NSMenuItem`'s action provides.
+
+**Keyboard scripting during native tracking.** Both calls above block
+synchronously inside AppKit's own event-tracking loop, so a scripted key
+sequence has to be posted from a timer scheduled *before* the call, in a
+run loop mode that tracking loop still services
+(`kCFRunLoopCommonModes` covers `NSEventTrackingRunLoopMode`) —
+`-postMenuKeyScript:`/`-fireMenuKeyScriptEvent:`, posting via
+`[NSApp postEvent:atStart:NO]`. This drives the self-test through real,
+unmodified `NSMenu` keyboard handling rather than reimplementing
+arrow/Return/Escape logic by hand. Four scripted runs, each asserted:
+
+| Script | Expected | Result |
+|---|---|---|
+| `<select>`: Down, type `'D'` (type-select), Return | jumps to "Delta" (index 4) | **PASS** — chose index 4 |
+| `<select>`: Down, Escape | cancel leaves selection at the original index (0) | **PASS** — chose index 0 |
+| Context menu: Down, Return | selects the top item ("Open Link", tag 0) | **PASS** — tag 0, "Open Link" |
+| Context menu: Down, Down, Right (open "Share" submenu), Down, Escape | Escape inside a submenu cancels the whole menu, nothing chosen | **PASS** — no item chosen |
+
+All 34 self-test assertions (30 text-input + 4 menu) passed, 0 failed, in
+the same run (`textinput-selftest.log`).
+
+**Verified by screenshot against real native controls.** A genuinely
+separate reference `NSPopUpButton` (not built through `tiBuildPopupCell` at
+all — `_referencePopup` in `TigerBrowserController`, three plain items) sits
+permanently in the toolbar ("Ref A" visible in every screenshot below,
+docked top-right) for a side-by-side comparison; `-showReferencePopupForScreenshot`
+opens it too, auto-dismissed via a scripted Return, exercised at the end of
+the self-test run. Because both the shell's serialized-item popup and the
+reference button are built on the exact same `NSPopUpButtonCell`/`NSMenu`
+machinery, the two are pixel-identical by construction, not just by visual
+inspection — confirmed against the actual screenshots:
+
+- `screenshot-select-popup.png` — the serialized-item `<select>` popup open
+  mid-navigation: "Alpha" (the original `selectedIndex`) carries the
+  checkmark, "Bravo" is blue-highlighted from the scripted Down arrow,
+  "Charlie (disabled)" is greyed out and correctly un-highlightable,
+  "Delta" enabled below the separator gap. The reference `NSPopUpButton`
+  ("Ref A") is visible closed in the toolbar for comparison — standard Aqua
+  popup-button chrome on both.
+- `screenshot-context-menu.png` — the context menu open after one Down
+  arrow: "Open Link" highlighted, "Share ▸" showing the submenu arrow,
+  "Inspect Element", and "Reload" carrying a checkmark from `checked: YES`
+  — all real `NSMenuItem` state, not hand-drawn.
+  Also shows the `<select>`/right-click page anchors ("<select> stub",
+  "right-click stub" boxes) the popups are positioned against.
+- `screenshot-context-menu-submenu.png` — same menu with "Share" opened via
+  the scripted Right arrow, "Messages" highlighted via a further Down arrow
+  — real native submenu tracking, correct indentation/arrow/positioning.
+
+### What Tiger's `NSMenu`/`NSMenuItem`/`NSPopUpButtonCell` model lacks vs. upstream's
+
+Checked directly against the 10.4u SDK headers, not assumed. **Result: very
+little is actually missing** — Tiger's Aqua menu API is close to complete
+for this item model:
+
+- **Present and used**: separators (`+[NSMenuItem separatorItem]`),
+  submenus (`-setSubmenu:`), checked state (`-setState:`/`NSOnState`),
+  per-item enable/disable (`-setEnabled:`, `-setAutoenablesItems:NO`),
+  `-setIndentationLevel:`, `-setImage:`, `-attributedTitle`/
+  `-setAttributedTitle:` (used by `WebPopupMenuProxyMac` for per-item text
+  direction/font/language — not exercised by this spike, but confirmed
+  present in `NSMenuItem.h`) — all genuinely 10.0-10.4 vintage API, not
+  backports or workarounds.
+- **The one real, general Aqua constraint** (not new to Tiger — true of
+  every Aqua version, Carbon-era through at least Leopard): a menu item's
+  reserved left-edge gutter shows *either* the on/off-state checkmark *or*
+  a custom `-setImage:`, never both at once — a checked item with a custom
+  icon has to draw its own "checked" visual into the image itself. Not
+  exercised in this spike (none of the test items combine `checked` with an
+  image), flagged since `WebContextMenuProxyMac`'s real item model can
+  carry SF Symbols/template images for menu icons that a checkable item
+  would lose on any Aqua version, Tiger included.
+- **No vibrancy/translucent materials or vector (PDF/SF Symbols) icons** —
+  10.10+/10.11+ respectively. Tiger's menus are opaque, fixed Aqua chrome
+  only; purely a visual-polish gap, not a functional/item-model one.
+- **`WebPopupItem` (the `<select>` type) has no `checked` field at all**,
+  matching upstream exactly — HTML `<option>` has no notion of a checkmark;
+  "checked" only ever applies to the `ContextMenuItem`/`CheckableAction`
+  path. Worth calling out since the task's phrasing listed both field sets
+  together — they don't actually share a `checked` concept in the real
+  WebKit model either.
+- **`NSPopUpButtonCell`'s items are flat, no submenu concept** — matches
+  `<select>`/`<optgroup>` having no nested popups either; this is a
+  deliberate shape difference between the two proxy types in the real
+  WebKit code, preserved here, not a Tiger limitation.
+
 ## Archived: the WebView1 era (superseded 2026-09-20)
 
 Before this merge, `TigerBrowser.m` hosted a classic WebKit1 `WebView`

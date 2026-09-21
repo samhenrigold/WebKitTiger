@@ -9,7 +9,7 @@ keyDown: keyCode=4 characters='H' charactersIgnoringModifiers='H' modifierFlags=
   ASSERT PASS: in-callback query sees just-inserted NSString 'H' (selectedRange -> {45, 0})
 keyDown: interpretKeyEvents: produced 1 command(s): [insertText:NSString 'H']
   selectedRange -> {44, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.052ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.084ms < 1ms)
   ASSERT PASS: post-keyDown query sees OLD applied state {44, 0}, not pending {45, 0}
   scheduling simulated content-process round trip (+50ms); synchronous queries until then will see the OLD state: selectedRange={44, 0} markedRange={NSNotFound,0} doc(len=44)="The quick brown fox jumps over the lazy dog."
   simulated content-process reply landed: selectedRange={45, 0} markedRange={NSNotFound,0} doc(len=45)="The quick brown fox jumps over the lazy dog.H"
@@ -23,50 +23,50 @@ keyDown: keyCode=34 characters='i' charactersIgnoringModifiers='i' modifierFlags
   ASSERT PASS: in-callback query sees just-inserted NSString 'i' (selectedRange -> {46, 0})
 keyDown: interpretKeyEvents: produced 1 command(s): [insertText:NSString 'i']
   selectedRange -> {45, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.048ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.047ms < 1ms)
   ASSERT PASS: post-keyDown query sees OLD applied state {45, 0}, not pending {46, 0}
   scheduling simulated content-process round trip (+50ms); synchronous queries until then will see the OLD state: selectedRange={45, 0} markedRange={NSNotFound,0} doc(len=45)="The quick brown fox jumps over the lazy dog.H"
   simulated content-process reply landed: selectedRange={46, 0} markedRange={NSNotFound,0} doc(len=46)="The quick brown fox jumps over the lazy dog.Hi"
   selectedRange -> {46, 0} (from applied tier)
   ASSERT PASS: post-round-trip query sees the newly applied state
+  simulated non-keyboard selection change (e.g. in-page focus jump, no keydown involved): applied selectedRange -> {0, 0}
 --
 keyDown: keyCode=36 characters='' charactersIgnoringModifiers='' modifierFlags=0x0
   doCommandBySelector: insertNewline:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:insertNewline:]
-  selectedRange -> {46, 0} (from applied tier)
+  selectedRange -> {0, 0} (from applied tier)
   ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
-  simulated non-keyboard selection change (e.g. in-page focus jump, no keydown involved): applied selectedRange -> {0, 0}
 --
 keyDown: keyCode=48 characters='	' charactersIgnoringModifiers='	' modifierFlags=0x0
   doCommandBySelector: insertTab:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:insertTab:]
   selectedRange -> {0, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.054ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
 --
 keyDown: keyCode=53 characters='' charactersIgnoringModifiers='' modifierFlags=0x0
   doCommandBySelector: cancelOperation:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:cancelOperation:]
   selectedRange -> {0, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.053ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
+  simulated non-keyboard selection change (e.g. in-page focus jump, no keydown involved): applied selectedRange -> {46, 0}
 --
 keyDown: keyCode=123 characters='' charactersIgnoringModifiers='' modifierFlags=0x20000
   doCommandBySelector: moveLeftAndModifySelection:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveLeftAndModifySelection:]
-  selectedRange -> {0, 0} (from applied tier)
+  selectedRange -> {46, 0} (from applied tier)
   ASSERT PASS: post-keyDown query never blocks (0.048ms < 1ms)
-  simulated non-keyboard selection change (e.g. in-page focus jump, no keydown involved): applied selectedRange -> {46, 0}
 --
 keyDown: keyCode=124 characters='' charactersIgnoringModifiers='' modifierFlags=0x20000
   doCommandBySelector: moveRightAndModifySelection:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveRightAndModifySelection:]
   selectedRange -> {46, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.048ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
 --
 keyDown: keyCode=123 characters='' charactersIgnoringModifiers='' modifierFlags=0x80000
   doCommandBySelector: moveWordLeft:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveWordLeft:]
   selectedRange -> {46, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.048ms < 1ms)
   simulated non-keyboard selection change (e.g. in-page focus jump, no keydown involved): applied selectedRange -> {0, 0}
 --
 keyDown: keyCode=124 characters='' charactersIgnoringModifiers='' modifierFlags=0x80000
@@ -85,39 +85,39 @@ keyDown: keyCode=124 characters='' charactersIgnoringModifiers='' modifier
   doCommandBySelector: moveToEndOfLine:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveToEndOfLine:]
   selectedRange -> {0, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
-  simulated non-keyboard selection change (e.g. in-page focus jump, no keydown involved): applied selectedRange -> {46, 0}
+  ASSERT PASS: post-keyDown query never blocks (0.048ms < 1ms)
 --
 keyDown: keyCode=51 characters='' charactersIgnoringModifiers='' modifierFlags=0x0
   doCommandBySelector: deleteBackward:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:deleteBackward:]
-  selectedRange -> {46, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.048ms < 1ms)
+  selectedRange -> {0, 0} (from applied tier)
+  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
+  simulated non-keyboard selection change (e.g. in-page focus jump, no keydown involved): applied selectedRange -> {46, 0}
 --
 keyDown: keyCode=117 characters='' charactersIgnoringModifiers='' modifierFlags=0x0
   doCommandBySelector: deleteForward:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:deleteForward:]
   selectedRange -> {46, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.054ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.051ms < 1ms)
 --
 keyDown: keyCode=0 characters='' charactersIgnoringModifiers='a' modifierFlags=0x40000
   doCommandBySelector: moveToBeginningOfParagraph:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveToBeginningOfParagraph:]
   selectedRange -> {46, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.050ms < 1ms)
   simulated non-keyboard selection change (e.g. in-page focus jump, no keydown involved): applied selectedRange -> {0, 0}
 --
 keyDown: keyCode=14 characters='' charactersIgnoringModifiers='e' modifierFlags=0x40000
   doCommandBySelector: moveToEndOfParagraph:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveToEndOfParagraph:]
   selectedRange -> {0, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.047ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
 --
 keyDown: keyCode=40 characters='' charactersIgnoringModifiers='k' modifierFlags=0x40000
   doCommandBySelector: deleteToEndOfParagraph:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
 keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:deleteToEndOfParagraph:]
   selectedRange -> {0, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.076ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
 --
 keyDown: keyCode=2 characters='' charactersIgnoringModifiers='d' modifierFlags=0x40000
   doCommandBySelector: deleteForward:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
@@ -131,7 +131,7 @@ keyDown: keyCode=14 characters='' charactersIgnoringModifiers='' modifierFlags=0
   insertText: NSString '' (markedTextActive=NO)
 keyDown: interpretKeyEvents: produced 1 command(s): [insertText:NSString '']
   selectedRange -> {46, 0} (from applied tier)
-  ASSERT PASS: post-keyDown query never blocks (0.048ms < 1ms)
+  ASSERT PASS: post-keyDown query never blocks (0.049ms < 1ms)
   ASSERT PASS: post-keyDown query sees OLD applied state {46, 0}, not pending {46, 0}
   scheduling simulated content-process round trip (+50ms); synchronous queries until then will see the OLD state: selectedRange={46, 0} markedRange={NSNotFound,0} doc(len=46)="The quick brown fox jumps over the lazy dog.Hi"
   simulated content-process reply landed: selectedRange={46, 0} markedRange={NSNotFound,0} doc(len=46)="The quick brown fox jumps over the lazy dog.Hi"
@@ -161,4 +161,49 @@ Edit menu command (page view responder chain): redo:
 -- exercising Cmd-F find bar (still works after the merge) --
 Find bar: opened (Cmd-F)
 Find bar: closed
+-- <select> popup: arrows + type-select ('D') + Return --
+showSelectPopupWithItems: 5 item(s), selectedIndex=0, pageRect={100,100,140,22}
+  [0] 'Alpha' enabled=YES
+  [1] 'Bravo' enabled=YES
+  [2] 'Charlie (disabled)' enabled=NO
+  [3] (separator)
+  [4] 'Delta' enabled=YES
+  attaching at view rect {100,508,140,22}, native tracking begins (blocks until dismissed)...
+  posting scripted key into native menu tracking: keyCode=125 characters=''
+  posting scripted key into native menu tracking: keyCode=2 characters='D'
+  posting scripted key into native menu tracking: keyCode=36 characters=''
+  native tracking returned: chosen index = 4 ('Delta')
+  ASSERT PASS: type-select 'D' + Return chose Delta (index 4), got 4
+-- <select> popup: arrows + Escape (cancel leaves selection unchanged) --
+showSelectPopupWithItems: 5 item(s), selectedIndex=0, pageRect={100,100,140,22}
+  [0] 'Alpha' enabled=YES
+  [1] 'Bravo' enabled=YES
+  [2] 'Charlie (disabled)' enabled=NO
+  [3] (separator)
+  [4] 'Delta' enabled=YES
+  attaching at view rect {100,508,140,22}, native tracking begins (blocks until dismissed)...
+  posting scripted key into native menu tracking: keyCode=125 characters=''
+  posting scripted key into native menu tracking: keyCode=53 characters=''
+  native tracking returned: chosen index = 0 ('Alpha')
+  ASSERT PASS: Escape cancels, selection stays at index 0, got 0
+-- context menu: Down + Return (top item) --
+showContextMenuWithItems: 5 item(s), pageRect={100,140,140,22}
+  popUpContextMenu:withEvent:forView:, native tracking begins (blocks until dismissed)...
+  posting scripted key into native menu tracking: keyCode=125 characters=''
+  posting scripted key into native menu tracking: keyCode=36 characters=''
+  context menu item chosen: tag=0 title='Open Link'
+  native tracking returned: chosen tag=0 title='Open Link'
+  ASSERT PASS: Down + Return chose 'Open Link' (tag 0), got tag=0 title='Open Link'
+-- context menu: Down, Down, Right (open Share submenu), Down, Escape (cancel) --
+showContextMenuWithItems: 5 item(s), pageRect={100,140,140,22}
+  popUpContextMenu:withEvent:forView:, native tracking begins (blocks until dismissed)...
+  posting scripted key into native menu tracking: keyCode=125 characters=''
+  posting scripted key into native menu tracking: keyCode=125 characters=''
+  posting scripted key into native menu tracking: keyCode=124 characters=''
+  posting scripted key into native menu tracking: keyCode=125 characters=''
+  posting scripted key into native menu tracking: keyCode=53 characters=''
+  native tracking returned: no item chosen (dismissed, e.g. Escape)
+  ASSERT PASS: Escape inside the Share submenu cancels the whole menu, nothing chosen
+-- reference NSPopUpButton: opening for visual comparison (auto-dismiss via Return after 2s) --
+-- reference NSPopUpButton dismissed, selected 'Ref A' --
 ==== TigerBrowser text input self-test complete ====

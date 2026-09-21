@@ -44,6 +44,11 @@
 #define TILE_SIZE    256.0
 #define BANNER_HEIGHT 60.0
 
+// Fixed page-coordinate rects standing in for a real <select> element and a
+// real right-click target, until real layout geometry exists.
+#define TI_SELECT_PAGE_RECT CGRectMake(100, 100, 140, 22)
+#define TI_CONTEXTMENU_PAGE_RECT CGRectMake(100, 140, 140, 22)
+
 // ------------------------------------------------------------- text input log
 //
 // logs/textinput-plan.md spike: everything the NSTextInput/NSInputManager
@@ -104,6 +109,7 @@ enum {
 #define kTILeftArrow ([NSString stringWithFormat:@"%C", (unichar)NSLeftArrowFunctionKey])
 #define kTIRightArrow ([NSString stringWithFormat:@"%C", (unichar)NSRightArrowFunctionKey])
 #define kTIForwardDelete ([NSString stringWithFormat:@"%C", (unichar)NSDeleteFunctionKey])
+#define kTIDownArrow ([NSString stringWithFormat:@"%C", (unichar)NSDownArrowFunctionKey])
 
 // ---------------------------------------------------------- frameworks check
 
@@ -213,6 +219,130 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
         const char *text = urlText ? [urlText UTF8String] : "(no URL)";
         CGContextShowTextAtPoint(ctx, 16, 38, text, strlen(text));
     }
+
+    // Visual anchors for the <select>/context-menu spike -- just outlined
+    // boxes with a label, so a screenshot shows where those page rects are.
+    CGRect selectAnchor = TI_SELECT_PAGE_RECT;
+    if (CGRectIntersectsRect(selectAnchor, dirty)) {
+        CGContextSetRGBFillColor(ctx, 0.95, 0.95, 0.97, 1.0);
+        CGContextFillRect(ctx, selectAnchor);
+        CGContextSetRGBStrokeColor(ctx, 0.4, 0.4, 0.4, 1.0);
+        CGContextStrokeRect(ctx, selectAnchor);
+        CGContextSelectFont(ctx, "Helvetica", 12, kCGEncodingMacRoman);
+        CGContextSetTextMatrix(ctx, CGAffineTransformMakeScale(1.0, -1.0));
+        CGContextSetRGBFillColor(ctx, 0.1, 0.1, 0.1, 1.0);
+        CGContextShowTextAtPoint(ctx, selectAnchor.origin.x + 6, selectAnchor.origin.y + 15,
+                                  "<select> stub", 13);
+    }
+    CGRect contextAnchor = TI_CONTEXTMENU_PAGE_RECT;
+    if (CGRectIntersectsRect(contextAnchor, dirty)) {
+        CGContextSetRGBFillColor(ctx, 0.95, 0.95, 0.97, 1.0);
+        CGContextFillRect(ctx, contextAnchor);
+        CGContextSetRGBStrokeColor(ctx, 0.4, 0.4, 0.4, 1.0);
+        CGContextStrokeRect(ctx, contextAnchor);
+        CGContextSelectFont(ctx, "Helvetica", 12, kCGEncodingMacRoman);
+        CGContextSetTextMatrix(ctx, CGAffineTransformMakeScale(1.0, -1.0));
+        CGContextSetRGBFillColor(ctx, 0.1, 0.1, 0.1, 1.0);
+        CGContextShowTextAtPoint(ctx, contextAnchor.origin.x + 6, contextAnchor.origin.y + 15,
+                                  "right-click stub", 17);
+    }
+}
+
+// ------------------------------------------------------- native menus spike
+//
+// What WebPopupMenuProxyMac (<select>) and WebContextMenuProxyMac (right-
+// click) do on macOS, driven from a serialized item list the way one would
+// arrive from a web process: plain NSDictionary items (this IS the
+// serialized form -- no custom class needed) with keys "title" (NSString),
+// "enabled" (NSNumber BOOL, default YES), "checked" (NSNumber BOOL, default
+// NO -- context menu only, WebPopupItem has no checked concept at all,
+// only WebCore::ContextMenuItem::Type::CheckableAction does), "separator"
+// (NSNumber BOOL), "submenu" (NSArray of item dicts, context menu only --
+// NSPopUpButtonCell menus are flat, matching <select>/<optgroup> having no
+// nested popups). Order in the array is the item's index, exactly like the
+// real Vector<WebPopupItem>/Vector<ContextMenuItem>.
+
+static NSDictionary *tiItem(NSString *title, BOOL enabled, BOOL checked)
+{
+    return [NSDictionary dictionaryWithObjectsAndKeys:
+            title, @"title",
+            [NSNumber numberWithBool:enabled], @"enabled",
+            [NSNumber numberWithBool:checked], @"checked", nil];
+}
+
+static NSDictionary *tiSeparatorItem(void)
+{
+    return [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool:YES], @"separator", nil];
+}
+
+static NSDictionary *tiSubmenuItem(NSString *title, NSArray *submenuItems)
+{
+    return [NSDictionary dictionaryWithObjectsAndKeys:
+            title, @"title",
+            [NSNumber numberWithBool:YES], @"enabled",
+            submenuItems, @"submenu", nil];
+}
+
+// Mirrors WebPopupMenuProxyMac::populate: a real NSPopUpButtonCell, not a
+// plain NSMenu -- initTextCell:pullsDown:NO, usesItemFromMenu:NO (so each
+// item shows its own title rather than always showing the button's title),
+// autoenablesItems:NO (we set enabled per item ourselves, matching how a
+// real <option disabled> arrives).
+static NSPopUpButtonCell *tiBuildPopupCell(NSArray *items, int selectedIndex)
+{
+    NSPopUpButtonCell *cell = [[[NSPopUpButtonCell alloc] initTextCell:@"" pullsDown:NO] autorelease];
+    [cell setUsesItemFromMenu:NO];
+    [cell setAutoenablesItems:NO];
+    unsigned i;
+    for (i = 0; i < [items count]; i++) {
+        NSDictionary *item = [items objectAtIndex:i];
+        if ([[item objectForKey:@"separator"] boolValue]) {
+            [[cell menu] addItem:[NSMenuItem separatorItem]];
+            continue;
+        }
+        [cell addItemWithTitle:@""];
+        id menuItem = [cell lastItem];
+        [menuItem setTitle:[item objectForKey:@"title"]];
+        [menuItem setEnabled:[[item objectForKey:@"enabled"] boolValue]];
+    }
+    [cell selectItemAtIndex:selectedIndex];
+    return cell;
+}
+
+static NSMenu *tiBuildMenuRecursive(NSArray *items, id target, SEL action, int *tagCounter);
+
+// Mirrors WebContextMenuProxyMac's item model: a real NSMenu, submenus
+// recursive, separators via +[NSMenuItem separatorItem], checked state via
+// -setState:. Every leaf item gets a unique tag (this stub's stand-in for
+// the real ContextMenuAction id) and a target/action so popUpContextMenu:
+// (which returns void) still tells us which item was chosen, the same way
+// a real NSMenuItem's action does.
+static NSMenu *tiBuildMenuRecursive(NSArray *items, id target, SEL action, int *tagCounter)
+{
+    NSMenu *menu = [[[NSMenu alloc] initWithTitle:@""] autorelease];
+    [menu setAutoenablesItems:NO];
+    unsigned mi;
+    for (mi = 0; mi < [items count]; mi++) {
+        NSDictionary *item = [items objectAtIndex:mi];
+        if ([[item objectForKey:@"separator"] boolValue]) {
+            [menu addItem:[NSMenuItem separatorItem]];
+            continue;
+        }
+        NSArray *submenuItems = [item objectForKey:@"submenu"];
+        NSMenuItem *menuItem = [[[NSMenuItem alloc] initWithTitle:[item objectForKey:@"title"]
+                                                             action:(submenuItems ? NULL : action)
+                                                      keyEquivalent:@""] autorelease];
+        [menuItem setEnabled:[[item objectForKey:@"enabled"] boolValue]];
+        [menuItem setState:[[item objectForKey:@"checked"] boolValue] ? NSOnState : NSOffState];
+        if (submenuItems) {
+            [menuItem setSubmenu:tiBuildMenuRecursive(submenuItems, target, action, tagCounter)];
+        } else {
+            [menuItem setTarget:target];
+            [menuItem setTag:(*tagCounter)++];
+        }
+        [menu addItem:menuItem];
+    }
+    return menu;
 }
 
 // ---------------------------------------------------------------- TigerPageView
@@ -260,11 +390,21 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     NSArray *_selfTestScript;
     unsigned _selfTestIndex;
     NSTimer *_focusJumpTimer;
+
+    // ---- native menus (WebPopupMenuProxyMac / WebContextMenuProxyMac spike)
+    NSPopUpButtonCell *_selectPopupCell;
+    int _lastContextMenuChosenTag;
+    NSString *_lastContextMenuChosenTitle;
+    NSTimer *_menuKeyScriptTimer;
+    NSArray *_menuKeyScript;
+    unsigned _menuKeyScriptIndex;
 }
 - (void)setScroller:(NSScroller *)s;
 - (void)setURLText:(NSString *)text;
 - (void)setScrollY:(double)y;
 - (void)startTextInputSelfTest;
+- (int)showSelectPopupWithItems:(NSArray *)items selectedIndex:(int)selectedIndex pageRect:(CGRect)pageRect;
+- (void)showContextMenuWithItems:(NSArray *)items atPageRect:(CGRect)pageRect;
 @end
 
 @implementation TigerPageView
@@ -288,6 +428,7 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     [_timer invalidate];
     [_selfTestTimer invalidate];
     [_focusJumpTimer invalidate];
+    [_menuKeyScriptTimer invalidate];
     [_renderer release];
     [_viewport release];
     [_page release];
@@ -296,6 +437,9 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     [_appliedDocumentText release];
     [_pendingDocumentText release];
     [_selfTestScript release];
+    [_selectPopupCell release];
+    [_lastContextMenuChosenTitle release];
+    [_menuKeyScript release];
     [super dealloc];
 }
 
@@ -465,6 +609,15 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 - (CGPoint)pagePointForViewPoint:(NSPoint)p
 {
     return CGPointMake(p.x, ([self bounds].size.height - p.y) + _scrollY);
+}
+
+- (NSRect)viewRectForPageRect:(CGRect)pageRect
+{
+    // Page space is top-left/y-down (geometryFlipped viewport); the view is
+    // bottom-left/y-up AppKit space. Same conversion as -pagePointForViewPoint:,
+    // inverted, plus the rect's height.
+    CGFloat viewY = [self bounds].size.height - (pageRect.origin.y - _scrollY) - pageRect.size.height;
+    return NSMakeRect(pageRect.origin.x, viewY, pageRect.size.width, pageRect.size.height);
 }
 
 - (void)mouseDown:(NSEvent *)e
@@ -738,6 +891,127 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     return [NSArray arrayWithObject:NSUnderlineStyleAttributeName];
 }
 
+// ---- native menus: <select> popup (WebPopupMenuProxyMac) and context menu
+// (WebContextMenuProxyMac), driven from the serialized item list above.
+
+// Mirrors WebPopupMenuProxyMac::showPopupMenu: build the cell, attach it at
+// the control's rect, let AppKit run its own native tracking loop
+// (performClickWithFrame:inView: does attach+track+dismiss in one call --
+// the public-API equivalent of the private PAL::popUpMenu() SPI upstream
+// uses), then read back which item the user picked. Real keyboard
+// navigation (arrows, type-select, Return, Escape) all come from AppKit's
+// own NSMenu tracking, not anything this file implements.
+- (int)showSelectPopupWithItems:(NSArray *)items selectedIndex:(int)selectedIndex pageRect:(CGRect)pageRect
+{
+    tiLog(@"showSelectPopupWithItems: %lu item(s), selectedIndex=%d, pageRect={%.0f,%.0f,%.0f,%.0f}",
+          (unsigned long)[items count], selectedIndex, pageRect.origin.x, pageRect.origin.y,
+          pageRect.size.width, pageRect.size.height);
+    unsigned i;
+    for (i = 0; i < [items count]; i++) {
+        NSDictionary *item = [items objectAtIndex:i];
+        if ([[item objectForKey:@"separator"] boolValue])
+            tiLog(@"  [%u] (separator)", i);
+        else
+            tiLog(@"  [%u] '%@' enabled=%@", i, [item objectForKey:@"title"],
+                  [[item objectForKey:@"enabled"] boolValue] ? @"YES" : @"NO");
+    }
+
+    [_selectPopupCell release];
+    _selectPopupCell = [tiBuildPopupCell(items, selectedIndex) retain];
+
+    NSRect frame = [self viewRectForPageRect:pageRect];
+    tiLog(@"  attaching at view rect {%.0f,%.0f,%.0f,%.0f}, native tracking begins (blocks until dismissed)...",
+          frame.origin.x, frame.origin.y, frame.size.width, frame.size.height);
+
+    [_selectPopupCell performClickWithFrame:frame inView:self];
+
+    int chosen = [_selectPopupCell indexOfSelectedItem];
+    tiLog(@"  native tracking returned: chosen index = %d ('%@')", chosen,
+          (chosen >= 0 && chosen < (int)[items count]) ? [[items objectAtIndex:chosen] objectForKey:@"title"] : @"?");
+    return chosen; // "returned through a callback": the caller (here, the self-test) treats this as one.
+}
+
+- (void)contextMenuItemChosen:(id)sender
+{
+    _lastContextMenuChosenTag = (int)[sender tag];
+    [_lastContextMenuChosenTitle release];
+    _lastContextMenuChosenTitle = [[sender title] copy];
+    tiLog(@"  context menu item chosen: tag=%d title='%@'", _lastContextMenuChosenTag, _lastContextMenuChosenTitle);
+}
+
+// Mirrors WebContextMenuProxyMac's use of +[NSMenu popUpContextMenu:withEvent:forView:]
+// with a recursively-built native NSMenu (submenus, separators, checked
+// state all real AppKit, not drawn by hand).
+- (void)showContextMenuWithItems:(NSArray *)items atPageRect:(CGRect)pageRect
+{
+    tiLog(@"showContextMenuWithItems: %lu item(s), pageRect={%.0f,%.0f,%.0f,%.0f}",
+          (unsigned long)[items count], pageRect.origin.x, pageRect.origin.y,
+          pageRect.size.width, pageRect.size.height);
+
+    _lastContextMenuChosenTag = -1;
+    [_lastContextMenuChosenTitle release];
+    _lastContextMenuChosenTitle = nil;
+
+    int tagCounter = 0;
+    NSMenu *menu = tiBuildMenuRecursive(items, self, @selector(contextMenuItemChosen:), &tagCounter);
+
+    NSRect viewRect = [self viewRectForPageRect:pageRect];
+    NSPoint locationInWindow = [self convertPoint:viewRect.origin toView:nil];
+    NSEvent *fakeRightMouseDown = [NSEvent mouseEventWithType:NSRightMouseDown
+                                                       location:locationInWindow
+                                                  modifierFlags:0
+                                                      timestamp:CACurrentMediaTime()
+                                                   windowNumber:[[self window] windowNumber]
+                                                        context:nil
+                                                    eventNumber:0
+                                                     clickCount:1
+                                                       pressure:1.0];
+
+    tiLog(@"  popUpContextMenu:withEvent:forView:, native tracking begins (blocks until dismissed)...");
+    [NSMenu popUpContextMenu:menu withEvent:fakeRightMouseDown forView:self];
+
+    if (_lastContextMenuChosenTag >= 0)
+        tiLog(@"  native tracking returned: chosen tag=%d title='%@'", _lastContextMenuChosenTag, _lastContextMenuChosenTitle);
+    else
+        tiLog(@"  native tracking returned: no item chosen (dismissed, e.g. Escape)");
+}
+
+// Both -performClickWithFrame:inView: and +popUpContextMenu:withEvent:forView:
+// block synchronously in their own native event-tracking loop, so a keyboard
+// sequence has to be posted asynchronously from a timer *scheduled before*
+// the call, in a run loop mode NSMenu's tracking loop still services
+// (NSRunLoopCommonModes covers NSEventTrackingRunLoopMode). This is the
+// only way to drive the shell's own scripted self-test through real,
+// unmodified AppKit menu tracking rather than reimplementing arrow/Return/
+// Escape handling by hand.
+- (void)postMenuKeyScript:(NSArray *)events
+{
+    [_menuKeyScript release];
+    _menuKeyScript = [events retain];
+    _menuKeyScriptIndex = 0;
+    [_menuKeyScriptTimer invalidate];
+    [_menuKeyScriptTimer release];
+    _menuKeyScriptTimer = [[NSTimer timerWithTimeInterval:0.8 target:self
+                                                  selector:@selector(fireMenuKeyScriptEvent:)
+                                                  userInfo:nil repeats:YES] retain];
+    [[NSRunLoop currentRunLoop] addTimer:_menuKeyScriptTimer forMode:(NSString *)kCFRunLoopCommonModes];
+}
+
+- (void)fireMenuKeyScriptEvent:(NSTimer *)timer
+{
+    if (_menuKeyScriptIndex >= [_menuKeyScript count]) {
+        [_menuKeyScriptTimer invalidate];
+        [_menuKeyScriptTimer release];
+        _menuKeyScriptTimer = nil;
+        return;
+    }
+    NSEvent *event = [_menuKeyScript objectAtIndex:_menuKeyScriptIndex];
+    _menuKeyScriptIndex++;
+    tiLog(@"  posting scripted key into native menu tracking: keyCode=%u characters='%@'",
+          (unsigned)[event keyCode], [event characters]);
+    [NSApp postEvent:event atStart:NO];
+}
+
 // ---- synthetic self-test driver (no ssh-typed input is possible on the box)
 
 - (NSEvent *)tiEventChars:(NSString *)chars ignMods:(NSString *)ignMods mods:(unsigned int)mods keyCode:(unsigned short)code
@@ -836,6 +1110,56 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
         tiLog(@"-- exercising Cmd-F find bar (still works after the merge) --");
         [[NSApp delegate] performSelector:@selector(performFindPanelAction:) withObject:nil];
         [[NSApp delegate] performSelector:@selector(performFindPanelAction:) withObject:nil];
+
+        // ---- native menus (WebPopupMenuProxyMac / WebContextMenuProxyMac) ----
+        NSArray *selectItems = [NSArray arrayWithObjects:
+            tiItem(@"Alpha", YES, NO), tiItem(@"Bravo", YES, NO),
+            tiItem(@"Charlie (disabled)", NO, NO), tiSeparatorItem(),
+            tiItem(@"Delta", YES, NO), nil];
+
+        tiLog(@"-- <select> popup: arrows + type-select ('D') + Return --");
+        [self postMenuKeyScript:[NSArray arrayWithObjects:
+            [self tiEventChars:kTIDownArrow ignMods:kTIDownArrow mods:0 keyCode:TKC_DownArrow],
+            [self tiEventChars:@"D" ignMods:@"D" mods:0 keyCode:TKC_D],
+            [self tiEventChars:@"\r" ignMods:@"\r" mods:0 keyCode:TKC_Return], nil]];
+        int chosen1 = [self showSelectPopupWithItems:selectItems selectedIndex:0 pageRect:TI_SELECT_PAGE_RECT];
+        tiAssert(chosen1 == 4, [NSString stringWithFormat:@"type-select 'D' + Return chose Delta (index 4), got %d", chosen1]);
+
+        tiLog(@"-- <select> popup: arrows + Escape (cancel leaves selection unchanged) --");
+        [self postMenuKeyScript:[NSArray arrayWithObjects:
+            [self tiEventChars:kTIDownArrow ignMods:kTIDownArrow mods:0 keyCode:TKC_DownArrow],
+            [self tiEventChars:@"\x1b" ignMods:@"\x1b" mods:0 keyCode:TKC_Escape], nil]];
+        int chosen2 = [self showSelectPopupWithItems:selectItems selectedIndex:0 pageRect:TI_SELECT_PAGE_RECT];
+        tiAssert(chosen2 == 0, [NSString stringWithFormat:@"Escape cancels, selection stays at index 0, got %d", chosen2]);
+
+        NSArray *contextItems = [NSArray arrayWithObjects:
+            tiItem(@"Open Link", YES, NO), tiSeparatorItem(),
+            tiSubmenuItem(@"Share", [NSArray arrayWithObjects:
+                tiItem(@"Mail", YES, NO), tiItem(@"Messages", YES, NO), nil]),
+            tiItem(@"Inspect Element", YES, NO),
+            tiItem(@"Reload", YES, YES) /* checked, demonstrates NSOnState */, nil];
+
+        tiLog(@"-- context menu: Down + Return (top item) --");
+        [self postMenuKeyScript:[NSArray arrayWithObjects:
+            [self tiEventChars:kTIDownArrow ignMods:kTIDownArrow mods:0 keyCode:TKC_DownArrow],
+            [self tiEventChars:@"\r" ignMods:@"\r" mods:0 keyCode:TKC_Return], nil]];
+        [self showContextMenuWithItems:contextItems atPageRect:TI_CONTEXTMENU_PAGE_RECT];
+        tiAssert(_lastContextMenuChosenTag == 0 && [_lastContextMenuChosenTitle isEqualToString:@"Open Link"],
+                  [NSString stringWithFormat:@"Down + Return chose 'Open Link' (tag 0), got tag=%d title='%@'",
+                          _lastContextMenuChosenTag, _lastContextMenuChosenTitle]);
+
+        tiLog(@"-- context menu: Down, Down, Right (open Share submenu), Down, Escape (cancel) --");
+        [self postMenuKeyScript:[NSArray arrayWithObjects:
+            [self tiEventChars:kTIDownArrow ignMods:kTIDownArrow mods:0 keyCode:TKC_DownArrow],
+            [self tiEventChars:kTIDownArrow ignMods:kTIDownArrow mods:0 keyCode:TKC_DownArrow],
+            [self tiEventChars:kTIRightArrow ignMods:kTIRightArrow mods:0 keyCode:TKC_RightArrow],
+            [self tiEventChars:kTIDownArrow ignMods:kTIDownArrow mods:0 keyCode:TKC_DownArrow],
+            [self tiEventChars:@"\x1b" ignMods:@"\x1b" mods:0 keyCode:TKC_Escape], nil]];
+        [self showContextMenuWithItems:contextItems atPageRect:TI_CONTEXTMENU_PAGE_RECT];
+        tiAssert(_lastContextMenuChosenTag == -1, @"Escape inside the Share submenu cancels the whole menu, nothing chosen");
+
+        [[NSApp delegate] performSelector:@selector(showReferencePopupForScreenshot) withObject:nil];
+
         tiLog(@"==== TigerBrowser text input self-test complete ====");
         return;
     }
@@ -996,6 +1320,7 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     NSMutableArray *_history;
     unsigned long _historyIndex;
     BOOL _findBarVisible;
+    NSPopUpButton *_referencePopup;  // real native control, for visual comparison
 }
 - (id)initWithURLString:(NSString *)urlString;
 - (void)showWindow;
@@ -1008,6 +1333,7 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 - (void)zoomActualSize:(id)sender;
 - (void)zoomIn:(id)sender;
 - (void)zoomOut:(id)sender;
+- (void)showReferencePopupForScreenshot;
 @end
 
 @implementation TigerBrowserController
@@ -1068,8 +1394,18 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     [reloadButton setAutoresizingMask:NSViewMaxXMargin];
     [bar addSubview:reloadButton];
 
+    // Reference NSPopUpButton, docked top-right of the toolbar: a genuinely
+    // separate, real native control (not built through tiBuildPopupCell) to
+    // visually compare against the shell's serialized-item-list popup.
+    const float refPopupWidth = 110.0;
+    NSRect refPopupRect = NSMakeRect(bounds.size.width - refPopupWidth - pad, 4, refPopupWidth, 24);
+    _referencePopup = [[[NSPopUpButton alloc] initWithFrame:refPopupRect pullsDown:NO] autorelease];
+    [_referencePopup addItemsWithTitles:[NSArray arrayWithObjects:@"Ref A", @"Ref B", @"Ref C", nil]];
+    [_referencePopup setAutoresizingMask:NSViewMinXMargin];
+    [bar addSubview:_referencePopup];
+
     float addrX = pad + 76 + 34 + pad;
-    NSRect addrRect = NSMakeRect(addrX, 4, bounds.size.width - addrX - pad, 24);
+    NSRect addrRect = NSMakeRect(addrX, 4, bounds.size.width - addrX - pad - refPopupWidth - pad, 24);
     _addressField = [[[NSTextField alloc] initWithFrame:addrRect] autorelease];
     [_addressField setAutoresizingMask:NSViewWidthSizable];
     [_addressField setTarget:self];
@@ -1155,6 +1491,30 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 - (void)showWindow
 {
     [_window makeKeyAndOrderFront:nil];
+}
+
+// Real, separately-built NSPopUpButton (not through tiBuildPopupCell at
+// all) opened and auto-dismissed via a scripted Return, purely so a
+// screenshot can be compared directly against the shell's serialized-item
+// <select> popup -- see spike/TigerBrowser/README.md.
+- (void)dismissReferencePopupWithReturn:(NSTimer *)timer
+{
+    NSEvent *ret = [NSEvent keyEventWithType:NSKeyDown location:NSZeroPoint modifierFlags:0
+                                    timestamp:CACurrentMediaTime() windowNumber:[_window windowNumber]
+                                      context:nil characters:@"\r" charactersIgnoringModifiers:@"\r"
+                                    isARepeat:NO keyCode:36];
+    [NSApp postEvent:ret atStart:NO];
+}
+
+- (void)showReferencePopupForScreenshot
+{
+    tiLog(@"-- reference NSPopUpButton: opening for visual comparison (auto-dismiss via Return after 2s) --");
+    NSTimer *t = [NSTimer timerWithTimeInterval:2.0 target:self
+                                        selector:@selector(dismissReferencePopupWithReturn:)
+                                        userInfo:nil repeats:NO];
+    [[NSRunLoop currentRunLoop] addTimer:t forMode:(NSString *)kCFRunLoopCommonModes];
+    [_referencePopup performClick:nil];
+    tiLog(@"-- reference NSPopUpButton dismissed, selected '%@' --", [_referencePopup titleOfSelectedItem]);
 }
 
 - (void)loadURLString:(NSString *)urlString
@@ -1292,6 +1652,7 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 - (void)zoomActualSize:(id)sender { [_controller zoomActualSize:sender]; }
 - (void)zoomIn:(id)sender { [_controller zoomIn:sender]; }
 - (void)zoomOut:(id)sender { [_controller zoomOut:sender]; }
+- (void)showReferencePopupForScreenshot { [_controller showReferencePopupForScreenshot]; }
 
 @end
 
