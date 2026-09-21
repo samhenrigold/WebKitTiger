@@ -14,22 +14,31 @@ make            # builds raster32 (i386) and shaper64 (x86_64)
 
 ## Result
 
-**7 cases, 3 pixel-identical, 3 needed fallback, 0 drew a `.notdef`.**
-Worst per-glyph position disagreement over the wire: **0.1406 pt**.
+**7 cases, 7 pixel-identical, 3 needed fallback, 0 drew a `.notdef`.**
+Worst per-glyph position disagreement over the wire: **0.0039 pt**, against a tolerance of
+0.02 pt that the test asserts and exits non-zero on.
 
-| case | face the shaper chose | differing px | max channel | worst shift |
-|---|---|---|---|---|
-| system font, Lucida Grande 13 | LucidaGrande | **0** | **0** | 0.0103 pt |
-| Arabic requested as Helvetica | GeezaPro-Bold *(fell back)* | **0** | **0** | 0.0000 pt |
-| CJK requested as Helvetica | LiGothicMed *(fell back)* | **0** | **0** | 0.0000 pt |
-| web font from bytes, Arabic | GeezaPro | 28 | 74 | 0.0156 pt |
-| Latin with kerned pairs | Helvetica | 181 | 86 | 0.1250 pt |
-| bold request | Helvetica-Bold | 165 | 86 | 0.1406 pt |
-| Latin rejected by the shaper | Helvetica *(fell back)* | 110 | 86 | 0.0781 pt |
+Every case, including Latin with kerned pairs, Arabic, CJK and a web font from bytes,
+produces pixels identical to CoreText laying out the same text itself.
 
-The three non-zero rows are all Apple-format `kern` faces, and the cause is the one
-`logs/hb-raster.md` quantifies: CoreText puts the whole kern on the leading glyph,
-HarfBuzz splits it across the pair. Nothing new appeared over the wire.
+Two fixes got it there, and both are rules the real font code has to keep.
+
+**Apply Apple-format `kern` to the leading glyph.** CoreText subtracts the whole pair
+value from the leading glyph; HarfBuzz splits it across the pair, moving the second glyph
+by up to 0.99 pt. So for a face whose `kern` table is Apple-format, `shaper64.c` shapes
+with `-kern` and applies the pair values itself. 66 of the box's 176 faces are in that
+group, including Helvetica and Courier; the system font is not.
+
+**Shape at 1/1024 pt, not 26.6.** This one was hiding behind the first. The conventional
+`hb_font_set_scale(font, size * 64, ...)` rounds every advance into a 1/64 pt quantum, and
+the error **accumulates along the run**: 0.0078 pt per glyph on Helvetica at 16 pt, which
+is 0.14 pt by the eighteenth glyph and would be near half a point across a line of body
+text. CoreText computes in float and does not accumulate, so this is HarfBuzz's precision
+to choose rather than a disagreement to reconcile. Nothing about it is specific to Tiger,
+and it would be easy to ship without noticing, because a single glyph looks correct.
+
+Applying the kern rule alone reached 0.10 pt. Tracing the per-glyph advances is what
+showed the remainder was not kerning at all.
 
 ## What this proves that the in-process test did not
 
