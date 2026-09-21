@@ -460,3 +460,9 @@ CFAllocatorRef CFGetAllocator(CFTypeRef cf);
 
 #endif /* ! __COREFOUNDATION_CFBASE__ */
 
+
+/* TIGER: kCFNumberCGFloatType is 10.5+. CGFloat is float on i386, and Tiger's
+   CFNumber would not recognise the 10.5 enumerator anyway, so map it to the
+   32-bit float type. A macro rather than an enumerator so it does not depend
+   on CFNumber.h having been parsed yet. */
+#define kCFNumberCGFloatType kCFNumberFloat32Type
