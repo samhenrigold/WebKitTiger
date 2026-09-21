@@ -111,6 +111,32 @@ def split_params(s):
     if cur.strip(): out.append(cur.strip())
     return out
 
+def ir_struct_sizes(ir_path):
+    """Size every `%struct.X = type {...}` in the IR, for byval parameters.
+
+    i386 Darwin aligns every scalar in a struct to at most 4 bytes, including
+    double, so laying the fields out at 4-byte granularity is exact here."""
+    defs, sizes = {}, {}
+    for line in open(ir_path):
+        m = re.match(r'^(%[A-Za-z0-9_.]+) = type \{(.*)\}\s*$', line.rstrip())
+        if m: defs[m.group(1)] = split_params(m.group(2))
+    def size(t, seen=()):
+        t = t.strip()
+        if t in sizes: return sizes[t]
+        if t.startswith("%"):
+            if t in seen or t not in defs: return 4
+            n = sum(size(f, seen + (t,)) for f in defs[t])
+            n = (n + 3) & ~3
+            sizes[t] = n
+            return n
+        if t in ("double", "i64"): return 8
+        if t.startswith(("[", "<")):
+            m = re.match(r'[\[<](\d+) x (.+)[\]>]', t)
+            if m: return int(m.group(1)) * size(m.group(2), seen)
+        return 4
+    return {t: size(t) for t in defs}
+
+
 def modern_lowering(names, workdir):
     """Ask clang to lower each name for i386 and read the resulting `declare`."""
     hdr = "".join("#include <%s>\n" % h for h in UMBRELLAS)
@@ -133,6 +159,7 @@ def modern_lowering(names, workdir):
             sys.stderr.write(r.stderr[:4000]); sys.exit("clang failed and named no symbol")
         for b in bad: dropped[b] = "not declared in the modern SDK"
         cur = [n for n in cur if n not in bad]
+    structs = ir_struct_sizes(ir)
     out = {}
     for line in open(ir):
         m = DECL.match(line.rstrip())
@@ -143,7 +170,14 @@ def modern_lowering(names, workdir):
             if "inreg" in p: notes.append("inreg"); continue
             if "sret(" in p: notes.append("sret"); total += 4; continue
             mb = re.search(r'byval\(([^)]*)\)', p)
-            if mb: notes.append("byval:" + mb.group(1)); continue
+            if mb:
+                # A byval struct occupies its full size on the stack. Skipping it
+                # scored CGContextFillRect(ctx, CGRect) as 4 bytes instead of 20
+                # and made most of CoreGraphics look mismatched.
+                n = structs.get(mb.group(1).strip(), 4)
+                notes.append("byval:%s=%d" % (mb.group(1), n))
+                plist.append((total, n, "agg")); total += n
+                continue
             base = p.split()[0]
             if base in ("i64", "double"):
                 plist.append((total, 8, "fp8" if base == "double" else "int8")); total += 8
