@@ -95,6 +95,10 @@ CGColorSpaceModel CGColorSpaceGetModel(CGColorSpaceRef);
 CFStringRef CGColorSpaceGetName(CGColorSpaceRef);
 CGColorSpaceRef CGColorSpaceGetBaseColorSpace(CGColorSpaceRef);
 bool CGColorSpaceUsesExtendedRange(CGColorSpaceRef);
+/* 10.14. Asks whether the space's transfer function is one of the HDR ones
+   (PQ or HLG). Tiger has no HDR space at all and TigerCGColorSpaceCreateWithName
+   can never return one, so this is false by construction, not a stub. */
+bool CGColorSpaceUsesITUR_2100TF(CGColorSpaceRef);
 bool CGColorSpaceIsWideGamutRGB(CGColorSpaceRef);
 bool CGColorSpaceSupportsOutput(CGColorSpaceRef);
 CGColorSpaceRef CGColorSpaceCreateExtended(CGColorSpaceRef);
@@ -160,20 +164,38 @@ CGRect CGPathGetPathBoundingBox(CGPathRef);
    kCGBlendModeNormal, silently. There is no shim for this, because the mode is
    context state consumed by every later drawing call; the port has to avoid the
    paths that depend on it. See compat/CG-SURVEY.md. */
-enum {
-    kCGBlendModeClear = 16,
-    kCGBlendModeCopy = 17,
-    kCGBlendModeSourceIn = 18,
-    kCGBlendModeSourceOut = 19,
-    kCGBlendModeSourceAtop = 20,
-    kCGBlendModeDestinationOver = 21,
-    kCGBlendModeDestinationIn = 22,
-    kCGBlendModeDestinationOut = 23,
-    kCGBlendModeDestinationAtop = 24,
-    kCGBlendModeXOR = 25,
-    kCGBlendModePlusDarker = 26,
-    kCGBlendModePlusLighter = 27
-};
+/* Casted macros, not a second enum: in C++ an unnamed enum's constants are a
+   DISTINCT type from CGBlendMode, so `return kCGBlendModeClear;` from a function
+   returning CGBlendMode is an error. The cast is what makes these usable from
+   GraphicsContextCG.cpp, which is C++. (They read fine from C either way, which
+   is why this only surfaced when WebCore's CG backend was first compiled.) */
+#define kCGBlendModeClear           ((CGBlendMode)16)
+#define kCGBlendModeCopy            ((CGBlendMode)17)
+#define kCGBlendModeSourceIn        ((CGBlendMode)18)
+#define kCGBlendModeSourceOut       ((CGBlendMode)19)
+#define kCGBlendModeSourceAtop      ((CGBlendMode)20)
+#define kCGBlendModeDestinationOver ((CGBlendMode)21)
+#define kCGBlendModeDestinationIn   ((CGBlendMode)22)
+#define kCGBlendModeDestinationOut  ((CGBlendMode)23)
+#define kCGBlendModeDestinationAtop ((CGBlendMode)24)
+#define kCGBlendModeXOR             ((CGBlendMode)25)
+#define kCGBlendModePlusDarker      ((CGBlendMode)26)
+#define kCGBlendModePlusLighter     ((CGBlendMode)27)
+
+/* kCGInterpolationMedium is 10.6. It is deliberately NOT declared here, and
+   there is no way to declare it correctly from outside the SDK header:
+   enum CGInterpolationQuality has no fixed underlying type and its 0..3
+   enumerators give it a two-bit value range, so ((CGInterpolationQuality)4) is
+   not a valid constant expression and cannot be a `case` label -- which is
+   exactly how GraphicsContextCG.cpp uses it. (Widening the enum by rewriting
+   its last enumerator with a macro across the SDK include was tried; the SDK's
+   CG headers re-include CGContext.h from inside itself, so the macro cannot be
+   scoped reliably.) The two call sites in platform/graphics/cg are guarded on
+   PLATFORM(TIGER) instead, and both comments point back here.
+
+   Nothing is lost by it: cgprobe found every interpolation quality above None
+   producing identical pixels on this CoreGraphics (CG-SURVEY.md, "interpolation
+   quality collapsing to one level"), so Medium and High are the same picture. */
 
 typedef void (*CGBitmapContextReleaseDataCallback)(void* releaseInfo, void* data);
 CGContextRef CGBitmapContextCreateWithData(void* data, size_t width, size_t height,
@@ -194,7 +216,29 @@ typedef enum {
 } CGContextType;
 CGContextType CGContextGetType(CGContextRef);
 
+/* kCGImageByteOrder* is the modern spelling of Tiger's kCGBitmapByteOrder*.
+   Same enum, same values -- CGImage.h declares them in one CGBitmapInfo
+   enumeration -- so these are aliases, not new constants. */
+#define kCGImageByteOrderMask    kCGBitmapByteOrderMask
+#define kCGImageByteOrderDefault kCGBitmapByteOrderDefault
+#define kCGImageByteOrder16Little kCGBitmapByteOrder16Little
+#define kCGImageByteOrder32Little kCGBitmapByteOrder32Little
+#define kCGImageByteOrder16Big    kCGBitmapByteOrder16Big
+#define kCGImageByteOrder32Big    kCGBitmapByteOrder32Big
+
 CGColorSpaceRef CGContextGetColorSpace(CGContextRef);
+
+/* 10.13 in the headers, but Tiger's CoreGraphics EXPORTS CGContextResetClip
+   (logs/api/tiger-CG.txt); undeclared, like CGContextGetType above. Apple's own
+   implementation, so the "reset the clip without unwinding the gstate" semantics
+   GraphicsContextCG.cpp relies on are the real ones. */
+void CGContextResetClip(CGContextRef);
+
+/* IOSurface is 10.6, so CGContextGetType can never answer kCGContextTypeIOSurface
+   on this system and this branch of GraphicsContext::colorSpace() is unreachable.
+   It exists only so the switch compiles; it returns NULL. */
+CGColorSpaceRef CGIOSurfaceContextGetColorSpace(CGContextRef);
+CGBitmapInfo CGIOSurfaceContextGetBitmapInfo(CGContextRef);
 void CGContextBeginTransparencyLayerWithRect(CGContextRef, CGRect, CFDictionaryRef);
 void CGContextStrokeArc(CGContextRef, CGPoint center, CGFloat radius, CGFloat startAngle,
     CGFloat endAngle, int clockwise);
@@ -289,6 +333,14 @@ int CGFontGetUnitsPerEm(CGFontRef);
 /* Tiger has no CGFontCopyTableTags and no CGContextShowGlyphsAtPositions.
    Anything reaching for those needs a different route, not a declaration. */
 
+/* ------------------------------------------------------------- data provider */
+
+/* 10.5 in the headers, but Tiger's CoreGraphics EXPORTS it (logs/api/tiger-CG.txt);
+   the 10.4u SDK simply never declared it. So this is a declaration, not a shim --
+   the implementation is Apple's own. ShareableBitmapCG.mm is the caller that
+   matters here: it is how a tile's pixels come back out of a CGImage. */
+CFDataRef CGDataProviderCopyData(CGDataProviderRef);
+
 /* ------------------------------------------------------------------ ImageIO */
 
 /* Tiger's ImageIO has the whole 10.4 CGImageSource/CGImageDestination surface.
@@ -306,9 +358,14 @@ typedef struct CGImageSource *CGImageSourceRef;
 size_t CGImageSourceGetPrimaryImageIndex(CGImageSourceRef);
 CFDictionaryRef CGImageSourceCopyAuxiliaryDataInfoAtIndexWithOptions(CGImageSourceRef, size_t index,
     CFStringRef auxiliaryImageDataType, CFDictionaryRef options);
-void CGImageSourceSetAllowableTypes(CFArrayRef allowableTypes);
-void CGImageSourceDisableHardwareDecoding(CGImageSourceRef);
-void CGImageSourceEnableRestrictedDecoding(void);
+/* These three are no-ops on Tiger (there is no image-type allow list, no
+   hardware decoder and no restricted-decoding mode), but the return type and
+   argument list are Apple's, because PAL/pal/spi/cg/ImageIOSPI.h declares them
+   too and a disagreement is a hard "conflicting types" error rather than a
+   silent ABI difference. noErr is what a successful call returns. */
+OSStatus CGImageSourceSetAllowableTypes(CFArrayRef allowableTypes);
+OSStatus CGImageSourceDisableHardwareDecoding(void);
+OSStatus CGImageSourceEnableRestrictedDecoding(void);
 
 extern const CFStringRef kCGImageSourceShouldCacheImmediately;
 extern const CFStringRef kCGImageSourceSkipMetadata;

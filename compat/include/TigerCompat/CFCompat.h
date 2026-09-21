@@ -30,6 +30,9 @@ extern const CFStringRef kCFLocaleCollatorIdentifier;
    when the preference is unset. */
 CFArrayRef CFLocaleCopyPreferredLanguages(void);
 
+/* 10.5. Defined in cfcompat.c with Apple's string; Tiger never posts it. */
+extern const CFStringRef kCFLocaleCurrentLocaleDidChangeNotification;
+
 /* CFRunLoopGetMain is exported by Tiger's CoreFoundation (T _CFRunLoopGetMain;
    logs/api/tiger-CF.txt) but not declared in the 10.4u SDK's <CFRunLoop.h>, so
    this is a declaration of the real function rather than a shim. Note it cannot

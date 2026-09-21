@@ -51,5 +51,6 @@ link_framework Foundation "$SDK"
 link_framework AppKit "$SDK"
 link_framework CoreFoundation "$SDK"
 link_framework CoreGraphics "$SDK/ApplicationServices.framework/Frameworks"
+link_framework ImageIO "$SDK/ApplicationServices.framework/Frameworks"
 
 echo "overlay rebuilt: $HERE"

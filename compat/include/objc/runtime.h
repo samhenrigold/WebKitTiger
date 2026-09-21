@@ -111,6 +111,16 @@ void objc_setAssociatedObject(id object, const void *key, id value, objc_Associa
 id objc_getAssociatedObject(id object, const void *key);
 void objc_removeAssociatedObjects(id object);
 
+/* _C_BOOL is the ObjC type encoding for C99 _Bool, 'B'. Tiger's
+   <objc/objc-class.h> has the whole _C_* table except this one: the 10.4
+   compiler encoded BOOL as signed char ('c'), and 'B' only appears once the
+   runtime learns about _Bool. The character is the runtime's, not ours -- a
+   method compiled by this clang with a bool argument encodes 'B' on Tiger too,
+   which is exactly why objc_utility.mm has to be able to name it. */
+#ifndef _C_BOOL
+#define _C_BOOL 'B'
+#endif
+
 #ifdef __cplusplus
 }
 #endif

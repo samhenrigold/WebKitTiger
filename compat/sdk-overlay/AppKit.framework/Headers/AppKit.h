@@ -174,6 +174,8 @@
 
 /* ===== TIGER: additions below this line, not SDK content ================ */
 
+
+
 /* 10.6. Tiger's AppKit has no notion of a right-to-left interface; the type
    exists so that PopupMenu.mm, ScrollbarThemeMac.mm and WebView.mm can name it.
    The accessors that return one need implementations and are in
@@ -188,4 +190,112 @@ enum {
    not seen <TigerCompat/NSCompat.h>, which is where NSInteger comes from on
    Tiger. On i386 NSInteger is int, so the two spellings are the same type. */
 typedef int NSUserInterfaceLayoutDirection;
+#endif
+
+/* The AppKit that needs an IMPLEMENTATION rather than a rename lives in
+   <TigerCompat/AppKitCompat.h> (compat/nscompat-appkit.m): the NSEvent 10.7-10.10
+   accessors, -[NSGraphicsContext CGContext], the NSColor semantic colours, the
+   NSWorkspace accessibility switches. It is imported here, at the very end of
+   the umbrella, rather than file by file at ~40 call sites -- by this point
+   every AppKit class it extends is declared, and its own `#import <AppKit/AppKit.h>`
+   is a no-op because this file's include guard is already set.
+
+   Placed BEFORE the pure renames below on purpose: those are macros, and a
+   macro named NSBezelStyleRounded must not be live while AppKitCompat.h's own
+   declarations are parsed. */
+#import <TigerCompat/AppKitCompat.h>
+
+/* -------------------------------------------------------------------------
+ * The 10.12 "Swiftification" enum renames, and two later additions.
+ *
+ * Every one of these is the SAME VALUE under a new spelling -- the values are
+ * the 10.4u SDK's own enumerators, not constants repeated by hand -- so this is
+ * a rename table and nothing more. They matter because they are what the Aqua
+ * control path (ControlFactoryMac.mm, ButtonMac.mm, ColorWellMac.mm,
+ * ControlMac.mm) uses to configure the real NSCells it draws with, which is the
+ * DrawControlPart remoting this port depends on.
+ *
+ * Casted macros rather than a second enum: in C++ an unnamed enum's constants
+ * are a DISTINCT type, so `[cell setBezelStyle:NSBezelStyleRounded]` would not
+ * compile. Every value here is inside its target enum's existing range, so the
+ * cast is also a constant expression and works as a `case` label -- unlike
+ * kCGInterpolationMedium, which had to be widened at the declaration instead.
+ * ------------------------------------------------------------------------- */
+
+/* NSBezelStyle (NSButtonCell.h). */
+#define NSBezelStyleRounded           ((NSBezelStyle)NSRoundedBezelStyle)
+#define NSBezelStyleRegularSquare     ((NSBezelStyle)NSRegularSquareBezelStyle)
+#define NSBezelStyleDisclosure        ((NSBezelStyle)NSDisclosureBezelStyle)
+#define NSBezelStyleShadowlessSquare  ((NSBezelStyle)NSShadowlessSquareBezelStyle)
+#define NSBezelStyleCircular          ((NSBezelStyle)NSCircularBezelStyle)
+#define NSBezelStyleTexturedSquare    ((NSBezelStyle)NSTexturedSquareBezelStyle)
+#define NSBezelStyleHelpButton        ((NSBezelStyle)NSHelpButtonBezelStyle)
+#define NSBezelStyleSmallSquare       ((NSBezelStyle)NSSmallSquareBezelStyle)
+#define NSBezelStyleTexturedRounded   ((NSBezelStyle)NSTexturedRoundedBezelStyle)
+#define NSBezelStyleRoundRect         ((NSBezelStyle)NSRoundRectBezelStyle)
+#define NSBezelStyleRecessed          ((NSBezelStyle)NSRecessedBezelStyle)
+#define NSBezelStyleRoundedDisclosure ((NSBezelStyle)NSRoundedDisclosureBezelStyle)
+
+/* NSButtonType (NSButtonCell.h). */
+#define NSButtonTypeMomentaryLight  ((NSButtonType)NSMomentaryLightButton)
+#define NSButtonTypePushOnPushOff   ((NSButtonType)NSPushOnPushOffButton)
+#define NSButtonTypeToggle          ((NSButtonType)NSToggleButton)
+#define NSButtonTypeSwitch          ((NSButtonType)NSSwitchButton)
+#define NSButtonTypeRadio           ((NSButtonType)NSRadioButton)
+#define NSButtonTypeMomentaryChange ((NSButtonType)NSMomentaryChangeButton)
+#define NSButtonTypeOnOff           ((NSButtonType)NSOnOffButton)
+#define NSButtonTypeMomentaryPushIn ((NSButtonType)NSMomentaryPushInButton)
+
+/* NSControlStateValue (NSCell.h). int, not NSInteger: this header is reached
+   before <TigerCompat/NSCompat.h>, and on i386 the two are the same type. */
+typedef int NSControlStateValue;
+#define NSControlStateValueMixed ((NSControlStateValue)NSMixedState)
+#define NSControlStateValueOff   ((NSControlStateValue)NSOffState)
+#define NSControlStateValueOn    ((NSControlStateValue)NSOnState)
+
+/* NSSliderType (NSSliderCell.h) and NSLevelIndicatorStyle
+   (NSLevelIndicatorCell.h). */
+#define NSSliderTypeLinear   ((NSSliderType)NSLinearSlider)
+#define NSSliderTypeCircular ((NSSliderType)NSCircularSlider)
+#define NSLevelIndicatorStyleRelevancy          ((NSLevelIndicatorStyle)NSRelevancyLevelIndicatorStyle)
+#define NSLevelIndicatorStyleContinuousCapacity ((NSLevelIndicatorStyle)NSContinuousCapacityLevelIndicatorStyle)
+#define NSLevelIndicatorStyleDiscreteCapacity   ((NSLevelIndicatorStyle)NSDiscreteCapacityLevelIndicatorStyle)
+#define NSLevelIndicatorStyleRating             ((NSLevelIndicatorStyle)NSRatingLevelIndicatorStyle)
+
+/* NSCompositingOperation, 10.12 renames (NSGraphics.h). */
+#define NSCompositingOperationClear           ((NSCompositingOperation)NSCompositeClear)
+#define NSCompositingOperationCopy            ((NSCompositingOperation)NSCompositeCopy)
+#define NSCompositingOperationSourceOver      ((NSCompositingOperation)NSCompositeSourceOver)
+#define NSCompositingOperationSourceIn        ((NSCompositingOperation)NSCompositeSourceIn)
+#define NSCompositingOperationSourceOut       ((NSCompositingOperation)NSCompositeSourceOut)
+#define NSCompositingOperationSourceAtop      ((NSCompositingOperation)NSCompositeSourceAtop)
+#define NSCompositingOperationDestinationOver ((NSCompositingOperation)NSCompositeDestinationOver)
+#define NSCompositingOperationDestinationIn   ((NSCompositingOperation)NSCompositeDestinationIn)
+#define NSCompositingOperationDestinationOut  ((NSCompositingOperation)NSCompositeDestinationOut)
+#define NSCompositingOperationDestinationAtop ((NSCompositingOperation)NSCompositeDestinationAtop)
+#define NSCompositingOperationXOR             ((NSCompositingOperation)NSCompositeXOR)
+#define NSCompositingOperationPlusDarker      ((NSCompositingOperation)NSCompositePlusDarker)
+#define NSCompositingOperationPlusLighter     ((NSCompositingOperation)NSCompositePlusLighter)
+
+/* NSSizeFromCGSize and friends, 10.5. NSSize and CGSize are layout-identical on
+   i386 (two floats), which is why Apple could make these inline in the first
+   place. */
+static inline NSSize NSSizeFromCGSize(CGSize size) { NSSize s; s.width = size.width; s.height = size.height; return s; }
+static inline CGSize NSSizeToCGSize(NSSize size) { CGSize s; s.width = size.width; s.height = size.height; return s; }
+static inline NSPoint NSPointFromCGPoint(CGPoint p) { NSPoint q; q.x = p.x; q.y = p.y; return q; }
+static inline CGPoint NSPointToCGPoint(NSPoint p) { CGPoint q; q.x = p.x; q.y = p.y; return q; }
+static inline NSRect NSRectFromCGRect(CGRect r) { NSRect s; s.origin = NSPointFromCGPoint(r.origin); s.size = NSSizeFromCGSize(r.size); return s; }
+static inline CGRect NSRectToCGRect(NSRect r) { CGRect s; s.origin = NSPointToCGPoint(r.origin); s.size = NSSizeToCGSize(r.size); return s; }
+
+/* NSImageHintCTM, 10.6. A key for the hints dictionary of the 10.6
+   -drawInRect:fromRect:operation:fraction:respectFlipped:hints:, which Tiger's
+   NSImage does not have -- so nothing on this system ever reads it. A macro
+   rather than an extern NSString so that no call site needs to link anything
+   extra to build a dictionary that is then ignored. The string is Apple's.
+
+   NSScrollerStyle is deliberately NOT here: WebCore's own
+   PAL/pal/spi/mac/NSScrollerImpDetails.h declares it, and a second typedef is a
+   conflict rather than a shim. */
+#ifndef NSImageHintCTM
+#define NSImageHintCTM ((NSString *)@"NSImageHintCTM")
 #endif

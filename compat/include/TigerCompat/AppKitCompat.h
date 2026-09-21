@@ -130,6 +130,11 @@ typedef struct NSEdgeInsets {
  * ------------------------------------------------------------------------- */
 @interface NSGraphicsContext (TigerCompat)
 + (NSGraphicsContext *)graphicsContextWithCGContext:(CGContextRef)context flipped:(BOOL)flipped;
+/* The getter half of the same rename. Without it -CGContext resolves to nothing
+   and the expression's type collapses to id, which is how it shows up: not as
+   "no such method" but as "comparison of distinct pointer types CGContextRef and
+   id" in LocalCurrentGraphicsContextMac.mm. */
+@property (readonly) CGContextRef CGContext;
 @end
 
 /* -------------------------------------------------------------------------
@@ -177,6 +182,19 @@ enum {
 @interface NSView (TigerCompatLayoutDirection)
 /* 10.6. WebView.mm:9647 reads it off itself to pick a popover edge. */
 @property (readonly) NSUserInterfaceLayoutDirection userInterfaceLayoutDirection;
+@end
+
+/* -------------------------------------------------------------------------
+ * NSView layer backing, 10.5.
+ *
+ * Typed `id`, not CALayer *: Tiger's QuartzCore has no CALayer at all. WebCore
+ * asks only whether a view is layer-backed (WidgetMac.mm skips painting one),
+ * and on Tiger no view ever is -- USE(CA) is off and nothing calls
+ * -setWantsLayer:. nil is the machine's answer, not a placeholder.
+ * ------------------------------------------------------------------------- */
+@interface NSView (TigerCompatLayer)
+@property (readonly) id layer;
+@property (readonly) BOOL wantsLayer;
 @end
 
 /* -------------------------------------------------------------------------

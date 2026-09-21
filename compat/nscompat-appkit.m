@@ -180,6 +180,11 @@
     return [self graphicsContextWithGraphicsPort:(void *)context flipped:flipped];
 }
 
+- (CGContextRef)CGContext
+{
+    return (CGContextRef)[self graphicsPort];
+}
+
 @end
 
 /* =========================================================================
@@ -191,6 +196,11 @@
 - (BOOL)accessibilityDisplayShouldDifferentiateWithoutColor { return NO; }
 - (BOOL)accessibilityDisplayShouldInvertColors { return NO; }
 - (BOOL)accessibilityDisplayShouldReduceMotion { return NO; }
+@end
+
+@implementation NSView (TigerCompatLayer)
+- (id)layer { return nil; }
+- (BOOL)wantsLayer { return NO; }
 @end
 
 @implementation NSView (TigerCompatLayoutDirection)
@@ -307,3 +317,4 @@
 }
 
 @end
+

@@ -225,6 +225,28 @@ CFArrayRef CFLocaleCopyPreferredLanguages(void)
     return CFArrayCreate(kCFAllocatorDefault, NULL, 0, &kCFTypeArrayCallBacks);
 }
 
+/* =================================================================== CFError */
+
+/* Declared by the SDK overlay's CFError.h. Tiger's CoreFoundation has no
+   CFError at all, so every CFErrorRef out-parameter in this port is written
+   NULL by its shim; this exists so the one caller that logs a description
+   (FontCacheCoreText.cpp, after a failed font registration) links and prints
+   something true. If a real CFError ever gets created on this system, this is
+   the function that has to learn to read it. */
+CFStringRef CFErrorCopyDescription(CFErrorRef error)
+{
+    if (!error)
+        return CFRetain(CFSTR("no error information (Mac OS X 10.4 has no CFError)"));
+    return CFRetain(CFSTR("unknown CFError"));
+}
+
+/* kCFLocaleCurrentLocaleDidChangeNotification is 10.5. The name is Apple's, but
+   nothing on Tiger ever posts it: there is no locale-change notification on
+   this system, so an observer registered for it simply never fires, which is
+   the machine's real behaviour rather than a simplification. */
+const CFStringRef kCFLocaleCurrentLocaleDidChangeNotification =
+    (const CFStringRef)CFSTR("kCFLocaleCurrentLocaleDidChangeNotification");
+
 /* aligned_alloc lives in compat/include/tigerprelude.h as an inline over
    posix_memalign, which compat/libcompat.c implements for real: malloc at or
    below 16 bytes of alignment, valloc up to a page, and above that an mmap'd

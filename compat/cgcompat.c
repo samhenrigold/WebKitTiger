@@ -230,6 +230,7 @@ CGColorSpaceModel CGColorSpaceGetModel(CGColorSpaceRef cs)
 CGColorSpaceRef CGColorSpaceGetBaseColorSpace(CGColorSpaceRef cs) { (void)cs; return NULL; }
 bool CGColorSpaceUsesExtendedRange(CGColorSpaceRef cs) { (void)cs; return false; }
 bool CGColorSpaceIsWideGamutRGB(CGColorSpaceRef cs) { (void)cs; return false; }
+bool CGColorSpaceUsesITUR_2100TF(CGColorSpaceRef cs) { (void)cs; return false; }
 bool CGColorSpaceSupportsOutput(CGColorSpaceRef cs) { return cs != NULL; }
 CGColorSpaceRef CGColorSpaceCreateExtended(CGColorSpaceRef cs) { return CGColorSpaceRetain(cs); }
 
@@ -1168,9 +1169,12 @@ CFDictionaryRef CGImageSourceCopyAuxiliaryDataInfoAtIndexWithOptions(CGImageSour
     return NULL;
 }
 
-void CGImageSourceSetAllowableTypes(CFArrayRef allowableTypes) { (void)allowableTypes; }
-void CGImageSourceDisableHardwareDecoding(CGImageSourceRef source) { (void)source; }
-void CGImageSourceEnableRestrictedDecoding(void) { }
+CGColorSpaceRef CGIOSurfaceContextGetColorSpace(CGContextRef c) { (void)c; return NULL; }
+CGBitmapInfo CGIOSurfaceContextGetBitmapInfo(CGContextRef c) { (void)c; return 0; }
+
+OSStatus CGImageSourceSetAllowableTypes(CFArrayRef allowableTypes) { (void)allowableTypes; return 0; }
+OSStatus CGImageSourceDisableHardwareDecoding(void) { return 0; }
+OSStatus CGImageSourceEnableRestrictedDecoding(void) { return 0; }
 
 /* ============================================================ image caching */
 
