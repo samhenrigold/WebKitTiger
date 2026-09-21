@@ -13,6 +13,10 @@
  * NSEvent
  * ========================================================================= */
 
+/* Modern AppKit raises NSInternalInconsistencyException from several of these
+ * when the event type does not carry the value; -phase on a mouse event throws
+ * there and answers NSEventPhaseNone here. Returning the quiet value is the
+ * safe direction, and WebCore only asks on scroll events. */
 @implementation NSEvent (TigerCompat)
 
 - (NSEventPhase)phase                   { return NSEventPhaseNone; }
@@ -58,6 +62,21 @@
 - (CGFloat)backingScaleFactor { return [self userSpaceScaleFactor]; }
 
 - (NSWindowOcclusionState)occlusionState { return NSWindowOcclusionStateVisible; }
+
+@end
+
+@implementation NSScreen (TigerCompat)
+
+/* Tiger predates Retina, and -userSpaceScaleFactor is the Quartz
+ * resolution-independence knob, 1.0 on every real machine. Same answer as the
+ * NSView and NSWindow shims above, by the same route. */
+- (CGFloat)backingScaleFactor { return [self userSpaceScaleFactor]; }
+
+- (NSEdgeInsets)safeAreaInsets
+{
+    NSEdgeInsets zero = { 0.0f, 0.0f, 0.0f, 0.0f };
+    return zero;
+}
 
 @end
 
@@ -117,8 +136,11 @@
 
 + (NSColor *)colorWithSRGBRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha
 {
-    /* Not a colour-space conversion. Every WebKit caller passes black, white or
-     * clear, where sRGB and Tiger's calibrated RGB agree exactly. */
+    /* Deliberately not a colour-space conversion: the components go through
+     * unchanged, so 0.25 stays 0.25 where a modern system converts sRGB to
+     * calibrated RGB and yields 0.198. Tiger has no sRGB space to convert
+     * through. Every WebKit caller passes black, white or clear, where the two
+     * agree at any gamma, so nothing in the tree can tell the difference. */
     return [NSColor colorWithCalibratedRed:red green:green blue:blue alpha:alpha];
 }
 

@@ -77,6 +77,27 @@ enum { NSWindowOcclusionStateVisible = 1UL << 1 };
 @property (readonly) NSWindowOcclusionState occlusionState;
 @end
 
+/* 10.7. NSEdgeInsets and the NSScreen inset accessor that uses it. */
+#if !defined(TIGER_NSEDGEINSETS_DEFINED)
+#define TIGER_NSEDGEINSETS_DEFINED 1
+typedef struct NSEdgeInsets {
+    CGFloat top;
+    CGFloat left;
+    CGFloat bottom;
+    CGFloat right;
+} NSEdgeInsets;
+#endif
+
+@interface NSScreen (TigerCompat)
+/* 10.7. WebView -_backingScaleFactor falls back to the main screen, and
+ * PlatformScreenMac reads it for every screen. */
+@property (readonly) CGFloat backingScaleFactor;
+/* 12.0. Nothing intrudes on a Tiger screen: no notch, no rounded corners, no
+ * home indicator. All four insets are zero, which makes safeScreenFrame()
+ * return the plain frame. */
+@property (readonly) NSEdgeInsets safeAreaInsets;
+@end
+
 /* -------------------------------------------------------------------------
  * NSColor. Twelve semantic colours that were renamed or added after 10.4,
  * mapped onto the Aqua colours the old theme used. See plan section 4.5:
@@ -101,8 +122,12 @@ enum { NSWindowOcclusionStateVisible = 1UL << 1 };
 /* 10.13. The find-on-page highlight, a calibrated yellow. */
 + (NSColor *)findHighlightColor;
 
-/* 10.7. Every WebKit caller passes black, white or clear, so the difference
- * between sRGB and Tiger's calibrated RGB does not arise. */
+/* 10.7. This does NOT convert between colour spaces: the components are passed
+ * through into Tiger's calibrated RGB unchanged, so 0.25 stays 0.25 where a
+ * modern system would yield 0.198. Tiger has no sRGB colour space to convert
+ * through, and every WebKit caller passes black, white or clear, where the two
+ * spaces agree at any gamma. Do not read this as the spaces being equivalent.
+ * WebCore's real colour fidelity goes through CoreGraphics, not NSColor. */
 + (NSColor *)colorWithSRGBRed:(CGFloat)red green:(CGFloat)green blue:(CGFloat)blue alpha:(CGFloat)alpha;
 
 /* 10.8, and 10.8 the other way. These two carry the Color-to-NSColor cache in

@@ -810,3 +810,143 @@ protocol ext records through clang's `__OBJC_PROTOCOLEXT_<Name>` local symbols.
 Nothing in `tiger.cmake` strips, and the only strip-adjacent link flag is
 `-dead_strip`, which removes unreferenced atoms rather than symbol-table
 entries. Worth re-checking on the first JSExport test.
+
+## Round 3, part 2: WebCore
+
+M1 is done — WebCore configures with the plan's feature switches — and the M2
+compile pass is running. What follows is what it took, because most of it was
+not in the plan.
+
+### The feature switches (plan §1)
+
+`USE_CA` and `USE_CORE_IMAGE` are off, done at their definition sites in
+`wtf/PlatformUse.h` rather than in a trailing block, because those two decide
+which source files compile at all. The IOSurface and Core Animation `HAVE_`
+satellites, plus `HAVE_CORE_TEXT_SBIX_IMAGE_SIZE_FUNCTIONS`,
+`HAVE_CTFONTMANAGER_CREATEMEMORYSAFEFONTDESCRIPTORFROMDATA` and
+`HAVE_LOCKDOWN_MODE_PDF_ADDITIONS`, are off in the `PLATFORM(TIGER)` block of
+`PlatformHave.h`. `ENABLE_DATA_DETECTION`, `ENABLE_NOTIFICATION_EVENT` and
+`ENABLE_DECLARATIVE_WEB_PUSH` are zeroed in `PlatformEnableCocoa.h` — none has a
+CMake option, and the last two exist only because `PlatformEnable.h` `#error`s
+when a feature outlives what it depends on. `ATTACHMENT_ELEMENT`,
+`FULLSCREEN_API`, `NOTIFICATIONS`, `GEOLOCATION` and `DEVICE_ORIENTATION` joined
+the CMake off-list.
+
+### Excluding sources without touching the Sources lists
+
+`WebKitMacros.cmake` already has a `<framework>_UNIFIED_SOURCE_EXCLUDES`
+mechanism: a list of regexes that filters the `Sources*.txt` files before the
+unified bundles are generated. `WEBKIT_COMPUTE_SOURCES` runs after
+`PlatformCocoa.cmake` is included, so setting it there is in time.
+
+That means excluding a whole directory needs no edit to any `.txt` file, which
+keeps the diff against upstream much smaller than the plan assumed. Used for:
+
+- All of `platform/graphics/ca` and the IOSurface backends — about 10,900 lines.
+  `platform/graphics/tiger/GraphicsLayerTiger.cpp`, 60 lines, supplies the one
+  `GraphicsLayer::create` definition `GraphicsLayerCA.cpp` owned. It asserts if
+  it is ever reached, which it cannot be: with `USE(CA)` off,
+  `RenderLayerCompositor` never sets `m_hasAcceleratedCompositing`, so
+  `canBeComposited()` is false and no `GraphicsLayer` is constructed.
+- 30-odd PAL soft-link files for frameworks that do not exist in the 10.4 SDK.
+  Soft-linking still needs the framework's *headers* at compile time — only the
+  load is deferred — so ARKit, AVFoundation, AVKit, Contacts, CoreML, PassKit,
+  Vision, ScreenTime, WritingTools and the rest all have to go.
+
+### Four configure-time problems the plan did not mention
+
+1. **Eleven `find_library` results are NOTFOUND on Tiger**, and a NOTFOUND
+   reaching a link list is a hard generate-time error. Cleared in one loop
+   rather than by editing each entry out of `WebCore_LIBRARIES`. CFNetwork is
+   the exception: Tiger has it, inside `CoreServices.framework/Frameworks`,
+   where `-F` does not descend, so it is found explicitly.
+2. **The OpenGL block** at `WebCore/CMakeLists.txt:2268` is not gated on
+   `ENABLE_WEBGL`, and with `USE_ANGLE_EGL` and `USE_LIBEPOXY` both off it falls
+   through to an `OpenGL::GLES` target no find module defines here.
+3. **WebMParser** is built whenever `USE_LIBWEBRTC` is off, and
+   `Source/ThirdParty/libwebrtc` is not in the sparse checkout, so the glob
+   finds nothing and `add_library` fails.
+4. **The `platform-feature-defines.txt` custom command** preprocesses
+   `wtf/Platform.h` and does not inherit `add_compile_options`, so it could not
+   find `<Availability.h>`. It already had a hook for exactly this
+   (`WEBKIT_GENERATED_STUBS_INCLUDE_DIR`); the Tiger include and framework roots
+   go in beside it, from `WEBKIT_TIGER_PLATFORM_ARGS`.
+
+### Two structural fixes in the overlay, both high-leverage
+
+**`NSPoint`, `NSSize` and `NSRect` are now the CoreGraphics types.** The 10.4 SDK
+declares them as their own structs; Apple unified them in 10.5 behind
+`NS_BUILD_32_LIKE_64`. WebCore assumes the unified world and does
+`typedef CGPoint NSPoint` itself in six headers, which against this SDK is
+"typedef redefinition with different types" — in `FloatPoint.h`, `FloatRect.h`,
+`FloatSize.h`, `IntPoint.h`, `IntRect.h`, `IntSize.h` and `DoublePoint.h`.
+
+This is safe rather than merely convenient. On i386 `struct _NSPoint` is
+`{float x; float y;}` and `struct CGPoint` is `{float x; float y;}`, byte for
+byte, so every AppKit entry point taking an `NSRect` by value receives exactly
+the same four floats. The only observable difference is the Objective-C type
+encoding, `{CGPoint=ff}` rather than `{_NSPoint=ff}`, which matters only to code
+that compares encoding strings at runtime.
+
+**`CFBase.h` gained the `CF_*` macros.** `CF_ENUM` and `CF_OPTIONS` are the
+load-bearing pair: without them `typedef CF_ENUM(CFIndex, Name) { ... }` parses
+as a function definition declared typedef, which is how PAL's SPI headers fail.
+The rest — bridging, ownership, nullability, `CF_SWIFT_NAME` — are annotations.
+Same shape, and same reasoning, as the `NS_*` macros in `FoundationCompat.h`.
+
+### Smaller WebCore and PAL fixes
+
+- `wtf/cocoa/SoftLinking.h` expands to `dispatch_once` but never included
+  `<dispatch/dispatch.h>`; on a modern SDK something else in the include graph
+  always had. Arguably an upstream latent bug.
+- `WebCorePrefix.h`'s `PLATFORM(MAC)` block is a precompiled-header warm-up
+  list, not a dependency list. `AudioSession.h` is 10.7, the IOKit HID family
+  10.5, simd 10.11. Only what Tiger has is kept.
+- `IOKitSPIMac.h`, the CG window-capture soft links, `CGDataProviderDirectAccessRangesCallbacks`,
+  `CGDisplayMode`, `CGEventCopyIOHIDEvent` — all gated.
+- The three `CoreGraphicsSPI.h` enum blocks cgcompat listed, gated. Their values
+  were checked against `<TigerCompat/CGCompat.h>`.
+- `-Wno-deprecated-anon-enum-enum-conversion` is global: Tiger spells the
+  CGBitmapInfo constants as separate anonymous enums and WebCore combines them,
+  which C++20 deprecated.
+
+### CommonCrypto on Tiger — the answer
+
+Measured against `sdk/MacOSX10.4u.sdk/usr/lib/libSystem.dylib` rather than the
+export list, because that list is not exhaustive:
+
+| Family | On Tiger? |
+|---|---|
+| CommonDigest — `CC_MD2`, `CC_MD4`, `CC_MD5`, `CC_SHA1`, `CC_SHA256`, `CC_SHA384`, `CC_SHA512` | **yes**, and the SDK ships `CommonCrypto/CommonDigest.h`. Note: no `CC_SHA224` |
+| CommonCryptor — `CCCrypt`, `CCCryptorCreate` | no |
+| CommonHMAC — `CCHmac` | no |
+| `CCKeyDerivationPBKDF`, `CCRandomGenerateBytes` | no |
+
+So WebCrypto's symmetric algorithms cannot be built on CommonCrypto. The PAL
+crypto algorithm files are excluded; `CryptoDigestCommonCrypto.cpp` stays,
+because digests are exactly what Tiger has. LibreSSL is already in the sysroot
+and is the eventual answer for the rest.
+
+### Where the compile stands
+
+PAL compiles apart from one file, `system/mac/PopupMenu.mm`, which is the
+`<select>` popup and has to come back. It needs five AppKit shims that nscompat
+is adding: `NSControlSizeMini` (the 10.10 rename of `NSMiniControlSize`),
+`NSUserInterfaceLayoutDirection` and its two values (10.6),
+`-[NSMenu userInterfaceLayoutDirection]` (10.11) and
+`-[NSWindow convertRectToScreen:]` (10.7). It is excluded with a comment naming
+all five and saying to delete the exclusion once they land.
+
+WebCore proper has not been reached yet — each round so far has been consumed by
+PAL and by the shared headers underneath it. That is the expected shape: the
+plan puts M2 at 15-20 days and says the unified-source batching means one bad
+file blocks twenty.
+
+### Waiting on other tracks
+
+| Item | Owner | Blocks |
+|---|---|---|
+| `objc_storeWeak` / `objc_loadWeak` declarations | objcrt | the JSC Objective-C API |
+| `NSMapTable` C functions taking the class | nscompat | the JSC Objective-C API |
+| `NSNotificationName` | nscompat | `PAL/spi/mac/NSWindowSPI.h` |
+| The five PopupMenu shims | nscompat | `PAL/system/mac/PopupMenu.mm` |

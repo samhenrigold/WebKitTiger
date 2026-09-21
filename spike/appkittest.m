@@ -101,6 +101,40 @@ static BOOL sameColor(NSColor *a, NSColor *b)
     expect("colorWithSRGBRed: black matches calibrated black",
            sameColor([NSColor colorWithSRGBRed:0 green:0 blue:0 alpha:1],
                      [NSColor colorWithCalibratedRed:0 green:0 blue:0 alpha:1]));
+    /* Pin the documented behaviour rather than only the endpoints: the
+       components pass through unconverted, so a mid-tone stays where it was.
+       A modern system converts sRGB 0.5 to roughly 0.417 in calibrated RGB.
+       Asserting this means nobody later reads the shim as a real conversion. */
+    {
+        NSColor *passedThrough = [[NSColor colorWithSRGBRed:0.25f green:0.5f blue:0.75f alpha:1]
+            colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+        CGFloat r = 0, g = 0, b = 0, a = 0;
+        [passedThrough getRed:&r green:&g blue:&b alpha:&a];
+        expect("colorWithSRGBRed: passes components through unconverted",
+               r > 0.24f && r < 0.26f && g > 0.49f && g < 0.51f
+               && b > 0.74f && b < 0.76f);
+    }
+
+    /* ---- NSScreen ---- */
+    {
+        NSScreen *main = [NSScreen mainScreen];
+        expect("NSScreen -backingScaleFactor is 1",
+               main != nil && [main backingScaleFactor] == 1.0f);
+        expect("dot syntax on NSScreen", main.backingScaleFactor == 1.0f);
+        NSEdgeInsets insets = [main safeAreaInsets];
+        expect("NSScreen -safeAreaInsets is all zero",
+               insets.top == 0 && insets.left == 0
+               && insets.bottom == 0 && insets.right == 0);
+        /* Every screen, not just the main one: PlatformScreenMac walks them. */
+        BOOL allOne = YES;
+        NSEnumerator *e = [[NSScreen screens] objectEnumerator];
+        NSScreen *each;
+        while ((each = [e nextObject]) != nil) {
+            if ([each backingScaleFactor] != 1.0f)
+                allOne = NO;
+        }
+        expect("every NSScreen reports scale 1", allOne);
+    }
 
     /* ---- NSColor <-> CGColor, the ColorMac.mm cache ---- */
     {
