@@ -21,8 +21,8 @@ to bottom in the file:
   (`NSRunAlertPanel` + `exit(1)`) if the bundled, decollided
   `Contents/Frameworks/QuartzCore.framework` isn't among the loaded images.
   Called first thing in `main()`, before any window is built.
-- **`TigerPageView : NSOpenGLView`** — the compositor host. Owns the
-  `CARenderer`, the `viewport`/`page` `CALayer` pair (`viewport` is
+- **`TigerPageView : NSOpenGLView <NSTextInput>`** — the compositor host.
+  Owns the `CARenderer`, the `viewport`/`page` `CALayer` pair (`viewport` is
   `masksToBounds` + `geometryFlipped`, matching CAHost), a manual grid of
   256px tile `CALayer`s (`buildTileGrid`/`updateTiles`, `TILE_SIZE`/
   `PAGE_WIDTH`/`PAGE_HEIGHT` `#define`s at the top of the file), the
@@ -30,8 +30,17 @@ to bottom in the file:
   (`-setScrollY:`, `-scrollerAction:`, `-scrollWheel:`), hit-testing
   (`-mouseDown:` logs view point → page point → hit layer name), and the
   Edit-menu responder-chain actions (`-cut:`/`-copy:`/`-paste:`/
-  `-selectAll:`/`-undo:`/`-redo:`, all just `fprintf`-logging via
-  `-logEditCommand:` — no real text model exists yet).
+  `-selectAll:`/`-undo:`/`-redo:`, logging via `-logEditCommand:` — no real
+  text model exists yet). Also implements the full `NSTextInput` protocol
+  (`-keyDown:` → `-interpretKeyEvents:`, `-doCommandBySelector:`,
+  `-insertText:`, `-setMarkedText:selectedRange:`, `-unmarkText`,
+  `-hasMarkedText`, `-markedRange`, `-selectedRange`,
+  `-firstRectForCharacterRange:`, `-characterIndexForPoint:`,
+  `-conversationIdentifier`, `-validAttributesForMarkedText`,
+  `-attributedSubstringFromRange:`) — see "Text input spike" below for the
+  design and findings. `-startTextInputSelfTest`/`-fireNextSelfTestEvent:`
+  drive a scripted sequence of synthetic key events for exercising it
+  without interactive input.
 - **`TigerFindBar : NSView`** — a small view (label + `NSTextField` + Done
   button) that `TigerBrowserController` shows/hides for Cmd-F. Its field's
   action (`-performFind:` on the controller) just logs the search text.
@@ -75,6 +84,9 @@ benchmark extras that don't belong in the shell.
 - `Info.plist` — bundle metadata, `LSMinimumSystemVersion` 10.4, unchanged.
 - `testpages/` — left over from the WebView era (see "Archived" below); not
   used by the current shell, kept for whenever real content loading returns.
+- `textinput-selftest.log` — full transcript from a run of the text-input
+  self-test on the box (`TIGERBROWSER_TEXTINPUT_TEST=1`); see "Text input
+  spike" below.
 
 ## Build
 
@@ -146,6 +158,126 @@ concurrently on the same shared box — not TigerBrowser.)
 - Back/forward/reload only manipulate the address bar, window title and page
   banner text (via the stub history array) — there's no real navigation or
   content yet, by design (that's the 64-bit content process's job later).
+
+## Text input spike (2026-09-20, logs/textinput-plan.md)
+
+`TigerPageView` now adopts Tiger's `NSTextInput` informal protocol (declared
+in `NSInputManager.h`, not `NSTextInputClient` — that's 10.6+) and logs
+every call instead of building the `Vector<KeypressCommand>`/sending IPC the
+real UI process eventually will. Logging goes to a real file opened with
+`setvbuf(..., _IOLBF, 0)` (`tiLogOpen()`/`tiLog()` near the top of the file,
+default path `/tmp/tigerbrowser-textinput.log`, override with
+`TIGERBROWSER_TEXTINPUT_LOG`) — stderr piped over ssh on this box is fully
+block-buffered, which silently dropped log lines in an earlier spike (the
+scrolling section above); a dedicated line-buffered file sidesteps that
+entirely.
+
+**EditorState cache, modeling the plan's §3 flagged design problem.**
+`TigerPageView` keeps two copies of a tiny fake document (`selectedRange`,
+`markedRange`, a document string): `_pending*` (what this keydown's
+`insertText:`/`setMarkedText:`/`unmarkText` calls have produced so far) and
+`_applied*` (what the four synchronous query methods —
+`hasMarkedText`/`markedRange`/`selectedRange`/`firstRectForCharacterRange:`
+— actually answer from). `_pending*` only overwrites `_applied*` after a
+`performSelector:withObject:afterDelay:0.05` — a deliberately simulated
+content-process IPC round trip. `doCommandBySelector:` deliberately does
+**not** mutate either copy (per the task: "record... do not execute" — the
+real content process's `WebCore::Editor` would own that). This reproduces,
+in miniature, the exact staleness the plan's §3 identifies as its single
+highest-risk finding: a query made before the simulated round trip lands
+sees the pre-keystroke state, on purpose.
+
+**No way to type over ssh**, so `TigerPageView startTextInputSelfTest`
+(gated behind `TIGERBROWSER_TEXTINPUT_TEST=1`, fires 1.5s after the window
+appears) drives a scripted sequence of synthetic `NSEvent`s built with
+`+[NSEvent keyEventWithType:...]` straight into `-keyDown:`, in-process — no
+`osascript`/System Events UI-scripting and no window-focus dependency,
+avoiding the shared-box contention noted above entirely. Full transcript:
+`textinput-selftest.log` (checked in). Screenshot: `screenshot-textinput.png`.
+
+### Command vocabulary observed vs. the plan's expectations
+
+Matches the plan closely, once the synthetic events were built correctly
+(see "Tiger quirks" below):
+
+| Input | `NSTextInput` call(s) |
+|---|---|
+| Plain character ("H", "i") | `insertText:` with a plain `NSString` |
+| Return | `doCommandBySelector: insertNewline:` |
+| Tab | `doCommandBySelector: insertTab:` |
+| Escape | `doCommandBySelector: cancelOperation:` |
+| Shift-Left/Right | `moveLeftAndModifySelection:` / `moveRightAndModifySelection:` |
+| Option-Left/Right | `moveWordLeft:` / `moveWordRight:` |
+| Cmd-Left/Right | `moveToBeginningOfLine:` / `moveToEndOfLine:` |
+| Delete (backspace) | `deleteBackward:` |
+| Forward Delete | `deleteForward:` |
+| Ctrl-A / Ctrl-E (Emacs) | `moveToBeginningOfParagraph:` / `moveToEndOfParagraph:` |
+| Ctrl-K (Emacs) | `deleteToEndOfParagraph:` |
+| Ctrl-D (Emacs) | `deleteForward:` — same selector the physical Forward Delete key produces |
+
+Every one of these arrived as `doCommandBySelector:` with the exact
+`NSStringFromSelector` names `WebHTMLView.mm`'s existing implementation
+already expects per `webkitlegacy-plan.md` §1.4 — nothing unrecognized, no
+Tiger-specific renamed selector. `hasMarkedText`/`markedRange`/
+`selectedRange`/`firstRectForCharacterRange:` were never called during any
+of this — they're IME-candidate-window-driven, not typing-driven, so a
+plain US-layout sequence with no live composition session never exercises
+them; consistent with the plan's §1b framing that they're an independent
+concern from the per-keystroke flow.
+
+### Tiger quirks and gotchas found
+
+- **Synthetic `NSEvent`s for arrow/function keys need the real
+  Unicode private-use glyph in `characters`, not an empty string.** The
+  first pass of this self-test passed `characters:@""` for the arrow keys
+  and Forward Delete, and Tiger's `interpretKeyEvents:` responded by calling
+  `insertText:""` for *all* of them — Shift/Option/Cmd-arrows included —
+  instead of any movement/selection selector, and Cmd-arrows produced no
+  callback at all. Fixed by supplying `NSLeftArrowFunctionKey`/
+  `NSRightArrowFunctionKey`/`NSDeleteFunctionKey` (the `0xF700`-range
+  OpenStep private-use constants from `NSEvent.h`) as the event's
+  `characters`/`charactersIgnoringModifiers`, after which every arrow/delete
+  combination produced the correct selector (table above). Conclusion:
+  `NSInputManager`'s `interpretKeyEvents:` dispatches from the **already-
+  resolved** `characters` string (the same string a live keyboard-layout
+  translation would have produced before AppKit ever builds the `NSEvent`)
+  — it does not itself re-derive a command from `keyCode` + modifier flags.
+  A hand-built `NSEvent` has to supply that resolved string explicitly.
+- **The dead-key test (Option-E then E, expected to compose é via
+  `setMarkedText:`) did not produce marked text.** Both key presses came
+  through as plain `insertText:` calls (an empty string for the Option-E
+  dead-key event, then `"e"`) — no `setMarkedText:selectedRange:`, no
+  composition session. Given the quirk above, this makes sense: a real dead
+  key's marked-text behavior comes from the system's keyboard-layout/TSM
+  machinery resolving `keyCode 14 + NSAlternateKeyMask` against the current
+  input source's dead-key table — something that happens **before** an
+  `NSEvent` reaches `-keyDown:` on real hardware, not something
+  `interpretKeyEvents:` re-derives from a synthetic event's `keyCode` alone.
+  Reproducing genuine dead-key/IME composition would need events built the
+  way the team lead's alternate suggestion described — `CGEventPost`/
+  `CGEventCreateKeyboardEvent` through the actual HID event tap — which
+  goes through the real TSM pipeline but reintroduces the frontmost-window/
+  shared-box focus contention this in-process approach was chosen to avoid.
+  Flagged, not resolved, in this spike.
+- **`NSTextInput`'s `aString` parameter is genuinely polymorphic** — the
+  protocol comment says `insertText:`/`setMarkedText:` can receive either an
+  `NSString` or `NSAttributedString`; this self-test only ever observed
+  plain `NSString` (no live IME session ever ran, matching the point
+  above), so the `NSAttributedString` branch in `-tiDescribeString:` is
+  exercised by inspection of the protocol contract, not confirmed live in
+  this session.
+- **`NSMarkedClauseSegmentAttributeName`/`NSTextAlternativesAttributeName`/
+  `NSTextInsertionUndoableAttributeName`** (the three attribute constants
+  `webkitlegacy-plan.md` §1.4 already flagged as 10.5+-only) are confirmed
+  absent from the 10.4u SDK's `NSAttributedString.h` by direct grep, not
+  just assumed — `validAttributesForMarkedText` returns only
+  `NSUnderlineStyleAttributeName` (10.0+, confirmed present) as a result.
+- **No async escape hatch exists anywhere in this protocol** — every one of
+  the four query methods is a synchronous return, confirmed directly against
+  `NSInputManager.h`'s declarations (`conversationIdentifier` even returns
+  bare `long`, not `NSInteger`, since `NSInteger` postdates Tiger). This
+  matches the plan's §3 finding exactly and is why the cache design above
+  exists at all.
 
 ## Archived: the WebView1 era (superseded 2026-09-20)
 

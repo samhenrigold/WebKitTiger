@@ -14,6 +14,8 @@
 
 #import <Cocoa/Cocoa.h>
 #import <mach-o/dyld.h>
+#include <errno.h>
+#include <stdarg.h>
 
 // The Leopard CA headers mark the whole API 10.5+, and we deploy at 10.4. The
 // binary (the rebundled Apple TV QuartzCore) is a Darwin 8 build, so the
@@ -41,6 +43,59 @@
 #define PAGE_HEIGHT  3000.0
 #define TILE_SIZE    256.0
 #define BANNER_HEIGHT 60.0
+
+// ------------------------------------------------------------- text input log
+//
+// logs/textinput-plan.md spike: everything the NSTextInput/NSInputManager
+// path produces gets logged here, to a real file opened line-buffered
+// (setvbuf _IOLBF), not just to stderr -- stderr redirected to a file over
+// ssh on this box is fully block-buffered, which lost log lines in an
+// earlier spike (spike/TigerBrowser's own README "Known rough edges").
+
+static FILE *gTextInputLog;
+
+static void tiLogOpen(const char *path)
+{
+    gTextInputLog = fopen(path, "w");
+    if (gTextInputLog)
+        setvbuf(gTextInputLog, NULL, _IOLBF, 0);
+    else
+        fprintf(stderr, "WARNING: could not open text input log at %s: %s\n", path, strerror(errno));
+}
+
+static void tiLog(NSString *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    NSString *msg = [[NSString alloc] initWithFormat:fmt arguments:args];
+    va_end(args);
+    fprintf(stderr, "%s\n", [msg UTF8String]);
+    if (gTextInputLog) {
+        fprintf(gTextInputLog, "%s\n", [msg UTF8String]);
+        fflush(gTextInputLog);
+    }
+    [msg release];
+}
+
+// Standard US ANSI virtual keycodes (HIToolbox Events.h's kVK_* constants,
+// not available in the AppKit-only headers this app imports, so spelled out
+// locally). Used only by the synthetic self-test driver below.
+enum {
+    TKC_A = 0, TKC_S = 1, TKC_D = 2, TKC_H = 4, TKC_E = 14,
+    TKC_Return = 36, TKC_Tab = 48, TKC_Space = 49, TKC_Delete = 51, TKC_Escape = 53,
+    TKC_ForwardDelete = 117,
+    TKC_LeftArrow = 123, TKC_RightArrow = 124, TKC_DownArrow = 125, TKC_UpArrow = 126,
+};
+
+// NSEvent's `characters`/`charactersIgnoringModifiers` for non-printing keys
+// are not empty strings -- they're the OpenStep-reserved private-use glyphs
+// (NSEvent.h's NS*FunctionKey constants, 0xF700-0xF8FF). A real key press
+// already carries these by the time NSInputManager sees it; a synthetic
+// NSEvent has to supply them explicitly or interpretKeyEvents: has nothing
+// to dispatch from (see the self-test's report note on this).
+#define kTILeftArrow ([NSString stringWithFormat:@"%C", (unichar)NSLeftArrowFunctionKey])
+#define kTIRightArrow ([NSString stringWithFormat:@"%C", (unichar)NSRightArrowFunctionKey])
+#define kTIForwardDelete ([NSString stringWithFormat:@"%C", (unichar)NSDeleteFunctionKey])
 
 // ---------------------------------------------------------- frameworks check
 
@@ -159,7 +214,7 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 // runs on this QuartzCore build but its tiles never reach CARenderer's output
 // (spike/CAHost's finding), so tiling is done by hand, same as CAHost phase 2.
 
-@interface TigerPageView : NSOpenGLView
+@interface TigerPageView : NSOpenGLView <NSTextInput>
 {
     CARenderer *_renderer;
     CALayer *_viewport;
@@ -170,22 +225,60 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     NSTimer *_timer;
     double _scrollY;
     NSString *_urlText;
+
+    // ---- text input (logs/textinput-plan.md spike) ----
+    // "Applied" = what the synchronous NSTextInput query methods answer from
+    // (stands in for the UI process's locally cached EditorState, per the
+    // plan's §3 flagged design problem). "Pending" = what this keyDown's
+    // insertText:/setMarkedText:/unmarkText calls have produced so far;
+    // copied into "applied" only after a simulated IPC round trip delay, so
+    // a query made before that lands sees stale state on purpose.
+    NSMutableString *_appliedDocumentText;
+    NSRange _appliedSelectedRange;
+    NSRange _appliedMarkedRange;
+    NSMutableString *_pendingDocumentText;
+    NSRange _pendingSelectedRange;
+    NSRange _pendingMarkedRange;
+    NSMutableArray *_keyDownCommandLog;   // this keydown's command names, for the summary line
+    BOOL _keyDownHadPendingMutation;
+    NSTimer *_selfTestTimer;
+    NSArray *_selfTestScript;
+    unsigned _selfTestIndex;
 }
 - (void)setScroller:(NSScroller *)s;
 - (void)setURLText:(NSString *)text;
 - (void)setScrollY:(double)y;
+- (void)startTextInputSelfTest;
 @end
 
 @implementation TigerPageView
 
+- (id)initWithFrame:(NSRect)frameRect pixelFormat:(NSOpenGLPixelFormat *)format
+{
+    self = [super initWithFrame:frameRect pixelFormat:format];
+    if (!self)
+        return nil;
+    _appliedDocumentText = [[NSMutableString alloc] initWithString:@"The quick brown fox jumps over the lazy dog."];
+    _appliedSelectedRange = NSMakeRange([_appliedDocumentText length], 0);
+    _appliedMarkedRange = NSMakeRange(NSNotFound, 0);
+    _pendingDocumentText = [_appliedDocumentText mutableCopy];
+    _pendingSelectedRange = _appliedSelectedRange;
+    _pendingMarkedRange = _appliedMarkedRange;
+    return self;
+}
+
 - (void)dealloc
 {
     [_timer invalidate];
+    [_selfTestTimer invalidate];
     [_renderer release];
     [_viewport release];
     [_page release];
     [_tileLayers release];
     [_urlText release];
+    [_appliedDocumentText release];
+    [_pendingDocumentText release];
+    [_selfTestScript release];
     [super dealloc];
 }
 
@@ -372,7 +465,7 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 
 - (void)logEditCommand:(NSString *)name
 {
-    fprintf(stderr, "Edit command (page view responder): %s\n", [name UTF8String]);
+    tiLog(@"Edit menu command (page view responder chain): %@", name);
 }
 - (void)cut:(id)sender { [self logEditCommand:@"cut:"]; }
 - (void)copy:(id)sender { [self logEditCommand:@"copy:"]; }
@@ -380,6 +473,285 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 - (void)selectAll:(id)sender { [self logEditCommand:@"selectAll:"]; }
 - (void)undo:(id)sender { [self logEditCommand:@"undo:"]; }
 - (void)redo:(id)sender { [self logEditCommand:@"redo:"]; }
+
+// ---- text input (logs/textinput-plan.md spike) ----
+//
+// keyDown: drives Tiger's synchronous NSInputManager path
+// (-interpretKeyEvents:), which synchronously calls back into whichever of
+// the methods below the active input method/keyboard layout needs, in
+// order, before returning -- no async holding tank, unlike the modern
+// NSTextInputContext path (see the plan's §1a). This spike logs every call
+// instead of building a Vector<KeypressCommand>/sending IPC.
+
+- (NSString *)tiDescribeString:(id)aString
+{
+    if ([aString isKindOfClass:[NSAttributedString class]])
+        return [NSString stringWithFormat:@"NSAttributedString '%@'", [(NSAttributedString *)aString string]];
+    return [NSString stringWithFormat:@"NSString '%@'", aString];
+}
+
+- (NSString *)tiDescribeApplied
+{
+    return [NSString stringWithFormat:@"selectedRange=%@ markedRange=%@ doc(len=%lu)=\"%@\"",
+            NSStringFromRange(_appliedSelectedRange),
+            _appliedMarkedRange.location == NSNotFound ? @"{NSNotFound,0}" : NSStringFromRange(_appliedMarkedRange),
+            (unsigned long)[_appliedDocumentText length], _appliedDocumentText];
+}
+
+- (void)keyDown:(NSEvent *)event
+{
+    tiLog(@"--");
+    tiLog(@"keyDown: keyCode=%u characters='%@' charactersIgnoringModifiers='%@' modifierFlags=0x%lx",
+          (unsigned)[event keyCode], [event characters], [event charactersIgnoringModifiers],
+          (unsigned long)[event modifierFlags]);
+
+    _keyDownCommandLog = [[NSMutableArray alloc] init];
+    _keyDownHadPendingMutation = NO;
+    // Fresh pending state starts as a copy of the last *applied* (i.e.
+    // possibly still-stale) state, per keydown -- composes correctly if a
+    // single interpretKeyEvents: call produces several callbacks (e.g. a
+    // dead key's setMarkedText: followed immediately by unmarkText).
+    [_pendingDocumentText setString:_appliedDocumentText];
+    _pendingSelectedRange = _appliedSelectedRange;
+    _pendingMarkedRange = _appliedMarkedRange;
+
+    [self interpretKeyEvents:[NSArray arrayWithObject:event]];
+
+    tiLog(@"keyDown: interpretKeyEvents: produced %lu command(s): [%@]",
+          (unsigned long)[_keyDownCommandLog count],
+          [_keyDownCommandLog componentsJoinedByString:@", "]);
+    [_keyDownCommandLog release];
+    _keyDownCommandLog = nil;
+
+    if (_keyDownHadPendingMutation) {
+        tiLog(@"  scheduling simulated content-process round trip (+50ms); synchronous queries"
+              @" until then will see the OLD state: %@", [self tiDescribeApplied]);
+        [self performSelector:@selector(applyPendingEditorState) withObject:nil afterDelay:0.05];
+    }
+}
+
+// Stands in for the async EditorState reply the real content process would
+// eventually send back over IPC after executing the KeypressCommands this
+// keydown collected.
+- (void)applyPendingEditorState
+{
+    [_appliedDocumentText setString:_pendingDocumentText];
+    _appliedSelectedRange = _pendingSelectedRange;
+    _appliedMarkedRange = _pendingMarkedRange;
+    tiLog(@"  simulated content-process reply landed: %@", [self tiDescribeApplied]);
+}
+
+- (void)insertText:(id)aString
+{
+    NSString *desc = [self tiDescribeString:aString];
+    BOOL hadMarkedText = _pendingMarkedRange.location != NSNotFound;
+    tiLog(@"  insertText: %@ (markedTextActive=%@)", desc, hadMarkedText ? @"YES" : @"NO");
+    [_keyDownCommandLog addObject:[NSString stringWithFormat:@"insertText:%@", desc]];
+
+    NSString *plain = [aString isKindOfClass:[NSAttributedString class]] ? [(NSAttributedString *)aString string] : aString;
+    NSRange replace = hadMarkedText ? _pendingMarkedRange : _pendingSelectedRange;
+    if (replace.location == NSNotFound || NSMaxRange(replace) > [_pendingDocumentText length])
+        replace = NSMakeRange([_pendingDocumentText length], 0);
+    [_pendingDocumentText replaceCharactersInRange:replace withString:plain];
+    _pendingSelectedRange = NSMakeRange(replace.location + [plain length], 0);
+    _pendingMarkedRange = NSMakeRange(NSNotFound, 0);
+    _keyDownHadPendingMutation = YES;
+}
+
+- (void)doCommandBySelector:(SEL)aSelector
+{
+    NSString *name = NSStringFromSelector(aSelector);
+    tiLog(@"  doCommandBySelector: %@  (recorded only, NOT executed -- see plan for why the real"
+          @" content process, not this view, owns Editor::Command dispatch)", name);
+    [_keyDownCommandLog addObject:[NSString stringWithFormat:@"doCommandBySelector:%@", name]];
+}
+
+- (void)setMarkedText:(id)aString selectedRange:(NSRange)selRange
+{
+    NSString *desc = [self tiDescribeString:aString];
+    tiLog(@"  setMarkedText:%@ selectedRange:%@", desc, NSStringFromRange(selRange));
+    [_keyDownCommandLog addObject:[NSString stringWithFormat:@"setMarkedText:%@ sel:%@", desc, NSStringFromRange(selRange)]];
+
+    NSString *plain = [aString isKindOfClass:[NSAttributedString class]] ? [(NSAttributedString *)aString string] : aString;
+    NSRange replace = _pendingMarkedRange.location != NSNotFound ? _pendingMarkedRange : _pendingSelectedRange;
+    if (replace.location == NSNotFound || NSMaxRange(replace) > [_pendingDocumentText length])
+        replace = NSMakeRange([_pendingDocumentText length], 0);
+    [_pendingDocumentText replaceCharactersInRange:replace withString:plain];
+    _pendingMarkedRange = NSMakeRange(replace.location, [plain length]);
+    _pendingSelectedRange = NSMakeRange(replace.location + selRange.location, selRange.length);
+    _keyDownHadPendingMutation = YES;
+}
+
+- (void)unmarkText
+{
+    tiLog(@"  unmarkText (confirming composition \"%@\")",
+          _pendingMarkedRange.location != NSNotFound
+              ? [_pendingDocumentText substringWithRange:_pendingMarkedRange] : @"");
+    [_keyDownCommandLog addObject:@"unmarkText"];
+    _pendingMarkedRange = NSMakeRange(NSNotFound, 0);
+    _keyDownHadPendingMutation = YES;
+}
+
+- (BOOL)hasMarkedText
+{
+    BOOL has = _appliedMarkedRange.location != NSNotFound;
+    tiLog(@"  hasMarkedText -> %@ (from cached/applied EditorState)", has ? @"YES" : @"NO");
+    return has;
+}
+
+- (long)conversationIdentifier
+{
+    return (long)self;
+}
+
+- (NSAttributedString *)attributedSubstringFromRange:(NSRange)theRange
+{
+    tiLog(@"  attributedSubstringFromRange:%@ (from cached/applied EditorState, doc len %lu)",
+          NSStringFromRange(theRange), (unsigned long)[_appliedDocumentText length]);
+    if (theRange.location == NSNotFound || NSMaxRange(theRange) > [_appliedDocumentText length])
+        return nil;
+    NSString *sub = [_appliedDocumentText substringWithRange:theRange];
+    NSMutableAttributedString *attr = [[[NSMutableAttributedString alloc] initWithString:sub] autorelease];
+    NSRange markedIntersection = NSIntersectionRange(theRange, _appliedMarkedRange);
+    if (markedIntersection.length > 0) {
+        NSRange local = NSMakeRange(markedIntersection.location - theRange.location, markedIntersection.length);
+        [attr addAttribute:NSUnderlineStyleAttributeName value:[NSNumber numberWithInt:1] range:local];
+    }
+    return attr;
+}
+
+- (NSRange)markedRange
+{
+    tiLog(@"  markedRange -> %@ (from cached/applied EditorState)",
+          _appliedMarkedRange.location == NSNotFound ? @"{NSNotFound,0}" : NSStringFromRange(_appliedMarkedRange));
+    return _appliedMarkedRange;
+}
+
+- (NSRange)selectedRange
+{
+    tiLog(@"  selectedRange -> %@ (from cached/applied EditorState)", NSStringFromRange(_appliedSelectedRange));
+    return _appliedSelectedRange;
+}
+
+- (NSRect)firstRectForCharacterRange:(NSRange)theRange
+{
+    // Fixed page position standing in for a real caret rect (would come from
+    // the content process's layout). Page (24, 24), a 1x18 sliver, converted
+    // view -> window -> screen the Tiger way (no -convertRectToScreen:, 10.7+).
+    CGPoint viewPt = CGPointMake(24, [self bounds].size.height - (24 - _scrollY));
+    NSPoint winPt = [self convertPoint:NSMakePoint(viewPt.x, viewPt.y) toView:nil];
+    NSPoint screenPt = [[self window] convertBaseToScreen:winPt];
+    NSRect rect = NSMakeRect(screenPt.x, screenPt.y, 1, 18);
+    tiLog(@"  firstRectForCharacterRange:%@ -> {%.0f,%.0f,%.0f,%.0f} (fixed page-position stub,"
+          @" from cached/applied EditorState -- a real cache miss here is visibly wrong, not just"
+          @" logically stale, per the plan's §3 note)",
+          NSStringFromRange(theRange), rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+    return rect;
+}
+
+- (unsigned int)characterIndexForPoint:(NSPoint)thePoint
+{
+    unsigned int idx = (unsigned int)[_appliedDocumentText length];
+    tiLog(@"  characterIndexForPoint:{%.0f,%.0f} -> %u (stub: always end-of-document)",
+          thePoint.x, thePoint.y, idx);
+    return idx;
+}
+
+- (NSArray *)validAttributesForMarkedText
+{
+    // NSMarkedClauseSegmentAttributeName/NSTextAlternativesAttributeName/
+    // NSTextInsertionUndoableAttributeName (webkitlegacy-plan.md's three
+    // flagged 10.5+ constants) are absent from the 10.4u SDK's
+    // NSAttributedString.h entirely -- confirmed by grep, not just omitted
+    // here. NSUnderlineStyleAttributeName is Tiger-safe (10.0+).
+    tiLog(@"  validAttributesForMarkedText -> [NSUnderlineStyleAttributeName] (Tiger-safe subset only)");
+    return [NSArray arrayWithObject:NSUnderlineStyleAttributeName];
+}
+
+// ---- synthetic self-test driver (no ssh-typed input is possible on the box)
+
+- (NSEvent *)tiEventChars:(NSString *)chars ignMods:(NSString *)ignMods mods:(unsigned int)mods keyCode:(unsigned short)code
+{
+    return [NSEvent keyEventWithType:NSKeyDown
+                             location:NSZeroPoint
+                        modifierFlags:mods
+                            timestamp:CACurrentMediaTime()
+                         windowNumber:[[self window] windowNumber]
+                              context:nil
+                           characters:chars
+         charactersIgnoringModifiers:ignMods
+                            isARepeat:NO
+                              keyCode:code];
+}
+
+- (void)startTextInputSelfTest
+{
+    tiLog(@"==== TigerBrowser text input self-test starting ====");
+    tiLog(@"initial EditorState: %@", [self tiDescribeApplied]);
+
+    NSMutableArray *script = [NSMutableArray array];
+    // Plain typing: "Hi".
+    [script addObject:[self tiEventChars:@"H" ignMods:@"H" mods:0 keyCode:TKC_H]];
+    [script addObject:[self tiEventChars:@"i" ignMods:@"i" mods:0 keyCode:34 /* I */]];
+    // Return, Tab, Escape.
+    [script addObject:[self tiEventChars:@"\r" ignMods:@"\r" mods:0 keyCode:TKC_Return]];
+    [script addObject:[self tiEventChars:@"\t" ignMods:@"\t" mods:0 keyCode:TKC_Tab]];
+    [script addObject:[self tiEventChars:@"\x1b" ignMods:@"\x1b" mods:0 keyCode:TKC_Escape]];
+    // Shift-arrows: extend selection left/right.
+    [script addObject:[self tiEventChars:kTILeftArrow ignMods:kTILeftArrow mods:NSShiftKeyMask keyCode:TKC_LeftArrow]];
+    [script addObject:[self tiEventChars:kTIRightArrow ignMods:kTIRightArrow mods:NSShiftKeyMask keyCode:TKC_RightArrow]];
+    // Option-arrows: word movement.
+    [script addObject:[self tiEventChars:kTILeftArrow ignMods:kTILeftArrow mods:NSAlternateKeyMask keyCode:TKC_LeftArrow]];
+    [script addObject:[self tiEventChars:kTIRightArrow ignMods:kTIRightArrow mods:NSAlternateKeyMask keyCode:TKC_RightArrow]];
+    // Cmd-arrows: line movement.
+    [script addObject:[self tiEventChars:kTILeftArrow ignMods:kTILeftArrow mods:NSCommandKeyMask keyCode:TKC_LeftArrow]];
+    [script addObject:[self tiEventChars:kTIRightArrow ignMods:kTIRightArrow mods:NSCommandKeyMask keyCode:TKC_RightArrow]];
+    // Delete / Forward Delete.
+    [script addObject:[self tiEventChars:@"\x7f" ignMods:@"\x7f" mods:0 keyCode:TKC_Delete]];
+    [script addObject:[self tiEventChars:kTIForwardDelete ignMods:kTIForwardDelete mods:0 keyCode:TKC_ForwardDelete]];
+    // Emacs bindings: Ctrl-A / Ctrl-E / Ctrl-K / Ctrl-D.
+    [script addObject:[self tiEventChars:@"\x01" ignMods:@"a" mods:NSControlKeyMask keyCode:TKC_A]];
+    [script addObject:[self tiEventChars:@"\x05" ignMods:@"e" mods:NSControlKeyMask keyCode:TKC_E]];
+    [script addObject:[self tiEventChars:@"\x0b" ignMods:@"k" mods:NSControlKeyMask keyCode:40 /* K */]];
+    [script addObject:[self tiEventChars:@"\x04" ignMods:@"d" mods:NSControlKeyMask keyCode:TKC_D]];
+    // Dead key: Option-E (acute accent dead key on US layout), then E -> e-acute.
+    [script addObject:[self tiEventChars:@"" ignMods:@"" mods:NSAlternateKeyMask keyCode:TKC_E]];
+    [script addObject:[self tiEventChars:@"e" ignMods:@"e" mods:0 keyCode:TKC_E]];
+
+    _selfTestScript = [script retain];
+    _selfTestIndex = 0;
+    _selfTestTimer = [[NSTimer scheduledTimerWithTimeInterval:0.2 target:self
+                                                      selector:@selector(fireNextSelfTestEvent:)
+                                                      userInfo:nil repeats:YES] retain];
+}
+
+- (void)fireNextSelfTestEvent:(NSTimer *)timer
+{
+    if (_selfTestIndex >= [_selfTestScript count]) {
+        [_selfTestTimer invalidate];
+        [_selfTestTimer release];
+        _selfTestTimer = nil;
+        // Edit-menu commands route to the same log via the responder chain
+        // (menu items are target-nil; calling the actions directly here is
+        // equivalent to what AppKit does when a keyEquivalent/menu click
+        // finds this view as first responder).
+        tiLog(@"-- exercising Edit menu commands (responder chain) --");
+        [self cut:nil];
+        [self copy:nil];
+        [self paste:nil];
+        [self selectAll:nil];
+        [self undo:nil];
+        [self redo:nil];
+        tiLog(@"-- exercising Cmd-F find bar (still works after the merge) --");
+        [[NSApp delegate] performSelector:@selector(performFindPanelAction:) withObject:nil];
+        [[NSApp delegate] performSelector:@selector(performFindPanelAction:) withObject:nil];
+        tiLog(@"==== TigerBrowser text input self-test complete ====");
+        return;
+    }
+    NSEvent *event = [_selfTestScript objectAtIndex:_selfTestIndex];
+    _selfTestIndex++;
+    [self keyDown:event];
+}
 
 // ---- GL / renderer
 
@@ -407,6 +779,14 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
                                     selector:@selector(drawFrame)
                                     userInfo:nil repeats:YES];
     [[NSRunLoop currentRunLoop] addTimer:_timer forMode:(NSString *)kCFRunLoopCommonModes];
+
+    // No way to type over ssh; drive the NSTextInput spike with a scripted
+    // sequence of synthetic key events once the window has settled, instead
+    // of requiring interactive input.
+    if (getenv("TIGERBROWSER_TEXTINPUT_TEST")) {
+        [[self window] makeFirstResponder:self];
+        [self performSelector:@selector(startTextInputSelfTest) withObject:nil afterDelay:1.5];
+    }
 }
 
 - (void)reshape
@@ -760,17 +1140,16 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     [_findBar setHidden:!_findBarVisible];
     if (_findBarVisible) {
         [_window makeFirstResponder:[_findBar field]];
-        fprintf(stderr, "Find bar: opened\n");
+        tiLog(@"Find bar: opened (Cmd-F)");
     } else {
         [_window makeFirstResponder:_pageView];
-        fprintf(stderr, "Find bar: closed\n");
+        tiLog(@"Find bar: closed");
     }
 }
 
 - (void)performFind:(id)sender
 {
-    fprintf(stderr, "Find: '%s' (stub, no content to search yet)\n",
-            [[[_findBar field] stringValue] UTF8String]);
+    tiLog(@"Find: '%@' (stub, no content to search yet)", [[_findBar field] stringValue]);
 }
 
 // ---- View menu (stub actions, just log per the task)
@@ -833,6 +1212,8 @@ int main(int argc, const char **argv)
 
     NSApplication *app = [NSApplication sharedApplication];
 
+    tiLogOpen(getenv("TIGERBROWSER_TEXTINPUT_LOG") ? getenv("TIGERBROWSER_TEXTINPUT_LOG")
+                                                    : "/tmp/tigerbrowser-textinput.log");
     checkFrameworksLoaded();
 
     NSString *urlString = @"about:blank";

@@ -1,0 +1,102 @@
+  validAttributesForMarkedText -> [NSUnderlineStyleAttributeName] (Tiger-safe subset only)
+==== TigerBrowser text input self-test starting ====
+initial EditorState: selectedRange={44, 0} markedRange={NSNotFound,0} doc(len=44)="The quick brown fox jumps over the lazy dog."
+--
+keyDown: keyCode=4 characters='H' charactersIgnoringModifiers='H' modifierFlags=0x0
+  hasMarkedText -> NO (from cached/applied EditorState)
+  insertText: NSString 'H' (markedTextActive=NO)
+keyDown: interpretKeyEvents: produced 1 command(s): [insertText:NSString 'H']
+  scheduling simulated content-process round trip (+50ms); synchronous queries until then will see the OLD state: selectedRange={44, 0} markedRange={NSNotFound,0} doc(len=44)="The quick brown fox jumps over the lazy dog."
+  simulated content-process reply landed: selectedRange={45, 0} markedRange={NSNotFound,0} doc(len=45)="The quick brown fox jumps over the lazy dog.H"
+--
+keyDown: keyCode=34 characters='i' charactersIgnoringModifiers='i' modifierFlags=0x0
+  hasMarkedText -> NO (from cached/applied EditorState)
+  insertText: NSString 'i' (markedTextActive=NO)
+keyDown: interpretKeyEvents: produced 1 command(s): [insertText:NSString 'i']
+  scheduling simulated content-process round trip (+50ms); synchronous queries until then will see the OLD state: selectedRange={45, 0} markedRange={NSNotFound,0} doc(len=45)="The quick brown fox jumps over the lazy dog.H"
+  simulated content-process reply landed: selectedRange={46, 0} markedRange={NSNotFound,0} doc(len=46)="The quick brown fox jumps over the lazy dog.Hi"
+--
+keyDown: keyCode=36 characters='' charactersIgnoringModifiers='' modifierFlags=0x0
+  doCommandBySelector: insertNewline:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:insertNewline:]
+--
+keyDown: keyCode=48 characters='	' charactersIgnoringModifiers='	' modifierFlags=0x0
+  doCommandBySelector: insertTab:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:insertTab:]
+--
+keyDown: keyCode=53 characters='' charactersIgnoringModifiers='' modifierFlags=0x0
+  doCommandBySelector: cancelOperation:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:cancelOperation:]
+--
+keyDown: keyCode=123 characters='' charactersIgnoringModifiers='' modifierFlags=0x20000
+  doCommandBySelector: moveLeftAndModifySelection:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveLeftAndModifySelection:]
+--
+keyDown: keyCode=124 characters='' charactersIgnoringModifiers='' modifierFlags=0x20000
+  doCommandBySelector: moveRightAndModifySelection:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveRightAndModifySelection:]
+--
+keyDown: keyCode=123 characters='' charactersIgnoringModifiers='' modifierFlags=0x80000
+  doCommandBySelector: moveWordLeft:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveWordLeft:]
+--
+keyDown: keyCode=124 characters='' charactersIgnoringModifiers='' modifierFlags=0x80000
+  doCommandBySelector: moveWordRight:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveWordRight:]
+--
+keyDown: keyCode=123 characters='' charactersIgnoringModifiers='' modifierFlags=0x100000
+  doCommandBySelector: moveToBeginningOfLine:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveToBeginningOfLine:]
+--
+keyDown: keyCode=124 characters='' charactersIgnoringModifiers='' modifierFlags=0x100000
+  doCommandBySelector: moveToEndOfLine:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveToEndOfLine:]
+--
+keyDown: keyCode=51 characters='' charactersIgnoringModifiers='' modifierFlags=0x0
+  doCommandBySelector: deleteBackward:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:deleteBackward:]
+--
+keyDown: keyCode=117 characters='' charactersIgnoringModifiers='' modifierFlags=0x0
+  doCommandBySelector: deleteForward:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:deleteForward:]
+--
+keyDown: keyCode=0 characters='' charactersIgnoringModifiers='a' modifierFlags=0x40000
+  doCommandBySelector: moveToBeginningOfParagraph:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveToBeginningOfParagraph:]
+--
+keyDown: keyCode=14 characters='' charactersIgnoringModifiers='e' modifierFlags=0x40000
+  doCommandBySelector: moveToEndOfParagraph:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:moveToEndOfParagraph:]
+--
+keyDown: keyCode=40 characters='' charactersIgnoringModifiers='k' modifierFlags=0x40000
+  doCommandBySelector: deleteToEndOfParagraph:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:deleteToEndOfParagraph:]
+--
+keyDown: keyCode=2 characters='' charactersIgnoringModifiers='d' modifierFlags=0x40000
+  doCommandBySelector: deleteForward:  (recorded only, NOT executed -- see plan for why the real content process, not this view, owns Editor::Command dispatch)
+keyDown: interpretKeyEvents: produced 1 command(s): [doCommandBySelector:deleteForward:]
+--
+keyDown: keyCode=14 characters='' charactersIgnoringModifiers='' modifierFlags=0x80000
+  hasMarkedText -> NO (from cached/applied EditorState)
+  insertText: NSString '' (markedTextActive=NO)
+keyDown: interpretKeyEvents: produced 1 command(s): [insertText:NSString '']
+  scheduling simulated content-process round trip (+50ms); synchronous queries until then will see the OLD state: selectedRange={46, 0} markedRange={NSNotFound,0} doc(len=46)="The quick brown fox jumps over the lazy dog.Hi"
+  simulated content-process reply landed: selectedRange={46, 0} markedRange={NSNotFound,0} doc(len=46)="The quick brown fox jumps over the lazy dog.Hi"
+--
+keyDown: keyCode=14 characters='e' charactersIgnoringModifiers='e' modifierFlags=0x0
+  hasMarkedText -> NO (from cached/applied EditorState)
+  insertText: NSString 'e' (markedTextActive=NO)
+keyDown: interpretKeyEvents: produced 1 command(s): [insertText:NSString 'e']
+  scheduling simulated content-process round trip (+50ms); synchronous queries until then will see the OLD state: selectedRange={46, 0} markedRange={NSNotFound,0} doc(len=46)="The quick brown fox jumps over the lazy dog.Hi"
+  simulated content-process reply landed: selectedRange={47, 0} markedRange={NSNotFound,0} doc(len=47)="The quick brown fox jumps over the lazy dog.Hie"
+-- exercising Edit menu commands (responder chain) --
+Edit menu command (page view responder chain): cut:
+Edit menu command (page view responder chain): copy:
+Edit menu command (page view responder chain): paste:
+Edit menu command (page view responder chain): selectAll:
+Edit menu command (page view responder chain): undo:
+Edit menu command (page view responder chain): redo:
+-- exercising Cmd-F find bar (still works after the merge) --
+Find bar: opened (Cmd-F)
+Find bar: closed
+==== TigerBrowser text input self-test complete ====
