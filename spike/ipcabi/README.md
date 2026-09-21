@@ -49,3 +49,26 @@ message is read as 136 bytes.
 
 Patched, both sides produce 112 bytes and agree on every offset, and the result is symmetric: it
 does not matter which architecture is the parent.
+
+## Fifth offender: span element size
+
+`ArgumentCoder<std::span<T>>` hands the range to `Encoder::encodeSpan`, which bulk-copies
+`size * sizeof(T)`. `wireAlignmentOf` fixes where a field starts, not how wide it is, so a composite
+element whose layout differs between the ABIs corrupts silently. `spancheck.cpp` uses the real
+`isWireStableSpanElement` from the branch and measures the elements on the box:
+
+| element | i386 | x86_64 | verdict on i386 | verdict on x86_64 |
+|---|---|---|---|---|
+| `{u32, i32, float, u8}` | 16 | 16 | stable | stable |
+| `{u32, u64}` | **12** | **16** | stable (cannot tell) | **rejected** |
+| `{u32, {u32, u64}}` | **16** | **24** | stable (cannot tell) | **rejected** |
+
+A span of a hundred `{u32, u64}` is 1200 bytes from the 32-bit side and 1600 from the 64-bit side.
+
+`make spanreject` compiles the case that must fail. It reports 0 rejections for i386 and 2 for
+x86_64, which is the asymmetry stated in the trait's comment: on i386 a struct holding a `uint64_t`
+already reports `alignof` 4 and is indistinguishable from a safe one. **Both builds have to run**,
+the same requirement `ptrdiff_t` imposes.
+
+The nested case is the one worth remembering: nothing declared in `NestsAMixedField` is 8 bytes
+wide, so a review that reads field types alone would pass it.

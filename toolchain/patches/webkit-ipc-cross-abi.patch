@@ -1,4 +1,4 @@
-From 6b39076f7070610ca8fd8220c0eb7d173c31b867 Mon Sep 17 00:00:00 2001
+From f21725d4c191d03d988cee5348c07c7e365ee79b Mon Sep 17 00:00:00 2001
 From: samhenrigold <49251320+samhenrigold@users.noreply.github.com>
 Date: Sun, 20 Sep 2026 22:49:46 -0400
 Subject: [PATCH] TIGER: make the IPC wire format identical in a 32-bit and a
@@ -23,32 +23,45 @@ which covers size_t, ptrdiff_t and uintptr_t as they are spelled on Darwin, so a
 future field of one of those types fails to compile instead of corrupting
 messages. int64_t and uint64_t are long long on Darwin and are unaffected.
 
-Beyond that, alignment turned out to be on the wire too, which an audit of field
-types alone does not catch. Encoder::encodeSpan pads the stream to alignof(T)
-and Decoder::decodeSpan seeks to the same boundary, and alignof is 4 for
-uint64_t, int64_t and double on Darwin i386 against 8 on x86_64. A message of
-{ uint32_t, uint64_t, uint32_t, double } lays out at 0, 4, 12, 16 for 24 bytes
-on i386 and at 0, 8, 16, 24 for 32 bytes on x86_64. Nothing has to be declared
-wrongly for that: a uint64_t is enough, and uint64_t is what every container
-length and every ObjectIdentifier already uses. Both sides now pad by
-wireAlignmentOf, which gives 8-byte scalars an alignment of 8 everywhere.
+Alignment is on the wire too, which an audit of field types alone does not
+catch. Encoder::encodeSpan pads the stream to alignof(T) and Decoder::decodeSpan
+seeks to the same boundary, and alignof is 4 for uint64_t, int64_t and double on
+Darwin i386 against 8 on x86_64. A message of { uint32_t, uint64_t, uint32_t,
+double } lays out at 0, 4, 12, 16 for 24 bytes on i386 and at 0, 8, 16, 24 for
+32 bytes on x86_64. Nothing has to be declared wrongly for that: a uint64_t is
+enough, and uint64_t is what every container length and every ObjectIdentifier
+already uses. Both sides now pad by wireAlignmentOf, which gives 8-byte scalars
+an alignment of 8 everywhere.
+
+Element size is on the wire as well. ArgumentCoder<std::span<T>> bulk-copies
+size * sizeof(T), and wireAlignmentOf fixes where a field starts, not how wide
+it is. A composite element with an 8-byte member is laid out differently by the
+two ABIs: { uint32_t; uint64_t; } measures 12 bytes on i386 and 16 on x86_64, so
+a span of a hundred of them disagrees by 400 bytes. The span coder now requires
+isWireStableSpanElement, which admits scalars and enums and otherwise demands
+that nothing in the element needs 8-byte alignment. Only the x86_64 build can
+evaluate that, since i386 reports alignof 4 for such a struct either way, so
+both builds have to run.
+
+Proven on the box by spike/ipcabi.
 
 Claude-Session: https://claude.ai/code/session_01RHwCbDKQLvzXACuucjKev6
 ---
- Source/WTF/wtf/ArgumentCoder.h                | 37 ++++++++++++++
+ Source/WTF/wtf/ArgumentCoder.h                | 56 +++++++++++++++++++
  .../page/scrolling/ScrollSnapOffsetsInfo.cpp  |  4 +-
  .../page/scrolling/ScrollSnapOffsetsInfo.h    |  5 +-
  Source/WebCore/platform/xr/PlatformXR.h       |  4 +-
+ Source/WebKit/Platform/IPC/ArgumentCoders.h   |  6 ++
  Source/WebKit/Platform/IPC/Decoder.cpp        |  4 +-
  Source/WebKit/Platform/IPC/Decoder.h          |  2 +-
  Source/WebKit/Platform/IPC/Encoder.h          |  4 +-
- Source/WebKit/Platform/IPC/unix/UnixMessage.h | 49 +++++++++++++++----
+ Source/WebKit/Platform/IPC/unix/UnixMessage.h | 49 +++++++++++++---
  .../WebCoreArgumentCoders.serialization.in    |  2 +-
  .../Shared/XR/PlatformXR.serialization.in     |  2 +-
- 10 files changed, 95 insertions(+), 18 deletions(-)
+ 11 files changed, 120 insertions(+), 18 deletions(-)
 
 diff --git a/Source/WTF/wtf/ArgumentCoder.h b/Source/WTF/wtf/ArgumentCoder.h
-index 705ab640..e38c1891 100644
+index 705ab640..5336e5e9 100644
 --- a/Source/WTF/wtf/ArgumentCoder.h
 +++ b/Source/WTF/wtf/ArgumentCoder.h
 @@ -27,6 +27,7 @@
@@ -59,7 +72,7 @@ index 705ab640..e38c1891 100644
  #include <wtf/EnumTraits.h>
  
  namespace IPC {
-@@ -55,9 +56,45 @@ struct ArgumentCoder<bool> {
+@@ -55,9 +56,64 @@ struct ArgumentCoder<bool> {
      }
  };
  
@@ -93,6 +106,25 @@ index 705ab640..e38c1891 100644
 +// 16-byte aligned on x86_64, and it is banned above rather than special-cased.
 +template<typename T>
 +inline constexpr size_t wireAlignmentOf = (alignof(T) < 8 && sizeof(T) >= 8) ? 8 : alignof(T);
++
++// ArgumentCoder<std::span<T>> hands the whole range to Encoder::encodeSpan, which bulk-copies
++// size * sizeof(T) bytes, so sizeof(T) is on the wire as well. wireAlignmentOf does not help with
++// that: it fixes where a field begins, not how wide it is.
++//
++// A scalar element is fine. Every fixed-width scalar has the same size in both ABIs, and the ones
++// that do not are already rejected by isWireUnstableArithmeticType. A composite element is fine
++// only if nothing inside it needs 8-byte alignment, because that is the one thing that makes the
++// classic i386 ABI lay a struct out differently from x86_64: i386 4-byte-aligns an 8-byte member
++// where x86_64 8-byte-aligns it, so { uint32_t; uint64_t; } is 12 bytes on i386 and 16 on x86_64.
++//
++// alignof(T) < 8 says exactly that, but only the 64-bit build can see it: on i386 a struct holding
++// a uint64_t already reports alignof 4 and is indistinguishable from a safe one. So this check, like
++// the ptrdiff_t case, only bites when both builds are run.
++template<typename T>
++inline constexpr bool isWireStableSpanElement =
++    (std::is_arithmetic_v<T> || std::is_enum_v<T>)
++        ? !isWireUnstableArithmeticType<T>
++        : (alignof(T) < 8);
 +
  template<typename T>
      requires (std::is_arithmetic_v<T>)
@@ -154,6 +186,23 @@ index 56dc6411..4ac4252d 100644
  };
  
  
+diff --git a/Source/WebKit/Platform/IPC/ArgumentCoders.h b/Source/WebKit/Platform/IPC/ArgumentCoders.h
+index a3668ff9..75bfa653 100644
+--- a/Source/WebKit/Platform/IPC/ArgumentCoders.h
++++ b/Source/WebKit/Platform/IPC/ArgumentCoders.h
+@@ -56,6 +56,12 @@
+ namespace IPC {
+ 
+ template<typename T, size_t Extent> struct ArgumentCoder<std::span<T, Extent>> {
++    // The elements are bulk-copied, so sizeof(T) is part of the wire format. See isWireStableSpanElement.
++    static_assert(isWireStableSpanElement<std::remove_cv_t<T>>,
++        "A span element type whose size differs between the 32-bit and 64-bit processes cannot be "
++        "bulk-copied onto the wire. A composite element must have no member requiring 8-byte "
++        "alignment; split any 64-bit field into two 32-bit halves, or encode the elements one by one.");
++
+     template<typename Encoder>
+     static void encode(Encoder& encoder, std::span<T, Extent> span)
+     {
 diff --git a/Source/WebKit/Platform/IPC/Decoder.cpp b/Source/WebKit/Platform/IPC/Decoder.cpp
 index 045a1e64..fd5beb40 100644
 --- a/Source/WebKit/Platform/IPC/Decoder.cpp
