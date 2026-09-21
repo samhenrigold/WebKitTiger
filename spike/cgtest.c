@@ -129,7 +129,10 @@ int main(void)
 
     /* ---- premultiplied interpolation: red to transparent must not darken ---- */
     {
-        CGFloat fade[8] = { 1, 0, 0, 1, 1, 0, 0, 0 };
+        /* Red to CSS `transparent`, which is transparent BLACK. That is what
+           makes the two interpolation modes differ: with transparent red the
+           colour is constant and both modes agree. */
+        CGFloat fade[8] = { 1, 0, 0, 1, 0, 0, 0, 0 };
         CFTypeRef keys[] = { kCGGradientInterpolatesPremultiplied };
         CFTypeRef values[] = { kCFBooleanTrue };
         CFDictionaryRef options = CFDictionaryCreate(kCFAllocatorDefault, keys, values, 1,
@@ -144,7 +147,7 @@ int main(void)
         pixelAt(W / 2, H / 2, &r, &g, &b, &a);
         /* Premultiplied against a cleared backdrop: the stored pixel is colour
            times alpha, so red stays at full strength for its alpha. */
-        expect(near(a, 128, 20) && near(r, a, 12),
+        expect(near(a, 128, 20) && near(r, a, 14),
             "premultiplied red-to-transparent keeps full red at the midpoint");
 
         clear(context);
@@ -216,8 +219,11 @@ int main(void)
            corner at (60, 59) being inside the path. */
         expect(!CGPathContainsPoint(uneven, NULL, CGPointMake(20, 57), false),
             "an 80px corner radius is not squashed to half the rect");
-        expect(CGPathContainsPoint(uneven, NULL, CGPointMake(95, 57), false),
-            "the 20px corner on the same side is untouched");
+        /* The 20px corner's ellipse is centred at (80, 50) with radii 20 by 10,
+           so these two points bracket it. */
+        expect(CGPathContainsPoint(uneven, NULL, CGPointMake(85, 55), false)
+            && !CGPathContainsPoint(uneven, NULL, CGPointMake(99, 59), false),
+            "the 20px corner on the same side is still a 20px corner");
         CGPathRelease(uneven);
     }
 

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><title>JS Timing Test</title></head>
+<body>
+<h1>JS Timing Test</h1>
+<div id="out">running...</div>
+<p><a href="index.html">Back</a></p>
+<script>
+  var start = new Date().getTime();
+  var sum = 0;
+  for (var i = 0; i < 2000000; i++) {
+    sum += i % 7;
+  }
+  var elapsed = new Date().getTime() - start;
+  document.getElementById('out').innerHTML =
+    'sum=' + sum + ', loop of 2,000,000 took ' + elapsed + ' ms';
+</script>
+</body>
+</html>

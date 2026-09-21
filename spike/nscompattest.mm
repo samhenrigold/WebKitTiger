@@ -323,6 +323,16 @@ int main(int, char **)
         [deferred waitUntilFinished];
         expect("resumed queue runs the deferred operation", deferredRan && [deferred isFinished]);
 
+        // operationCount must reflect queued work rather than answering a flat zero.
+        [queue setSuspended:YES];
+        NSOperation *pending = [NSBlockOperation blockOperationWithBlock:^{ }];
+        [queue addOperation:pending];
+        expect("operationCount counts a queued operation", [queue operationCount] == 1);
+        [queue setSuspended:NO];
+        [queue waitUntilAllOperationsAreFinished];
+        usleep(50000);
+        expect("operationCount drops back to zero", [queue operationCount] == 0);
+
 #if !__has_feature(objc_arc)
         [queue release];
 #endif

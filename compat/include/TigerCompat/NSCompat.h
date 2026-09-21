@@ -382,6 +382,7 @@ enum {
     NSInteger _maxConcurrent;
     NSString *_name;
     BOOL _suspended;
+    int32_t _operationCount;    /* bumped with __sync_*; -operationCount reads it */
 }
 + (NSOperationQueue *)mainQueue;
 + (NSOperationQueue *)currentQueue;

@@ -6,7 +6,7 @@ Tiger's CoreGraphics exports), `logs/api/tiger-CG.txt` (3568 CG exports),
 `logs/api/used-CG.txt` / `used-kCG.txt`.
 
 Implementation: `compat/cgcompat.c`, declarations in `compat/include/TigerCompat/CGCompat.h`.
-Test: `spike/cgtest.c`, 40 checks, all passing on the box.
+Test: `spike/cgtest.c`, 51 checks, all passing on the box.
 
 ## Counts
 
@@ -85,14 +85,36 @@ extend flags.
 `CGGradientRetain` `CGGradientRelease` `CGGradientGetTypeID` `CGContextDrawLinearGradient`
 `CGContextDrawRadialGradient` `CGContextDrawConicGradient`.
 
+**Tiger's shadings are always opaque.** The alpha component a shading's function returns is
+ignored, whatever the range dimension or colorspace; a constant alpha of 0.5 comes back fully
+opaque in both DeviceRGB and ICC sRGB. So a gradient with any transparent stop is composed by
+hand: CG draws the colour ramp into an opaque RGB bitmap and the alpha ramp into a gray bitmap,
+using the same shading geometry for both, and the two are combined into a premultiplied RGBA
+image that is drawn into the clip. CG still does all the geometry, which is the part worth
+keeping. An opaque gradient skips all of it.
+
+`CGContextClipToMask` was the obvious route and is deliberately not used. Tiger's version does
+not take the destination's alpha from the mask alone: with a colour ramp that varies, the
+resulting alpha came out as the mask times the source colour instead of the mask.
+
+**Premultiplied interpolation is honoured.** `kCGGradientInterpolatesPremultiplied` is not a
+corner case: `GradientRendererCG.cpp` passes it whenever the gradient's alpha premultiplication
+is Premultiplied, which is the CSS default for legacy sRGB. Without it, red to `transparent`
+darkens through the middle, because CSS `transparent` is transparent *black* and interpolating
+unpremultiplied drags the colour toward black as the alpha falls. The stops are scaled by their
+alpha before the lerp and divided back out after, and the shading function's output stays
+unpremultiplied as CG expects.
+
 `CGContextDrawConicGradient` is the one approximation: CGShading has no conic form, so it
 fills 360 one-degree wedges. Two details the test caught. The wedges must overlap, because a
 wedge narrower than a pixel never fully covers one. Antialiasing must be off, because two
 antialiased fills each covering half a pixel composite to 0.75 alpha, not 1, which left the
 whole disc translucent.
 
-**Colorspaces.** Tiger's `CGColorSpaceCreateWithName` knows only `GenericGray`, `GenericRGB`
-and `GenericCMYK`. The shim adds the 10.5+ names, building sRGB from the ICC profile ColorSync
+**Colorspaces.** Tiger's `CGColorSpaceCreateWithName` accepts 17 names, the Generic, User,
+SystemDefault and Uncalibrated families plus DisplayGray, DisplayRGB, GenericHDR and Undo601.
+It has no SRGB, no AdobeRGB1998 and none of the Device names. For contrast, 10.5 accepts 24
+including SRGB, AdobeRGB1998, GenericRGBLinear and ColoredPattern. The shim adds the 10.5+ names, building sRGB from the ICC profile ColorSync
 ships at `/System/Library/ColorSync/Profiles/sRGB Profile.icc` via `CGColorSpaceCreateICCBased`,
 so it is a real sRGB rather than an approximation. Every wide-gamut, linear and extended
 variant collapses onto that sRGB: Tiger's CG clamps to [0,1] and has no extended range, so the
@@ -108,10 +130,28 @@ WebCore's source unchanged and avoids a duplicate symbol against the system dyli
 `CGColorSpaceCreateWithPropertyList`, plus `CGColorCreateSRGB` `CGColorCreateGenericGray`
 `CGColorGetConstantColor`.
 
-`CGColorSpaceGetModel` derives the model from the component count, which is all Tiger exposes,
-so Indexed and Pattern report as their base model. The property list round trip is name-based.
+`CGColorSpaceGetModel` reads Tiger's CGColorSpace struct, whose layout was mapped on the box
+across every kind of colorspace its API can build: a kind code at +0x0c (0 DeviceGray,
+1 DeviceRGB, 2 DeviceCMYK, 3 CalibratedGray, 4 CalibratedRGB, 5 Lab, 6 ICCBased, 7 Indexed,
+9 Pattern), the model at +0x10 already in Apple's numbering except for Indexed and Pattern
+which store -1, and the component count at +0x14. That is what makes Indexed reportable at all,
+and WebCore does test for it; the component count alone cannot tell Indexed from its base
+space. The component count at +0x14 is cross-checked against the public accessor on every call,
+and a mismatch falls back to deriving the model from the count.
+
+Named colorspaces are cached one per name, and no two names are allowed to share a cached
+object. Tiger hands back the *same* object for every name it recognises, so forwarding two of
+ours to its `GenericRGB` would make `CGColorSpaceGetName` ambiguous and break the property list
+round trip. The names Tiger does not know each get their own ICC-based object instead.
 
 **Paths.** `CGPathCreateWithRect` `CGPathCreateWithRoundedRect` `CGPathAddRoundedRect`
+Uneven corner radii are clamped per shared side, not to half the rect. WebCore clamps each
+radius against the rect minus the *opposite* corner's radius, so a deliberately lopsided
+`border-radius`, say 80px and 20px on a 100px-wide box, is legal and must not be squashed.
+The corner order is WebCore's: index 0 and 1 share the maxY side, 2 and 3 share minY, 0 and 3
+share minX, 1 and 2 share maxX. WebCore calls them bottom-first because its own space is
+y-down. Do not "correct" that into a top-first order; it flips every asymmetric rounded rect.
+
 `CGPathAddUnevenCornersRoundedRect` `CGPathCreateCopyByTransformingPath`
 `CGPathCreateMutableCopyByTransformingPath` `CGPathGetPathBoundingBox`. Rounded rects are built
 from four kappa curves with the radii clamped to half the rect, the way CG does it. Transformed
@@ -280,8 +320,9 @@ scp -O build/cgtest build/cgtest.png tiger:/tmp/ && ssh tiger /tmp/cgtest
 It creates a bitmap context in the shimmed sRGB, draws a linear, radial and conic gradient and
 reads back pixels at the endpoints and midpoint, fills a rounded rect through
 `CGContextDrawPathDirect` and checks that the corner stays unpainted, transforms a path, checks
-the transparency layer clips to its rect, and decodes a PNG through `CGImageSource`. 40 checks,
-all passing.
+the transparency layer clips to its rect, and decodes a PNG through `CGImageSource`. It also
+covers both interpolation modes, the colorspace model including Indexed and Pattern, name
+aliasing and the property list round trip, and a lopsided rounded rect. 51 checks, all passing.
 
 One thing the test surfaced that is worth knowing for the rest of the port: filling with
 `CGContextSetRGBFillColor` in an ICC sRGB context goes through a generic-RGB to sRGB

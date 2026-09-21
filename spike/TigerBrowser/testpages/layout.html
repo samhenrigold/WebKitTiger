@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Layout Test</title>
+<style>
+  body { font-family: Helvetica, Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+  h1 { color: #333; border-bottom: 2px solid #666; }
+  .box { float: left; width: 120px; height: 80px; margin: 8px; padding: 8px;
+         background: #cde; border: 1px solid #369; }
+  .box.red { background: #ecc; border-color: #933; }
+  .clear { clear: both; }
+  p.note { font-style: italic; color: #555; }
+  table { border-collapse: collapse; margin-top: 20px; }
+  td, th { border: 1px solid #999; padding: 4px 10px; }
+</style>
+</head>
+<body>
+<h1>CSS Layout Test</h1>
+<p>Floats, borders, fonts, and a table.</p>
+<div class="box">Box 1</div>
+<div class="box red">Box 2</div>
+<div class="box">Box 3</div>
+<div class="clear"></div>
+<p class="note">This paragraph should be italic and gray.</p>
+<table>
+  <tr><th>Col A</th><th>Col B</th></tr>
+  <tr><td>1</td><td>2</td></tr>
+  <tr><td>3</td><td>4</td></tr>
+</table>
+<p><a href="index.html">Back</a></p>
+</body>
+</html>

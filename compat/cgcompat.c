@@ -297,6 +297,7 @@ typedef struct {
     size_t componentCount; /* colour components per stop, alpha excluded */
     size_t stopCount;
     int premultiplied;     /* kCGGradientInterpolatesPremultiplied was asked for */
+    int alphaOnly;         /* evaluate into a single gray component: the alpha curve */
     /* stopCount * (componentCount + 1) colour+alpha floats, then stopCount
        locations. */
     CGFloat values[1];
@@ -328,6 +329,7 @@ static CGGradientRef createGradient(CGColorSpaceRef cs, const CGFloat* component
     stops->componentCount = ncomp;
     stops->stopCount = count;
     stops->premultiplied = premultiplied;
+    stops->alphaOnly = 0;
     memcpy(stops->values, components, count * stride * sizeof(CGFloat));
     for (i = 0; i < count; ++i)
         stops->values[count * stride + i] = locations ? locations[i] : (count > 1 ? (CGFloat)i / (count - 1) : 0);
@@ -442,10 +444,49 @@ static const GradientStops* gradientStops(CGGradientRef gradient, CGColorSpaceRe
     return data ? (const GradientStops*)CFDataGetBytePtr(data) : NULL;
 }
 
+/* Writes the interpolated alpha as a single gray component, for the mask that
+   carries what Tiger's CGShading throws away. */
+static void evaluateGradientAlpha(void* info, const float* in, float* out)
+{
+    const GradientStops* s = (const GradientStops*)info;
+    size_t stride = s->componentCount + 1;
+    const CGFloat* locations = s->values + s->stopCount * stride;
+    float t = in[0];
+    size_t i, lo, hi;
+    float span, f, alphaLo, alphaHi;
+
+    if (t <= locations[0]) {
+        out[0] = s->values[s->componentCount];
+        return;
+    }
+    if (t >= locations[s->stopCount - 1]) {
+        out[0] = s->values[(s->stopCount - 1) * stride + s->componentCount];
+        return;
+    }
+    lo = 0;
+    for (i = 1; i < s->stopCount; ++i) {
+        if (locations[i] >= t) {
+            lo = i - 1;
+            break;
+        }
+    }
+    hi = lo + 1;
+    span = locations[hi] - locations[lo];
+    f = span > 0 ? (t - locations[lo]) / span : 0;
+    alphaLo = s->values[lo * stride + s->componentCount];
+    alphaHi = s->values[hi * stride + s->componentCount];
+    out[0] = alphaLo + (alphaHi - alphaLo) * f;
+}
+
 static void evaluateGradient(void* info, const float* in, float* out)
 {
     const GradientStops* s = (const GradientStops*)info;
     size_t stride = s->componentCount + 1;
+
+    if (s->alphaOnly) {
+        evaluateGradientAlpha(info, in, out);
+        return;
+    }
     const CGFloat* locations = s->values + s->stopCount * stride;
     float t = in[0];
     size_t i, c, lo, hi;
@@ -502,12 +543,14 @@ static void evaluateGradient(void* info, const float* in, float* out)
 
 static void releaseGradientInfo(void* info) { free(info); }
 
-/* Returns a CGFunction over t in [0,1] outputting colour+alpha, or NULL. */
-static CGFunctionRef createGradientFunction(CGGradientRef gradient, CGColorSpaceRef* outSpace)
+/* Returns a CGFunction over t in [0,1]. With alphaOnly it has a single gray
+   output carrying the alpha curve; otherwise colour plus alpha. */
+static CGFunctionRef createGradientFunction(CGGradientRef gradient, CGColorSpaceRef* outSpace,
+    int alphaOnly)
 {
     static const CGFunctionCallbacks callbacks = { 0, evaluateGradient, releaseGradientInfo };
     const GradientStops* stops = gradientStops(gradient, outSpace);
-    size_t stride, bytes, c;
+    size_t stride, outputs, bytes, c;
     float domain[2] = { 0, 1 };
     float range[16];
     GradientStops* copy;
@@ -524,28 +567,210 @@ static CGFunctionRef createGradientFunction(CGGradientRef gradient, CGColorSpace
     if (!copy)
         return NULL;
     memcpy(copy, stops, bytes);
+    copy->alphaOnly = alphaOnly;
 
-    for (c = 0; c < stride; ++c) {
+    outputs = alphaOnly ? 1 : stride;
+    for (c = 0; c < outputs; ++c) {
         range[2 * c] = 0;
         range[2 * c + 1] = 1;
     }
-    function = CGFunctionCreate(copy, 1, domain, stride, range, &callbacks);
+    function = CGFunctionCreate(copy, 1, domain, outputs, range, &callbacks);
     if (!function)
         free(copy);
     return function;
 }
 
-void CGContextDrawLinearGradient(CGContextRef context, CGGradientRef gradient, CGPoint start,
-    CGPoint end, CGGradientDrawingOptions options)
+static int gradientHasTransparency(CGGradientRef gradient)
+{
+    const GradientStops* s = gradientStops(gradient, NULL);
+    size_t stride, i;
+    if (!s)
+        return 0;
+    stride = s->componentCount + 1;
+    for (i = 0; i < s->stopCount; ++i) {
+        if (s->values[i * stride + s->componentCount] < 1.0f)
+            return 1;
+    }
+    return 0;
+}
+
+static CGShadingRef createShading(int radial, CGColorSpaceRef space, CGFunctionRef function,
+    CGPoint start, CGFloat startRadius, CGPoint end, CGFloat endRadius,
+    CGGradientDrawingOptions options)
+{
+    bool extendStart = (options & kCGGradientDrawsBeforeStartLocation) != 0;
+    bool extendEnd = (options & kCGGradientDrawsAfterEndLocation) != 0;
+    if (radial)
+        return CGShadingCreateRadial(space, start, startRadius, end, endRadius, function,
+            extendStart, extendEnd);
+    return CGShadingCreateAxial(space, start, end, function, extendStart, extendEnd);
+}
+
+/* Tiger's CGShading always paints opaque: the alpha component its function
+   returns is ignored, whatever the range dimension or colorspace. Verified on
+   the box with a constant alpha of 0.5 in both DeviceRGB and ICC sRGB, which
+   still came back fully opaque.
+
+   So a gradient with any transparent stop is composed by hand. CG still does
+   all the geometry, which is the part worth keeping: the colour ramp is drawn
+   into an opaque RGB bitmap and the alpha ramp into a gray bitmap, using the
+   same shading in both passes, and the two are combined into a premultiplied
+   RGBA image that gets drawn into the clip.
+
+   CGContextClipToMask was the obvious route and is not used on purpose. Tiger's
+   version does not give the destination its alpha from the mask alone: with a
+   colour ramp that varies, the resulting alpha came out as the mask times the
+   source colour rather than the mask, which is wrong for exactly the fade the
+   caller asked for.
+
+   ponytail: the composite is rasterized at the clip's device size, capped
+   below. An opaque gradient skips all of this and draws the shading directly. */
+#define GRADIENT_MAX_SIDE 2048
+
+static void drawTransparentGradient(CGContextRef context, CGGradientRef gradient, int radial,
+    CGPoint start, CGFloat startRadius, CGPoint end, CGFloat endRadius,
+    CGGradientDrawingOptions options, CGColorSpaceRef space)
+{
+    CGRect clip = CGContextGetClipBoundingBox(context);
+    CGAffineTransform ctm = CGContextGetCTM(context);
+    CGColorSpaceRef gray = NULL, rgbSpace = NULL;
+    CGContextRef colorContext = NULL, alphaContext = NULL;
+    CGFunctionRef function;
+    CGShadingRef shading;
+    CGDataProviderRef provider;
+    CGImageRef image;
+    unsigned char *colorBits = NULL, *alphaBits = NULL, *outBits = NULL;
+    size_t wide, high, x, y, colorRow, alphaRow, outRow;
+    CGFloat scaleX, scaleY;
+
+    if (CGRectIsEmpty(clip) || CGRectIsInfinite(clip))
+        return;
+
+    scaleX = (CGFloat)hypot(ctm.a, ctm.b);
+    scaleY = (CGFloat)hypot(ctm.c, ctm.d);
+    if (scaleX <= 0)
+        scaleX = 1;
+    if (scaleY <= 0)
+        scaleY = 1;
+    wide = (size_t)ceilf(CGRectGetWidth(clip) * scaleX);
+    high = (size_t)ceilf(CGRectGetHeight(clip) * scaleY);
+    if (!wide || !high)
+        return;
+    if (wide > GRADIENT_MAX_SIDE) {
+        scaleX = GRADIENT_MAX_SIDE / CGRectGetWidth(clip);
+        wide = GRADIENT_MAX_SIDE;
+    }
+    if (high > GRADIENT_MAX_SIDE) {
+        scaleY = GRADIENT_MAX_SIDE / CGRectGetHeight(clip);
+        high = GRADIENT_MAX_SIDE;
+    }
+
+    colorRow = wide * 4;
+    alphaRow = wide;
+    outRow = wide * 4;
+    colorBits = (unsigned char*)calloc(colorRow * high, 1);
+    alphaBits = (unsigned char*)calloc(alphaRow * high, 1);
+    outBits = (unsigned char*)calloc(outRow * high, 1);
+    if (!colorBits || !alphaBits || !outBits)
+        goto done;
+
+    /* Keep the gradient's own colorspace for the colour pass when it is RGB, so
+       nothing is converted twice. */
+    rgbSpace = (space && CGColorSpaceGetNumberOfComponents(space) == 3)
+        ? CGColorSpaceRetain(space) : CGColorSpaceCreateDeviceRGB();
+    gray = CGColorSpaceCreateDeviceGray();
+    colorContext = CGBitmapContextCreate(colorBits, wide, high, 8, colorRow, rgbSpace,
+        kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrder32Little);
+    alphaContext = CGBitmapContextCreate(alphaBits, wide, high, 8, alphaRow, gray,
+        kCGImageAlphaNone);
+    if (!colorContext || !alphaContext)
+        goto done;
+
+    CGContextScaleCTM(colorContext, scaleX, scaleY);
+    CGContextTranslateCTM(colorContext, -CGRectGetMinX(clip), -CGRectGetMinY(clip));
+    CGContextScaleCTM(alphaContext, scaleX, scaleY);
+    CGContextTranslateCTM(alphaContext, -CGRectGetMinX(clip), -CGRectGetMinY(clip));
+
+    function = createGradientFunction(gradient, NULL, 0);
+    if (!function)
+        goto done;
+    shading = createShading(radial, rgbSpace, function, start, startRadius, end, endRadius,
+        options);
+    CGFunctionRelease(function);
+    if (shading) {
+        CGContextDrawShading(colorContext, shading);
+        CGShadingRelease(shading);
+    }
+
+    function = createGradientFunction(gradient, NULL, 1);
+    if (!function)
+        goto done;
+    shading = createShading(radial, gray, function, start, startRadius, end, endRadius, options);
+    CGFunctionRelease(function);
+    if (shading) {
+        CGContextDrawShading(alphaContext, shading);
+        CGShadingRelease(shading);
+    }
+
+    /* Both bitmaps are BGRx and gray at the same size; combine into premultiplied BGRA. */
+    for (y = 0; y < high; ++y) {
+        const unsigned char* src = colorBits + y * colorRow;
+        const unsigned char* a = alphaBits + y * alphaRow;
+        unsigned char* dst = outBits + y * outRow;
+        for (x = 0; x < wide; ++x) {
+            unsigned alpha = a[x];
+            dst[x * 4 + 0] = (unsigned char)((src[x * 4 + 0] * alpha + 127) / 255);
+            dst[x * 4 + 1] = (unsigned char)((src[x * 4 + 1] * alpha + 127) / 255);
+            dst[x * 4 + 2] = (unsigned char)((src[x * 4 + 2] * alpha + 127) / 255);
+            dst[x * 4 + 3] = (unsigned char)alpha;
+        }
+    }
+
+    provider = CGDataProviderCreateWithData(NULL, outBits, outRow * high, NULL);
+    if (provider) {
+        image = CGImageCreate(wide, high, 8, 32, outRow, rgbSpace,
+            kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little, provider, NULL, false,
+            kCGRenderingIntentDefault);
+        CGDataProviderRelease(provider);
+        if (image) {
+            CGContextDrawImage(context, clip, image);
+            CGImageRelease(image);
+        }
+    }
+
+done:
+    if (colorContext)
+        CGContextRelease(colorContext);
+    if (alphaContext)
+        CGContextRelease(alphaContext);
+    CGColorSpaceRelease(gray);
+    CGColorSpaceRelease(rgbSpace);
+    free(colorBits);
+    free(alphaBits);
+    free(outBits);
+}
+
+static void drawGradient(CGContextRef context, CGGradientRef gradient, int radial,
+    CGPoint start, CGFloat startRadius, CGPoint end, CGFloat endRadius,
+    CGGradientDrawingOptions options)
 {
     CGColorSpaceRef space = NULL;
-    CGFunctionRef function = createGradientFunction(gradient, &space);
+    CGFunctionRef function;
     CGShadingRef shading;
+
+    if (!gradientStops(gradient, &space))
+        return;
+
+    if (gradientHasTransparency(gradient)) {
+        drawTransparentGradient(context, gradient, radial, start, startRadius, end, endRadius,
+            options, space);
+        return;
+    }
+
+    function = createGradientFunction(gradient, &space, 0);
     if (!function)
         return;
-    shading = CGShadingCreateAxial(space, start, end, function,
-        (options & kCGGradientDrawsBeforeStartLocation) != 0,
-        (options & kCGGradientDrawsAfterEndLocation) != 0);
+    shading = createShading(radial, space, function, start, startRadius, end, endRadius, options);
     CGFunctionRelease(function);
     if (!shading)
         return;
@@ -553,22 +778,16 @@ void CGContextDrawLinearGradient(CGContextRef context, CGGradientRef gradient, C
     CGShadingRelease(shading);
 }
 
+void CGContextDrawLinearGradient(CGContextRef context, CGGradientRef gradient, CGPoint start,
+    CGPoint end, CGGradientDrawingOptions options)
+{
+    drawGradient(context, gradient, 0, start, 0, end, 0, options);
+}
+
 void CGContextDrawRadialGradient(CGContextRef context, CGGradientRef gradient, CGPoint startCenter,
     CGFloat startRadius, CGPoint endCenter, CGFloat endRadius, CGGradientDrawingOptions options)
 {
-    CGColorSpaceRef space = NULL;
-    CGFunctionRef function = createGradientFunction(gradient, &space);
-    CGShadingRef shading;
-    if (!function)
-        return;
-    shading = CGShadingCreateRadial(space, startCenter, startRadius, endCenter, endRadius, function,
-        (options & kCGGradientDrawsBeforeStartLocation) != 0,
-        (options & kCGGradientDrawsAfterEndLocation) != 0);
-    CGFunctionRelease(function);
-    if (!shading)
-        return;
-    CGContextDrawShading(context, shading);
-    CGShadingRelease(shading);
+    drawGradient(context, gradient, 1, startCenter, startRadius, endCenter, endRadius, options);
 }
 
 void CGContextDrawConicGradient(CGContextRef context, CGGradientRef gradient, CGPoint center,

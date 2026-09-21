@@ -315,7 +315,6 @@ int main(int argc, const char **argv)
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
     NSApplication *app = [NSApplication sharedApplication];
-    [app setActivationPolicy:NSApplicationActivationPolicyRegular];
 
     NSString *urlString = @"about:blank";
     if (argc > 1)

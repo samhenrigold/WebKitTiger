@@ -4,6 +4,36 @@ Scope: `compat/` shims checked against Apple open source, macports-legacy-suppor
 disassembly of Mac OS X 10.5.8 i386 binaries. Fixes applied to the shims this track owns;
 `cfcompat.c` / `ctcompat.c` / `cgcompat.c` findings were sent to their owners instead.
 
+## Criteria (the user's rule)
+
+For every gap, in order:
+
+1. Use what Tiger already exports, including private or older-named symbols. The lists in
+   `logs/api/` come from `nm -g` and include private symbols.
+2. Failing that, match Apple's implementation, from open source or from disassembly.
+3. Failing that, write the best and most performant version we can.
+
+So this audit flags three things beyond ordinary bugs: any shim that reimplements something
+Tiger actually has, any stub where a real implementation is reachable under rule 1 or 2, and
+any place our behaviour diverges from Apple's in a way a caller could observe.
+
+### Rule 1 sweep: does Tiger already have it?
+
+Mechanical check of all 388 symbols `libtigercompat.a` defines against the 13,817 symbols in
+`logs/api/tiger-{libSystem,libobjc,CF,Foundation,CT,CG,AppKit,ImageIO}.txt`, comparing modulo
+leading underscores. **No shim reimplements a symbol Tiger exports.** The single near-match is
+`__bzero`, which the compiler emits for some zeroing memsets and which Tiger genuinely lacks;
+Tiger's own `bzero` exists but is a different symbol.
+
+Names checked individually for a private or older-named Tiger equivalent, all confirmed absent:
+thread naming (nothing before 10.6; macports no-ops it too), a 64-bit thread id
+(`THREAD_IDENTIFIER_INFO` is 10.6+, so `pthread_mach_thread_np` is the only relative and its
+port name is recycled exactly like a `pthread_t`), `posix_memalign` and `malloc_zone_memalign`
+(10.6), the `*at()` family (10.10 kernel), `fcopyfile` (Tiger has path-based `copyfile` only),
+`_dyld_find_unwind_sections` (10.6), `_tlv_atexit` (no dyld TLV support at all), and every
+`dispatch_*` and `os_*` entry point. `realpath` and `pthread_get_stacksize_np` do exist on Tiger
+and are correctly not shimmed.
+
 ## References used
 
 | Reference | Where |
@@ -20,8 +50,12 @@ The 10.5.8 combo `.dmg` is gone from every Apple host. Apple's legacy Software U
 serves the same update as a flat pkg, kept at `refs/MacOSXUpdCombo10.5.8.pkg` (805 MB). Note for
 anyone extracting more: in 10.5, CoreText and CoreGraphics are subframeworks of ApplicationServices.
 
-All spike tests pass on the Tiger box after these changes: `objc2test`, `availtest`, `arctest`,
-`exctest`, `nsmaptabletest`, `nscompattest`, `dispatchtest`, `runcxx.sh`, `runfstest.sh`.
+All spike tests pass on the Tiger box after these changes: `memaligntest` (new), `objc2test`,
+`availtest`, `arctest`, `exctest`, `nsmaptabletest`, `nscompattest`, `dispatchtest`,
+`runcxx.sh`, `runfstest.sh`.
+
+`libdispatch-84-semaphore.c` and `Libc-391.5.22-{malloc,scalable_malloc}.c` were added to `refs/`
+for this round; Libc-391.5.22 is the exact Libc that 10.4.11 shipped.
 
 ---
 
@@ -29,10 +63,10 @@ All spike tests pass on the Tiger box after these changes: `objc2test`, `availte
 
 | Function | Reference | Verdict |
 |---|---|---|
-| `posix_memalign` | macports `posix_memalign_emulation.c` | matches — **comment fixed** |
+| `posix_memalign` | macports `posix_memalign_emulation.c`; Libc-391.5.22 `gen/malloc.c` | **bug, rewritten** |
 | `strnlen` | macports `strnlen.c` | matches (ours uses `memchr`, same result) |
 | `memmem` | macports `memmem.c` (= Apple Libc / FreeBSD) | **bug, fixed** |
-| `getline` | macports `getdelim.c` | differs harmlessly |
+| `getline` | macports `getdelim.c` (= BSD/Apple) | **divergence, fixed** |
 | `arc4random_buf`, `arc4random_uniform` | macports `arc4random.c` | matches |
 | `clock_gettime`, `clock_getres` | macports `sys_time.c` behaviour | differs harmlessly |
 | `pthread_setname_np`, `pthread_getname_np` | macports `pthread_setname_np.c` | matches (both no-op on 10.4) |
@@ -47,20 +81,59 @@ Apple's Libc `memmem` (FreeBSD `string/memmem.c`, which is what macports ships v
 `WebKit/Source/WTF/wtf/StdLibExtras.h:1118` calls `memmem` directly on Darwin, so the shim now
 matches so a Tiger build and a macOS build agree. Changed to `if (!hl || !nl) return NULL;`.
 
-**`posix_memalign` — matches, stale comment fixed.** The implementation is line-for-line what
-macports does: `malloc` at or below 16 bytes of alignment (Tiger's tiny-region quantum is 16),
-`valloc` above. The `ponytail:` comment claimed the code stashed a base pointer for an
-over-allocate scheme; it never did. Rewritten to name the real ceiling: an alignment above the
-4096-byte page is silently under-satisfied. That is acceptable here — bmalloc routes large
-aligned requests through `SystemHeap::memalignLarge` → `tryVMAllocate`, not through
-`posix_memalign` (`WebKit/Source/bmalloc/bmalloc/bmalloc.cpp:84`). Free-compatibility is also
-confirmed: `SystemHeap::memalign` calls `::aligned_alloc` (an inline in `tigerprelude.h:147` over
-`posix_memalign`) and frees with `malloc_zone_free(m_zone, …)` where `m_zone` is forced to the
-default zone on Tiger (`SystemHeap.cpp:56-62`), and `valloc`'d memory belongs to the default zone.
-Redundant `alignment >= 4096` branch folded away; behaviour unchanged.
+**`posix_memalign` — bug, rewritten.** The old version called `valloc` for every alignment
+above 16, so a 16 KB request came back merely 4096-aligned. JavaScriptCore's `MarkedBlock` masks
+the block base out of an object pointer, so this corrupted the GC: the jsc shell was crashing on
+an uninitialized block footer. macports has the same limitation, so prior art was no help here
+and rule 3 applied.
 
-**`getline` — differs harmlessly.** On a read error with a partial line already buffered, BSD
-`getdelim` returns -1; ours returns the partial line. No WebKit caller distinguishes the two.
+Now: `malloc` at or below 16 bytes of alignment (Tiger's tiny-region quantum), `valloc` at or
+below a page, and above that `mmap` of `size + alignment` with the head and tail `munmap`ed so
+exactly the aligned region stays mapped. Plain `free()` still works on the result because the
+shim registers a `malloc_zone_t` named `TigerAlignedZone`. Libc-391.5.22 `gen/malloc.c` `free()`
+calls `find_registered_zone()`, which walks `malloc_zones` in registration order calling
+`zone->size(zone, ptr)` and hands the pointer to the first zone that claims it;
+`malloc_zone_register()` appends, so the default scalable zone stays `malloc_zones[0]` and our
+`size()` is consulted only for pointers it has already rejected. `malloc_size()` and `realloc()`
+use the same lookup, so both work on these blocks with no extra code.
+
+Details that matter:
+
+- `size()` must be fast for negative answers. A pointer outside the min/max window of everything
+  ever handed out returns 0 with no lock; only a pointer inside the window takes the mutex and
+  binary-searches the sorted block table.
+- The block table is grown with `malloc_zone_realloc(malloc_default_zone(), …)` rather than plain
+  `realloc()`. `realloc()` would call `find_registered_zone()`, which calls every zone's `size()`
+  including ours, which wants the lock we are already holding. Naming the zone skips the lookup
+  and makes that reentrancy impossible rather than merely unlikely.
+- The zone carries a full `malloc_introspection_t` (Tiger's own `szone_introspect` is the model),
+  so `leaks` and `malloc_zone_statistics` do not fault on it, and `version = 3` to match
+  `create_scalable_zone()`.
+- Libc's `realloc()` short-circuits a shrink itself (`if (zone && old_size >= new_size) return
+  old_ptr`), so the zone's `realloc` is only reached to grow, where it keeps the caller's
+  alignment and copies.
+- Apple's libmalloc semantics where observable: `EINVAL` for alignment 0, a non-power-of-two, or
+  below `sizeof(void *)`; `ENOMEM` on failure; `memptr` untouched on error; size 0 returns a
+  unique freeable pointer.
+
+New test `spike/memaligntest.c`, runner `spike/run-memaligntest.sh`, 84 checks passing on the
+Tiger box: alignments 16, 64, 4096, 16 KB, 64 KB and 1 MB crossed with sizes 1 byte to 3 MB with
+every block filled and read back; the three `EINVAL` cases; size 0; 64 live 16 KB blocks
+interleaved with ordinary `malloc` and freed out of order; 200 alloc/free cycles at 64 KB;
+`realloc` shrink and grow; `malloc_size` on our pointers, on `malloc`'d and `valloc`'d pointers
+and on a stack address; `aligned_alloc`; and 8 threads doing 200 16 KB alloc/free rounds each.
+
+Downstream note sent to wkcmake: `SystemHeap::free` uses `malloc_zone_free(m_zone, …)` with
+`m_zone` forced to the default zone on Tiger, which would not free one of these over-aligned
+blocks. It does not have to today, because bmalloc sends large aligned requests to
+`memalignLarge`/`tryVMAllocate`, but if that routing changes its free path must go through plain
+`free()` or `malloc_zone_from_ptr()`.
+
+**`getline` — divergence, fixed.** On a read error with a partial line already buffered, BSD
+`getdelim` (what macports ships and what Apple's Libc has) returns -1; ours returned the partial
+line, which would let a caller treat truncated input as a complete last line. Now checks
+`ferror()` and only reports a clean EOF with nothing read as the end. Initial buffer also changed
+from 128 to `BUFSIZ` to match.
 
 **`clock_gettime` — differs harmlessly.** Any clock id other than `CLOCK_REALTIME` is treated as
 monotonic and returns 0 rather than `EINVAL`. `clock_getres` always reports 1 µs. Real 10.12+
@@ -71,7 +144,7 @@ reports per-clock resolution. Nothing reads it.
 but the value will not match a ktrace or `thread_info` reading, and it repeats when a `pthread_t`
 is recycled.
 
-**Gap survey against macports.** Checked what macports implements that Tiger lacks and we do not
+**Rule 1, gap survey against macports.** Checked what macports implements that Tiger lacks and we do not
 provide: `strndup`, `stpncpy`, `fmemopen`, `open_memstream`, `sincos`, `getentropy`. Confirmed
 absent from `logs/api/tiger-libSystem.txt`, and confirmed no WebKit source outside the unused
 `bmalloc/mimalloc` tree calls any of them. `realpath` and `pthread_get_stacksize_np` do exist on
@@ -252,6 +325,11 @@ work back, via `dispatch_suspend`/`dispatch_resume` on the queue, with a matchin
 source: a queue with `maxConcurrentOperationCount` other than 1 runs on the shared global queue,
 and `+mainQueue` runs on the main queue, so suspend is a no-op for those two.
 
+**`-[NSOperationQueue operationCount]` — divergence, fixed.** It returned a flat 0, which is an
+affirmative wrong answer a caller can act on, unlike an unimplemented selector. Now an
+`int32_t` ivar bumped with `__sync_fetch_and_add`/`_sub` around the dispatched body, covering
+both `-addOperation:` and `-addOperationWithBlock:`. Two new checks in `spike/nscompattest.mm`.
+
 **`-[NSOperation waitUntilFinished]` — missing, added.** `WebCoreNSURLSession.mm:367` adds an
 operation to the delegate queue and then blocks on it; the selector was neither declared nor
 implemented, which is a hard compile failure for that file. Added as a 1 ms poll on `_finished`
@@ -261,8 +339,9 @@ and the suspend fix.
 
 **Reported, not fixed** (out of proportion to the audit, or owned elsewhere):
 
-- `-[NSOperationQueue operationCount]` always returns 0 and `-cancelAllOperations` is a no-op.
-  Zero is an affirmative lie a caller can act on, unlike an unimplemented selector.
+- `-[NSOperationQueue cancelAllOperations]` is still a no-op. No caller in the checkout uses it,
+  and doing it properly needs a list of live operations rather than just a count, so it is
+  flagged rather than built out.
 - `NSOperationQueueDefaultMaxConcurrentOperationCount` is used at `ResourceHandleCocoa.mm:78` and
   is declared nowhere in `compat/`.
 - `TIGER_FAST_ENUM_FROM` in `nscompat.m:71` neither retains nor releases the enumerator, so an
@@ -285,7 +364,7 @@ Reference: libdispatch-84.5.1 `src/semaphore.c`, plus the documented contracts.
 | `dispatch_once` / `dispatch_once_f` | matches, with a deadlock hazard worth recording |
 | `dispatch_group_*` | matches |
 | `dispatch_semaphore_wait` | matches |
-| `dispatch_semaphore_signal` | differs harmlessly |
+| `dispatch_semaphore_signal` | **divergence, fixed** |
 | `dispatch_after` / timers | matches |
 | main-queue drain over CFRunLoop | matches given Tiger's CF |
 | `dispatch_sync` / `dispatch_barrier_sync` | matches |
@@ -316,6 +395,24 @@ but benign on x86. Inherent limit: a process whose main run loop never runs neve
 queue. Covered by `spike/dispatchtest.mm`.
 
 ---
+
+## Divergences from Apple that remain, by design
+
+Flagged under criterion 3, each with the reason it was not closed.
+
+| Shim | Divergence | Why it stands |
+|---|---|---|
+| `libcompat.c` `pthread_threadid_np` | returns the `pthread_t`, not a kernel thread id | no better source exists before 10.6; a mach port name is recycled the same way |
+| `libcompat.c` `clock_getres` | always reports 1 µs | Tiger has no per-clock resolution to report; nothing reads it |
+| `libcompat.c` `fdopendir` | leaks one fd per nesting level of a `remove_all()` | real `fdopendir` keeps the caller's fd, which is impossible without kernel `*at()` support |
+| `objc2compat.m` `method_setImplementation`, `method_exchangeImplementations` | flushes all method caches; objc4-437 does not flush at all | the flush is unnecessary, not wrong — old-runtime cache buckets are `Method` pointers — and both are cold paths, so a working path was left alone |
+| `blockclasses.m` | the placeholder class structs share a `cache` pointer with the real classes | unreachable: no instance ever has the original class as its `isa` |
+| `dispatch.c` `dispatch_once` | one recursive mutex serialises every `dispatch_once` in the process | a `once` block blocking on a *different* `once` on another thread deadlocks where real libdispatch would not; a per-predicate scheme is a restructure |
+| `dispatch.c` `dispatch_apply` | runs iterations serially on the calling thread | farming them out to the fixed pool risks self-deadlock when the caller is itself a pool thread |
+| `dispatch.c` `dispatch_group_notify` | does not retain the target queue, where `dispatch_after` does | asymmetry with no current consequence |
+| `os.c` `os_unfair_lock` | hand-rolled CAS spin with `pause`/`sched_yield` rather than Tiger's `OSSpinLock` | `OSSpinLock` is a bare word and cannot carry the owner id that `os_unfair_lock_assert_owner` needs |
+| `nscompat-operation.m` `-setSuspended:` | a no-op on `+mainQueue` and on queues with `maxConcurrentOperationCount != 1` | those run on queues we do not own; real suspend there needs a holding array |
+| `nscompat.m` `TIGER_FAST_ENUM_FROM` | enumerator not retained | reported to the nscompat track with the fix pattern |
 
 ## Findings sent to other owners (not edited here)
 

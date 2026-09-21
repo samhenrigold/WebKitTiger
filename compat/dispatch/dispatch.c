@@ -124,6 +124,7 @@ struct dispatch_semaphore_s {
     pthread_mutex_t lock;
     pthread_cond_t cond;
     long value;
+    long waiters;   /* real libdispatch reads this off a negative `value`; see the signal path */
 };
 
 struct dispatch_data_s {
@@ -1058,19 +1059,26 @@ intptr_t dispatch_semaphore_wait(dispatch_semaphore_t s, dispatch_time_t timeout
     intptr_t r = 0;
     pthread_mutex_lock(&s->lock);
     while (s->value <= 0) {
-        if (timeout == DISPATCH_TIME_FOREVER) {
-            pthread_cond_wait(&s->cond, &s->lock);
-        } else if (timeout == DISPATCH_TIME_NOW) {
+        if (timeout == DISPATCH_TIME_NOW) {
             r = ~(intptr_t)0;
             goto out;
+        }
+        /* Counted so that signal() can report whether it woke anyone, which is what
+         * libdispatch-84's semaphore.c returns (it infers the same thing from letting
+         * dsema_value go negative, which this implementation does not do). */
+        s->waiters++;
+        if (timeout == DISPATCH_TIME_FOREVER) {
+            pthread_cond_wait(&s->cond, &s->lock);
+            s->waiters--;
         } else {
             struct timespec ts;
+            int rc;
             td_deadline_to_timespec(timeout, &ts);
-            if (pthread_cond_timedwait(&s->cond, &s->lock, &ts) == ETIMEDOUT) {
-                if (s->value <= 0) {
-                    r = ~(intptr_t)0;
-                    goto out;
-                }
+            rc = pthread_cond_timedwait(&s->cond, &s->lock, &ts);
+            s->waiters--;
+            if (rc == ETIMEDOUT && s->value <= 0) {
+                r = ~(intptr_t)0;
+                goto out;
             }
         }
     }
@@ -1085,8 +1093,9 @@ intptr_t dispatch_semaphore_signal(dispatch_semaphore_t s)
     intptr_t woke;
     pthread_mutex_lock(&s->lock);
     s->value++;
-    woke = s->value <= 0;
-    pthread_cond_signal(&s->cond);
+    woke = s->waiters > 0;
+    if (woke)
+        pthread_cond_signal(&s->cond);
     pthread_mutex_unlock(&s->lock);
     return woke;
 }

@@ -350,6 +350,20 @@ int main()
     testData();
     testOSLog();
     testMainQueue();
+    {
+        // dispatch_semaphore_signal returns non-zero only when it actually woke a waiter,
+        // which is what libdispatch-84's semaphore.c reports.
+        dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+        check(dispatch_semaphore_signal(sem) == 0, "semaphore_signal with no waiter returns 0");
+        check(dispatch_semaphore_wait(sem, DISPATCH_TIME_NOW) == 0, "semaphore_wait consumes that signal");
+        check(dispatch_semaphore_wait(sem, DISPATCH_TIME_NOW) != 0, "semaphore_wait times out when empty");
+        dispatch_async(dispatch_get_global_queue(0, 0), ^{ dispatch_semaphore_wait(sem, DISPATCH_TIME_FOREVER); });
+        usleep(200000);
+        check(dispatch_semaphore_signal(sem) != 0, "semaphore_signal with a waiter returns non-zero");
+        usleep(200000);
+        dispatch_release(sem);
+    }
+
     printf("%s (%d failures)\n", g_failures ? "FAILED" : "ALL PASS", g_failures);
     return g_failures ? 1 : 0;
 }

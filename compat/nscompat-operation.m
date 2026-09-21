@@ -163,12 +163,14 @@ static NSOperationQueue *tigerMainOperationQueue;
     if (!op)
         return;
     [op retain];
+    __sync_fetch_and_add(&_operationCount, 1);
     dispatch_group_async((dispatch_group_t)_group, [self tigerTargetQueue], ^{
         /* A dispatch worker thread has no pool of its own, and an operation is
          * free to autorelease. */
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         [op start];
         [op release];
+        __sync_fetch_and_sub(&_operationCount, 1);
         [pool release];
     });
 }
@@ -178,9 +180,11 @@ static NSOperationQueue *tigerMainOperationQueue;
 {
     if (!block)
         return;
+    __sync_fetch_and_add(&_operationCount, 1);
     void (^wrapped)(void) = ^{
         NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         block();
+        __sync_fetch_and_sub(&_operationCount, 1);
         [pool release];
     };
     dispatch_group_async((dispatch_group_t)_group, [self tigerTargetQueue], wrapped);
@@ -229,6 +233,12 @@ static NSOperationQueue *tigerMainOperationQueue;
     dispatch_group_wait((dispatch_group_t)_group, DISPATCH_TIME_FOREVER);
 }
 
-- (NSUInteger)operationCount { return 0; }
+/* Real Foundation counts operations that are queued or executing. Returning a flat 0 was an
+ * affirmative wrong answer a caller could act on, unlike an unimplemented selector. */
+- (NSUInteger)operationCount
+{
+    int32_t n = __sync_fetch_and_add(&_operationCount, 0);
+    return n > 0 ? (NSUInteger)n : 0;
+}
 
 @end

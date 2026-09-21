@@ -280,14 +280,18 @@ void *memmem(const void *h, size_t hl, const void *n, size_t nl)
 ssize_t getline(char **lineptr, size_t *n, FILE *stream)
 {
     if (!lineptr || !n) { errno = EINVAL; return -1; }
-    if (!*lineptr || !*n) { *n = 128; *lineptr = malloc(*n); if (!*lineptr) return -1; }
+    if (!*lineptr || !*n) { *n = BUFSIZ; *lineptr = malloc(*n); if (!*lineptr) return -1; }
     size_t len = 0; int c;
     while ((c = fgetc(stream)) != EOF) {
         if (len + 2 > *n) { size_t nn = *n * 2; char *np = realloc(*lineptr, nn); if (!np) return -1; *lineptr = np; *n = nn; }
         (*lineptr)[len++] = (char)c;
         if (c == '\n') break;
     }
-    if (!len && c == EOF) return -1;
+    /* BSD getdelim, which is what macports-legacy-support ships and what Apple's Libc has:
+       a real read error is -1 even with a partial line buffered, and only a clean EOF with
+       nothing read is the "no more lines" -1. Returning the partial line on error would let
+       a caller treat truncated input as a complete last line. */
+    if (c == EOF && (ferror(stream) || !len)) return -1;
     (*lineptr)[len] = 0;
     return (ssize_t)len;
 }
