@@ -2660,3 +2660,16 @@ scrolling path and `ScrollAnimator` does the smoothing, which is exactly what
 
 Also folded in: `UIProcess/tiger/WebContextMenuProxyTiger.mm` was written with the rest of the UI
 shell and never added to the source list. It is there now.
+
+### 2026-09-21 — spike/ldt64: a 64-bit task on 10.4 can run 32-bit code through an LDT segment (coordinator)
+
+- Prompted by a Mastodon reply suggesting i386_set_ldt to host 32-bit frameworks inside a 64-bit process.
+  Probe: raw machdep syscall (class 3, number 5; the x86_64 libSystem slice has no wrapper) with
+  LDT_AUTO_ALLOC and a 32-bit code descriptor, then `lcall` into `mov eax,0x2a; lret` placed below 4 GB.
+  On the box: selector 0x27 granted, the far call runs, returns to long mode with eax=0x2a.
+- Trap: a 64-bit Mach-O reserves the low 4 GB as __PAGEZERO, so nothing can be mapped where a 32-bit
+  segment can reach it; link with -pagezero_size 0x1000.
+- What this does NOT give: the kernel still treats the task as 64-bit, so every syscall, mach_msg
+  descriptor layout, signal frame, thread state and dyld image the 32-bit frameworks would use is the
+  wrong ABI. Hosting AppKit this way is a WoW64-style thunk layer over libSystem and Mach, not a
+  segment switch. The process split is the same architecture with the kernel doing the thunking.
