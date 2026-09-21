@@ -77,3 +77,29 @@ $(WAPP): CAWidgets.m Info-CAWidgets.plist $(FW)/Versions/A/QuartzCore
 	$(CLANG) $(CFLAGS) -o $(WAPP)/Contents/MacOS/CAWidgets CAWidgets.m $(LDFLAGS)
 
 .PHONY: CAWidgets
+
+# --- CASceneTest: the WC-shaped layer delta applier ------------------------
+SAPP   := $(ROOT)/build/CASceneTest.app
+CLANGXX := $(ROOT)/toolchain/bin/tiger-clang++
+CXXFLAGS := -fobjc-runtime=macosx-fragile-10.4 -O2 -Wall -std=c++11 \
+            -nostdinc++ -isystem $(ROOT)/toolchain/sysroot-i386/usr/include/c++/v1 \
+            -stdlib=libc++ -F$(ROOT)/spike/CAHost/Frameworks
+SLD := -framework Cocoa -framework OpenGL -framework ApplicationServices \
+       -F$(ROOT)/spike/CAHost/Frameworks -framework QuartzCore \
+       -lc++ -lc++abi -lunwind -ltigercompat \
+       $(BUILTINS)
+
+BUILTINS := $(wildcard $(ROOT)/build/builtins-i386/libclang_rt.builtins-i386.a)
+
+CASceneTest: $(SAPP)
+
+$(SAPP): CASceneTest.mm CAScene.mm CAScene.h Info-CASceneTest.plist $(FW)/Versions/A/QuartzCore
+	rm -rf $(SAPP)
+	mkdir -p $(SAPP)/Contents/MacOS $(SAPP)/Contents/Frameworks
+	cp Info-CASceneTest.plist $(SAPP)/Contents/Info.plist
+	printf 'APPL????' > $(SAPP)/Contents/PkgInfo
+	cp -R $(FW) $(SAPP)/Contents/Frameworks/
+	$(CLANGXX) $(CXXFLAGS) -o $(SAPP)/Contents/MacOS/CASceneTest \
+	  CASceneTest.mm CAScene.mm $(SLD)
+
+.PHONY: CASceneTest
