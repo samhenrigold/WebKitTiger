@@ -1,0 +1,1 @@
+/Users/shg/Developer/WebKitTiger/sdk/MacOSX10.4u.sdk/System/Library/Frameworks/AppKit.framework/Headers/NSNibConnector.h

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Cross compiler wrapper: patched clang 21 (toolchain/llvm-tiger) targeting i386 / Mac OS X 10.4.
+# -Xclang -fobjc-fragile-extension-ivars: our clang patch (ivars in class extensions/@implementation, auto-synthesis on the fragile ABI).
+WKT=/Users/shg/Developer/WebKitTiger
+exec $WKT/toolchain/llvm-tiger/bin/clang -target i386-apple-macosx10.4 -isysroot $WKT/sdk/MacOSX10.4u.sdk -mmacosx-version-min=10.4 -fno-stack-protector -Xclang -fobjc-fragile-extension-ivars -Wno-objc-fragile-extension-ivars -Wno-unused-command-line-argument --ld-path=$WKT/toolchain/cctools/bin/i386-apple-darwin8-ld -include $WKT/compat/include/tigerprelude.h -cxx-isystem $WKT/toolchain/sysroot-i386/usr/include/c++/v1 -I$WKT/toolchain/sysroot-i386/usr/include -L$WKT/toolchain/sysroot-i386/usr/lib "$@"

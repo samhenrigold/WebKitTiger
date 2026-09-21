@@ -1,0 +1,24 @@
+# large/derived trees; WebKit/ and toolchain/src are their own repos
+/WebKit/
+/build/
+/sdk/
+/sysroot/
+/deps/src/
+/toolchain/src/
+/toolchain/cctools/
+/toolchain/llvm-tiger/
+/toolchain/sysroot-i386/
+/refs/
+/atv/*.dmg
+/atv/*.img
+/atv/extracted/
+/atv/mnt*/
+/logs/*.log
+/compat/obj/
+/compat/*.a
+/compat/dispatch/obj/
+/compat/dispatch/*.a
+/spike/CAHost/Frameworks/
+*.o
+*.dSYM/
+/deps/build/

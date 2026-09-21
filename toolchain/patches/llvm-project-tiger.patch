@@ -1,0 +1,25 @@
+diff --git a/libunwind/src/RWMutex.hpp b/libunwind/src/RWMutex.hpp
+index 344d3564..a4343efd 100644
+--- a/libunwind/src/RWMutex.hpp
++++ b/libunwind/src/RWMutex.hpp
+@@ -59,6 +59,20 @@ private:
+   SRWLOCK _lock = SRWLOCK_INIT;
+ };
+ 
++#elif defined(__APPLE__) && !defined(PTHREAD_RWLOCK_INITIALIZER)
++
++// Mac OS X 10.4 has no static rwlock initializer; a plain mutex is fine for the FDE cache.
++class _LIBUNWIND_HIDDEN RWMutex {
++public:
++  bool lock_shared() { return pthread_mutex_lock(&_lock) == 0;  }
++  bool unlock_shared() { return pthread_mutex_unlock(&_lock) == 0; }
++  bool lock() { return pthread_mutex_lock(&_lock) == 0; }
++  bool unlock() { return pthread_mutex_unlock(&_lock) == 0; }
++
++private:
++  pthread_mutex_t _lock = PTHREAD_MUTEX_INITIALIZER;
++};
++
+ #elif !defined(LIBUNWIND_USE_WEAK_PTHREAD)
+ 
+ class _LIBUNWIND_HIDDEN RWMutex {
