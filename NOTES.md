@@ -543,3 +543,10 @@ one triage pass before it was noticed. See the triage table at the end of
   SetMovieVisualContext + MoviesTask). BLOCKER FIXED: the Apple TV QuartzCore duplicates 207 Core Image class names and poisons
   +[CIFilter filterWithName:] in any process that loads both; spike/CAHost/decollide.py renames its CI* strings to ZI* (rebundle.sh
   runs it). Any UI process loading the private QuartzCore needs this.
+- USER DECISION (23:45): not just Aqua looks, Aqua BEHAVIOR: menus, press states, keyboard interaction, "literally everything".
+  Design: a native widget layer in the 32-bit UI process: real NSControls (NSButton/checkbox/radio, NSPopUpButton for <select>,
+  NSSlider, NSProgressIndicator, NSScroller for scrollbars, file/color buttons) positioned over the page from layout geometry sent
+  by the content process, moved synchronously with UI-process-driven scrolling, clipped per overflow container/iframe; native
+  events, change notifications back over IPC; focus/tab interop; accessibility native. Text inputs stay WebCore-drawn/edited with
+  Cocoa key bindings via the UI process's NSTextInput interpretation. Atlas painting remains the fallback for CSS-styled controls
+  and controls under transforms/opacity. Precedent: early WebKit KWQ widgets; WebKit2's native popup menus.
