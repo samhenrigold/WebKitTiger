@@ -297,3 +297,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   overlay symlinks now fail loudly instead of truncating SDK headers. `toolchain/verify-sdk.sh` checks the 10.4u SDK against
   sdk/MacOSX10.4u.sdk.sha256 (6516 files). Restore from the tarball on failure. Overlay files: delete the symlink before
   writing a real file at that path (make-overlay.sh warns about this).
+- Video plan (logs/qtkit-plan.md): Tiger ships QuickTime/QTKit 7.2. The 2018 MediaPlayerPrivateQTKit's two rendering paths
+  (QTMovieLayer, private QTVideoRendererWebKitOnly) are absent; -[QTMovie frameImageAtTime:withAttributes:error:] with
+  QTMovieFrameImageTypeCGImageRef is present (QTKit gates on QTKIT_VERSION, not OS version) and is the path: CGImage per frame,
+  drawn in the software path, later a layer's contents. Registration is now a MediaPlayerFactory subclass. Codecs: H.264
+  Baseline/Main + AAC/MP3 in MOV/MP4 only (no WebM/AV1/Opus). Apple TV QuickTime is identical to Tiger's.
