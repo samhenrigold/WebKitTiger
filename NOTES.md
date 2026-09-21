@@ -318,6 +318,16 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   libxml/libxslt/OpenSSL/libz system binaries changed. sysroot/ is being re-mirrored (agent "remirror"; old copy will be
   sysroot-old-preupdates/, old export lists logs/api/preupdate/). All CT/CG/ImageIO/ctprobe suites are being re-run on the
   updated box. Our own deps are static, so only the shim measurements are affected.
+  - **A framework's version string did not move when its binary did.** CoreText is still 1.1.3 /
+    source 511200 with a different md5, so comparing versions after a re-mirror would conclude
+    nothing had changed. Compare checksums, or compare export sets and disassembly with addresses
+    stripped, which is what actually established that nothing behavioural moved (ctcompat: export
+    sets identical across CT/ATS/CG, 29 load-bearing functions byte-identical; audit: every
+    behavioural probe byte-identical pre and post).
+  - **`sysroot/` is mutable and `refs/` is not.** Tiger facts come from the mirror, which an update
+    can invalidate under you; the 10.5.8 and 9A241 reference facts are checked-in files nothing on
+    the box can touch. The two get cited a paragraph apart in the surveys, so when quoting an
+    address always name the file it came from.
 - QTKit 7.6.4 (logs/qtkit-plan.md §8, spike/qtkittest.m): QTVideoRendererWebKitOnly (private) now exists, so the 2018
   backend's software paint path ([renderer drawInRect:]) ports ~unchanged; QTMovieLayer still absent (needs 10.5 AppKit).
   H.264 High profile and 720p decode on 7.6.4. frameImageAtTime:withAttributes:error: returns an AUTORELEASED CGImageRef:
