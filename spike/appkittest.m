@@ -7,6 +7,11 @@
 
 #include <stdio.h>
 
+/* Tiger's CoreFoundation exports this; the 10.4u SDK header does not declare
+   it. Declared here rather than added to TigerCompat/CFCompat.h, which the
+   cfcompat track owns. */
+extern CFRunLoopRef CFRunLoopGetMain(void);
+
 static int failures;
 static void expect(const char *name, BOOL ok)
 {
@@ -199,9 +204,15 @@ static BOOL sameColor(NSColor *a, NSColor *b)
                [NSMenu menuTypeForEvent:plainClick] == NSMenuTypeNone);
         expect("menuTypeForEvent: nil is not", [NSMenu menuTypeForEvent:nil] == NSMenuTypeNone);
 
-        expect("NSRunLoop +mainRunLoop is the current one here",
+        /* Checking it against +currentRunLoop on the main thread is trivially
+           true. Tiger's CoreFoundation exports CFRunLoopGetMain (the 10.4u SDK
+           just never declares it), and NSRunLoop can hand back its CFRunLoop,
+           so the captured object can be checked against the real main run loop.
+           That is what would catch the load-time capture running on the wrong
+           thread, which is the only way this shim can be wrong. */
+        expect("NSRunLoop +mainRunLoop is really the main run loop",
                [NSRunLoop mainRunLoop] != nil
-               && [NSRunLoop mainRunLoop] == [NSRunLoop currentRunLoop]);
+               && [[NSRunLoop mainRunLoop] getCFRunLoop] == CFRunLoopGetMain());
         expect("NSCalendar +calendarWithIdentifier:",
                [NSCalendar calendarWithIdentifier:NSGregorianCalendar] != nil);
 
@@ -247,8 +258,13 @@ static BOOL sameColor(NSColor *a, NSColor *b)
         expect("NSCursor +dragCopyCursor", [NSCursor dragCopyCursor] != nil);
         [[NSSpellChecker sharedSpellChecker] updatePanels];
         expect("NSSpellChecker -updatePanels returns", YES);
-        expect("NSNumber -initWithInteger:",
-               [[[[NSNumber alloc] initWithInteger:-7] autorelease] integerValue] == -7);
+        {
+            NSNumber *seven = [[NSNumber alloc] initWithInteger:-7];
+            expect("NSNumber -initWithInteger:", [seven integerValue] == -7);
+#if !__has_feature(objc_arc)
+            [seven release];
+#endif
+        }
     }
 
     /* ---- NSScreen ---- */

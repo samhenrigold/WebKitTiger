@@ -327,3 +327,33 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   touch bar...). Whoever implements a symbol owns its declaration; WebKit's PAL SPI header steps aside under TIGER.
 - Upstream bugs found so far: WTF AvailableMemory 32-bit overflow on >4 GB RAM; JSRemoteInspector.cpp reaches RemoteInspector
   unguarded with ENABLE_REMOTE_INSPECTOR off; NativeImageCG single-pixel read on an uninitialized buffer.
+
+## Rule that keeps paying: check what Tiger already has before writing a shim
+
+Four cases now, from three tracks, where the 10.4 system could answer a question
+we were about to answer ourselves:
+
+- `CGEventSourceButtonState` for `+[NSEvent pressedMouseButtons]`. Quartz Event
+  Services shipped in 10.4, so that shim is a real query rather than a stub.
+- `CFRunLoopGetMain`, exported by Tiger's CoreFoundation but **not declared in
+  the 10.4u SDK header**. It cannot implement `+[NSRunLoop mainRunLoop]`, since
+  NSRunLoop and CFRunLoop are not toll-free bridged, but it does let a test
+  check that the captured object really is the main run loop.
+- The per-font antialias flag (ctcompat track).
+- The whole `uuid_*` family for NSUUID, which an early survey of mine wrongly
+  called missing after a truncated grep.
+
+The corollary that bit twice: **the export list and the SDK header disagree
+often.** `logs/api/tiger-*.txt` is what the binary exports; the SDK is what 2005
+chose to declare. Check the export list, not just the header, before concluding
+something is absent. And read the whole grep: `grep -i uuid ... | head` is what
+produced the wrong NSUUID conclusion, because the list is sorted and the `u`
+entries came after the visible lines.
+
+## Matching a multi-part selector
+
+To ask whether `foo:bar:baz:` is used anywhere, reconstruct it from the keyword
+parts. Never grep the joined-up string: a real call site interleaves the
+arguments and never contains that text. This dismissed three live call sites in
+one triage pass before it was noticed. See the triage table at the end of
+`compat/NSCOMPAT-SURVEY.md`.
