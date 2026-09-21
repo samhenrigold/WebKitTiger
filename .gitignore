@@ -123,3 +123,5 @@
 /spike/quartzraster/*.bin
 # Tiger CoreGraphics copied off the box for disassembly (refs/* is ignored already; explicit)
 /refs/tiger-cg/
+/spike/ldt64/ldt64
+/spike/ldt64/ldt32host
