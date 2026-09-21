@@ -45,6 +45,13 @@ Only the `Ptr` variants (`CTRunGetGlyphsPtr`, `CTRunGetAdvancesPtr`,
 `CTRunGetStringIndicesPtr`) return real data, which is lucky, because
 `ComplexTextControllerCoreText.mm` already prefers them.
 
+**`CTLineDraw` takes its colour from the attributed string, not the context.** It is not
+in the list above because it does draw, but it ignores `CGContextSetRGBFillColor`
+entirely and defaults to black, so a caller that sets the colour on the context the way
+`CTFontDrawGlyphs` expects gets black text and, on a dark bitmap, nothing at all.
+`kCTForegroundColorAttributeName` is the way to colour it. This made a check in
+`spike/cttest.c` pass for the wrong reason for several commits; see `logs/hb-raster.md`.
+
 The other two are `CTLineGetImageBounds` and `CTRunGetImageBounds`, which never look at
 their line or run: each copies a fixed global rect into its struct return and comes back.
 Anything wanting ink bounds on Tiger has to compute them from glyph bounding rects

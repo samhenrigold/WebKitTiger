@@ -499,31 +499,52 @@ static void testDrawing(CTFontRef font)
 
     /* The eleventh adapter: a modern two-argument CTLineDraw must actually draw.
        Tiger's takes a CFRange, so an unadapted call passes stack junk and draws
-       nothing whenever location + length exceeds the glyph count. */
+       nothing whenever location + length exceeds the glyph count.
+
+       Two things this check got wrong the first time, both of which made it pass
+       while measuring nothing. It reused the buffer of a context that was still
+       alive, so ink from the CTFontDrawGlyphs case above appeared here. And it
+       set the fill colour on the context, which Tiger's CTLineDraw ignores: the
+       colour comes from the attributed string and defaults to black, so the line
+       was drawn black on a black bitmap. Its own buffer and an explicit
+       foreground colour now, and it fails if either regresses. */
     {
+        static unsigned char linePixels[64 * 64 * 4];
         CFStringRef text = CFStringCreateWithCharacters(NULL, latin, 5);
-        CFAttributedStringRef attributed = makeAttributedString(text, font);
-        CTLineRef line = CTLineCreateWithAttributedString(attributed);
+        CFMutableDictionaryRef attrs = CFDictionaryCreateMutable(NULL, 2,
+            &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        CFAttributedStringRef attributed;
+        CTLineRef line;
+        CGContextRef lineContext;
+        CGColorSpaceRef lineSpace = CGColorSpaceCreateDeviceRGB();
+        CGFloat white[4] = { 1, 1, 1, 1 };
+        CGColorRef colour = CGColorCreate(lineSpace, white);
         int lineInked = 0, j;
 
-        memset(pixels, 0, sizeof(pixels));
-        space = CGColorSpaceCreateDeviceRGB();
-        context = CGBitmapContextCreate(pixels, 64, 64, 8, 64 * 4, space, kCGImageAlphaPremultipliedLast);
-        CGColorSpaceRelease(space);
-        if (context && line) {
-            CGContextSetRGBFillColor(context, 1, 1, 1, 1);
-            CGContextSetTextPosition(context, 2, 20);
-            CTLineDraw(line, context);
+        CFDictionarySetValue(attrs, kCTFontAttributeName, font);
+        CFDictionarySetValue(attrs, kCTForegroundColorAttributeName, colour);
+        attributed = CFAttributedStringCreate(NULL, text, attrs);
+        line = CTLineCreateWithAttributedString(attributed);
+
+        memset(linePixels, 0, sizeof(linePixels));
+        lineContext = CGBitmapContextCreate(linePixels, 64, 64, 8, 64 * 4, lineSpace,
+            kCGImageAlphaPremultipliedLast);
+        if (lineContext && line) {
+            CGContextSetTextPosition(lineContext, 2, 20);
+            CTLineDraw(line, lineContext);
             for (j = 0; j < 64 * 64 * 4; ++j) {
-                if (pixels[j]) { lineInked = 1; break; }
+                if (linePixels[j]) { lineInked = 1; break; }
             }
         }
         expect(lineInked, "CTLineDraw adapter draws the whole line");
         if (line)
             CFRelease(line);
-        if (context)
-            CGContextRelease(context);
+        if (lineContext)
+            CGContextRelease(lineContext);
+        CGColorRelease(colour);
+        CGColorSpaceRelease(lineSpace);
         CFRelease(attributed);
+        CFRelease(attrs);
         CFRelease(text);
     }
 }
