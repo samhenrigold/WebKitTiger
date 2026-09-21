@@ -474,3 +474,8 @@ one triage pass before it was noticed. See the triage table at the end of
   compat's _dyld_find_unwind_sections now uses section_64 accessors under __LP64__ (64-bit C++ exceptions work on the box).
   tiger-clang64{,++} link everything; no on-box ld64 stopgap needed. libtigercompat x86_64 archive: built by hand (availability.o,
   libcompat.o, tlv.o); the compat Makefile is i386-only (TODO: ARCH switch).
+- compat/Makefile now takes ARCH: `make -C compat install` is unchanged (full i386 archive, obj/, sysroot-i386, ARC header check),
+  `make -C compat ARCH=x86_64 install` builds only the arch-neutral C gaps (availability.c, libcompat.c, tlv.c, BlocksRuntime)
+  with tiger-clang64 into obj-x86_64/ and compat/libtigercompat-x86_64.a, installed as toolchain/sysroot-x86_64/usr/lib/libtigercompat.a.
+  The CF/CG/CT/NS shims stay i386-only: they are about Tiger frameworks no 64-bit process can load, and Tiger libobjc is i386-only,
+  which is also why the ARC header check is skipped for ARCH=x86_64. Both verified from clean.

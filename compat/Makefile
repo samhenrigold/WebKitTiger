@@ -1,6 +1,10 @@
-# libtigercompat.a: libSystem/libobjc gaps for Mac OS X 10.4 i386. Build: make -C compat
+# libtigercompat.a: libSystem/libobjc gaps for Mac OS X 10.4. Build: make -C compat
+# ARCH=i386 (default) is the full archive: C, ObjC and ObjC++, into obj/ and toolchain/sysroot-i386.
+# ARCH=x86_64 builds only the C sources with tiger-clang64, into obj-x86_64/ and toolchain/sysroot-x86_64.
+# There is no 64-bit ObjC on this port (Tiger's libobjc is i386-only), so the .m/.mm half is i386-only,
+# and so is the ARC header check, which compiles ObjC.
+ARCH ?= i386
 WKT := /Users/shg/Developer/WebKitTiger
-CC := $(WKT)/toolchain/bin/tiger-clang
 AR := $(WKT)/toolchain/bin/tiger-ar
 OBJCFLAGS := -fobjc-runtime=macosx-fragile-10.4 -fblocks
 # TIGER: ApplicationServices' sub-frameworks (ImageIO, CoreText, ATS, ...) are only
@@ -11,29 +15,42 @@ APPLICATIONSERVICES_FRAMEWORKS := $(WKT)/sdk/MacOSX10.4u.sdk/System/Library/Fram
 # TIGER: include/sdk-fill holds headers the 10.4u SDK is missing, under their real
 # names (some use #include_next to extend the SDK's own); include/ puts
 # <TigerCompat/*.h> on the path. Both are needed to build cfcompat.c/nscompat.m.
-CFLAGS := -O2 -g -I BlocksRuntime -I include -I $(WKT)/toolchain/sysroot-i386/usr/include -I include -isystem sdk-overlay/usr/include -isystem include/sdk-fill -isystem include -Fsdk-overlay -F$(APPLICATIONSERVICES_FRAMEWORKS)
+PREFIX := $(WKT)/toolchain/sysroot-$(ARCH)/usr
+CFLAGS := -O2 -g -I BlocksRuntime -I include -I $(PREFIX)/include -I include -isystem sdk-overlay/usr/include -isystem include/sdk-fill -isystem include -Fsdk-overlay -F$(APPLICATIONSERVICES_FRAMEWORKS)
+# The 64-bit archive is the arch-neutral libc/libSystem gaps only: the CF/CG/CT shims below are
+# about Tiger's 32-bit frameworks, which no 64-bit process can load.
+C_SRCS_x86_64 := availability.c libcompat.c tlv.c
+ifeq ($(ARCH),i386)
+CC := $(WKT)/toolchain/bin/tiger-clang
+OBJDIR := obj
+LIB := libtigercompat.a
 SRCS := $(wildcard *.c) $(filter-out archeadercheck.m,$(wildcard *.m)) $(wildcard *.mm) BlocksRuntime/runtime.c
-OBJS := $(addprefix obj/,$(addsuffix .o,$(notdir $(SRCS))))
+else
+CC := $(WKT)/toolchain/bin/tiger-clang$(subst x86_,,$(ARCH))
+OBJDIR := obj-$(ARCH)
+LIB := libtigercompat-$(ARCH).a
+SRCS := $(C_SRCS_$(ARCH)) BlocksRuntime/runtime.c
+endif
+OBJS := $(addprefix $(OBJDIR)/,$(addsuffix .o,$(notdir $(SRCS))))
 # TIGER: without these, editing a header under include/ leaves every object stale
 # and the build silently keeps the old code. That is hard to spot, because the
 # link succeeds and only the behaviour is wrong.
 DEPS := $(OBJS:.o=.d)
 DEPFLAGS = -MMD -MP -MF $(@:.o=.d)
-PREFIX := $(WKT)/toolchain/sysroot-i386/usr
 
-all: libtigercompat.a
-libtigercompat.a: $(OBJS)
+all: $(LIB)
+$(LIB): $(OBJS)
 	rm -f $@ && $(AR) rcs $@ $^
-obj/%.c.o: %.c | obj install-headers
+$(OBJDIR)/%.c.o: %.c | $(OBJDIR) install-headers
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
-obj/%.c.o: BlocksRuntime/%.c | obj install-headers
+$(OBJDIR)/%.c.o: BlocksRuntime/%.c | $(OBJDIR) install-headers
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
-obj/%.m.o: %.m | obj install-headers
+$(OBJDIR)/%.m.o: %.m | $(OBJDIR) install-headers
 	$(CC) $(CFLAGS) $(OBJCFLAGS) $(DEPFLAGS) -c $< -o $@
-obj/%.mm.o: %.mm | obj install-headers
+$(OBJDIR)/%.mm.o: %.mm | $(OBJDIR) install-headers
 	$(CC) $(CFLAGS) $(OBJCFLAGS) $(DEPFLAGS) -c $< -o $@
-obj:
-	mkdir -p obj
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
 # TIGER: the compiler wrappers pass -I$(PREFIX)/include, which comes before this
 # directory's own -isystem include. Without refreshing the staged headers first,
 # a source file edited here would still be compiled against the previously
@@ -44,13 +61,17 @@ install-headers:
 # after install on purpose: tiger-clang's own -I of the staged sysroot outranks any -isystem a caller
 # passes, so the installed copy is the one every consumer actually gets, and the one worth checking.
 check: archeadercheck.m
+ifneq ($(ARCH),i386)
+	@echo "skipping the ARC header check: ObjC is i386-only on this port"
+else
 	@$(CC) -Xclang -fobjc-arc -fobjc-runtime=macosx-fragile-10.7 -fsyntax-only archeadercheck.m \
 	  && echo "staged headers are ARC-clean"
+endif
 
-install: libtigercompat.a
-	mkdir -p $(PREFIX)/lib $(PREFIX)/include && cp libtigercompat.a $(PREFIX)/lib/ && cp -R include/. $(PREFIX)/include/ && cp BlocksRuntime/Block.h $(PREFIX)/include/
-	@$(MAKE) --no-print-directory check
+install: $(LIB)
+	mkdir -p $(PREFIX)/lib $(PREFIX)/include && cp $(LIB) $(PREFIX)/lib/libtigercompat.a && cp -R include/. $(PREFIX)/include/ && cp BlocksRuntime/Block.h $(PREFIX)/include/
+	@$(MAKE) --no-print-directory ARCH=$(ARCH) check
 clean:
-	rm -rf obj libtigercompat.a
+	rm -rf $(OBJDIR) $(LIB)
 -include $(DEPS)
 .PHONY: all install install-headers clean check
