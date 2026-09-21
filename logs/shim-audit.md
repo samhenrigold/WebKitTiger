@@ -625,8 +625,16 @@ but behavioural ones, which no static screen can catch.
 
 ### Modes 1 and 2, which the existing tool does not cover
 
-The empty-body and argument-ignoring detectors are additive and have been handed to whoever owns
-`tools/abi-screen.py` rather than kept as a second tool. Over every export rather than WebCore's
+The empty-body and argument-ignoring detectors are additive and have been handed to the dispatch
+track, which owns `tools/abi-screen.py`, rather than kept as a second tool.
+
+**Correction to the record.** The copy of the argument-ignoring detector I committed in `476eb43`
+was dead: it built the set of argument slots read and then compared that set against a list, which
+is never equal, so the mode silently reported nothing. The `CTRunGetImageBounds` finding came from
+an earlier working draft. It went unnoticed because the expected answer over WebCore's call set was
+also zero, so the output looked right. Re-verified over all 243 Tiger CoreText exports: comparing
+`sorted(reads)` finds both `CTLineGetImageBounds` and `CTRunGetImageBounds`, and the committed
+comparison finds neither. The hand-off carries the fix and the flag; the file itself is deleted. Over every export rather than WebCore's
 callers, CoreText has four more empty or constant stubs (`CTRunDraw`,
 `CTFontCreateUIFontForLocale`, `CTFontCreateWithQuickdrawNameAndStyle`, `CTRunGetEmbeddedObject`),
 and a second argument-ignoring function alongside `CTLineGetImageBounds`: **`CTRunGetImageBounds`
