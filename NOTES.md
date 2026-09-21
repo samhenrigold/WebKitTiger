@@ -1162,3 +1162,10 @@ Added to the ARTIFACT OWNERSHIP MAP above.
 - spike/CAHost/README.md added; CAWidgets marked superseded by ControlPart remoting.
 - cahost stopped after this report (budget). Compositor side of the GPU process waits until WK2 builds.
 - Box state from cahost: screensaver idle timer disabled (`defaults -currentHost write com.apple.screensaver idleTime 0`), reversible; possible stale root-owned crashdump dialog from a CAVideo run (two were already killed via sudo earlier; recheck when the box answers — it timed out at 03:23). shm tile-to-contents cost NOT measured (tiles were a local mapping); scene was 48 tiles not 200 at 900 px/s.
+
+## 2026-09-21 03:25 — objcrt: wire remap patch (toolchain/patches/webkit-ipc-wire-flags.patch, root b4c3760, branch b649afd6)
+
+- Result: 2 rewritten conditionals in 2 files (Shared/WebCoreFont.serialization.in, Shared/cairo/WebCoreFontCairo.serialization.in). Remap ran with new `--only "USE(CAIRO)"` so agreeing USE(CORE_TEXT) conditionals were left alone.
+- KEY RESULT: none of the six original wire flags disagree between the PORT=Tiger trees. The 69–121-file remap we sized for is NOT needed; the port's uniform platform macros already make both sides agree. USE(CAIRO) is the only divergence.
+- objcrt's objection: if the web process drops cairo, this patch should be dropped, not carried. DECISION: the web process keeps cairo as its local raster (canvas/ImageBuffer in a 64-bit process with no CG), so USE(CAIRO)=1 stays in the web build and the 2-conditional patch stays. Revisit only if web loses cairo.
+- objcrt stopped after this (budget).
