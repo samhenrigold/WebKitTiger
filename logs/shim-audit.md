@@ -694,9 +694,52 @@ conversion at the call site, in WebCore rather than in compat. The symptom is mi
 crash, no error return, content simply absent — so it is worth checking first if masked content
 goes missing.
 
+### Text antialiasing — the knob exists, just not the one being used
+
+`spike/fontsmoothtest.c`, runner `spike/run-fontsmoothtest.sh`. Measured on both text paths:
+`CGContextSelectFont` with `CGContextShowTextAtPoint`, which needs no `CGFontRef` at all, and the
+`CGFontRef` plus `CGContextShowGlyphsWithAdvances` path WebCore actually uses. Results are
+identical on both. `CGFontCreateWithFontName` and `CGFontCreateWithDataProvider` return NULL on
+Tiger, so the `CGFontRef` comes from `ATSFontFindFromName` and `CGFontCreateWithPlatformFont`.
+
+| Entry point | Behaviour |
+|---|---|
+| `CGContextSetShouldSmoothFonts` | **no-op**, byte-identical pixels, never a colour fringe |
+| `CGContextSetAllowsFontSmoothing` | **no-op** |
+| `CGContextSetShouldAntialias` | works, context-wide, on paths and glyphs |
+| `CGContextSetAllowsAntialiasing` | works, gates the should-flag |
+| `CGFontSetShouldAntialias` (private) | **works, per font** |
+
+So `cgcompat.c`'s mapping of `CGContextSetShouldAntialiasFonts` onto `SetShouldSmoothFonts`
+silently drops the request. The faithful target is the private `CGFontSetShouldAntialias`: a glyph
+run goes from 593 inked and 542 antialiased pixels to 235 and 0, and because the flag lives on the
+font (bit 0 of a byte at `font+0x3c`, per the disassembly of the setter and of
+`CGFontShouldAntialias`) shapes in the same context stay smooth, which the context-wide knob
+cannot manage. Two hazards for whoever wires it: `CGContextGetFont` exists, but WebCore usually
+sets the font after configuring state, and the flag mutates a shared, cached `CGFont`.
+
+Rule 1 again, and the third time it has paid: this was found by grepping every Tiger CG export
+matching smooth or antialias, not by reasoning about what should exist.
+
+**`CGContextSetFontAntialiasingStyle` has nothing to map to.** Tiger exports no
+`CGContextSetFontRenderingStyle` and nothing style-shaped; the complete smoothing surface is the
+context Should/Allows pairs, their GState and RenderingState backings, the per-font flag,
+`CGFontAllowsFontSmoothing` (no arguments, reads a process-wide global) and a
+`__CGFontSmoothingMode` data symbol. A no-op is the honest implementation.
+
+### Interpolation quality is binary
+
+`spike/interptest.c`, runner `spike/run-interptest.sh`. Upscaling a 4x4 checkerboard to 32x32 once
+per quality: **only `None` is distinct.** `Default`, `Low`, `Medium` and `High` render
+byte-identically. All five values are stored and read back unchanged, so the rasterizer collapses
+them rather than the setter rejecting them, which means a shim cannot detect the loss by reading
+state back. `CGContextGetInterpolationQualityRange` reports `[0, 0]`, and that declaration was
+verified against the disassembly rather than guessed, since the 10.4u SDK does not carry it.
+
+The consequence: anywhere WebCore picks `Low` or `Medium` to trade quality for speed, Tiger gives
+it `High`.
+
 ### Remaining behavioural targets
 
-cgcompat's priority order, by how badly a silent failure would show:
-`CGContextSetShouldSmoothFonts` and the antialiasing knobs, `CGContextSetInterpolationQuality`
-(which `NativeImageCG` pairs with the blend-mode Copy above), `CGPatternCreateWithImage2`'s tiling
-argument, and `CGContextBeginTransparencyLayer` under a non-identity CTM.
+`CGPatternCreateWithImage2`'s tiling argument, where `kCGPatternTilingConstantSpacing` is what
+WebCore passes most, and `CGContextBeginTransparencyLayer` under a non-identity CTM.
