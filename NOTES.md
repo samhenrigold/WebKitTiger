@@ -2411,3 +2411,26 @@ can draw a display list to a CGContext → then flip the preference → the Cont
 
 **Not implemented, deliberately.** Recorded here so the sequencing is written down before anyone
 flips the preference and wonders why the page went blank.
+- Two things the compile found, both worth the five minutes it took to extract each tree's real
+  compile line out of `build.ninja` and run it with `-fsyntax-only` rather than wait for a tree that
+  was mid-rebuild: `CString::data()` is `const char8_t*` in this configuration and
+  `TigerCTFontForHandle` takes a `const char*` (so `byteCast<char>`), and the generated decoder
+  brace-constructs `FontPlatformDataAttributes` from its serialized members, which needs a real
+  constructor because the struct is not an aggregate. Both fixed (WebKit e04ce912).
+- Verification, in the order it is worth trusting:
+  1. `generate-serializers.py` run by hand with each tree's real input list at HEAD →
+     **all 20 generated files byte-identical**, and the result is byte-identical to what
+     `build/tiger-web-port` actually generated, so the offline run is not a different generator.
+  2. Real compiles: `FontPlatformDataFreeType.cpp.o` and `GeneratedSerializersShared.cpp.o` in the
+     x86_64 tree, and `UnifiedSource-platform-24.cpp.o` (which carries `FontPlatformDataCoreText.cpp`
+     and `FontCoreText.cpp`) in the i386 tree. All clean.
+  3. `cmake -P TigerCheckIPC.cmake` itself: still reports "only one tree has generated IPC sources".
+     Not a font problem — `build/tiger-gpu`'s copy of the generated sources is stale at 06:45 while
+     the correct text sits in its `.serializers-stage` from 07:46; the copy step was killed when a
+     ninja in that tree was interrupted, and ninja's log now records the edge as done. **A ninja
+     `restat` edge that gets interrupted between the generate and the copy leaves the tree
+     permanently claiming to be up to date with a stale output.** Touch an input to force it.
+- Left for whoever owns the i386 WebKit2 arm: `GeneratedSerializersShared.cpp` has never been
+  compiled in `build/tiger-gpu`, and doing it by hand fails on `CoreIPCDateComponents.h`,
+  `CoreIPCString.h`, `CoreIPCData.h` and `CoreIPCNSCFObject.h` wanting Objective-C++. Nothing
+  font-shaped is left in that list.
