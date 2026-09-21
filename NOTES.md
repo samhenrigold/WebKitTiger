@@ -696,3 +696,13 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   Helvetica AAT+kern, Lucida Grande AAT, Geeza Pro morx Arabic, Hiragino OT CJK). HarfBuzz's ot shaper handles morx/kerx.
   Apple-format kern is distributed differently per glyph (CT on the leading glyph, HB split) but run widths agree; harmless since
   HB owns positions. Tiger can't join OpenType-only Arabic; HB can. Compare only glyphs the font covers (CTLine falls back).
+- **Resolved (22:55): `make -C compat ARCH=x86_64 install` now produces the superset archive, so there is no reason to
+  hand-roll one.** It builds `compat/dispatch/os.c` (os_log / os_signpost / os_unfair_lock) with that directory's own
+  include tree and flags (`-std=gnu99 -fblocks -I dispatch/include`) and stages `dispatch/include` into the x86_64
+  sysroot, so `<os/log.h>` and `<os/lock.h>` resolve there. **os_log in a 64-bit binary now comes from the sysroot's
+  libtigercompat.a**; no extra library and no hand-built archive. Verified on the box: os_log_create plus an
+  os_unfair_lock round trip run, and all 8 cases of spike/cxx64exc.cpp still pass.
+  - New x86_64 archive: **md5 481e247f**, five members: availability.c.o, libcompat.c.o, tlv.c.o, **os.c.o**, runtime.c.o.
+  - **i386 is unchanged**: os.c stays the property of libtigerdispatch.a there, and the i386 libtigercompat.a still has
+    no os.o. The duplication is deliberate and commented in compat/Makefile; if a 64-bit libtigerdispatch.a is ever
+    built, drop os.c from the Makefile's x86_64 list in the same commit.
