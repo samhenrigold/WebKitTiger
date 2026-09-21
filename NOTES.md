@@ -357,3 +357,6 @@ parts. Never grep the joined-up string: a real call site interleaves the
 arguments and never contains that text. This dismissed three live call sites in
 one triage pass before it was noticed. See the triage table at the end of
 `compat/NSCOMPAT-SURVEY.md`.
+- BOX STATE FROZEN 2026-09-20 22:00 EDT: 10.4.11 8S2167 fully updated (111 receipts; last: Java release 9, iPhoto 7.1.5 at
+  21:58). WebKit.framework 4533.19.4 (Safari 4.1.3), QTKit/QuickTime 7.6.4, Security Update 2009-005, Xcode 2.5. No further
+  Apple updates exist for Tiger. Any measurement dated before 21:57 EDT was against the pre-update system.
