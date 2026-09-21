@@ -341,3 +341,279 @@ seven to one in favour of writing the UI process by hand on the C API.
 Open items for whoever picks this up: Tiger's POSIX shared-memory segment limits
 under an allocation-heavy content process, and memory headroom for three
 processes on a 2 GB machine. Both are measurements, not design questions.
+
+---
+
+# Addendum: text input, native widgets, accessibility
+
+Read-only, same rules. Added for the user's requirement that the port deliver
+real Aqua behaviour rather than stubs.
+
+## A. The UI-process text input path
+
+### What the modern design actually does
+
+`UIProcess/API/mac/WKView.mm` is a red herring. All eighteen of its text-input
+methods are empty stubs at lines 511-612. `API/Cocoa/WKWebView.mm` contains no
+text input at all. The Mac text-input category is declared at
+`API/mac/WKWebViewMac.mm:110` and every method there is a one-line forward. All
+of the machinery is in `UIProcess/mac/WebViewImpl.mm`.
+
+The collector is `WebViewImpl` itself, holding
+`Deque<Vector<WebCore::KeypressCommand>> m_collectedKeypressCommands`
+(`WebViewImpl.h:1183`). `collectKeyboardLayoutCommandsForEvent` at
+`WebViewImpl.mm:5930-5954` pushes an empty queue at the front, re-enters AppKit
+through `interpretKeyEvents:`, and pops what accumulated. AppKit's callbacks
+into `doCommandBySelector:` (`:6100`) and `insertText:` (`:6116`) append to that
+front queue instead of executing.
+
+**The decisive architectural fact: the selector round trip is already
+string-based and platform-neutral.** `WebCore/platform/KeypressCommand.h` (82
+lines) holds a `String commandName` and plain WTF types with nothing Cocoa in
+it. `NSStringFromSelector` at `WebViewImpl.mm:6105` and `NSSelectorFromString`
+at `PageClientImplMac.mm:828` are the only two Objective-C touches in the whole
+path. The commands travel inside the key event itself
+(`Shared/WebKeyboardEvent.h:64`) and the content process maps them to editing
+commands through a static string table in `WebPageMac.mm`. A 64-bit process with
+no Objective-C runtime can execute `"moveLeft:"` and `"deleteBackward:"` without
+any AppKit whatsoever.
+
+`Shared/EditorState.h` (192 lines) is likewise entirely WebCore and WTF value
+types. Every Cocoa-conditional field is an enum, a colour, a rect or a string.
+The one Cocoa-named type in the path, `WebCore::AttributedString`, is a
+serializable struct that becomes an `NSAttributedString` only at the endpoints.
+It crosses the boundary cleanly.
+
+### What Tiger cannot have
+
+Modern WebKit answers every text-input **query** through the async client
+protocol, the completion-handler family that arrived in 10.6. The six
+synchronous protocol methods are deliberately dead, asserting not-reached at
+`WebViewImpl.mm:6725-6760`. Tiger's informal protocol is entirely synchronous:
+marked range, first rect for a character range and character index for a point
+must return a value immediately. **The entire query half of the modern design
+rests on an interface Tiger does not have.**
+
+Mapping the twelve methods: four are exact, `doCommandBySelector:`, `unmarkText`,
+`hasMarkedText` and the valid-attributes list. Five lose a parameter, since
+Tiger has no replacement range on insert or set-marked-text and no actual-range
+out-parameter on the two query methods. Six lose their async plumbing entirely.
+One, the conversation identifier, is Tiger-only and must be added; WebKit1's
+HTML view returned self.
+
+The two-pass split between the input method and the keyboard layout, which is
+what most of the complexity in `interpretKeyEvent` exists to manage, cannot be
+expressed on Tiger at all. AppKit routes to the input manager internally. That
+deletes roughly 120 of the 140 lines of that function, which is a simplification
+rather than a loss.
+
+Three things must be built rather than dropped:
+
+1. **Sync variants of five query messages.** The async implementations already
+   exist in `WebPage.messages.in` at lines 612-621; each needs a sync wrapper,
+   about five lines of message definition and forty of handler.
+2. **The staging logic**, `WebViewImpl.mm:6187-6250` and `6288-6358`, roughly
+   115 lines. The UI process locally applies queued insertions to the reply so
+   that modeless input methods see the cursor they expect. It exists precisely
+   because even an async reply is too stale for an input method. Without it
+   Korean Hangul and Vietnamese Telex fall out of modeless mode permanently,
+   which is exactly the real Aqua behaviour the user asked for.
+3. **A clamp at the not-found boundary.** Tiger's character-index method returns
+   a 32-bit unsigned with `NSNotFound` at the 32-bit maximum, while the IPC reply
+   is a `uint64_t` and WTF's not-found sentinel is the 64-bit maximum.
+
+Spell checking is mostly fine. Tiger has the document tag, learn, ignore, the
+spelling panel and guesses, all exact. What has no Tiger counterpart is the
+unified `checkString:` call from 10.6, which needs roughly 80 to 100 lines
+rewritten against the older per-word loop. Everything automatic, the
+substitutions, the correction panel, the candidates and inline predictions, is
+10.6 through 13.0 and corresponds to user interface Tiger never had. That takes
+`UIProcess/mac/TextCheckerMac.mm` from 599 lines to about 200 and deletes
+`UIProcess/mac/CorrectionPanel.*` outright.
+
+### Estimate, and the recommendation
+
+**Write a lean custom view against Tiger's informal protocol: about 755 lines,
+plus 200 for the text checker and 45 for the sync message wrappers.** The
+irreducible set is twenty-one methods: twelve from the informal protocol, five
+responder overrides, and four internal pieces. Two of the internal four are not
+optional. The event re-send, `WebViewImpl.mm:6762-6782`, is what makes command-key
+equivalents and beep suppression work. The responder-chain sink,
+`WebViewImpl.mm:3141-3150` plus its helper class, services the one synchronous
+message the content process sends back when WebCore's editor does not recognise
+a selector.
+
+Gating the existing files is not cheaper and is much worse. In the text path
+alone there are about ninety distinct call sites on post-10.4 interfaces, worth
+roughly 1,050 lines of gating, of which about 520 is straight deletion. But a
+path cannot be gated in isolation inside an 8,579-line translation unit. To make
+that file compile on Tiger at all means gating four to five thousand lines
+covering drag and drop, full screen, the Touch Bar, immediate actions, the text
+finder and layer hosting, none of which exists on Tiger and none of which we
+want.
+
+So: **write it.** The layering upstream already did makes this work. The proxy's
+text-input interface is plain C++ over strings, ranges and points; the command
+vocabulary is selector names as strings; the editor state is value types. A fresh
+view drives exactly the same IPC the modern client does, with nothing stubbed.
+
+## B. Hooks for native widgets
+
+### The precedent, and why it does not fit
+
+The existing UI-side controls all share one shape, which is worth naming: an
+**ephemeral modal chooser**. One async show-message on the proxy carrying a
+plain-data description and a rect in window coordinates, a `PageClient` factory
+that returns a proxy object owning the AppKit control, and one async message
+back. The popup menu is the fullest example:
+`WebProcess/WebCoreSupport/WebPopupMenu.cpp:97` flattens the client into a
+`Vector<WebPopupItem>` and sends `ShowPopupMenuFromFrame` without blocking; the
+UI process builds a real popup cell in `UIProcess/mac/WebPopupMenuProxyMac.mm:106`
+and blocks itself in a nested AppKit run loop. The colour picker, the data-list
+dropdown, the date-time picker and the context menu are the same three parts.
+
+None of this models "here are forty widgets, keep them positioned every frame".
+These are one-shot and user-triggered.
+
+### What upstream already built, which is the answer
+
+WebKit refactored native-control drawing out of the render theme years ago into
+a serializable value type, and then pointed it over IPC at the GPU process. All
+of the following already exists:
+
+- `WebCore/platform/graphics/controls/`, about 2,163 lines with no Objective-C,
+  holding `ControlPart`, `ControlStyle` and a factory.
+- `ControlStyle` is a flat struct of a state option-set, font size, zoom, accent
+  colour, text colour and border width. That is precisely the "state and label"
+  payload we would otherwise have designed.
+- `RenderTheme::createControlPart` is a pure switch on the appearance keyword,
+  and `RenderTheme::paint` funnels everything through
+  `GraphicsContext::drawControlPart`.
+- `ControlPart::draw` returns silently when the factory yields nothing, so a
+  content process with the empty factory is already a safe no-op renderer.
+- **`drawControlPart` is already overridden to go over IPC**, at
+  `WebProcess/GPU/graphics/RemoteGraphicsContextProxy.cpp:689-693`, against a
+  message declared in `GPUProcess/graphics/RemoteGraphicsContext.messages.in:124`.
+- **The serializers are already written**, 212 lines at
+  `Shared/WebCoreArgumentCoders.serialization.in:2249-2460`.
+- The AppKit side is `WebCore/platform/graphics/mac/controls/`, about 4,484
+  lines of cell drawing, and `ControlPart.h:36` already has a factory override
+  hook.
+
+So WebKit's answer to "draw a native control in the process that has the toolkit,
+driven by one that does not" is shipped, serialized and tested. It is merely
+aimed at the GPU process instead of the UI process.
+
+### Where it rides
+
+`Shared/UpdateInfo.h` is 69 lines and its serialization file is 37, of which the
+body is ten lines, one per field. Adding a vector of control geometry costs two
+lines plus the struct. It arrives frame-synchronised with the bitmap it
+annotates, which is the property that made a per-update channel attractive in the
+first place, and the UI process already has a CoreGraphics context in hand at
+`DrawingAreaProxyCoordinatedGraphics::paint`.
+
+The remote layer tree transaction is the wrong model to copy. Its dirty-mask diff
+over 45 fields, roughly 3,900 lines in total, pays for itself at thousands of
+independently animating long-lived layers. Form controls number in the tens and
+are cheap to re-send whole.
+
+A new message file is cheap mechanically, about fifteen lines of boilerplate plus
+one handler per message, but it buys an out-of-band channel that can arrive out
+of step with the bitmap it describes. Only worth it if widgets outlive frames.
+
+### Estimate
+
+| Piece | Est. |
+|---|---|
+| `BackingStoreCG`, owed regardless | 120 |
+| Geometry struct plus two lines of serialization | 25 |
+| Content side: append instead of draw, mirroring the five-line GPU override | 40 |
+| UI side: loop the list after the blit with the Mac factory installed | 60 |
+| Build split: keep the Mac control sources out of the 64-bit link | 30 |
+| Scrollbars, hand-drawn | 250 |
+| **Total** | **about 525, of which 250 is scrollbars** |
+
+### Two corrections to the brief
+
+**Real `NSControl` view objects would be worse, not just dearer.** They need
+stable identities across frames, create and destroy messages, a subview z-order
+and clipping story that cannot honour an ancestor's overflow clipping or
+stacking, hit-test arbitration against the content process's own event handling,
+and transforms and opacity that Tiger AppKit cannot apply to a view. Realistically
+1,500 to 2,500 lines and a permanent correctness tax. The control-part route gets
+**actual Aqua** anyway, because WebKit has never used live controls for form
+widgets; it has always drawn cells, which is the same code path Safari uses and
+the same pixels.
+
+**Scrollbars do not get to ride along.** They are not control parts, so
+`createControlPart` has no case for them. `ScrollbarThemeMac.mm` is 700 lines of
+scroller-imp SPI, which is a 10.7 overlay-scrollbar interface with no Tiger
+ancestor. The non-Cocoa ports hand-draw on the composite theme, and Tiger's
+non-overlay scrollbar is geometrically simple. Budget about 250 lines.
+
+An all-in-WebCore theme in the Adwaita style would need no IPC at all, but
+Adwaita's 1,933 lines draw flat rectangles. Aqua is pinstripes, lozenge bezels,
+focus glow and a pulsing default button, so that number understates it badly, and
+the result would be a lookalike that drifts and never tracks the user's blue or
+graphite setting.
+
+## C. Accessibility
+
+### Remote accessibility is architecturally closed on Tiger
+
+It is not a tree transfer. The whole mechanism rests on one AppKit private class
+introduced in 10.7, `NSAccessibilityRemoteUIElement`. The content process marks
+itself a remote-UI server, mints an opaque token for a mock element
+(`WebProcess/WebPage/mac/WebPageMac.mm:201-205`) and ships it; the UI process
+rehydrates it (`UIProcess/mac/WebViewImpl.mm:4225-4232`) and returns it as the
+web view's single accessibility child. Every subsequent attribute request goes
+straight into the content process as a synchronous Mach message, entirely behind
+WebKit's back. **WebKit never serializes an accessibility node.** The token is a
+capability handle.
+
+Three further blockers, each fatal alone. The content process calls a private
+`NSApplication` accessibility initialiser, and ours has no Objective-C runtime at
+all; accessibility on the Mac *is* Objective-C message dispatch. The presenter
+identifier call is 10.7. The trust and mode negotiation has no Tiger counterpart.
+
+Worth recording: **no port in WebKit serializes the accessibility tree across
+processes.** The GTK and WPE ports use the same handle-then-direct-RPC shape over
+D-Bus, sending a plug identifier instead of a token. Neither helps.
+
+### What the content process can still produce
+
+The core tree is genuinely platform-neutral, about 44,658 lines under
+`WebCore/accessibility/`, with the platform wrappers layered on top. The proof is
+`AXCoreObject.h:85`, which already declares an empty wrapper base for ports with
+no accessibility platform, next to the Cocoa and ATSPI branches. The Windows and
+PlayStation wrappers exist because someone has walked this path. A non-Objective-C
+content process falls into that third branch.
+
+There is no master accessibility feature flag; it was removed upstream and the
+neutral core is compiled unconditionally. The isolated-tree flag defaults off
+everywhere except Cocoa, where `WTF/wtf/PlatformEnableCocoa.h:47-49` raises it.
+Define it to zero in the port header. The clean exclusion is at file level: drop
+the Mac, Cocoa, iOS and isolated-tree directories from the content-process
+sources and stub the three registration messages.
+
+### Recommendation
+
+**Version one: declare the absence, do not merely have it.** The correction to
+the brief is that native controls being accessible by themselves is true and
+free, but the web view must actively report a group role with no children. If it
+falls back to the default view behaviour it reports its subviews and an assistive
+client walks into a broken hierarchy. That is one attribute override, about
+fifteen lines. Note that Tiger shipped VoiceOver, so this is a real regression
+for a user, though it is the same one every non-Safari browser on Tiger had.
+
+**Version two, if anyone asks later: serialize the tree, about 2,000 to 3,200
+lines** for a read-only version without text markers or actions. The reuse is
+mostly a data shape rather than code. The isolated tree's node model at
+`AXIsolatedTree.h:335-420` is already flat, identifier-keyed, a property bag,
+and carries an incremental-change record; it was designed to cross a thread and
+crossing a process is a smaller step than anything else on offer. Copy the shape,
+trim the variant to what can be encoded, and do not enable the isolated tree
+itself. The ATSPI object, 1,514 lines, is the best worked example of exposing
+WebCore's accessibility through a non-Objective-C interface, and its role and
+state mapping tables translate almost directly. Keep this on the shelf.
