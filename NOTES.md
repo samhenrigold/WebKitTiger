@@ -562,3 +562,10 @@ one triage pass before it was noticed. See the triage table at the end of
   the old Apple-Windows-port shape.
 - ld64 x86_64 crash trigger CORRECTED: global weak definitions (every C++ program; libcrypto's __explicit_bzero_hook), not EH.
   Fixed; "no unwind tables" is not a safety test.
+- x86_64 deps (deps/build-deps-x86_64.sh, 84c9037): zlib, brotli, nghttp2, LibreSSL, sqlite, libxml2/xslt, libpng, jpeg-turbo
+  (SIMD), libwebp, dav1d, libavif, freetype, expat, fontconfig, pixman, cairo, ICU 76 (no renaming), HarfBuzz (freetype); all
+  -O3 -march=core2, verified on the box; curl pending (linker now fixed).
+- RULE: on this Apple Silicon host Rosetta 2 runs x86_64 conftests, so configure/meson/CMake think they are NOT cross-compiling
+  and run-time probes report macOS 27's behavior (ICU silently built an empty data lib). Force cross_compiling=yes /
+  needs_exe_wrapper=true / CMAKE_CROSSCOMPILING=ON for every x86_64 build; the i386 builds never hit this (Rosetta can't run i386).
+- fontconfig: generated-file steps must not see the wrapper's -include tigerprelude.h (override $(CPP) for gperf generation).
