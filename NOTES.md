@@ -284,3 +284,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - Cap-height/x-height: Tiger's NSFont quantizes to the same half-point grid as its CoreText (same ATS measurement); the 16pt
   Helvetica agreement was a lucky size. The midpoint heuristic stays (Courier, no OS/2 on either OS, agrees to 0.04%). Hazard:
   WebCore paths that read NSFont metrics on this port will disagree with the CT-derived ones; check per call site.
+- CA host phase 2 (spike/CAHost, commit 3e38673): viewport(masksToBounds, geometryFlipped) > page > 48 manual 256px tile
+  CALayers painted via -drawLayer:inContext: (flip the CTM yourself) + composited overlays. Scroll = viewport bounds.origin, no
+  repaint. CA render 0.5-0.9 ms/frame; tile paint ~5 ms; 12 live tiles ~32 MB RSS. hitTest: works. CATiledLayer draws NOTHING
+  under CARenderer (delegate runs, no output): use manual tiles. Layers with non-affine CATransform3D depth-sort behind opaque
+  siblings: set zPosition. geometryFlipped cascades to the whole subtree; no -geometryFlipped getter (use valueForKey:).
