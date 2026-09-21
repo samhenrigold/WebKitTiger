@@ -558,3 +558,71 @@ table would have returned the label font wherever WebCore asked for the menu ite
   bytes earlier, so the model field is probably at `+0x0C` — unverified, cheap to confirm on the
   box. That would let `CGColorSpaceGetModel` report `kCGColorSpaceModelIndexed`, which it can
   never do today.
+
+---
+
+## Systematic ABI screen over CoreText, CoreGraphics and CoreFoundation
+
+`CTLineDraw` was found by hand-counting stack offsets. ctcompat's point that "three of this class
+now, and a systematic screen beats finding them one at a time" is right, so the screen is now a
+tool: `spike/abi-screen.py`. It covers the three ways a Tiger function can link cleanly and still
+not work, none of which produce a warning, an error or a crash:
+
+1. **Exported but empty.** `CTRunGetGlyphs` is `push ebp; mov ebp,esp; pop ebp; ret`, so it leaves
+   the caller's buffer untouched.
+2. **Exported but ignores its arguments.** `CTLineGetImageBounds` copies a fixed global into its
+   struct return and never looks at the line.
+3. **Exported with a different signature.** `CTLineDraw` takes `(line, context, CFRange)`.
+
+Mode 3 compares the highest incoming-argument slot each function *reads* against the i386 stack
+slots the modern prototype implies, parsed from the host SDK headers. Two details are load-bearing,
+and both were bugs in the first version:
+
+- `-0x20(%ebp)` is a local, `0x20(%ebp)` is an argument. Without the sign check every function with
+  a stack frame looks mismatched; the first run returned 12 CoreText candidates, 9 of them noise.
+- Attribute macros trail the return type (`CG_EXTERN CGAffineTransform CG_PURE`), so the return
+  type is the last word that is not such a macro. Otherwise the hidden struct-return slot is never
+  counted and every `CGAffineTransform`-returning function looks like it reads one slot too many.
+  That alone accounted for all 9 CoreGraphics candidates in the first run.
+
+A zero-argument function that returns a constant is just a constant (`CFArrayGetTypeID`), so mode 1
+only reports a constant return when the prototype declares at least one argument.
+
+### Results
+
+With both corrections the screen has **no false positives** across the 436 functions WebCore calls
+that Tiger exports.
+
+| Framework | Compared | Empty / constant | Ignores arguments | Signature mismatch |
+|---|---|---|---|---|
+| CoreText | 48 | 3 | 0 | 3 |
+| CoreGraphics | 200 | 0 | 0 | 0 |
+| CoreFoundation | 188 | 0 | 0 | 0 |
+
+Every CoreText hit is already known and handled: the three empty run getters and `CTLineDraw` are
+fixed in `ctcompat.c`, and `CTFontCreateWithName` / `CTFontCreateWithGraphicsFont` take `double
+size` where modern CoreText takes `CGFloat`, which the SDK overlay already declares correctly
+(`compat/sdk-overlay/CoreText.framework/Headers/CTFont.h:91,93`). Confirmed in the binary: Tiger's
+`CTFontCreateWithName` does `movsd 0xc(%ebp), %xmm0` and calls a constructor whose mangled name is
+literally `CTFont::CTFont(__CFString const*, double, CGAffineTransform const*)`.
+
+**CoreGraphics and CoreFoundation are clean for everything WebCore calls.** That is a useful
+negative result: the CoreGraphics problems found this round were not signature mismatches but
+behavioural ones, which no static screen can catch.
+
+### Over every export, not just WebCore's callers
+
+Run with `--all`, CoreText has four more empty or constant stubs (`CTRunDraw`,
+`CTFontCreateUIFontForLocale`, `CTFontCreateWithQuickdrawNameAndStyle`, `CTRunGetEmbeddedObject`),
+and a second argument-ignoring function alongside `CTLineGetImageBounds`: **`CTRunGetImageBounds`
+has the identical shape**, 17 instructions copying a global into the struct return. Sent to the
+ctcompat track. CoreGraphics's 22 stubs over all exports are private `CGS*`, PDF and halftone
+internals, none reachable from WebCore; CoreFoundation's two are `CFMachPortInvalidateAll` and
+`___CFA2UC`.
+
+### The fourth mode, which no static screen catches
+
+cgcompat's find this round was `CGShading` silently discarding the alpha its function returns: the
+signature matches, the arguments are read, and the behaviour is still wrong. That needs a runtime
+probe on the box, not disassembly. Worth keeping in mind when a shim looks correct by inspection
+and the output is still wrong.
