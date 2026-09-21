@@ -37,7 +37,6 @@
 /logs/*.log
 /compat/obj/
 /compat/obj-x86_64/
-/compat/libtigercompat-x86_64.a
 /compat/*.a
 /compat/dispatch/obj/
 /compat/dispatch/*.a
