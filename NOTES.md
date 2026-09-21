@@ -893,3 +893,14 @@ build. Link line and test binary: deps/spike-tests/test_curl_smoke.c.
   garbage, so a ~120-line box/EBML completeness scanner is required; cut at the last complete mdat, not last box.
 - x86_64 curl (deps 23d12ca): youtube/theverge/react.dev all TLS 1.3 + HTTP/2 + br/gzip via shipped cacert.pem,
   TTFB 74-169 ms; links with -ltigercompat only.
+- Font manifest (ctcompat 9312d6c, logs/tiger-fonts.json, 70 KB): 176 faces, 174 resolvable to (path, face index);
+  the 2 unresolvable are Type 1 multiple-master (no sfnt; HarfBuzz cannot use them either). Handle-resolved fonts match
+  name-resolved fonts to 0.00000 on glyph IDs/advances/ascent/descent across OpenType/AAT/AAT-Arabic/CJK. Traps: table
+  offsets are blob-relative in .dfont but file-absolute in .ttc; 76/176 faces live only in the resource fork; activating
+  a font invalidates a live ATSFontIterator; ATS synthesises PostScript names from the FOND for old suitcases, so index
+  by ATS activation order, never by name match.
+- Archive ownership invariant is checked with nm on BOTH archives (exactly one defines os_log_create), never by a
+  program that links: within one hour there was a window where both carried os.o and one where neither did, and a
+  running test passed in both.
+- build/builtins-i386 (compiler-rt builtins) went with the build/ deletion; i386 C++ spikes cannot link until deps
+  restores it (assigned).
