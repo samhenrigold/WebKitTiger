@@ -77,6 +77,14 @@ static void tiLog(NSString *fmt, ...)
     [msg release];
 }
 
+// Logs PASS/FAIL rather than aborting -- this is a self-test run to produce
+// a complete diagnostic transcript, not a unit test suite; a crash on the
+// first failure would hide every assertion after it.
+static void tiAssert(BOOL condition, NSString *description)
+{
+    tiLog(@"  ASSERT %@: %@", condition ? @"PASS" : @"FAIL", description);
+}
+
 // Standard US ANSI virtual keycodes (HIToolbox Events.h's kVK_* constants,
 // not available in the AppKit-only headers this app imports, so spelled out
 // locally). Used only by the synthetic self-test driver below.
@@ -241,9 +249,17 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     NSRange _pendingMarkedRange;
     NSMutableArray *_keyDownCommandLog;   // this keydown's command names, for the summary line
     BOOL _keyDownHadPendingMutation;
+    // Two-tier answer per logs/textinput-plan.md §3a: while this is set (the
+    // duration of the current -interpretKeyEvents: call, and only that), the
+    // four sync query methods answer from "pending" (zero staleness, same
+    // call stack, nothing has been dispatched yet); otherwise from "applied"
+    // (the last state confirmed by the simulated content-process round
+    // trip -- possibly stale, but that staleness is unavoidable and bounded).
+    BOOL _inInterpretKeyEvents;
     NSTimer *_selfTestTimer;
     NSArray *_selfTestScript;
     unsigned _selfTestIndex;
+    NSTimer *_focusJumpTimer;
 }
 - (void)setScroller:(NSScroller *)s;
 - (void)setURLText:(NSString *)text;
@@ -271,6 +287,7 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 {
     [_timer invalidate];
     [_selfTestTimer invalidate];
+    [_focusJumpTimer invalidate];
     [_renderer release];
     [_viewport release];
     [_page release];
@@ -498,12 +515,26 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
             (unsigned long)[_appliedDocumentText length], _appliedDocumentText];
 }
 
+// Two-tier answer (logs/textinput-plan.md §3a): while _inInterpretKeyEvents
+// is set, every query reads "pending" -- same call stack, nothing has been
+// dispatched to a (real, eventual) content process yet, so this is exactly
+// accurate, not just less-stale. Once -interpretKeyEvents: has returned,
+// queries read "applied" -- the last state actually confirmed by the
+// simulated round trip, which can be stale by up to one round trip, exactly
+// like the real async-IPC case this models.
+- (NSRange)tiCurrentSelectedRange { return _inInterpretKeyEvents ? _pendingSelectedRange : _appliedSelectedRange; }
+- (NSRange)tiCurrentMarkedRange { return _inInterpretKeyEvents ? _pendingMarkedRange : _appliedMarkedRange; }
+- (NSMutableString *)tiCurrentDocumentText { return _inInterpretKeyEvents ? _pendingDocumentText : _appliedDocumentText; }
+- (NSString *)tiCurrentTierName { return _inInterpretKeyEvents ? @"pending" : @"applied"; }
+
 - (void)keyDown:(NSEvent *)event
 {
     tiLog(@"--");
     tiLog(@"keyDown: keyCode=%u characters='%@' charactersIgnoringModifiers='%@' modifierFlags=0x%lx",
           (unsigned)[event keyCode], [event characters], [event charactersIgnoringModifiers],
           (unsigned long)[event modifierFlags]);
+
+    NSRange appliedBeforeThisKeyDown = _appliedSelectedRange;
 
     _keyDownCommandLog = [[NSMutableArray alloc] init];
     _keyDownHadPendingMutation = NO;
@@ -515,13 +546,30 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     _pendingSelectedRange = _appliedSelectedRange;
     _pendingMarkedRange = _appliedMarkedRange;
 
+    _inInterpretKeyEvents = YES;
     [self interpretKeyEvents:[NSArray arrayWithObject:event]];
+    _inInterpretKeyEvents = NO;
 
     tiLog(@"keyDown: interpretKeyEvents: produced %lu command(s): [%@]",
           (unsigned long)[_keyDownCommandLog count],
           [_keyDownCommandLog componentsJoinedByString:@", "]);
     [_keyDownCommandLog release];
     _keyDownCommandLog = nil;
+
+    // §3a point 3: a query made right after -interpretKeyEvents: returns, but
+    // before the simulated round trip lands, must (a) answer instantly --
+    // it's a local read, never blocking IPC -- and (b) see the OLD applied
+    // state, not the pending mutation this keydown just made.
+    NSDate *queryStart = [NSDate date];
+    NSRange queryResult = [self selectedRange];
+    double queryElapsedMs = -[queryStart timeIntervalSinceNow] * 1000.0;
+    tiAssert(queryElapsedMs < 1.0,
+              [NSString stringWithFormat:@"post-keyDown query never blocks (%.3fms < 1ms)", queryElapsedMs]);
+    if (_keyDownHadPendingMutation) {
+        tiAssert(NSEqualRanges(queryResult, appliedBeforeThisKeyDown),
+                  [NSString stringWithFormat:@"post-keyDown query sees OLD applied state %@, not pending %@",
+                          NSStringFromRange(queryResult), NSStringFromRange(_pendingSelectedRange)]);
+    }
 
     if (_keyDownHadPendingMutation) {
         tiLog(@"  scheduling simulated content-process round trip (+50ms); synchronous queries"
@@ -535,10 +583,16 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 // keydown collected.
 - (void)applyPendingEditorState
 {
+    NSRange pendingSnapshot = _pendingSelectedRange;
     [_appliedDocumentText setString:_pendingDocumentText];
     _appliedSelectedRange = _pendingSelectedRange;
     _appliedMarkedRange = _pendingMarkedRange;
     tiLog(@"  simulated content-process reply landed: %@", [self tiDescribeApplied]);
+
+    // §3a point 2: a query issued once the round trip has landed must now see
+    // the applied (just-updated) state.
+    tiAssert(NSEqualRanges([self selectedRange], pendingSnapshot),
+              @"post-round-trip query sees the newly applied state");
 }
 
 - (void)insertText:(id)aString
@@ -556,6 +610,17 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     _pendingSelectedRange = NSMakeRange(replace.location + [plain length], 0);
     _pendingMarkedRange = NSMakeRange(NSNotFound, 0);
     _keyDownHadPendingMutation = YES;
+
+    // §3a point 1: a query issued from inside this very call (still within
+    // -interpretKeyEvents:, e.g. an IME verifying its own insertText: before
+    // returning) must see the just-inserted character, not the old applied
+    // state -- zero staleness, because nothing has been dispatched yet.
+    if ([plain length] > 0) {
+        NSRange q = [self selectedRange];
+        tiAssert(NSEqualRanges(q, _pendingSelectedRange),
+                  [NSString stringWithFormat:@"in-callback query sees just-inserted %@ (selectedRange -> %@)",
+                          desc, NSStringFromRange(q)]);
+    }
 }
 
 - (void)doCommandBySelector:(SEL)aSelector
@@ -594,8 +659,8 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 
 - (BOOL)hasMarkedText
 {
-    BOOL has = _appliedMarkedRange.location != NSNotFound;
-    tiLog(@"  hasMarkedText -> %@ (from cached/applied EditorState)", has ? @"YES" : @"NO");
+    BOOL has = [self tiCurrentMarkedRange].location != NSNotFound;
+    tiLog(@"  hasMarkedText -> %@ (from %@ tier)", has ? @"YES" : @"NO", [self tiCurrentTierName]);
     return has;
 }
 
@@ -606,13 +671,15 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 
 - (NSAttributedString *)attributedSubstringFromRange:(NSRange)theRange
 {
-    tiLog(@"  attributedSubstringFromRange:%@ (from cached/applied EditorState, doc len %lu)",
-          NSStringFromRange(theRange), (unsigned long)[_appliedDocumentText length]);
-    if (theRange.location == NSNotFound || NSMaxRange(theRange) > [_appliedDocumentText length])
+    NSMutableString *doc = [self tiCurrentDocumentText];
+    NSRange marked = [self tiCurrentMarkedRange];
+    tiLog(@"  attributedSubstringFromRange:%@ (from %@ tier, doc len %lu)",
+          NSStringFromRange(theRange), [self tiCurrentTierName], (unsigned long)[doc length]);
+    if (theRange.location == NSNotFound || NSMaxRange(theRange) > [doc length])
         return nil;
-    NSString *sub = [_appliedDocumentText substringWithRange:theRange];
+    NSString *sub = [doc substringWithRange:theRange];
     NSMutableAttributedString *attr = [[[NSMutableAttributedString alloc] initWithString:sub] autorelease];
-    NSRange markedIntersection = NSIntersectionRange(theRange, _appliedMarkedRange);
+    NSRange markedIntersection = NSIntersectionRange(theRange, marked);
     if (markedIntersection.length > 0) {
         NSRange local = NSMakeRange(markedIntersection.location - theRange.location, markedIntersection.length);
         [attr addAttribute:NSUnderlineStyleAttributeName value:[NSNumber numberWithInt:1] range:local];
@@ -622,15 +689,17 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
 
 - (NSRange)markedRange
 {
-    tiLog(@"  markedRange -> %@ (from cached/applied EditorState)",
-          _appliedMarkedRange.location == NSNotFound ? @"{NSNotFound,0}" : NSStringFromRange(_appliedMarkedRange));
-    return _appliedMarkedRange;
+    NSRange marked = [self tiCurrentMarkedRange];
+    tiLog(@"  markedRange -> %@ (from %@ tier)",
+          marked.location == NSNotFound ? @"{NSNotFound,0}" : NSStringFromRange(marked), [self tiCurrentTierName]);
+    return marked;
 }
 
 - (NSRange)selectedRange
 {
-    tiLog(@"  selectedRange -> %@ (from cached/applied EditorState)", NSStringFromRange(_appliedSelectedRange));
-    return _appliedSelectedRange;
+    NSRange sel = [self tiCurrentSelectedRange];
+    tiLog(@"  selectedRange -> %@ (from %@ tier)", NSStringFromRange(sel), [self tiCurrentTierName]);
+    return sel;
 }
 
 - (NSRect)firstRectForCharacterRange:(NSRange)theRange
@@ -643,17 +712,18 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     NSPoint screenPt = [[self window] convertBaseToScreen:winPt];
     NSRect rect = NSMakeRect(screenPt.x, screenPt.y, 1, 18);
     tiLog(@"  firstRectForCharacterRange:%@ -> {%.0f,%.0f,%.0f,%.0f} (fixed page-position stub,"
-          @" from cached/applied EditorState -- a real cache miss here is visibly wrong, not just"
-          @" logically stale, per the plan's §3 note)",
-          NSStringFromRange(theRange), rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+          @" from %@ tier -- a real cache miss here is visibly wrong, not just logically stale,"
+          @" per the plan's §3 note)",
+          NSStringFromRange(theRange), rect.origin.x, rect.origin.y, rect.size.width, rect.size.height,
+          [self tiCurrentTierName]);
     return rect;
 }
 
 - (unsigned int)characterIndexForPoint:(NSPoint)thePoint
 {
-    unsigned int idx = (unsigned int)[_appliedDocumentText length];
-    tiLog(@"  characterIndexForPoint:{%.0f,%.0f} -> %u (stub: always end-of-document)",
-          thePoint.x, thePoint.y, idx);
+    unsigned int idx = (unsigned int)[[self tiCurrentDocumentText] length];
+    tiLog(@"  characterIndexForPoint:{%.0f,%.0f} -> %u (stub: always end-of-document, from %@ tier)",
+          thePoint.x, thePoint.y, idx, [self tiCurrentTierName]);
     return idx;
 }
 
@@ -723,6 +793,24 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
     _selfTestTimer = [[NSTimer scheduledTimerWithTimeInterval:0.2 target:self
                                                       selector:@selector(fireNextSelfTestEvent:)
                                                       userInfo:nil repeats:YES] retain];
+
+    // §3a point 3 (the "applied" refresh path): a selection change with no
+    // keyboard involvement at all -- an in-page focus jump is the real-world
+    // example -- lands in "applied" directly, independent of any keydown
+    // round trip. Runs throughout the script so its log lines interleave
+    // with the keydown-driven ones, same as they would in practice.
+    _focusJumpTimer = [[NSTimer scheduledTimerWithTimeInterval:0.6 target:self
+                                                       selector:@selector(simulateNonKeyboardSelectionChange:)
+                                                       userInfo:nil repeats:YES] retain];
+}
+
+- (void)simulateNonKeyboardSelectionChange:(NSTimer *)timer
+{
+    unsigned long len = [_appliedDocumentText length];
+    unsigned long newLoc = (_appliedSelectedRange.location == 0 && len > 0) ? len : 0;
+    _appliedSelectedRange = NSMakeRange(newLoc, 0);
+    tiLog(@"  simulated non-keyboard selection change (e.g. in-page focus jump, no keydown"
+          @" involved): applied selectedRange -> %@", NSStringFromRange(_appliedSelectedRange));
 }
 
 - (void)fireNextSelfTestEvent:(NSTimer *)timer
@@ -731,6 +819,9 @@ static void paintStubPage(CGContextRef ctx, CGRect dirty, NSString *urlText)
         [_selfTestTimer invalidate];
         [_selfTestTimer release];
         _selfTestTimer = nil;
+        [_focusJumpTimer invalidate];
+        [_focusJumpTimer release];
+        _focusJumpTimer = nil;
         // Edit-menu commands route to the same log via the responder chain
         // (menu items are target-nil; calling the actions directly here is
         // equivalent to what AppKit does when a keyEquivalent/menu click

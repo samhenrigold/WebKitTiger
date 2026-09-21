@@ -172,20 +172,44 @@ block-buffered, which silently dropped log lines in an earlier spike (the
 scrolling section above); a dedicated line-buffered file sidesteps that
 entirely.
 
-**EditorState cache, modeling the plan's §3 flagged design problem.**
-`TigerPageView` keeps two copies of a tiny fake document (`selectedRange`,
-`markedRange`, a document string): `_pending*` (what this keydown's
-`insertText:`/`setMarkedText:`/`unmarkText` calls have produced so far) and
-`_applied*` (what the four synchronous query methods —
-`hasMarkedText`/`markedRange`/`selectedRange`/`firstRectForCharacterRange:`
-— actually answer from). `_pending*` only overwrites `_applied*` after a
-`performSelector:withObject:afterDelay:0.05` — a deliberately simulated
-content-process IPC round trip. `doCommandBySelector:` deliberately does
-**not** mutate either copy (per the task: "record... do not execute" — the
-real content process's `WebCore::Editor` would own that). This reproduces,
-in miniature, the exact staleness the plan's §3 identifies as its single
-highest-risk finding: a query made before the simulated round trip lands
-sees the pre-keystroke state, on purpose.
+**Two-tier EditorState answer, implementing the plan's §3a recommendation
+(2026-09-20 update, superseding the single-cache description this section
+originally had).** `TigerPageView` keeps two copies of a tiny fake document
+(`selectedRange`, `markedRange`, a document string): `_pending*` (what the
+current keydown's `insertText:`/`setMarkedText:`/`unmarkText` calls have
+produced so far) and `_applied*` (the last state actually confirmed by the
+simulated content-process round trip). A `BOOL _inInterpretKeyEvents`, set
+for exactly the duration of `-interpretKeyEvents:` inside `-keyDown:`, picks
+which tier the six query methods (`hasMarkedText`/`markedRange`/
+`selectedRange`/`firstRectForCharacterRange:`/`attributedSubstringFromRange:`/
+`characterIndexForPoint:`, via the shared `-tiCurrentSelectedRange`/
+`-tiCurrentMarkedRange`/`-tiCurrentDocumentText` accessors) read from:
+
+- **While `_inInterpretKeyEvents` is set** (a query from inside the IME's own
+  `doCommandBySelector:`/`insertText:`/`setMarkedText:` callback, verifying
+  its own just-issued edit before returning): answers from **pending** —
+  same call stack, nothing has been dispatched anywhere yet, so this is
+  exactly accurate, not just "less stale."
+- **Otherwise**: answers from **applied** — the last state confirmed by the
+  simulated round trip (`performSelector:withObject:afterDelay:0.05`,
+  standing in for the real async IPC reply), possibly stale by up to one
+  round trip. `doCommandBySelector:` deliberately never mutates either tier
+  (per the task: "record... do not execute" — the real content process's
+  `WebCore::Editor` would own that).
+- **`applied` also updates independent of any keydown**:
+  `-simulateNonKeyboardSelectionChange:` (a repeating timer during the
+  self-test) moves `_appliedSelectedRange` directly, standing in for the
+  real UI process's proactive `EditorState` push landing for reasons that
+  have nothing to do with typing — an in-page focus jump being the
+  canonical example flagged in §3a.
+
+This is a materially different design from the plan's original single-cache
+sketch: the in-`interpretKeyEvents:` case needs no staleness tolerance at
+all, because on Tiger's fully synchronous `NSInputManager` model nothing is
+ever sent anywhere until `-interpretKeyEvents:` returns (§3a's finding that
+this makes Tiger's version of upstream's "IME polls immediately after its
+own edit" race trivially solvable, unlike upstream's own async
+`NSTextInputContext` model, which genuinely can't avoid it).
 
 **No way to type over ssh**, so `TigerPageView startTextInputSelfTest`
 (gated behind `TIGERBROWSER_TEXTINPUT_TEST=1`, fires 1.5s after the window
@@ -224,6 +248,41 @@ of this — they're IME-candidate-window-driven, not typing-driven, so a
 plain US-layout sequence with no live composition session never exercises
 them; consistent with the plan's §1b framing that they're an independent
 concern from the per-keystroke flow.
+
+### Two-tier answer: self-test assertions (2026-09-20 update)
+
+The self-test now asserts the three behaviors §3a's recommendation implies,
+via a non-aborting `tiAssert()` (logs PASS/FAIL, keeps running — a crash on
+the first failure would hide every assertion after it). One run: **30/30
+passed, 0 failed** (`textinput-selftest.log`):
+
+1. **A query issued from inside `insertText:` sees the just-inserted
+   character.** Asserted inside `-insertText:` itself, right after mutating
+   `_pending*`: calls `-selectedRange` and checks it matches the range
+   `_pending*` was just set to. Example from the log: inserting `'H'`
+   advances `selectedRange` from `{44,0}` to `{45,0}`, and the in-callback
+   query sees `{45,0}` immediately — not the old `{44,0}`.
+2. **A query issued between the keydown returning and the simulated round
+   trip landing sees the OLD applied state, and never blocks.** Asserted in
+   `-keyDown:` right after `-interpretKeyEvents:` returns (so
+   `_inInterpretKeyEvents` is back to `NO`, meaning this query reads
+   `applied`): the result must equal the applied state as it was *before*
+   this keydown, timed with `-timeIntervalSinceNow` and asserted `< 1ms`
+   (observed: consistently ~0.05ms — a local struct read, unsurprisingly
+   fast, but confirms the design never does a blocking wait here). Same
+   `'H'` example: right after the keydown returns, `selectedRange` still
+   reads `{44,0}` (the pre-keystroke value), not `{45,0}`.
+3. **A query issued after the simulated round trip lands sees the applied
+   state.** Asserted in `-applyPendingEditorState` right after copying
+   pending → applied: `selectedRange` now matches the just-applied value.
+   Same example: 50ms after the keydown, `selectedRange` reads `{45,0}`.
+
+The non-keyboard selection-change timer also fired throughout the run
+(`-simulateNonKeyboardSelectionChange:`, every 0.6s, logged as "simulated
+non-keyboard selection change (e.g. in-page focus jump, no keydown
+involved)"), confirming `applied` updates correctly outside the keydown path
+entirely, interleaved with the scripted typing in the log without disturbing
+any of the 30 assertions above.
 
 ### Tiger quirks and gotchas found
 
