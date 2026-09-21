@@ -321,15 +321,19 @@ def spi_lowering(names, workdir):
            "#include <CoreGraphics/CoreGraphics.h>\n"
            "#include <CoreText/CoreText.h>\n"
            "#include <ApplicationServices/ApplicationServices.h>\n")
-    cur, synth, src = dict(decls), {}, os.path.join(workdir, "sdecls.c")
+    # Compiled as C++ (declarations inside extern "C", so IR names stay unmangled).
+    # In C an unknown parameter type reads as a K&R parameter name and clang says
+    # "a parameter list without types", which gives nothing to heal from; C++ says
+    # "unknown type name 'CGGStateRef'".
+    cur, synth, src = dict(decls), {}, os.path.join(workdir, "sdecls.cpp")
     ir = os.path.join(workdir, "sir.ll")
     for _ in range(40):
         body = hdr + "".join("typedef %s;\n" % t for t in synth.values())
-        body += "".join(d + "\n" for d in cur.values())
+        body += 'extern "C" {\n' + "".join(d + "\n" for d in cur.values()) + "}\n"
         body += "".join("void* v_%d=(void*)&%s;\n" % (i, n) for i, n in enumerate(cur))
         open(src, "w").write(body)
-        r = subprocess.run(["clang", "-target", "i386-apple-macosx10.13", "-isysroot", SDK,
-                            "-Wno-everything", "-S", "-emit-llvm", "-o", ir, src],
+        r = subprocess.run(["clang++", "-target", "i386-apple-macosx10.13", "-isysroot", SDK,
+                            "-std=c++17", "-Wno-everything", "-S", "-emit-llvm", "-o", ir, src],
                            capture_output=True, text=True)
         if r.returncode == 0: break
         unknown = set(re.findall(r"unknown type name '([A-Za-z_][A-Za-z0-9_]*)'", r.stderr))

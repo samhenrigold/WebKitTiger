@@ -223,3 +223,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   quality is binary on Tiger (None vs everything else = High); reading state back can't detect it.
 - Image libs in the sysroot (deps/build-c-deps.sh): libpng 1.6.48, libjpeg-turbo 3.1 (no SIMD), libwebp 1.5 (+demux/mux/sharpyuv),
   all static with .pc files. For WebP / PNG-in-ICO / CMYK JPEG via WebKit's cross-platform decoders; ImageIO stays default.
+- Tiger CoreText shaping (logs/ct-probe.md): reads AAT (morx) only, no OpenType GSUB/GPOS. System fonts of the era carry AAT and
+  shape fine; OpenType web fonts get no ligatures / Arabic-Indic forms. Plan: HarfBuzz (building into the sysroot) via WebKit's
+  ComplexTextControllerHarfBuzz for fonts without AAT tables, glyph drawing stays CG. Cap-height/x-height are quantized to
+  half points on Tiger (adapters requested); every other metric matches modern to 6 decimals.
