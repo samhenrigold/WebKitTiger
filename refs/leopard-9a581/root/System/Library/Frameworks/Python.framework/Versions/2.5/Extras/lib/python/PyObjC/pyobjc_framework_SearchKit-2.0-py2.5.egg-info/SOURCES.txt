@@ -1,0 +1,9 @@
+README.txt
+setup.py
+Lib/SearchKit/__init__.py
+Lib/pyobjc_framework_SearchKit.egg-info/PKG-INFO
+Lib/pyobjc_framework_SearchKit.egg-info/SOURCES.txt
+Lib/pyobjc_framework_SearchKit.egg-info/dependency_links.txt
+Lib/pyobjc_framework_SearchKit.egg-info/not-zip-safe
+Lib/pyobjc_framework_SearchKit.egg-info/requires.txt
+Lib/pyobjc_framework_SearchKit.egg-info/top_level.txt

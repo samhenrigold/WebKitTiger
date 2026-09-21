@@ -1,0 +1,24 @@
+
+--set filelist to {"/Library/Desktop Pictures/Nature/Clown Fish.jpg", "/Library/Desktop Pictures/Plants/Daisies.jpg"}
+set filelist to FILEARRAY
+
+tell application "Mail"
+	activate
+	set mailAccounts to accounts
+	if (count of mailAccounts) is not equal to 0 then
+		set msg to make outgoing message with properties {content:return & return}
+		tell msg
+			set visible to true
+			tell content
+				repeat with eachitem in filelist
+					make new attachment with properties {file name:eachitem} at after the last paragraph
+				end repeat
+			end tell
+		end tell
+	else
+		set CR to ASCII character of 13
+		tell application "System Events"
+			keystroke CR
+		end tell
+	end if
+end tell

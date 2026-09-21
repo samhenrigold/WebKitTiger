@@ -8,7 +8,14 @@
 /toolchain/cctools/
 /toolchain/llvm-tiger/
 /toolchain/sysroot-i386/
-/refs/
+/refs/**
+!/refs/**/
+!/refs/**/*.md
+!/refs/**/*.py
+!/refs/**/*.sh
+!/refs/**/*.c
+!/refs/**/*.ini
+!/refs/**/*.txt
 /atv/*.dmg
 /atv/*.img
 /atv/extracted/

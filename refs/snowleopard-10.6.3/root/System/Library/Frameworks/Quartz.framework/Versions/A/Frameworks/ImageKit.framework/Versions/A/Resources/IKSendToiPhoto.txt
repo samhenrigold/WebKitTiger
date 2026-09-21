@@ -1,0 +1,8 @@
+
+--set filelist to {"/Library/Desktop Pictures/Nature/Clown Fish.jpg", "/Library/Desktop Pictures/Plants/Daisies.jpg"}
+set filelist to FILEARRAY
+
+
+tell application "iPhoto"
+	import from filelist force copy 1
+end tell

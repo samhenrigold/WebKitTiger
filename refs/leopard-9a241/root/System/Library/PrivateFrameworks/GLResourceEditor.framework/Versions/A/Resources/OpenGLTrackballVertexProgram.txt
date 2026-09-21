@@ -1,0 +1,54 @@
+!!ARBvp1.0
+
+ATTRIB vertexPosition  = vertex.position;
+ATTRIB vertexNormal    = vertex.normal;
+
+PARAM  lightPosition   = { -0.22, 0.5, 0.8, 0.0 };
+PARAM  shininess       = { 0.69, 30.20, 1.0, 2.13 };
+PARAM  invModelView[4] = { state.matrix.modelview.invtrans };
+
+#PARAM  lightPosition   = program.env[1];
+#PARAM  shininess       = program.env[0]; # x - Softness
+										 # y - Phong size
+										 # z - Phong intensity
+PARAM  zero            = { 0.0, 0.0, 0.0, 0.0 };
+PARAM  one             = { 1.0, 1.0, 1.0, 1.0 };
+
+TEMP temp1, temp2, transPosition;
+TEMP a, b;
+
+DP4 transPosition.x, state.matrix.mvp.row[0], vertexPosition;
+DP4 transPosition.y, state.matrix.mvp.row[1], vertexPosition;
+DP4 transPosition.z, state.matrix.mvp.row[2], vertexPosition;
+DP4 transPosition.w, state.matrix.mvp.row[3], vertexPosition;
+
+#DP3 temp1.x, invModelView[0], vertexNormal;
+#DP3 temp1.y, invModelView[1], vertexNormal;
+#DP3 temp1.z, invModelView[2], vertexNormal;
+MOV temp1, vertexNormal;
+
+DP3 temp1, lightPosition, temp1;
+ABS temp1, temp1;
+
+MOV temp1.w, shininess.x;
+LIT temp1, temp1;
+MOV a, temp1.z;
+MUL a, a, shininess.w;
+MIN a, one, a;
+MUL a, a, 0.8;
+
+MOV temp1.w, shininess.y;
+LIT temp1, temp1;
+MOV b, temp1.z;
+MUL b, b, shininess.w;
+MIN b, one, b;
+
+MOV result.color.w, 0.8;
+MOV result.color.x, a.x;
+MOV result.color.y, b.x;
+MOV result.color.z, zero;
+
+MOV result.position, transPosition;
+MOV result.texcoord[0], vertex.texcoord[0];
+
+END

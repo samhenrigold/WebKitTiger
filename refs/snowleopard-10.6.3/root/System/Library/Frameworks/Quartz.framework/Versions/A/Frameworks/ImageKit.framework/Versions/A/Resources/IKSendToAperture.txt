@@ -1,0 +1,16 @@
+
+--set filelist to {"/Library/Desktop Pictures/Nature/Clown Fish.jpg", "/Library/Desktop Pictures/Plants/Daisies.jpg"}
+set filelist to FILEARRAY
+
+-- set projectName to "Scans"
+set projectName to "Image Capture Project"
+
+tell application "Aperture"
+	tell library 1
+		set namelist to name of every project
+		if namelist does not contain projectName then
+			make new project with properties {name:projectName}
+		end if
+		import filelist by copying into project projectName
+	end tell
+end tell

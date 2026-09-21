@@ -1,0 +1,9 @@
+README.txt
+setup.py
+Lib/CalendarStore/__init__.py
+Lib/pyobjc_framework_CalendarStore.egg-info/PKG-INFO
+Lib/pyobjc_framework_CalendarStore.egg-info/SOURCES.txt
+Lib/pyobjc_framework_CalendarStore.egg-info/dependency_links.txt
+Lib/pyobjc_framework_CalendarStore.egg-info/requires.txt
+Lib/pyobjc_framework_CalendarStore.egg-info/top_level.txt
+Lib/pyobjc_framework_CalendarStore.egg-info/zip-safe

@@ -1,0 +1,9 @@
+README.txt
+setup.py
+Lib/CoreText/__init__.py
+Lib/pyobjc_framework_CoreText.egg-info/PKG-INFO
+Lib/pyobjc_framework_CoreText.egg-info/SOURCES.txt
+Lib/pyobjc_framework_CoreText.egg-info/dependency_links.txt
+Lib/pyobjc_framework_CoreText.egg-info/requires.txt
+Lib/pyobjc_framework_CoreText.egg-info/top_level.txt
+Lib/pyobjc_framework_CoreText.egg-info/zip-safe

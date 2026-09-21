@@ -1,0 +1,16 @@
+setup.cfg
+setup.py
+altgraph/Dot.py
+altgraph/Graph.py
+altgraph/GraphAlgo.py
+altgraph/GraphStat.py
+altgraph/GraphUtil.py
+altgraph/ObjectGraph.py
+altgraph/__init__.py
+altgraph/compat.py
+altgraph.egg-info/PKG-INFO
+altgraph.egg-info/SOURCES.txt
+altgraph.egg-info/dependency_links.txt
+altgraph.egg-info/top_level.txt
+altgraph.egg-info/zip-safe
+test/test_altgraph.py

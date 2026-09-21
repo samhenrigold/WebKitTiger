@@ -1,0 +1,119 @@
+Akron
+Albuquerque
+Anaheim
+Anchorage
+Arlington
+Atherton
+Atlanta
+Augusta-Richmond County
+Aurora
+Austin
+Bakersfield
+Baltimore
+Baton Rouge
+Belmont
+Berkeley
+Birmingham
+Boise
+Boston
+Buffalo
+Campbell
+Charlotte
+Chesapeake
+Chicago
+Cincinnati
+Cleveland
+Colorado Springs
+Columbus
+Corpus Christi
+Cupertino
+Dallas
+Denver
+Des Moines
+Detroit
+Durham
+El Paso
+Fort Wayne
+Fort Worth
+Fremont
+Fresno
+Garland
+Glendale
+Grand Rapids
+Greensboro
+Hialeah
+Honolulu
+Houston
+Huntington Beach
+Indianapolis
+Irving
+Jersey City
+Kansas City
+Las Vegas
+Lexington-Fayette
+Lincoln
+Long Beach
+Los Altos
+Los Angeles
+Los Gatos
+Louisville
+Lubbock
+Madison
+Mesa
+Milwaukee
+Minneapolis
+Modesto
+Montgomery
+Mountain View
+New Orleans
+New York
+Newark
+Norfolk
+Oakland
+Oklahoma City
+Omaha
+Palo Alto
+Perth
+Philadelphia
+Phoenix
+Pittsburgh
+Plano
+Portland
+Raleigh
+Redwood City
+Richmond
+Riverside
+Rochester
+Sacramento
+San Antonio
+San Carlos
+San Diego
+San Francisco
+San Jose
+San Mateo
+Santa Ana
+Santa Clara
+Santa Cruz
+Saratoga
+Scottsdale
+Seattle
+Shreveport
+Spokane
+St. Louis
+St. Paul
+Stockton
+Sunnyvale
+Tacoma
+Toledo
+Tucson
+Tulsa
+Vancouver
+Virginia Beach
+Washington
+Wichita
+Winston-Salem
+Yonkers
+SF
+NY
+Hawaii
+Hollywood

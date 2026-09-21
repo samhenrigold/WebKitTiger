@@ -1,0 +1,10 @@
+README.txt
+setup.py
+Lib/ScreenSaver/__init__.py
+Lib/pyobjc_framework_ScreenSaver.egg-info/PKG-INFO
+Lib/pyobjc_framework_ScreenSaver.egg-info/SOURCES.txt
+Lib/pyobjc_framework_ScreenSaver.egg-info/dependency_links.txt
+Lib/pyobjc_framework_ScreenSaver.egg-info/not-zip-safe
+Lib/pyobjc_framework_ScreenSaver.egg-info/requires.txt
+Lib/pyobjc_framework_ScreenSaver.egg-info/top_level.txt
+Modules/_ScreenSaver_inlines.m

@@ -1,0 +1,8 @@
+~/Library/Application Support/Apple
+~/Library/Application Support/Directory
+~/Library/Application Support/Font Book
+~/Library/Application Support/iSync
+~/Library/Application Support/Front Row
+~/Library/Application Support/PreferenceSync
+~/Library/Caches/*
+~/Library/Internet Plug-Ins/JavaPluginCocoa.bundle

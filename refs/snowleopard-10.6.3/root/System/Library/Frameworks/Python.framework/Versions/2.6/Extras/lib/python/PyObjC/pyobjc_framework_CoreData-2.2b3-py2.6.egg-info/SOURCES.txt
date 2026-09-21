@@ -1,0 +1,10 @@
+README.txt
+setup.py
+Lib/CoreData/__init__.py
+Lib/CoreData/_convenience.py
+Lib/pyobjc_framework_CoreData.egg-info/PKG-INFO
+Lib/pyobjc_framework_CoreData.egg-info/SOURCES.txt
+Lib/pyobjc_framework_CoreData.egg-info/dependency_links.txt
+Lib/pyobjc_framework_CoreData.egg-info/requires.txt
+Lib/pyobjc_framework_CoreData.egg-info/top_level.txt
+Lib/pyobjc_framework_CoreData.egg-info/zip-safe

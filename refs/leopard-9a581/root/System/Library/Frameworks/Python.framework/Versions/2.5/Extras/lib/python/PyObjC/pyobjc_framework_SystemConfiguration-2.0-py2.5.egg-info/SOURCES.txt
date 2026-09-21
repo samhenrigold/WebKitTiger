@@ -1,0 +1,10 @@
+README.txt
+setup.py
+Lib/SystemConfiguration/__init__.py
+Lib/pyobjc_framework_SystemConfiguration.egg-info/PKG-INFO
+Lib/pyobjc_framework_SystemConfiguration.egg-info/SOURCES.txt
+Lib/pyobjc_framework_SystemConfiguration.egg-info/dependency_links.txt
+Lib/pyobjc_framework_SystemConfiguration.egg-info/not-zip-safe
+Lib/pyobjc_framework_SystemConfiguration.egg-info/requires.txt
+Lib/pyobjc_framework_SystemConfiguration.egg-info/top_level.txt
+Modules/_manual.m

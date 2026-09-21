@@ -1,0 +1,13 @@
+setup.py
+Lib/PyObjCTools/XcodeSupport/ArchiveGraph.py
+Lib/PyObjCTools/XcodeSupport/Xcode.py
+Lib/PyObjCTools/XcodeSupport/XcodeProj.py
+Lib/PyObjCTools/XcodeSupport/__init__.py
+Lib/PyObjCTools/XcodeSupport/api.py
+Lib/pyobjc_xcode.egg-info/PKG-INFO
+Lib/pyobjc_xcode.egg-info/SOURCES.txt
+Lib/pyobjc_xcode.egg-info/dependency_links.txt
+Lib/pyobjc_xcode.egg-info/entry_points.txt
+Lib/pyobjc_xcode.egg-info/not-zip-safe
+Lib/pyobjc_xcode.egg-info/requires.txt
+Lib/pyobjc_xcode.egg-info/top_level.txt

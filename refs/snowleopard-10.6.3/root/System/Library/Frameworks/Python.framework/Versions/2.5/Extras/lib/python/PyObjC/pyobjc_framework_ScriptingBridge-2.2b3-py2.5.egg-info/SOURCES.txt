@@ -1,0 +1,9 @@
+README.txt
+setup.py
+Lib/ScriptingBridge/__init__.py
+Lib/pyobjc_framework_ScriptingBridge.egg-info/PKG-INFO
+Lib/pyobjc_framework_ScriptingBridge.egg-info/SOURCES.txt
+Lib/pyobjc_framework_ScriptingBridge.egg-info/dependency_links.txt
+Lib/pyobjc_framework_ScriptingBridge.egg-info/requires.txt
+Lib/pyobjc_framework_ScriptingBridge.egg-info/top_level.txt
+Lib/pyobjc_framework_ScriptingBridge.egg-info/zip-safe

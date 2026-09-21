@@ -1,0 +1,58 @@
+#
+# Entry points exported from BrowserKit
+#
+
+# Classes
+
+# Data Handling
+.objc_class_name_BKFilterQueryAllItem
+.objc_class_name_BKItemUniqueIdentifier
+.objc_class_name_BKItem
+.objc_class_name_BKItemCollection
+
+# Standard Providers
+.objc_class_name_BKFontProvider
+.objc_class_name_BKFileSystemProvider
+
+# Module Base classes
+.objc_class_name_BKModuleConnector
+.objc_class_name_BKBrowserModule
+.objc_class_name_BKItemsModule
+.objc_class_name_BKViewModule
+.objc_class_name_BKDetailModule
+.objc_class_name_BKQueryModule
+
+# Standard Modules
+.objc_class_name_BKTableModule
+.objc_class_name_BKOutlineModule
+.objc_class_name_BKListModule
+.objc_class_name_BKGridModule
+.objc_class_name_BKColumnHierarchyModule
+.objc_class_name_BKFilterQueryModule
+
+# Misc
+.objc_class_name_BKContentTypeLocalization
+.objc_class_name_BKIconRefImageRep
+.objc_class_name_BKByteSizeTransformer
+_kBKUniqueIdentifiersPboardType
+__BrowserKitString
+
+# Keys
+_kBKItemKeysKey
+_kBKItemsKey
+_kBKItemDisplayNameKey
+_kBKItemContentTypeKey
+_kBKItemIconKey
+_kBKItemPreviewKey
+_kBKItemPathKey
+_kBKItemContentCreationDateKey
+_kBKItemContentModificationDateKey
+_kBKItemFSSizeKey
+_kBKItemFSCapacityKey
+_kBKItemFSFreeSpaceKey
+_kBKItemFSUsedSizeKey
+_kBKItemFontFamilyKey
+_kBKItemFontTypefaceKey
+_kBKItemMusicalGenreKey
+_kBKItemArtistKey
+_kBKItemAlbumKey
