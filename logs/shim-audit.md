@@ -805,3 +805,60 @@ between tracks.
 | `GraphicsContextCG::clipToImageBuffer` passes an RGBA image to `CGContextClipToMask`, which on Tiger clips everything away and blanks subsequent drawing | WebCore, sent to wkcmake | needs a grayscale conversion at `GraphicsContextCG.cpp:1078`; the call site's own FIXME already says the image ought to be grayscale |
 | Tiger honours none of the twelve Porter-Duff blend modes, all compositing as Normal | WebCore | **cannot be shimmed**: the mode is context state consumed by every later drawing call, not a parameter to intercept. `NativeImageCG`'s single-pixel colour read depends on `kCGBlendModeCopy` replacing an uninitialized buffer, so it returns a wrong colour |
 | Protocol ext records, needed by JavaScriptCore's JSExport | build flags | **decided**: NOTES.md LINK RULE 2, never strip local symbols |
+
+---
+
+## compat/cfcompat.c (read-only review; owned by the wkcmake track)
+
+14 entry points. Probe `spike/cfcompattest.c`, runner `spike/run-cfcompattest.sh`, dual-build
+against modern as usual. Nothing here was edited.
+
+**Rule 1 is clean.** None of the 14 symbols is exported by Tiger under any spelling, checked
+against every `logs/api/tiger-*.txt` list.
+
+**One rule-1 opportunity, deliberately not taken.** `notify_register_dispatch` is a stub returning
+failure, but Tiger does export the whole `notify_register_*` family: `notify_register_file_descriptor`,
+`notify_register_mach_port`, `notify_register_signal`, `notify_register_check`, plus `notify_check`
+and `notify_cancel`. A real implementation is therefore possible in principle. Two things argue
+against it. Our dispatch shim's read sources are inert — `td_source_arm` only handles
+`DISPATCH_SOURCE_TYPE_TIMER` — so it would need its own thread rather than a source. And all five
+WebKit callers are developer-triggered diagnostics: `com.apple.WebKit.fullGC` and `deleteAllCode`
+(`MemoryReleaseCocoa.mm:109,112`), the WASM opcode counter dump, remote inspector availability, and
+the power-source notifier. Worth doing only if someone wants `notify_post com.apple.WebKit.fullGC`
+to work as a debugging lever on the box.
+
+**Rule 2: `CFLocaleCopyPreferredLanguages` diverges from CF-550.** The real one
+(`CF-550/CFLocale.c:637`) builds a fresh array, and for each element that is a `CFString` appends
+`CFLocaleCreateCanonicalLanguageIdentifierFromString` of it. cfcompat returns the `AppleLanguages`
+preference array directly. So it does neither the canonicalisation nor the per-element type filter.
+
+Not live on the box: its `AppleLanguages` is already canonical (`en, ja, fr, …, zh-Hans`), and the
+probe confirms the returned value equals its own canonical form. It would be live on a machine
+carrying the pre-10.4 spelling, which upgrades preserve. Measured on Tiger:
+`CFLocaleCreateCanonicalLanguageIdentifierFromString(CFSTR("English"))` returns `en`, so such a
+machine would get `English` from cfcompat where real CF gives `en`. **Tiger exports the
+canonicaliser**, so matching CF-550 is a few lines and is rule-1 clean.
+
+**Two `backtrace` caveats, both diagnostics-only.**
+
+The last frame can be garbage. Both platforms return 5 frames for the same call depth, but on Tiger
+one of them does not land in any loaded image, where on modern all 5 do. `backtrace_symbols`
+already prints `???` for it, so consumers just need to tolerate an unresolvable tail.
+
+More limiting: `backtrace_symbols` can only name **exported** symbols on Tiger, because `dladdr`
+does not consult local ones. The probe's two static functions are named on modern and not on Tiger.
+For WebKit, whose functions are overwhelmingly not exported, that means a backtrace attributes each
+address to the nearest preceding exported symbol with a large offset, which is worse than useless
+if read literally. Worth connecting to LINK RULE 2: local symbols are now kept, but `dladdr` will
+not use them, so real symbolication needs to read `LC_SYMTAB` directly — the same technique the
+protocol-ext recovery uses.
+
+**Verified correct.** `dyld_image_header_containing_address` returns a real Mach-O header that
+matches a loaded image and is NULL-safe. `_dyld_get_image_uuid` walks `LC_UUID` for real: non-zero,
+stable across calls, and it guards a NULL header where **modern's own version segfaults**, so the
+shim is the more defensive of the two. `dyld_get_program_sdk_version` returns `0x000A0400`, and the
+packing is confirmed against the host reporting `0x001B0000` for 27.0. `malloc_zone_pressure_relief`
+returns 0 and does not crash, matching modern's answer on an unpressured heap.
+`malloc_zone_memalign` was reviewed earlier in this report: correct for the default zone, which is
+the only one bmalloc uses. `backtrace` frame counts, the zero-size case and the single-`free()`
+contract for `backtrace_symbols` all match modern.
