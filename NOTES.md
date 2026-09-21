@@ -846,3 +846,26 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   interpretKeyEvents: emits insertText:"". Dead keys/IME need the real TSM pipeline (CGEventPost), deferred.
 - Box state changes by agents (2026-09-21 ~02:55): screensaver idle timer disabled (defaults -currentHost write
   com.apple.screensaver idleTime 0); a stale root-owned crash-report dialog from an earlier CAVideo run was on screen.
+
+## x86_64 curl smoke test on the box (2026-09-20, deps agent)
+Ran the x86_64 curl build (deps/build-deps-x86_64.sh: LibreSSL 4.1.0 + zlib 1.3.1 + brotli
+1.1.0 + nghttp2 1.65.0, HTTP/2 enabled) against real sites on the Tiger box, using the CA
+bundle we ship (deps/src/cacert.pem, scp'd to the box) rather than any system roots.
+deps/spike-tests/test_curl_smoke.c: TLS version parsed out of curl's own verbose trace line
+("SSL connection using ..."), HTTP version and Content-Encoding via curl_easy_getinfo/
+header callback, TTFB via CURLINFO_STARTTRANSFER_TIME. i386 curl was never built with
+HTTP/2/brotli (that work predates this task), so there's no i386 delta to report -- this is
+new coverage.
+
+| site | TLS (auto) | HTTP | encoding | TTFB | total |
+|---|---|---|---|---|---|
+| youtube.com | TLSv1.3 / TLS_CHACHA20_POLY1305_SHA256 | HTTP/2 | gzip | 0.169s | 0.285s |
+| theverge.com | TLSv1.3 / TLS_CHACHA20_POLY1305_SHA256 | HTTP/2 | br | 0.074s | 0.138s |
+| react.dev | TLSv1.3 / TLS_CHACHA20_POLY1305_SHA256 | HTTP/2 | br | 0.156s | 0.175s |
+
+Forced against youtube.com: TLS 1.2 (ECDHE-ECDSA-CHACHA20-POLY1305) succeeds, HTTP/2,
+gzip, TTFB 0.154s; TLS 1.3 forced explicitly also succeeds (same as auto). SNI is implicit
+in every hostname-based HTTPS connect above (no separate opt-out was set); all three sites
+require it for cert selection and all handshakes succeeded, so it's working. No
+-ltigerdispatch needed anywhere, only -ltigercompat, same as the rest of the x86_64 curl
+build. Link line and test binary: deps/spike-tests/test_curl_smoke.c.
