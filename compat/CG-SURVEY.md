@@ -328,6 +328,40 @@ exercises the real convention, by handing the Tiger entry point a buffer with a 
 the implementation copies six dwords from the gstate plus 4 and touches nothing else, so the
 returned matrix proves the by-value return without needing a real gstate.
 
+### Behavioural divergences a static screen cannot see
+
+The audit track's ABI screen came back clean for CoreGraphics: no signature mismatches, no
+empty stubs, no argument-ignoring functions anywhere WebCore reaches. What is left is functions
+that take their arguments, return plausibly, and do the wrong thing. Three found so far, all by
+measuring pixels on the box.
+
+**Shadings discard alpha.** Covered above. The function's alpha output is ignored whatever the
+range dimension or colorspace. Worked around by composing the gradient by hand.
+
+**None of the 10.5 blend modes work.** `CGCompat.h` defines the twelve Porter-Duff values at
+Apple's numbers so WebCore compiles, but Tiger honours none of them: compositing opaque red
+over half-alpha green gives a pixel identical to `kCGBlendModeNormal` for all twelve. There is
+no shim, because the mode is context state consumed by every later drawing call rather than a
+parameter to intercept.
+
+One concrete consequence, worth fixing in the port rather than here.
+`NativeImageCG.cpp`'s single-pixel colour read creates a 1x1 bitmap context over an
+*uninitialized* `std::array<uint8_t, 4>` and relies on `kCGBlendModeCopy` to replace it. With
+Copy degrading to source-over, a transparent or semi-transparent image composites over stack
+garbage and the function returns a wrong colour. Zeroing the array, or clearing the context,
+fixes it. The other direct `kCGBlendModeCopy` site, in `GraphicsContextGLCG.cpp`, passes NULL
+for the buffer, so CG zero-fills and source-over equals copy there; it is safe.
+
+More broadly, `GraphicsContextCG.cpp` maps every `CompositeOperator` onto these values, so any
+canvas `globalCompositeOperation` or CSS blend other than source-over degrades silently to
+source-over.
+
+**CGContextClipToMask does not take the destination alpha from the mask alone.** With a colour
+ramp that varies, the resulting alpha came out as the mask times the source colour rather than
+the mask. Not characterised further, because the gradient path stopped needing it, but
+`GraphicsContextCG.cpp` does call it, so that path wants a pixel-level check before it is
+trusted.
+
 ### Conflicts with PAL's CoreGraphicsSPI.h
 
 WebCore declares much of this SPI itself, so a unit including both sees both. Overlapping

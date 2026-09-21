@@ -155,8 +155,11 @@ CGRect CGPathGetPathBoundingBox(CGPathRef);
 /* ------------------------------------------------------------------ context */
 
 /* The Porter-Duff blend modes arrived in 10.5; Tiger's CGBlendMode enum stops at
-   Luminosity. The numeric values are Apple's, so a Tiger CG that happens to
-   understand one gets the right mode and ignores the rest. */
+   Luminosity. The numeric values are Apple's, so this compiles, but measured on
+   the box Tiger honours NONE of them: all twelve composite exactly as
+   kCGBlendModeNormal, silently. There is no shim for this, because the mode is
+   context state consumed by every later drawing call; the port has to avoid the
+   paths that depend on it. See compat/CG-SURVEY.md. */
 enum {
     kCGBlendModeClear = 16,
     kCGBlendModeCopy = 17,

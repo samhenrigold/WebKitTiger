@@ -189,6 +189,8 @@ unsigned CTFontGetUnitsPerEm(CTFontRef);
 bool CTFontGetGlyphsForCharacters(CTFontRef, const UniChar[], CGGlyph[], CFIndex);
 /* Tiger takes no orientation and returns the summed advance as a CGSize. */
 CGSize CTFontGetAdvancesForGlyphs(CTFontRef, const CGGlyph[], CGSize[], CFIndex);
+/* Tiger takes no orientation; Apple's 9A241 TRANSITIONAL list flags this one. */
+void CTFontGetSideBearingsForGlyphs(CTFontRef, const CGGlyph[], CGFloat[], CFIndex);
 CGRect CTFontGetBoundingRectsForGlyphs(CTFontRef, const CGGlyph[], CGRect[], CFIndex);
 
 CTFontDescriptorRef CTFontDescriptorCreateWithAttributes(CFDictionaryRef);
@@ -479,6 +481,7 @@ void TigerCTRunGetAdvances(CTRunRef, CFRange, CGSize[]);
 void TigerCTRunGetStringIndices(CTRunRef, CFRange, CFIndex[]);
 void TigerCTRunDraw(CTRunRef, CGContextRef, CFRange);
 CGRect TigerCTLineGetImageBounds(CTLineRef, CGContextRef);
+void TigerCTFontGetSideBearingsForGlyphs(CTFontRef, CTFontOrientation, const CGGlyph[], CGFloat[], CFIndex);
 void TigerCTLineDraw(CTLineRef, CGContextRef);
 CTFontRef TigerCTFontCreateUIFontForLocale(CTFontUIFontType, CGFloat size, CFStringRef locale);
 

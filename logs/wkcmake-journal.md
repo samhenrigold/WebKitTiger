@@ -596,39 +596,135 @@ source tree. The Makefile now has an `install-headers` target that every object
 depends on, so a source file is never compiled against the previously installed
 copy of its own header.
 
+
+## Session 2, part 2: after the platform caught up
+
+Four things landed from other tracks and changed the answers above.
+
+**`posix_memalign` is real now.** The audit agent rewrote `compat/libcompat.c`'s
+version: malloc at or below 16 bytes of alignment, valloc up to a page, and
+above that an mmap'd region registered as a malloc zone so plain `free()` still
+finds it — the same mechanism Apple's libmalloc uses. That makes the
+over-allocate-and-offset `aligned_alloc` written earlier in this session
+unnecessary, and worse than the platform's, because it needed its own free. It
+is gone: `aligned_alloc` is back to an inline over `posix_memalign` in
+`tigerprelude.h`, `tiger_aligned_free` is deleted, and bmalloc's `free()` is
+back to plain `::free`.
+
+One consequence had to be handled. `SystemHeap::free` called
+`malloc_zone_free(m_zone, ...)` with `m_zone` forced to the default zone on
+Tiger, which would not free a block that came from the new aligned zone. Under
+`BPLATFORM(TIGER)` it now calls plain `free()`, which consults every registered
+zone. Nothing routes large aligned requests through `SystemHeap` today, but the
+mismatch was latent.
+
+**The CoreGraphics hooks were narrowed**, so the CarbonCore namespace no longer
+reaches JavaScriptCore through them. `<TigerCompat/CGCompat.h>` was including
+the CoreGraphics umbrella, which reaches CGEvent and CGPSConverter and through
+them all of CoreServices; the piece that was not obvious is that
+`<ImageIO/CGImageSource.h>` includes the umbrella too. It names only the ten
+sub-headers it needs now, and an include trace shows zero CoreServices hits.
+The three gates added earlier are reverted: the CG traits in
+`wtf/cf/CFTypeTraits.h` and the `CGRect`/`CGSize`/`CGPoint` stream operators in
+`wtf/text/TextStream.h` and `TextStreamCocoa.mm` are back.
+
+The `AssertMacros.h` overlay stays. It is still needed by anything that includes
+the CoreGraphics umbrella, which pulls CoreServices by the SDK's own design.
+
+**`libtigercompat.a` must be linked with `-Wl,-ObjC`.** Nearly all of its
+Foundation and AppKit surface is categories, and a static archive member is only
+pulled in when it defines a referenced symbol — a category defines none. Without
+`-ObjC` the member never joins the link and every category method is missing at
+runtime, from a build that said nothing. `-ObjC` also drags in
+`NSOperationQueue`, so `libtigerdispatch` and the Foundation, AppKit and
+ApplicationServices frameworks all become required, even for a binary that never
+mentions a queue, a window or a colour. All of that is in the TIGER
+`link_libraries()` block.
+
+**`-Wno-deprecated-anon-enum-enum-conversion`** is now a global compile option.
+Tiger spells the CGBitmapInfo constants as separate anonymous enums and WebCore
+combines them; C++20 deprecated a bitwise operation between different
+enumeration types, so at C++23 with `-Werror` every such site fails. Too many
+call sites to patch.
+
+### The overlay's availability headers were overwritten, and restored
+
+Another track replaced `Availability.h`, `os/availability.h` and four more with
+verbatim Xcode 27 copies. Those have the *real* availability attributes, which
+is exactly what must not happen here: at a 10.4 deployment target every
+`API_AVAILABLE(macos(13.0))` declaration WebKit makes becomes a
+`-Wunguarded-availability-new` diagnostic on use, fatal under `-Werror` and
+unreadable without it.
+
+Restored, and the reasoning is now written into the header itself so it does not
+happen again. The overlay keeps `AvailabilityVersions.h` verbatim (self-contained,
+real constants) and our own no-op-attribute `Availability.h` and
+`os/availability.h`. `AvailabilityMacros.h`, `AvailabilityInternal.h` and
+`AvailabilityInternalLegacy.h` are deliberately **not** overlaid: the 10.4u SDK's
+own `AvailabilityMacros.h` is what its headers were written against, and it
+defines every `AVAILABLE_MAC_OS_X_VERSION_10_x_AND_LATER` they use.
+
+Verified with a translation unit that declares
+`void modernThing(void) API_AVAILABLE(macos(13.0));` and calls it: clean at
+`-Wall -Werror`, with `__MAC_OS_X_VERSION_MIN_REQUIRED` 1040 and `__MAC_10_15`
+and `__MAC_26_0` at their true values.
+
 ## Where it stands
 
-Everything below reproduces from a clean configure and build.
+Everything reproduces from a clean configure and build.
 
 | Target | State |
 |---|---|
 | `bmalloc` | builds, `libbmalloc.a` |
 | `WTF` | builds, all objects, `libWTF.a` |
-| `JavaScriptCore` | builds, `libJavaScriptCore.a`, 25 MB |
+| `JavaScriptCore` | builds, `libJavaScriptCore.a` |
 | `jsc` | links, 51 MB, i386, **runs on Mac OS X 10.4.11** |
 
-### What runs
+Committed in the WebKit checkout as `8aa8957e`, 614 added lines across 48 files,
+every hunk marked `TIGER`.
 
-`/tmp/jsc -e 'print(1+1)'` prints 2, exit 0. A smoke test covering recursion
-(`fib(20)`), a 20000-element array of objects, `sort`, `JSON.stringify` and
-`JSON.parse`, `RegExp.exec`, string methods, non-ASCII strings and
-`encodeURIComponent` (so ICU is working), `Math`, `Date`, `Map`, closures,
-`try`/`catch`, ES6 classes, arrow functions and template literals all pass.
+### What runs on the box
 
-A GC stress run — 40 rounds of 3000 short-lived objects with a few survivors,
-200 JSON round-trips, and a 20000-entry Map — completes and exits 0.
+`/tmp/jsc -e 'print(1+1)'` prints 2, exit 0.
 
-### Known-imperfect, and left alone
+| Area | Result |
+|---|---|
+| JSON | round trip exact; 5000 objects to 132 KB and back |
+| RegExp | capture groups, global match, function replace, **named groups** |
+| Closures | 1000 independent counters, 10000 calls |
+| Date | `toISOString`, `toUTCString` correct |
+| `Intl.DateTimeFormat` | `Sep 20, 2026` |
+| `Intl.NumberFormat` (de-DE) | `1.234.567,891` |
+| `Intl.Collator` (de) | sorts `a, ä, z` |
+| Unicode | NFC/NFD normalization; Turkish `istanbul` uppercases to `İSTANBUL` |
+| ES6+ | classes, arrow functions, template literals, `Map` |
+| GC | 40 rounds of 3000 short-lived objects, 20000-entry Map, exit 0 |
 
-- The Objective-C JavaScriptCore API is still off (`JSC_OBJC_API_ENABLED` 0,
-  `SourcesTiger.txt`). Those classes declare instance variables inside
-  `@implementation`, which the fragile runtime forbids. `NSMapTable` now exists,
-  so restoring it is mechanical: move each class's ivars into its `@interface`.
-- `ENABLE_REMOTE_INSPECTOR` is off.
-- CoreGraphics is gated out of WTF, which has to be undone for WebCore once
-  `<TigerCompat/CGCompat.h>` stops reaching the ApplicationServices umbrella.
+So ICU is fully live, including collation and locale-sensitive casing, not just
+the basic string paths.
+
+### Timing, C loop interpreter, 2.2 GHz Core 2 Duo
+
+| Benchmark | Time |
+|---|---|
+| 3,000,000-iteration arithmetic loop | 1753 ms |
+| `fib(25)` | 135 ms |
+| Building a 400 KB string, 50000 concatenations | 67 ms |
+
+About 1.7 million loop iterations per second. That is the C loop with no JIT, so
+it is the floor rather than a ceiling, and it is entirely usable for a browser's
+scripting.
+
+### Still off
+
+- The Objective-C JavaScriptCore API (`JSC_OBJC_API_ENABLED` 0,
+  `SourcesTiger.txt`) and `ENABLE_REMOTE_INSPECTOR`. The patched clang now
+  permits instance variables in `@implementation` on the fragile ABI, so the
+  reason for the first is gone; revisit at WebKitLegacy, which needs
+  `-[WebFrame javaScriptContext]`.
+- `WEBKIT_OBJC_ARC_OPTIONS` still uses the `-Xclang -fobjc-arc` form. The
+  patched clang accepts the plain driver flag now, which would also turn on
+  `-fobjc-arc-exceptions` for ObjC++. Not changed mid-session; worth doing when
+  there is a reason to rebuild everything anyway.
 - `jsc` prints `_NSAutoreleaseNoPool` warnings at startup. Cosmetic, but those
-  objects do leak.
-- `aligned_alloc` over-allocates by a full alignment, so every 16 KB MarkedBlock
-  costs 32 KB of address space. Fine at this scale; if it ever matters, the fix
-  is a VM-backed allocator with its own free list rather than malloc.
+  objects leak.

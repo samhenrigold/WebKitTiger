@@ -1576,6 +1576,18 @@ const CGFloat kCTFontWidthExtraExpanded = 0.3f;
 /* disassembly they came from are in CT-SURVEY.md.                           */
 /* ======================================================================== */
 
+/* Twelfth adapter. Tiger takes no orientation here either, which Apple's own
+ * TRANSITIONAL export list in 9A241 flags: CTFontGetSideBearingsForGlyphs is on
+ * it, alongside the advances and bounding-rects calls already adapted below.
+ * Nothing in WebCore calls it today, so this is a latent trap being closed. */
+void TigerCTFontGetSideBearingsForGlyphs(CTFontRef font, CTFontOrientation orientation,
+    const CGGlyph glyphs[], CGFloat sideBearings[], CFIndex count)
+{
+    (void)orientation;
+    if (font && count > 0)
+        CTFontGetSideBearingsForGlyphs(font, glyphs, sideBearings, count);
+}
+
 CFDataRef TigerCTFontCopyTable(CTFontRef font, CTFontTableTag tag, CTFontTableOptions options)
 {
     CFStringRef name;
