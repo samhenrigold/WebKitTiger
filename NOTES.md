@@ -1040,3 +1040,8 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   remap brief now "run the probe first, remap only what it reports" (wkcmake already forces neutral encoding for the
   three divergent types).
 - ffmpeg x86_64 install lives in toolchain/sysroot-x86_64/usr, intact (h264 + vp9 decoders present, msebench relinks).
+- 2026-09-21 03:09 BUDGET CUT (user): only the critical path keeps running: jsc64 (N0 gate), wkcmake (OptionsTiger64 +
+  GPU config), wcplan (wire-flag probe), objcrt (coder remap), ctcompat (font cascade). Told to commit-as-is and stop:
+  nscompat (pixel compare), cahost (scene applier), browsershell (native menus), media64 (MSE scanner), leopard
+  (debug64.md), ld64fix (fresh-clone check), remirror. Finished tracks stopped. Deferred work is listed in
+  logs/n1-briefs.md and the per-track READMEs.
