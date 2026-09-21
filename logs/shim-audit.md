@@ -739,7 +739,56 @@ verified against the disassembly rather than guessed, since the 10.4u SDK does n
 The consequence: anywhere WebCore picks `Low` or `Medium` to trade quality for speed, Tiger gives
 it `High`.
 
-### Remaining behavioural targets
+### The rest of the list, diffed against modern CoreGraphics
 
-`CGPatternCreateWithImage2`'s tiling argument, where `kCGPatternTilingConstantSpacing` is what
-WebCore passes most, and `CGContextBeginTransparencyLayer` under a non-identity CTM.
+`spike/cgbehaviour.c`, runner `spike/run-cgbehaviour.sh`. This one builds and runs on **both**
+Tiger and the host Mac, printing the same `KEY=value` lines, so modern CG is the reference and the
+result is a diff rather than a judgement about what Tiger ought to do. That paid for itself twice
+before it found anything: the host run showed my first transparency-layer test measuring nothing,
+because grouping only shows against a *global* alpha and I had set a per-fill alpha; and it exposed
+a y-axis mistake that made every point sample read an empty pixel **on both platforms**, which
+reads as agreement rather than as a bug.
+
+| Checked | Verdict |
+|---|---|
+| `CGPatternCreate` tiling argument | matches modern |
+| `CGPatternCreateWithImage2` tiling argument | matches modern |
+| `CGContextBeginTransparencyLayer` under scaled / rotated / composed CTM | matches modern |
+| `CGContextSetLineDash` phase, and clearing the dash | matches modern |
+| `CGContextClipToRects` | matches modern |
+| `CGImageCreateWithMaskingColors` | matches modern |
+| `CGContextSetShadowWithColor` across blur 0..32 | **differs: blur saturates** |
+| `CGContextDrawTiledImage` (cgcompat's shim) | **bug: seams** |
+
+**Pattern tiling is honoured.** `kCGPatternTilingNoDistortion` renders differently from the two
+constant-spacing modes on *both* platforms, and the two spacing modes agree with each other on
+both, so the argument is not being dropped. `kCGPatternTilingConstantSpacing`, which is what
+WebCore passes at `PatternCG.cpp:77` and `GraphicsContextCG.cpp:530`, behaves as on modern.
+
+**Transparency layers group correctly under a non-identity CTM.** Scaled, rotated and composed
+transforms all show the same layer-versus-no-layer alpha drop as modern, within 0.05%.
+
+**Shadows: a stable ratio, but the blur saturates.** Tiger carries 91.7% of modern's total shadow
+ink, and that ratio holds from 0.905 to 0.949 across blur 0 to 32 — stable enough that a uniform
+alpha correction would fix it. It should not be shipped, because total ink is not what is visibly
+wrong. Up to blur 6 the geometry matches and the peak is 255 on both, so the 8% is edge
+antialiasing and nearly invisible. From blur 8 up Tiger stops spreading: at blur 32 it covers 54%
+of the area at 3.3 times the peak alpha. Those shadows are already too dark and too tight, and
+scaling alpha would make them worse.
+
+| blur | ink ratio | area ratio | peak Tiger/host |
+|---|---|---|---|
+| 0 | 0.911 | 0.911 | 255 / 255 |
+| 6 | 0.914 | 0.912 | 255 / 255 |
+| 8 | 0.919 | 1.005 | 243 / 247 |
+| 16 | 0.916 | 0.698 | 195 / 128 |
+| 32 | 0.949 | 0.543 | 134 / 41 |
+
+**`CGContextDrawTiledImage` seams — a bug in the shim.** Tiger does not export the function at all,
+so this is `cgcompat.c`'s draw loop. It covers exactly the right pixels in every clip tested, but a
+fractional tile origin loses about 6% of the alpha to seams between tiles, where the real function
+stays fully opaque. An integer-aligned origin gives exactly `inked * 255`, which proves the cause
+is fractional destination rects antialiasing against each other rather than anything about the
+clip. `GraphicsContextCG.cpp:517` passes a `FloatRect` straight from layout, so this fires on any
+repeated background. The remedy is to round each tile's destination rect to the pixel lattice, or
+to disable antialiasing around the loop.
