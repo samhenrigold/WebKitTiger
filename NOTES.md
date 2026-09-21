@@ -2353,3 +2353,61 @@ properly, because every UI-process screenshot from here on needs it.
   `build.ninja`, so it is the list the build actually uses) → **all 20 generated files byte-identical
   between the two trees**, not merely identical below the include block. That is a stronger result
   than tiger-check-ipc asks for.
+
+### 2026-09-21 — form controls: what the web process does today, and the path to Aqua (wk2web, finding only)
+
+**What happens today, confirmed by the PNG.** The input's inset border and the select's dropdown
+arrow in spike/wk2web/tiger-page.png are *Adwaita pixels, drawn in the 64-bit web process*.
+The chain is: `RenderThemeAdwaita` builds a `ControlPart`, hands it to
+`GraphicsContext::drawControlPart`, and the base implementation in GraphicsContext.cpp is one line —
+`part.draw(*this, ...)` — which asks `ControlFactory::create()` for a platform control.
+`platform/graphics/adwaita/ControlFactoryAdwaita.cpp` supplies that on this port, so a
+`ControlAdwaita` paints itself into the cairo ShareableBitmap. Two things are wrong with it for this
+product: the controls look like GNOME, and the *metrics* are Adwaita's, so the layout boxes
+(`RenderTextControl` 171x22, `RenderMenuList` 72x28) are already the wrong size for Aqua before
+anything is drawn.
+
+**The remoting we want already exists upstream, and we are not using it.**
+`RemoteGraphicsContextProxy::drawControlPart` overrides the base and sends
+`RemoteGraphicsContext::DrawControlPart(Ref<WebCore::ControlPart>, FloatRoundedRect borderRect,
+float deviceScaleFactor, ControlStyle)` — a serialized *part*, not pixels. `WebCore::ControlPart` is
+already a wire type: `Shared/WebCoreArgumentCoders.serialization.in` declares it `[RefCounted,
+AdditionalEncoder=StreamConnectionEncoder]` with sixteen subclasses (ButtonPart, MenuListPart,
+TextFieldPart, SliderThumbPart, ToggleButtonPart, …). On the far side
+`RemoteGraphicsContext::drawControlPart` replays it into a real context, where the receiving
+process's own `ControlFactory::create()` decides what it looks like.
+
+So the design the port wants is the one upstream ships. Nothing needs inventing.
+
+**The shortest path, in the order it has to happen:**
+
+1. **Nothing in the web process.** The moment DOM rendering is remote, the web side records into a
+   `RemoteGraphicsContextProxy` instead of a cairo context and `drawControlPart` becomes a wire item
+   by itself. `UseGPUProcessForDOMRenderingEnabled` is *already* the default under
+   USE(GRAPHICS_LAYER_WC) (`defaultUseGPUProcessForDOMRenderingEnabled()`); pagedriver explicitly
+   turns it OFF, and that is the only reason we get local pixels at all.
+2. **A `ControlFactoryTiger` on the i386 side** returning NSCell-backed controls. This is the real
+   work and it is gpu32b's: `ControlFactoryMac` is not in this sparse checkout, and upstream's is
+   written against 10.10+ AppKit, so it is a fresh file over 10.4's `NSButtonCell`,
+   `NSPopUpButtonCell`, `NSTextFieldCell`, `NSSliderCell` and `NSProgressIndicator`. Each
+   `*Part::draw` maps to one `drawWithFrame:inView:`. Sixteen parts, of which a browser needs about
+   eight.
+3. **The RenderTheme on the web side keeps emitting parts and stops being Adwaita for metrics.**
+   Emission already works — `RenderThemeAdwaita` is a ControlPart-emitting theme, which is why it was
+   chosen. What has to change is the *sizes*: `RenderTheme::adjustStyle` and the various
+   `*Size`/`*Margin` overrides need Aqua's numbers, or every control is laid out to GNOME dimensions
+   and then drawn as a Mac control into a box of the wrong size. Cheapest honest version is a
+   `RenderThemeTiger : RenderThemeAdwaita` that overrides only the metric functions with the values
+   measured from 10.4's NSCells (a table, not code) — the ctcompat track already has the machinery
+   to measure them on the box.
+
+**Ordering constraint, and it is the whole reason not to start now.** Step 1 is a one-line
+preference change, but it takes the web process off the local-raster path entirely: no ShareableBitmap
+comes back, the whole page becomes display-list items, and there is nothing to assert against until
+gpu32b's `RemoteGraphicsContext` replayer runs on the i386 side. So pagedriver's pixel assertions and
+this whole gate stop working the moment we flip it. The order has to be: gpu32b's replayer lands and
+can draw a display list to a CGContext → then flip the preference → the ControlParts arrive for free
+→ then `ControlFactoryTiger` turns them from generic into Aqua → then the metrics table.
+
+**Not implemented, deliberately.** Recorded here so the sequencing is written down before anyone
+flips the preference and wonders why the page went blank.
