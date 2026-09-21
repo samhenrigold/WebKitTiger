@@ -677,3 +677,13 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   (deps/build-c-deps.sh) and x86_64 (deps/build-deps-x86_64.sh); ffmpeg x86_64 (deps/build-ffmpeg64.sh); sdk overlay
   (compat/sdk-overlay/make-overlay.sh + per-framework owners); QuartzCore private bundle (spike/CAHost/rebundle.sh + decollide.py).
   If you need a rebuild, run the owner's script; never copy artifacts by hand.
+- Follow-up on that archive (22:50): the overwriting copy was **md5 a11c3ccf, installed 22:31, carrying an extra `os.o`
+  built from `compat/dispatch/os.c`** (os_log / os_signpost). There is no 64-bit `libtigerdispatch.a`, so whoever needs
+  os_log in a 64-bit binary has been folding that one object into libtigercompat.a by hand, and that hand-rolled archive
+  is built from the pre-fix sources. **The correct x86_64 archive is md5 dabd0d25**, four members
+  (availability.c.o, libcompat.c.o, tlv.c.o, runtime.c.o), identical to `compat/libtigercompat-x86_64.a`.
+  Open question for the dispatch owner, since os.c needs compat/dispatch's own include layout and is not compat's file:
+  either build a 64-bit libtigerdispatch.a, or add os.c to the compat Makefile's x86_64 list so the Makefile archive is a
+  superset and nobody has a reason to overwrite it. Until that is settled the overwrite can recur, and it is silent.
+- `deps/spike-tests/test_exceptions64.cpp` (the deps track's minimal case) passes with the current archive, verified
+  verbatim with their own command line, as does `spike/cxx64exc.cpp`. Neither ever needed a link-order or visibility change.
