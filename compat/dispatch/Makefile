@@ -1,37 +1,32 @@
 # libtigerdispatch.a: libdispatch + os_log/os_lock polyfill for Mac OS X 10.4.
-# ARCH=i386 (default): the whole thing, dispatch.c + os.c, into obj/ and sysroot-i386.
-# ARCH=x86_64:         os.c only, into obj-x86_64/ and sysroot-x86_64. See below.
+# i386 only. This archive owns os.c on i386.
 #
-# Why 64-bit is os.c only: Tiger ships no x86_64 CoreFoundation (libSystem is the
-# only 64-bit library on the box), and dispatch.c needs CFRunLoop to deliver the
-# main queue. Its CF headers do not even parse at -target x86_64 -- CarbonCore's
-# MacTypes.h opens with `#pragma options align=mac68k`. os.c has no CF dependency:
-# it is pthread, mach and stdio, so os_log, os_unfair_lock, os_signpost and
-# sys/qos are all available to a 64-bit process.
+# THE 64-BIT HOME OF os.c IS compat's ARCHIVE, NOT THIS ONE.
+# `make -C compat ARCH=x86_64 install` compiles os.c (with this directory's include
+# tree) into the 64-bit libtigercompat.a and stages the os/ and sys/ headers. Link
+# -ltigercompat for os_log / os_unfair_lock / os_signpost / qos in a 64-bit binary.
+# Do not add an ARCH=x86_64 target back here: two archives carrying os.o is exactly
+# what sent people hand-building libtigercompat.a and reinstating a broken
+# _dyld_find_unwind_sections.
 #
-# The 64-bit build therefore installs the os/ and sys/ headers but NOT dispatch/.
-# That is deliberate: a 64-bit TU that includes <dispatch/dispatch.h> should fail
-# at the #include with "file not found" rather than compile and then die at link
-# time on undefined dispatch_* symbols.
+# dispatch.c cannot go 64-bit at all, whoever builds it: Tiger ships no x86_64
+# CoreFoundation (libSystem is the only 64-bit library on the box) and the main
+# queue needs CFRunLoop. Its CF headers do not even parse at -target x86_64 --
+# CarbonCore's MacTypes.h opens with `#pragma options align=mac68k`. So a 64-bit
+# process gets the os_* surface and no dispatch queues, which is what the 64-bit
+# web process needs (PlayStation-style WTF).
 WKT := /Users/shg/Developer/WebKitTiger
-ARCH ?= i386
+ARCH := i386
 AR := $(WKT)/toolchain/bin/tiger-ar
 PREFIX := $(WKT)/toolchain/sysroot-$(ARCH)/usr
 CFLAGS := -O2 -g -std=gnu99 -fblocks -Wall -Wextra -Wno-unused-parameter -I include -I ../BlocksRuntime
 
-ifeq ($(ARCH),i386)
 CC := $(WKT)/toolchain/bin/tiger-clang
 OBJDIR := obj
 SRCS := dispatch.c os.c
 HDRS := dispatch os sys
-else
-CC := $(WKT)/toolchain/bin/tiger-clang$(subst x86_,,$(ARCH))
-OBJDIR := obj-$(ARCH)
-SRCS := os.c
-HDRS := os sys
-endif
 
-LIB := libtigerdispatch$(if $(filter i386,$(ARCH)),,-$(ARCH)).a
+LIB := libtigerdispatch.a
 OBJS := $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
 DEPS := $(OBJS:.o=.d)
 DEPFLAGS = -MMD -MP -MF $(@:.o=.d)
@@ -51,7 +46,7 @@ install: $(LIB)
 	mkdir -p $(PREFIX)/lib $(PREFIX)/include
 	cp $(LIB) $(PREFIX)/lib/libtigerdispatch.a
 	for d in $(HDRS); do mkdir -p $(PREFIX)/include/$$d && cp -R include/$$d/. $(PREFIX)/include/$$d/; done
-	@$(MAKE) --no-print-directory ARCH=$(ARCH) check
+	@$(MAKE) --no-print-directory check
 
 # The staged headers are what every consumer actually gets, since the compiler
 # wrappers pass -I$(PREFIX)/include ahead of any -isystem a caller adds. Check
@@ -61,7 +56,7 @@ check:
 	  > $(OBJDIR)/hdrcheck.c
 	@printf '#include <os/log.h>\n#include <os/lock.h>\n#include <os/signpost.h>\n#include <sys/qos.h>\n' \
 	  | cat - $(OBJDIR)/hdrcheck.c > $(OBJDIR)/hdrcheck2.c && mv $(OBJDIR)/hdrcheck2.c $(OBJDIR)/hdrcheck.c
-	@$(CC) -fsyntax-only -Wall -Werror $(OBJDIR)/hdrcheck.c && echo "staged $(ARCH) headers compile"
+	@$(CC) -fsyntax-only -Wall -Werror $(OBJDIR)/hdrcheck.c && echo "staged headers compile"
 
 clean:
 	rm -rf $(OBJDIR) $(LIB)

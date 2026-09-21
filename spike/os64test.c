@@ -1,7 +1,8 @@
 /* os64test -- the x86_64 half of the os_* polyfill, on Tiger's 64-bit libSystem.
- * Tiger ships no 64-bit CoreFoundation, so libtigerdispatch's x86_64 build is os.c
- * alone: os_log, os_unfair_lock, os_signpost and sys/qos, but no dispatch. Build:
- *   toolchain/bin/tiger-clang64 -O1 -g spike/os64test.c -o build/os64test -ltigerdispatch
+ * Tiger ships no 64-bit CoreFoundation, so a 64-bit process gets the os_* surface
+ * and no dispatch queues. os.c's 64-bit home is compat's archive, not
+ * libtigerdispatch: `make -C compat ARCH=x86_64 install` compiles it in. Build:
+ *   toolchain/bin/tiger-clang64 -O1 -g spike/os64test.c -o build/os64test -ltigercompat
  * Run on the box; prints PASS lines and exits 0.
  */
 #include <os/log.h>
