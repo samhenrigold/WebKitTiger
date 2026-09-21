@@ -735,3 +735,17 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   fixed. Both builds must run to catch every offender (ptrdiff_t is int on i386).
 - 64-bit os_log/os_unfair_lock/os_signpost: single home = libtigercompat.a (ARCH=x86_64 superset); no 64-bit libtigerdispatch
   (dispatch queues need CFRunLoop; the web process uses WTF's generic RunLoop/WorkQueue).
+- **Superseded within the hour (23:05): os.c is NOT in the compat archive; link `-ltigerdispatch` instead.** The dispatch
+  track built a 64-bit libtigerdispatch.a (`make -C compat/dispatch ARCH=x86_64 install`), which is the better answer and
+  removes the reason anyone hand-rolled a compat archive, so the os.c addition above was reverted. The x86_64
+  libtigercompat.a is back to its four members (availability.c.o, libcompat.c.o, tlv.c.o, runtime.c.o) and compat no
+  longer stages dispatch's headers: its 64-bit install deliberately omits `dispatch/` so a 64-bit TU including
+  `<dispatch/dispatch.h>` fails at the include rather than at link time, and compat must not put it back.
+  64-bit os_log/os_unfair_lock/os_signpost: `-ltigerdispatch`. dispatch_* does not exist in 64-bit and cannot, since
+  Tiger has no x86_64 CoreFoundation and the main queue needs CFRunLoop.
+- **Retraction: do not identify these archives by md5.** `ar` stores each member's mtime, so two archives built from
+  byte-identical objects have different checksums; I verified that directly (same four member objects, `cmp`-identical,
+  two different archive md5s). I had told the deps track to check for md5 dabd0d25, which was wrong advice. The real
+  check is behavioural: run `spike/run64.sh spike/cxx64exc.cpp spike/throwlib.cpp`, or call
+  `_dyld_find_unwind_sections` on `&main` from a 64-bit C program, where 1 with non-null section pointers is good and
+  0 is a compat archive built from pre-fix sources.
