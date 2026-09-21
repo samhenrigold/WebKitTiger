@@ -386,3 +386,7 @@ one triage pass before it was noticed. See the triage table at the end of
 - Reboots clear the box's /tmp: redeploy test binaries and the 9A241 oracle rig after any reboot ("missing" != "differs").
 - JS reality check: Safari 4.1.3's WebKit (533.19.4, i386 JIT) runs TigerBrowser's 2M-iteration loop in ~59 ms; our C-loop jsc
   takes 2.24 s (~38x slower). The 2007 non-JIT WebKit took 5.3 s. HTTPS still fails through the system stack after the update.
+- QTVideoRendererWebKitOnly on 7.6.4 (spike/qtrenderertest.m): works; 320x240 decodes in real time (15/15 fps, drawInRect ~35 ms);
+  720p software decode manages ~2 fps (drawInRect 220-390 ms). Its notification constant is exported but undeclared in the SDK:
+  dlsym it (WebKit's SOFT_LINK does the same). For HD: QuickTime's OpenGL visual-context path (QTOpenGLTextureContextCreate /
+  setVisualContext:, exported in 7.6.4) into the CARenderer host, or downscale.
