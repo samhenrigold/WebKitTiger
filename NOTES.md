@@ -444,3 +444,28 @@ one triage pass before it was noticed. See the triage table at the end of
   (Component Manager API on Tiger; no CoreAudio/AudioUnit/AudioToolbox x86_64 slices exist). 0 underruns, ~12 ms steady latency,
   <4% CPU. RULE for any 32/64-bit shared struct: 4-byte fields only (i386 ABI 4-byte-aligns 8-byte fields; x86_64 8-byte-aligns
   them); split 64-bit values into two uint32_t; verify sizeof/offsetof from both compilers (spike/audiobridge/ringlayouttest.c).
+
+## x86_64 linking fixed (2026-09-20 22:25, ctcompat/ld64 track) — 64-bit links work, no on-box linker needed
+- **Root cause of the x86_64 link crash** (`Assertion failed: (targetAtom != NULL) ... ld.hpp, line 914` in
+  `stubs::x86_64::classic::StubHelperAtom`): in `ld64/src/ld/passes/stubs/stubs.cpp`, both x86_64 *classic* stub
+  call sites passed `stubToGlobalWeakDef` as the constructor's **third** argument, which is `forLazyDylib`
+  (see `stub_x86_64_classic.hpp`; the i386 classic call site right above passes `forLazyDylib` correctly).
+  So any target that is a global weak def selected `internal()->lazyBindingHelper`, which is only ever set for
+  `-lazy_library` and is otherwise NULL, and the `ld::Fixup` constructor asserted. Nothing to do with CIE
+  personalities: frames 1 and 2 of that backtrace are misattributed cold-section symbols.
+  Deployment targets < 10.6 take the classic (non-`dyld_stub_binder`) path, so this hit **every** x86_64 link at 10.4
+  whose input pulled in a weak def. libcrypto.a does, which is why it looked libcrypto-specific.
+- Fix: `toolchain/patches/cctools-ld64-x86_64-classic-stubs.patch` (2 lines + a comment), applied and installed in
+  `toolchain/cctools/bin/i386-apple-darwin8-ld`. i386 is untouched (spike/{exctest.mm,hello.mm,fstest.cpp} still pass).
+- **Use `toolchain/bin/tiger-clang64{,++}` as-is for all 64-bit work.** No on-box `ld64` fallback wrapper was written;
+  the cross linker is correct now. (If one is ever needed, Xcode 2.5's `/usr/bin/ld64` is on the box.)
+- Second bug found while verifying: `_dyld_find_unwind_sections` in compat/libcompat.c used `struct section` /
+  `getsectbynamefromheader`, i.e. the **32-bit** Mach-O accessors, so in a 64-bit image it read garbage section
+  addresses and every C++ throw hit `libc++abi: terminating due to uncaught exception`. Now switched on `__LP64__`
+  to `section_64` / `getsectbynamefromheader_64`. **C++ exceptions now work in 64-bit binaries on the box**
+  (throw across a function, catch by type, and `catch(int)`); `toolchain/sysroot-x86_64/usr/lib/libtigercompat.a`
+  was rebuilt (it holds availability.o, libcompat.o, tlv.o; there is still no script for it, build it with
+  tiger-clang64 and the compat Makefile's CFLAGS).
+- Link line that works for 64-bit C++: `tiger-clang64++ -nostdinc++ -isystem toolchain/sysroot-x86_64/usr/include/c++/v1
+  -stdlib=libc++ -lc++ -lc++abi -lunwind -ltigercompat` (libtigercompat supplies `_dyld_find_unwind_sections` and
+  `posix_memalign`, both of which libc++abi/libunwind need and Tiger lacks).

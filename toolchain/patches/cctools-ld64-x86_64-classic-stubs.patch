@@ -1,0 +1,26 @@
+diff --git a/cctools/ld64/src/ld/passes/stubs/stubs.cpp b/cctools/ld64/src/ld/passes/stubs/stubs.cpp
+index 82ba103..f5360f6 100644
+--- a/cctools/ld64/src/ld/passes/stubs/stubs.cpp
++++ b/cctools/ld64/src/ld/passes/stubs/stubs.cpp
+@@ -230,14 +230,19 @@ ld::Atom* Pass::makeStub(const ld::Atom& target, bool weakImport)
+ 			}
+ 			else if ( usingCompressedLINKEDIT() ) {
+ 				if ( forLazyDylib )
+-					return new ld::passes::stubs::x86_64::classic::StubAtom(*this, target, stubToGlobalWeakDef, weakImport);
++					return new ld::passes::stubs::x86_64::classic::StubAtom(*this, target, forLazyDylib, weakImport);
+ 				else if ( _options.noLazyBinding() && !stubToResolver )
+ 					return new ld::passes::stubs::x86_64::NonLazyStubAtom(*this, target, weakImport);
+ 				else
+ 					return new ld::passes::stubs::x86_64::StubAtom(*this, target, stubToGlobalWeakDef, stubToResolver, weakImport, usingDataConst);
+ 			}
+ 			else
+-				return new ld::passes::stubs::x86_64::classic::StubAtom(*this, target, stubToGlobalWeakDef, weakImport);
++				// TIGER: the classic x86_64 StubAtom's 3rd parameter is forLazyDylib, not
++				// stubToGlobalWeakDef (cf. the i386 classic call above and stub_x86_64_classic.hpp).
++				// Passing the weak-def flag made a weak-def target select internal()->lazyBindingHelper,
++				// which is only ever set for -lazy_library and is otherwise NULL, so the ld::Fixup
++				// constructor asserted (targetAtom != NULL). Hit by any x86_64 link below 10.6.
++				return new ld::passes::stubs::x86_64::classic::StubAtom(*this, target, forLazyDylib, weakImport);
+ 			break;
+ #endif
+ #if SUPPORT_ARCH_arm_any

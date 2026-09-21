@@ -429,22 +429,32 @@ struct dyld_unwind_sections {
     const void *dwarf_section; uintptr_t dwarf_section_length;
     const void *compact_unwind_section; uintptr_t compact_unwind_section_length;
 };
+#ifdef __LP64__
+/* 64-bit images carry section_64 records; the 32-bit accessor reads garbage addresses. */
+#define tc_section          section_64
+#define tc_getsectbyname    getsectbynamefromheader_64
+#define tc_mach_header      mach_header_64
+#else
+#define tc_section          section
+#define tc_getsectbyname    getsectbynamefromheader
+#define tc_mach_header      mach_header
+#endif
 _Bool _dyld_find_unwind_sections(void *addr, struct dyld_unwind_sections *info)
 {
     uint32_t count = _dyld_image_count();
     for (uint32_t i = 0; i < count; ++i) {
-        const struct mach_header *mh = _dyld_get_image_header(i);
+        const struct tc_mach_header *mh = (const struct tc_mach_header *)_dyld_get_image_header(i);
         intptr_t slide = _dyld_get_image_vmaddr_slide(i);
-        const struct section *text = getsectbynamefromheader(mh, "__TEXT", "__text");
+        const struct tc_section *text = tc_getsectbyname(mh, "__TEXT", "__text");
         if (!text) continue;
-        uintptr_t start = text->addr + slide, end = start + text->size;
+        uintptr_t start = (uintptr_t)text->addr + slide, end = start + (uintptr_t)text->size;
         if ((uintptr_t)addr < start || (uintptr_t)addr >= end) continue;
         unsigned long len = 0;
-        const struct section *s = getsectbynamefromheader(mh, "__TEXT", "__eh_frame");
-        info->mh = mh;
-        info->dwarf_section = s ? (const void*)(s->addr + slide) : NULL; info->dwarf_section_length = s ? s->size : 0;
-        s = getsectbynamefromheader(mh, "__TEXT", "__unwind_info");
-        info->compact_unwind_section = s ? (const void*)(s->addr + slide) : NULL; info->compact_unwind_section_length = s ? s->size : 0;
+        const struct tc_section *s = tc_getsectbyname(mh, "__TEXT", "__eh_frame");
+        info->mh = (const struct mach_header *)mh;
+        info->dwarf_section = s ? (const void*)((uintptr_t)s->addr + slide) : NULL; info->dwarf_section_length = s ? (uintptr_t)s->size : 0;
+        s = tc_getsectbyname(mh, "__TEXT", "__unwind_info");
+        info->compact_unwind_section = s ? (const void*)((uintptr_t)s->addr + slide) : NULL; info->compact_unwind_section_length = s ? (uintptr_t)s->size : 0;
         (void)len;
         return 1;
     }
