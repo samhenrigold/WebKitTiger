@@ -2007,3 +2007,59 @@ moment the archive lands.
   SOCK_DGRAM has no end-of-stream at all, so on Tiger a zero-length read is a zero-length DATAGRAM and
   means "keep draining". Every other port keeps the close. Four log lines on the box found it in one
   run; it is invisible from reading, and it is exactly what the probe existed to avoid.
+
+### 2026-09-21 — a page loads, lays out and does not paint (wk2web)
+
+- **spike/wk2web/pagedriver.cpp** wears three hats and none well, which is the point: UI process to the
+  network process, UI process to the web process, and — on the socket the web process makes for one —
+  the GPU process. No WebPageProxy, no PageClient, no view. Built by the same `netdriver`/`pagedriver`
+  foreach in Source/WebKit/PlatformTiger.cmake.
+- **WHAT WORKS, on the box, end to end:** both processes launch; the web process gets its network
+  connection through `WebProcessProxy::GetNetworkProcessConnection` (answered from a connection made
+  up front, so the sync reply is not a nested conversation); `CreateWebPage` with an 800x600 view;
+  `LoadRequest`; the load runs to **DidFinishLoadForFrame at 249-310 ms**; DrawingAreaWC hands back
+  real 800x600 `ShareableBitmap`s over `DrawingAreaProxy::Update`, which the driver maps and writes to
+  PNG. Web process RSS after the load **39.9 MB**, network process 21.6 MB.
+- **AND THE RENDER TREE IS RIGHT** (spike/wk2web/page-rendertree.txt, dumped with TIGER_RENDER_TREE):
+
+      RenderBlock {H1} at (0,0) size 760x33 [color=#103A70]
+        text run at (0,0) width 202: "Tiger WebKit2"
+      RenderBlock {DIV} at (0,103) size 344x145 [color=#FFFFFF] [bgcolor=#C83232]
+      RenderTextControl {INPUT} at (0,3) size 171x22 [border: (2px inset #808080)]
+      RenderMenuList {SELECT} at (176,0) size 72x28 [border: (1px solid #000000)]
+
+  Style resolution, layout, the form controls and **the whole tiger64 font stack** are correct:
+  those text-run widths are real measured advances from the manifest at ~/tiger-fonts.json. This is
+  the first evidence the font work holds up inside a real page.
+- **WHAT DOES NOT WORK: nothing reaches the bitmap.** The PNG (spike/wk2web/tiger-page.png, 800x600
+  RGBA) is blank. Narrowed, on the box, to one call:
+    * the graphics context is real and not disabled — a `fillRect` from the drawing area lands
+    * `GraphicsContext::clip` works — a `fillRect` inside a clip lands too, so it is not the clip
+      `WebPage::drawRect` takes before painting
+    * `ScrollView::paint` runs with `documentDirtyRect` = 800x600
+    * `LocalFrameView::paintContents` runs: `inPaintableState=1 needsLayout=0 transparent=0
+      baseBg=#FFFFFF`
+    * `rootLayer->paint(...)` is therefore called with everything correct, and draws nothing — not
+      even the opaque white base background.
+  So the bug is inside `RenderLayer::paintLayer` and below. That is the next thing to fix and it is
+  the only thing between this port and a picture.
+- One oddity to keep in view while chasing it: the frame view's **contentsSize stays 0x0** after a
+  layout that produced an 800x334 document, so `LocalFrameView::adjustViewSize` looks like it is not
+  running or not taking effect. It is not what blocks the paint (ScrollView::paint intersects against
+  the frame rect, which is right), but two symptoms with one cause is the way to bet.
+- **THREE MORE THINGS THE WEB PROCESS IS RIGHT TO REQUIRE**, after netdriver's three:
+  4. `WebPageProxy::DecidePolicyForNavigationActionAsync` must be answered or the load never leaves
+     the provisional state. It is `-> (PolicyDecision)` with no `Synchronous`, i.e. async-with-reply,
+     so it arrives on the ordinary message path, not `didReceiveSyncMessage`.
+  5. `WebPageProxy::DecidePolicyForResponse` must be answered too, or the body is never committed.
+  6. Every `DrawingAreaProxy::Update` must be answered with `DrawingArea::DisplayDidRefresh`, or
+     DrawingAreaWC sets `m_waitDidUpdate` and never paints again. There is no display refresh monitor
+     on this port — no CVDisplayLink, no frame clock — so the UI process is the clock.
+- **A REAL PORT BUG, fixed (f4682235):** 10.4's default AF_UNIX datagram buffer is 2048 bytes and
+  ConnectionUnix sends up to messageMaxSize (4096) inline, so every message over ~2 KB died with
+  EMSGSIZE and one line of log. Nothing hit it until `WebPageCreationParameters`, which is the first
+  message anybody sends that is that big — a network process doing HTTPS never gets near it. Now 64 KB
+  on both ends inside `IPC::createPlatformConnection`, which is where every socket pair in the port
+  comes from, including the one the web process makes for its own GPU connection.
+- -dead_strip did NOT bite: the web process ran a full load, parse, style, layout and font resolution
+  with JSC linked in and nothing was missing.

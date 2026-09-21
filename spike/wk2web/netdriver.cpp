@@ -30,6 +30,7 @@
 #include "config.h"
 
 #include "Connection.h"
+#include "IPCUtilities.h"
 #include "NetworkConnectionToWebProcessMessages.h"
 #include "NetworkProcessConnectionParameters.h"
 #include "NetworkProcessCreationParameters.h"
@@ -165,16 +166,14 @@ int main(int argc, char** argv)
     // --- The launcher half of ProcessLauncherTiger, by hand. ------------------
     // SOCK_DGRAM because that is what ConnectionUnix's SOCKET_TYPE is on Darwin,
     // and close-on-exec on the end we keep so only the child's end survives.
-    int sockets[2];
-    if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sockets)) {
-        perror("socketpair");
-        return 1;
-    }
+    // Through IPC::createPlatformConnection, so the pair is set up exactly as
+    // ProcessLauncherTiger sets one up -- including the raised socket buffers.
+    auto socketPair = IPC::createPlatformConnection(SOCK_DGRAM, IPC::PlatformConnectionOptions::SetCloexecOnServer);
 
     char identifierString[24];
     snprintf(identifierString, sizeof identifierString, "1");
     char descriptorString[24];
-    snprintf(descriptorString, sizeof descriptorString, "%d", sockets[1]);
+    snprintf(descriptorString, sizeof descriptorString, "%d", socketPair.client.value());
 
     double launchedAt = monotonicMilliseconds();
     pid_t networkProcess = fork();
@@ -183,16 +182,15 @@ int main(int argc, char** argv)
         return 1;
     }
     if (!networkProcess) {
-        close(sockets[0]);
         char* childArgv[] = { const_cast<char*>(processPath), identifierString, descriptorString, nullptr };
         execve(processPath, childArgv, environ);
         _exit(127);
     }
-    close(sockets[1]);
+    socketPair.client = { };
 
     SilentClient uiSideClient;
     Ref<IPC::Connection> toNetworkProcess = IPC::Connection::createServerConnection(
-        IPC::Connection::Identifier { UnixFileDescriptor { sockets[0], UnixFileDescriptor::Adopt } });
+        IPC::Connection::Identifier { WTF::move(socketPair.server) });
     if (!toNetworkProcess->open(uiSideClient)) {
         fprintf(stderr, "netdriver: could not open the connection\n");
         return 1;
