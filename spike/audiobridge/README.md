@@ -59,10 +59,22 @@ processes know the ring's name up front.)
 ## Build
 
 ```
-tiger-clang64 -O2 -o build/producer64 spike/audiobridge/producer64.c
+tiger-clang64 -O2 -fno-asynchronous-unwind-tables -fno-unwind-tables \
+    -o build/producer64 spike/audiobridge/producer64.c
 tiger-clang   -O2 -o build/consumer32 spike/audiobridge/consumer32.c \
     -framework CoreAudio -framework AudioUnit -framework AudioToolbox -framework Carbon
 ```
+
+`-fno-asynchronous-unwind-tables -fno-unwind-tables` on the 64-bit build: a
+teammate flagged that cctools ld64 can crash (`Assertion failed:
+(targetAtom != NULL), ld.hpp:914`) linking x86_64 at a 10.4 target when
+objects carry EH personality references. `producer64.c` is plain C with no
+exceptions, and linked fine both with and without the flags in this spike --
+added them anyway once flagged, defensively, and re-verified on the box
+(rebuilt, redeployed, re-ran an 8s producer/consumer pair: still zero
+underruns, latency numbers unchanged within run-to-run noise). Didn't
+personally hit the ld64 crash, but the flags are free insurance for plain C
+with no downside here.
 
 ## Results (run on the box, 20-30s each)
 
