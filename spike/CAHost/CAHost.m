@@ -223,13 +223,11 @@ static void paintPage(CGContextRef ctx, CGRect dirty)
     [_viewport setAnchorPoint:CGPointMake(0, 0)];
     [_viewport setPosition:CGPointMake(0, 0)];
     [_viewport setBounds:CGRectMake(0, 0, b.size.width, b.size.height)];
-    [_viewport setMasksToBounds:getenv("CAHOST_NOMASK") ? NO : YES];
+    [_viewport setMasksToBounds:YES];
     // AppKit is top-left / y-down, CA is bottom-left / y-up. Flipping the
     // viewport's geometry makes every sublayer below it lay out in page
     // coordinates with y growing downward, which is what WebCore hands us.
-    if (getenv("CAHOST_NOFLIP"))
-        fprintf(stderr, "NOTE: geometryFlipped disabled\n");
-    else if ([_viewport respondsToSelector:@selector(setGeometryFlipped:)])
+    if ([_viewport respondsToSelector:@selector(setGeometryFlipped:)])
         [_viewport setGeometryFlipped:YES];
     else
         fprintf(stderr, "NOTE: no setGeometryFlipped:, flipping by hand\n");
@@ -290,37 +288,22 @@ static void paintPage(CGContextRef ctx, CGRect dirty)
     _spin = [[CALayer layer] retain];
     [_spin setName:@"spin"];
     [_spin setBounds:CGRectMake(0, 0, 120, 120)];
-    [_spin setPosition:CGPointMake(500, getenv("CAHOST_SPINTOP") ? 400 : 1900)];
+    [_spin setPosition:CGPointMake(500, 1900)];
     c = makeColor(0.95, 0.25, 0.35, 1);
     [_spin setBackgroundColor:c];
     CGColorRelease(c);
     [_spin setCornerRadius:12];
-    // Under a geometryFlipped ancestor the flip inverts the determinant, so a
-    // rotated layer presents its back face and CA 1.6 culls it. Tiger's CALayer
-    // defaults doubleSided to NO here; WebCore sets it explicitly anyway.
+    // Two things CA 1.6 needs that modern CA does not:
+    //  - doubleSided: the flip in a geometryFlipped ancestor inverts the
+    //    winding, so a rotated layer can present its back face.
+    //  - zPosition: siblings carrying a non-affine CATransform3D are depth
+    //    sorted, not painted in sublayer order. Half of a rotation's z range is
+    //    negative, so without a zPosition the layer renders *behind* its own
+    //    opaque siblings (the tiles) and looks like it vanished. GraphicsLayerCA
+    //    sets zPosition anyway; on Tiger it is mandatory.
     [_spin setDoubleSided:YES];
-    if (getenv("CAHOST_2D"))
-        ;
-    if (getenv("CAHOST_SPINROOT")) {
-        // Depth probe: same layer, same transform, but a direct child of the
-        // layer handed to CARenderer.
-        [_spin setPosition:CGPointMake(500, 240)];
-        [_viewport addSublayer:_spin];
-    } else if (getenv("CAHOST_NOTL")) {
-        [_page addSublayer:_spin];
-    } else {
-        // CA 1.6 drops a non-affine transform on a plain nested CALayer. Giving
-        // it a CATransformLayer parent (what GraphicsLayerCA does for
-        // preserves-3d) restores it.
-        CATransformLayer *tl = [CATransformLayer layer];
-        [tl setName:@"spin-3d"];
-        [tl setAnchorPoint:CGPointMake(0, 0)];
-        [tl setBounds:CGRectMake(0, 0, 200, 200)];
-        [tl setPosition:CGPointMake(400, getenv("CAHOST_SPINTOP") ? 300 : 1800)];
-        [_spin setPosition:CGPointMake(100, 100)];
-        [tl addSublayer:_spin];
-        [_page addSublayer:tl];
-    }
+    [_spin setZPosition:200];
+    [_page addSublayer:_spin];
 }
 
 // ---- manual tile grid
@@ -614,11 +597,9 @@ static void paintPage(CGContextRef ctx, CGRect dirty)
 
     CFTimeInterval now = CACurrentMediaTime();
 
-    if (!getenv("CAHOST_NO3D")) {
-        CATransform3D t = getenv("CAHOST_2D")
-            ? CATransform3DMakeRotation(now * 1.5, 0, 0, 1)
-            : CATransform3DMakeRotation(now * 1.5, 0.3, 1.0, 0.15);
-        t.m34 = getenv("CAHOST_M34") ? atof(getenv("CAHOST_M34")) : -1.0 / 600.0;
+    {
+        CATransform3D t = CATransform3DMakeRotation(now * 1.5, 0.3, 1.0, 0.15);
+        t.m34 = -1.0 / 600.0;
         [_spin setTransform:t];
     }
 
@@ -661,11 +642,6 @@ static void paintPage(CGContextRef ctx, CGRect dirty)
     }
 
     if (_frames >= 60) {
-        CALayer *pl = [_spin presentationLayer];
-        CATransform3D pt = pl ? [pl transform] : CATransform3DIdentity;
-        fprintf(stderr, "  spin pres=%p pos=(%.0f,%.0f) m11=%.3f m13=%.3f m34=%.5f\n",
-                pl, pl ? [pl position].x : -1, pl ? [pl position].y : -1,
-                pt.m11, pt.m13, pt.m34);
         fprintf(stderr,
                 "CA render %.2f ms + swap %.2f ms | painted %u tiles, %.2f ms/tile,"
                 " %d live | rss %.1f MB\n",
