@@ -572,6 +572,37 @@ agreeing to within a 64th of a point, and the definition it implies, that half t
 overshoot counts, is a sensible one rather than a curve fit. A font whose round glyphs do
 not overshoot gets the same answer either way, so the change cannot make one worse.
 
+A second controlled case has since turned up: **Courier has no OS/2 table on either
+Tiger or modern macOS**, so both sides have to compute the metric rather than read it.
+They agree to 0.04%, 9.395 against 9.391. That is the closest thing to a direct test of
+the rule, because it is the one font where modern CoreText is running the same fallback we
+are.
+
+### Why not Tiger's NSFont
+
+It is the obvious alternative and it looks good at one size, so the measurement is worth
+recording. For Helvetica at 16pt, `[NSFont capHeight]` gives 11.500 against modern's
+11.477, where this heuristic gives 11.633. Nearly seven times closer.
+
+It does not survive a size sweep. **Tiger's NSFont quantises to the same half-point grid
+as its CoreText**, because it is the same ATS measurement underneath: 7.0 at 9pt, 8.0 at
+both 10 and 11pt, 9.0 at 12pt, 73.0 at 100pt. Against modern Helvetica's declared
+`sCapHeight` of 1469/2048, that is 8.4% out at 9pt and 11.5% out at 10pt. The 16pt
+agreement is luck, the one size where the grid lands near the true value, and 16pt is
+where it was measured.
+
+So NSFont would reintroduce exactly the quantisation these adapters exist to remove, and
+at a larger worst-case error than Tiger's CoreText had. It would also put an AppKit
+dependency inside a CoreText compat library. Not taken.
+
+One methodological note, because the comparison is easy to set up wrongly. **Tiger's
+Helvetica is not modern macOS's Helvetica.** Tiger's has no usable OS/2 table at all,
+where modern's is version 3 with `sCapHeight` declared, and modern simply reads it:
+1469/2048 x 16 is 11.477 exactly. Comparing metrics for a font *name* across the two
+machines measures the difference between two font files as much as between two
+implementations. That is why `spike/ctprobe.c` ships its own font and hands identical
+bytes to both sides, and why Courier above is worth more than Helvetica.
+
 ### Three smaller behavioural divergences
 
 - `CTFontCopyAttribute` with `kCTFontSizeAttribute` answered NULL on Tiger at every size,
