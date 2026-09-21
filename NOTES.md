@@ -978,3 +978,7 @@ that was actually affected by their absence (only ICU, already fixed). No change
   image decoding, font metrics, stroke hit-testing, toDataURL; it may allocate pixels but never present them. Layer
   children arrive as wholesale replacement (maps to a sublayers assignment); CA runs animations itself; replicas have
   no CA equivalent.
+- Fifth offender fixed (objcrt f21725d4 on tiger-ipc-abi, spike 2115149): span coder requires isWireStableSpanElement;
+  {uint32;uint64} is 12 bytes on i386 vs 16 on x86_64, and a struct that merely NESTS it is 16 vs 24 (nothing in it is
+  8 bytes wide, so a field-type review passes it). Only the x86_64 build can detect it (i386 alignof reports 4 either
+  way): both builds must run, always.
