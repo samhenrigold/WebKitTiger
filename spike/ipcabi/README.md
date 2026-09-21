@@ -72,3 +72,47 @@ the same requirement `ptrdiff_t` imposes.
 
 The nested case is the one worth remembering: nothing declared in `NestsAMixedField` is 8 bytes
 wide, so a review that reads field types alone would pass it.
+
+## Audit of the hand-written coders
+
+The generated coders inherit the fixes; these are the hand-written paths.
+
+### Found and fixed
+
+| file:line | what | class | fix |
+|---|---|---|---|
+| `StreamConnectionEncoder.h:63` | a **second encoder** padding by `alignof(T)` | alignment | pad by `wireAlignmentOf` |
+| `StreamConnectionEncoder.h:60` | its `encodeSpan` bulk-copies `sizeof(T)` | element size | `isWireStableSpanElement` assert |
+| `StreamConnectionBuffer.h:101,108` | `enum ClientOffset : size_t` and `ServerOffset : size_t`, inside the `Header` **both processes map** | width | `uint32_t`, plus layout asserts |
+| `ArgumentCoders.h:125` | `ArrayReferenceTuple` calls `encoder.encodeSpan` directly, bypassing `ArgumentCoder<std::span<T>>` and its check | element size | assert on every element type |
+| `unix/ConnectionUnix.cpp:91` | `AttachmentInfo`, blitted raw onto the socket like `MessageInfo` | raw memcpy | `uint8_t` field, layout asserts |
+| `WTF/wtf/ArgumentCoder.h` | `long double` was banned by me on a false premise | my error | ban removed |
+
+The stream encoder is the important one. It is a wholly separate encoder from `IPC::Encoder`, with
+the same alignment bug, and its own comment already assumed a `uint64_t` lands on 8 — which was only
+true on x86_64. The `size_t` offsets are the sharpest: they are the atomic synchronisation state in
+shared memory, so the two processes would disagree on both the header layout and the width of the
+word they synchronise through.
+
+`long double` deserves calling out because the error was mine. I banned it claiming 4-byte alignment
+on i386 against 16 on x86_64. Measured on the box it is 16 bytes with 16-byte alignment on both, so
+it is wire stable and the ban is gone. `spancheck.cpp` now asserts that.
+
+### Checked and clean
+
+| what | why it is fine |
+|---|---|
+| `ArgumentCoders.cpp:51,107` string coders | `span8`/`span16` are `LChar`/`UChar`, fixed width |
+| `VectorArgumentCoder<true, ...>` fast path | routes through `ArgumentCoder<std::span<T>>`, and is gated on `is_arithmetic` |
+| `SharedMemoryHandle` | a 32-bit fd or mach right, plus a deliberate `uint64_t m_size` |
+| `SharedBufferReference` | `uint64_t` on the wire; the `size_t` members are local |
+| `StreamConnectionBuffer::headerSize()` | `alignof(std::max_align_t)` measured 16 on both |
+| `StreamConnectionEncoder::messageAlignment` | `alignof(MessageName)`, an `enum : uint16_t`, 2 on both |
+| pointer-width IDs | none encoded |
+
+### The sixth class is absent, for now
+
+`CGFloat`, `NSInteger` and `NSUInteger` do not appear anywhere in `Platform/IPC`. `CGFloat` would be
+a genuine sixth class if it did, being `float` on i386 and `double` on x86_64, which changes both
+width and alignment. It will appear if the Cocoa coders are ever brought into this transport, so the
+check is worth repeating then rather than assuming this result holds.

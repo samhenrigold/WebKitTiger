@@ -1,4 +1,4 @@
-From f21725d4c191d03d988cee5348c07c7e365ee79b Mon Sep 17 00:00:00 2001
+From 2a9f0d691ba6ee8f702cde01e7b67857ffea5d96 Mon Sep 17 00:00:00 2001
 From: samhenrigold <49251320+samhenrigold@users.noreply.github.com>
 Date: Sun, 20 Sep 2026 22:49:46 -0400
 Subject: [PATCH] TIGER: make the IPC wire format identical in a 32-bit and a
@@ -47,21 +47,24 @@ Proven on the box by spike/ipcabi.
 
 Claude-Session: https://claude.ai/code/session_01RHwCbDKQLvzXACuucjKev6
 ---
- Source/WTF/wtf/ArgumentCoder.h                | 56 +++++++++++++++++++
+ Source/WTF/wtf/ArgumentCoder.h                | 55 +++++++++++++++++++
  .../page/scrolling/ScrollSnapOffsetsInfo.cpp  |  4 +-
  .../page/scrolling/ScrollSnapOffsetsInfo.h    |  5 +-
  Source/WebCore/platform/xr/PlatformXR.h       |  4 +-
- Source/WebKit/Platform/IPC/ArgumentCoders.h   |  6 ++
+ Source/WebKit/Platform/IPC/ArgumentCoders.h   | 11 ++++
  Source/WebKit/Platform/IPC/Decoder.cpp        |  4 +-
  Source/WebKit/Platform/IPC/Decoder.h          |  2 +-
  Source/WebKit/Platform/IPC/Encoder.h          |  4 +-
- Source/WebKit/Platform/IPC/unix/UnixMessage.h | 49 +++++++++++++---
+ .../Platform/IPC/StreamConnectionBuffer.h     | 12 +++-
+ .../Platform/IPC/StreamConnectionEncoder.h    |  7 ++-
+ .../Platform/IPC/unix/ConnectionUnix.cpp      |  8 ++-
+ Source/WebKit/Platform/IPC/unix/UnixMessage.h | 49 ++++++++++++++---
  .../WebCoreArgumentCoders.serialization.in    |  2 +-
  .../Shared/XR/PlatformXR.serialization.in     |  2 +-
- 11 files changed, 120 insertions(+), 18 deletions(-)
+ 14 files changed, 147 insertions(+), 22 deletions(-)
 
 diff --git a/Source/WTF/wtf/ArgumentCoder.h b/Source/WTF/wtf/ArgumentCoder.h
-index 705ab640..5336e5e9 100644
+index 705ab640..b790d9a8 100644
 --- a/Source/WTF/wtf/ArgumentCoder.h
 +++ b/Source/WTF/wtf/ArgumentCoder.h
 @@ -27,6 +27,7 @@
@@ -72,7 +75,7 @@ index 705ab640..5336e5e9 100644
  #include <wtf/EnumTraits.h>
  
  namespace IPC {
-@@ -55,9 +56,64 @@ struct ArgumentCoder<bool> {
+@@ -55,9 +56,63 @@ struct ArgumentCoder<bool> {
      }
  };
  
@@ -88,8 +91,7 @@ index 705ab640..5336e5e9 100644
 +template<typename T>
 +inline constexpr bool isWireUnstableArithmeticType =
 +    std::is_same_v<std::remove_cv_t<T>, long>
-+    || std::is_same_v<std::remove_cv_t<T>, unsigned long>
-+    || std::is_same_v<std::remove_cv_t<T>, long double>;
++    || std::is_same_v<std::remove_cv_t<T>, unsigned long>;
 +
 +// Size is not the only thing the wire format takes from the native ABI. Encoder::encodeSpan pads the
 +// stream to alignof(T) and Decoder::decodeSpan seeks to the same boundary, so the alignment is part
@@ -102,8 +104,8 @@ index 705ab640..5336e5e9 100644
 +//
 +// So pad by a fixed rule instead of the native one. Over-aligning is always safe for the reader, so
 +// an 8-byte scalar is padded to 8 on both sides and smaller types keep an alignment both already
-+// agree on. long double is the one arithmetic type this cannot reconcile, 4-byte aligned on i386 and
-+// 16-byte aligned on x86_64, and it is banned above rather than special-cased.
++// agree on. long double needs no special case: measured on the box it is 16 bytes with 16-byte
++// alignment on both ABIs, so the expression below leaves it alone.
 +template<typename T>
 +inline constexpr size_t wireAlignmentOf = (alignof(T) < 8 && sizeof(T) >= 8) ? 8 : alignof(T);
 +
@@ -130,9 +132,9 @@ index 705ab640..5336e5e9 100644
      requires (std::is_arithmetic_v<T>)
  struct ArgumentCoder<T> {
 +    static_assert(!isWireUnstableArithmeticType<T>,
-+        "long, unsigned long, size_t, ptrdiff_t, uintptr_t and long double change width or alignment "
-+        "between the 32-bit and 64-bit processes and cannot be serialised. Declare the field as a "
-+        "fixed-width type such as uint32_t or uint64_t.");
++        "long, unsigned long, size_t, ptrdiff_t and uintptr_t change width between the 32-bit and "
++        "64-bit processes and cannot be serialised. Declare the field as a fixed-width type such as "
++        "uint32_t or uint64_t.");
 +
      template<typename Encoder>
      static void encode(Encoder& encoder, T value)
@@ -187,7 +189,7 @@ index 56dc6411..4ac4252d 100644
  
  
 diff --git a/Source/WebKit/Platform/IPC/ArgumentCoders.h b/Source/WebKit/Platform/IPC/ArgumentCoders.h
-index a3668ff9..75bfa653 100644
+index a3668ff9..e65557a3 100644
 --- a/Source/WebKit/Platform/IPC/ArgumentCoders.h
 +++ b/Source/WebKit/Platform/IPC/ArgumentCoders.h
 @@ -56,6 +56,12 @@
@@ -203,6 +205,18 @@ index a3668ff9..75bfa653 100644
      template<typename Encoder>
      static void encode(Encoder& encoder, std::span<T, Extent> span)
      {
+@@ -116,6 +122,11 @@ struct ArgumentCoder<ArrayReferenceTuple<Types...>> {
+         if (!size) [[unlikely]]
+             return;
+ 
++        // These go straight to Encoder::encodeSpan rather than through ArgumentCoder<std::span<T>>,
++        // so the element-size check that coder carries has to be repeated here.
++        static_assert((... && isWireStableSpanElement<std::remove_cv_t<Types>>),
++            "an ArrayReferenceTuple element type whose size differs between the 32-bit and 64-bit "
++            "processes cannot be bulk-copied onto the wire");
+         (..., encoder.encodeSpan(arrayReference.template span<Indices>()));
+     }
+ 
 diff --git a/Source/WebKit/Platform/IPC/Decoder.cpp b/Source/WebKit/Platform/IPC/Decoder.cpp
 index 045a1e64..fd5beb40 100644
 --- a/Source/WebKit/Platform/IPC/Decoder.cpp
@@ -253,6 +267,82 @@ index ea85b7c3..fed89e9e 100644
      ASSERT(!(reinterpret_cast<uintptr_t>(bytes.data()) % alignment));
  
      auto buffer = grow(alignment, bytes.size());
+diff --git a/Source/WebKit/Platform/IPC/StreamConnectionBuffer.h b/Source/WebKit/Platform/IPC/StreamConnectionBuffer.h
+index faa0034a..148b68f8 100644
+--- a/Source/WebKit/Platform/IPC/StreamConnectionBuffer.h
++++ b/Source/WebKit/Platform/IPC/StreamConnectionBuffer.h
+@@ -98,14 +98,18 @@ public:
+ 
+     // Value denoting the client index to the buffer, with special tag values.
+     // The client trusts this. The server converts the value to trusted size_t offset with a special function.
+-    enum ClientOffset : size_t {
++    // uint32_t, not size_t: this lives in Header, which both processes map, and size_t is 4 bytes on
++    // i386 and 8 on x86_64, so the two sides would disagree on the layout of the shared header and on
++    // the width of the atomic they synchronise through. The tag below is the largest value either
++    // offset takes, and it fits in 32 bits.
++    enum ClientOffset : uint32_t {
+         // Tag value stored in when the server is sleeping, e.g. not running.
+         serverIsSleepingTag = 1u << 31
+     };
+ 
+     // Value denoting the server index to the buffer, with special tag values.
+     // The client trusts this. The server converts the value to trusted size_t offset with a special function.
+-    enum ServerOffset : size_t {
++    enum ServerOffset : uint32_t {
+         // Tag value stored when the client is waiting, e.g. waiting on a semaphore.
+         clientIsWaitingTag = 1u << 31
+     };
+@@ -140,6 +144,10 @@ protected:
+ 
+     Header& header() const LIFETIME_BOUND { return reinterpretCastSpanStartTo<Header>(m_sharedMemory->mutableSpan()); }
+     static constexpr size_t headerSize() { return roundUpToMultipleOf<alignof(std::max_align_t)>(sizeof(Header)); }
++    // Both processes map this header, so its layout has to match. alignof(std::max_align_t) is 16 on
++    // both ABIs, and the offsets are fixed-width above, so these hold for i386 and x86_64 alike.
++    static_assert(sizeof(Atomic<ClientOffset>) == 4, "the shared offsets must be fixed width");
++    static_assert(sizeof(Atomic<ServerOffset>) == 4, "the shared offsets must be fixed width");
+ 
+     size_t m_dataSize { 0 };
+     Ref<WebCore::SharedMemory> m_sharedMemory;
+diff --git a/Source/WebKit/Platform/IPC/StreamConnectionEncoder.h b/Source/WebKit/Platform/IPC/StreamConnectionEncoder.h
+index 779a19fd..015e4cfe 100644
+--- a/Source/WebKit/Platform/IPC/StreamConnectionEncoder.h
++++ b/Source/WebKit/Platform/IPC/StreamConnectionEncoder.h
+@@ -59,8 +59,13 @@ public:
+     template<typename T, size_t Extent>
+     bool encodeSpan(std::span<T, Extent> span)
+     {
++        static_assert(isWireStableSpanElement<std::remove_cv_t<T>>,
++            "span element size differs between the 32-bit and 64-bit processes");
+         auto bytes = asBytes(span);
+-        size_t alignAdvance = distanceToMultipleOf<alignof(T)>(reinterpret_cast<uintptr_t>(m_buffer.data()));
++        // Not alignof(T). This is a second encoder with the same cross-ABI hazard as IPC::Encoder:
++        // alignof is 4 for 8-byte scalars on i386 and 8 on x86_64. The comment on minimumMessageSize
++        // above already assumes a uint64_t lands on 8, which is only true once we pad by this.
++        size_t alignAdvance = distanceToMultipleOf<wireAlignmentOf<T>>(reinterpret_cast<uintptr_t>(m_buffer.data()));
+         auto requiredSize = alignAdvance + bytes.size();
+         if (m_buffer.size() < requiredSize) {
+             m_buffer = { };
+diff --git a/Source/WebKit/Platform/IPC/unix/ConnectionUnix.cpp b/Source/WebKit/Platform/IPC/unix/ConnectionUnix.cpp
+index ca5e12f3..0b9b1965 100644
+--- a/Source/WebKit/Platform/IPC/unix/ConnectionUnix.cpp
++++ b/Source/WebKit/Platform/IPC/unix/ConnectionUnix.cpp
+@@ -89,9 +89,15 @@ public:
+ 
+ private:
+     // The AttachmentInfo will be copied using memcpy, so all members must be trivially copyable.
+-    bool m_isNull;
++    // It is also written raw onto the socket, so like MessageInfo its layout must be identical in
++    // the 32-bit and 64-bit processes. One byte today; the assertions keep it that way.
++    uint8_t m_isNull;
+ };
+ 
++static_assert(std::is_standard_layout_v<AttachmentInfo>, "AttachmentInfo is blitted onto the socket");
++static_assert(sizeof(AttachmentInfo) == 1, "AttachmentInfo is part of the wire framing");
++static_assert(alignof(AttachmentInfo) == 1, "AttachmentInfo must not gain an aligned member");
++
+ static_assert(sizeof(MessageInfo) + sizeof(AttachmentInfo) * attachmentMaxAmount <= messageMaxSize, "messageMaxSize is too small.");
+ 
+ int Connection::socketDescriptor() const
 diff --git a/Source/WebKit/Platform/IPC/unix/UnixMessage.h b/Source/WebKit/Platform/IPC/unix/UnixMessage.h
 index 10932fbb..6175ccb6 100644
 --- a/Source/WebKit/Platform/IPC/unix/UnixMessage.h

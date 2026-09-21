@@ -22,6 +22,10 @@ static_assert(IPC::isWireStableSpanElement<uint8_t>, "scalars are fine");
 static_assert(IPC::isWireStableSpanElement<uint64_t>, "an 8-byte scalar is the same width in both");
 static_assert(IPC::isWireStableSpanElement<double>, "likewise");
 static_assert(!IPC::isWireStableSpanElement<size_t>, "size_t changes width");
+// Measured on the box: long double is 16 bytes with 16-byte alignment on BOTH ABIs, so it is wire
+// stable. An earlier draft of the trait banned it on the strength of a claim that was simply wrong.
+static_assert(IPC::isWireStableSpanElement<long double>, "long double agrees on both ABIs");
+static_assert(IPC::wireAlignmentOf<long double> == 16, "and keeps its natural alignment");
 static_assert(IPC::isWireStableSpanElement<AllFourByte>, "all-4-byte composites are fine");
 
 #if SPANCHECK_EXPECT_REJECT
