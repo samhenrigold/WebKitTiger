@@ -550,3 +550,15 @@ one triage pass before it was noticed. See the triage table at the end of
   events, change notifications back over IPC; focus/tab interop; accessibility native. Text inputs stay WebCore-drawn/edited with
   Cocoa key bindings via the UI process's NSTextInput interpretation. Atlas painting remains the fallback for CSS-styled controls
   and controls under transforms/opacity. Precedent: early WebKit KWQ widgets; WebKit2's native popup menus.
+- WEBKIT2 SPLIT SURVEY (logs/webkit2-split-survey.md, ded71b4): PLATFORM(COCOA) must be OFF on both sides of WebKit2 (the
+  serialization generator bakes USE(CF)/PLATFORM(COCOA) conditions into the wire format; 115 Cocoa CoreIPC files). AppKit lives
+  only in the app shell + view class via the C API. Template: PlayStation port (socket IPC, no GLib/CF/sandbox, generic RunLoop;
+  unix transport already Darwin-aware; unix SharedMemory needs no edits; stub the eventfd-based IPC semaphore). UI process by hand
+  on the C API (~3-4.2k LOC) not WKWebView (~27k + RemoteLayerTree). Backing-store DrawingArea is alive (Windows/PlayStation);
+  one missing file: a CG backing store (~150-200 LOC) for the UI side. Two build dirs + one shared feature-flag fragment + a step
+  diffing the generated IPC trees. NetworkProcess stays separate (curl sources exist; 81-line entry point). Content-process side
+  ~1.4-1.6k LOC. BUILD RULE: both architectures must be compiled with the same clang (long long alignment 8 on i386 Darwin under
+  clang; Tiger's gcc says 4). Consequence for rendering branch (a): WebCore with USE(CG)/USE(CORE_TEXT) but PLATFORM(COCOA) off,
+  the old Apple-Windows-port shape.
+- ld64 x86_64 crash trigger CORRECTED: global weak definitions (every C++ program; libcrypto's __explicit_bzero_hook), not EH.
+  Fixed; "no unwind tables" is not a safety test.
