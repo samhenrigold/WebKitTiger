@@ -517,3 +517,6 @@ one triage pass before it was noticed. See the triage table at the end of
   uses _Alignof so the wire format agrees. Branch (a) (Leopard x86_64 CF/CG/CT) not to be gated on (chains into libobjc/libauto).
   COSTS: CT/CG shim tracks become UI-process-only assets; controls look Adwaita unless ~2000 LOC of Aqua painters are written.
   Milestone N0 = jsc64 with JIT running on the box; everything else waits on it.
+- USER DECISION (23:40): controls "absolutely need to look like Aqua". Approach: the 32-bit UI process renders real Aqua controls
+  (NSCell/HITheme, every type/state/size) into an atlas + 9-slice manifest; the 64-bit content process's RenderTheme paints from
+  it (pixel-exact Tiger Aqua). On-demand rendering over IPC for states the atlas lacks is the extension. Scrollbars: Aqua metrics.
