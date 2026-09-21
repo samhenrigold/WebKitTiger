@@ -1097,6 +1097,15 @@ void CGContextSetShouldAntialiasFonts(CGContextRef context, bool shouldAntialias
     (void)shouldAntialias;
 }
 
+/* Inert for the same measured reason as CGContextSetShouldAntialiasFonts above:
+   the antialiasing style selects between filtered and unfiltered subpixel
+   smoothing, and Tiger has no working subpixel smoothing to select between.
+   CGContextSetShouldSmoothFonts and CGContextSetAllowsFontSmoothing produce
+   byte-identical pixels on and off, and no rendering ever yields a colour
+   fringe (spike/fontsmoothtest.c, audit track; compat/CG-PROBE.md).
+
+   The getter therefore reports Unfiltered, which is what Tiger actually does,
+   rather than echoing back whatever was last set. */
 void CGContextSetFontAntialiasingStyle(CGContextRef c, CGFontAntialiasingStyle s) { (void)c; (void)s; }
 CGFontAntialiasingStyle CGContextGetFontAntialiasingStyle(CGContextRef c)
 {

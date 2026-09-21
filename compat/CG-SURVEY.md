@@ -170,8 +170,20 @@ buffer, which is what every WebCore call site does anyway. `CGContextDrawTiledIm
 draw loop over the clip rather than a `CGPattern`.
 
 The font knobs are no-ops whose getters report what Tiger's rasterizer actually does, which is
-integral glyph positions and no subpixel quantization. `CGContextSetShouldAntialiasFonts` maps
-onto `CGContextSetShouldSmoothFonts`, the closest thing Tiger has.
+integral glyph positions and no subpixel quantization.
+
+**Subpixel font smoothing is unavailable on this port, in bitmap contexts.** Measured, not
+assumed: `CGContextSetShouldSmoothFonts` and `CGContextSetAllowsFontSmoothing` are both inert
+on Tiger. On and off give byte-identical pixels and no rendering ever produces a colour fringe
+(`spike/fontsmoothtest.c`, audit track; see `compat/CG-PROBE.md`). The only working knobs are
+`CGContextSetShouldAntialias` and `CGContextSetAllowsAntialiasing`, and both are context-wide.
+
+So `CGContextSetShouldAntialiasFonts` and the two font antialiasing style accessors stay inert
+here. Remapping them onto `SetShouldAntialias` would alias or smooth every shape in the
+context, not just glyphs, and WebCore's only call site passes `true` unconditionally without
+bracketing it, so the remap could undo a deliberate decision to alias shapes. The claim is
+bounded to bitmap contexts, which is what the canvas and ImageBuffer paths use; a window
+context cannot be tested headlessly.
 
 **Constants.** About 40 `CFStringRef` data symbols Tiger does not export, defined with Apple's
 string values: the colorspace names, `kCGColorWhite`/`Black`/`Clear`,

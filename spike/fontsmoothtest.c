@@ -43,6 +43,9 @@
  */
 #include <CoreGraphics/CoreGraphics.h>
 #include <ApplicationServices/ApplicationServices.h>
+/* The overlay's CoreText headers: they declare Tiger's real signatures, notably
+   CTFontCreateWithGraphicsFont taking a double size rather than a CGFloat. */
+#include <CoreText/CoreText.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
