@@ -127,6 +127,100 @@ int main(void)
 
     CGGradientRelease(gradient);
 
+    /* ---- premultiplied interpolation: red to transparent must not darken ---- */
+    {
+        CGFloat fade[8] = { 1, 0, 0, 1, 1, 0, 0, 0 };
+        CFTypeRef keys[] = { kCGGradientInterpolatesPremultiplied };
+        CFTypeRef values[] = { kCFBooleanTrue };
+        CFDictionaryRef options = CFDictionaryCreate(kCFAllocatorDefault, keys, values, 1,
+            &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        CGGradientRef premul = CGGradientCreateWithColorComponentsAndOptions(srgb, fade,
+            locations, 2, options);
+        CGGradientRef straight = CGGradientCreateWithColorComponentsAndOptions(srgb, fade,
+            locations, 2, NULL);
+
+        clear(context);
+        CGContextDrawLinearGradient(context, premul, CGPointMake(0, 0), CGPointMake(W, 0), 0);
+        pixelAt(W / 2, H / 2, &r, &g, &b, &a);
+        /* Premultiplied against a cleared backdrop: the stored pixel is colour
+           times alpha, so red stays at full strength for its alpha. */
+        expect(near(a, 128, 20) && near(r, a, 12),
+            "premultiplied red-to-transparent keeps full red at the midpoint");
+
+        clear(context);
+        CGContextDrawLinearGradient(context, straight, CGPointMake(0, 0), CGPointMake(W, 0), 0);
+        pixelAt(W / 2, H / 2, &r, &g, &b, &a);
+        expect(near(a, 128, 20) && r < a - 20,
+            "unpremultiplied interpolation still darkens, as asked");
+
+        CGGradientRelease(premul);
+        CGGradientRelease(straight);
+        CFRelease(options);
+    }
+
+    /* ---- colorspace names must not alias onto one object ---- */
+    {
+        CGColorSpaceRef linear = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGBLinear);
+        CGColorSpaceRef generic = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+        CGColorSpaceRef xyz = CGColorSpaceCreateWithName(kCGColorSpaceGenericXYZ);
+        expect(linear != generic && xyz != generic && linear != xyz,
+            "GenericRGBLinear, GenericRGB and GenericXYZ are distinct objects");
+        expect(CFEqual(CGColorSpaceGetName(generic), kCGColorSpaceGenericRGB)
+            && CFEqual(CGColorSpaceGetName(linear), kCGColorSpaceGenericRGBLinear),
+            "each name reports itself back");
+        {
+            CFPropertyListRef plist = CGColorSpaceCopyPropertyList(linear);
+            CGColorSpaceRef back = CGColorSpaceCreateWithPropertyList(plist);
+            expect(back == linear, "property list round trip returns the same colorspace");
+            CGColorSpaceRelease(back);
+            if (plist)
+                CFRelease(plist);
+        }
+        CGColorSpaceRelease(linear);
+        CGColorSpaceRelease(generic);
+        CGColorSpaceRelease(xyz);
+    }
+
+    /* ---- colorspace model, including the two the component count cannot see ---- */
+    {
+        unsigned char table[12] = { 0 };
+        CGColorSpaceRef device = CGColorSpaceCreateDeviceRGB();
+        CGColorSpaceRef indexed = CGColorSpaceCreateIndexed(device, 3, table);
+        CGColorSpaceRef pattern = CGColorSpaceCreatePattern(device);
+        CGColorSpaceRef cmyk = CGColorSpaceCreateDeviceCMYK();
+        expect(CGColorSpaceGetModel(indexed) == kCGColorSpaceModelIndexed,
+            "CGColorSpaceGetModel reports Indexed");
+        expect(CGColorSpaceGetModel(pattern) == kCGColorSpaceModelPattern,
+            "CGColorSpaceGetModel reports Pattern");
+        expect(CGColorSpaceGetModel(device) == kCGColorSpaceModelRGB
+            && CGColorSpaceGetModel(cmyk) == kCGColorSpaceModelCMYK
+            && CGColorSpaceGetModel(NULL) == kCGColorSpaceModelUnknown,
+            "CGColorSpaceGetModel still reports RGB, CMYK and Unknown");
+        CGColorSpaceRelease(indexed);
+        CGColorSpaceRelease(pattern);
+        CGColorSpaceRelease(cmyk);
+        CGColorSpaceRelease(device);
+    }
+
+    /* ---- uneven corners: a lopsided pair that fits must survive ---- */
+    {
+        CGSize corners[4];
+        CGMutablePathRef uneven = CGPathCreateMutable();
+        corners[0].width = 80; corners[0].height = 10;
+        corners[1].width = 20; corners[1].height = 10;
+        corners[2].width = 10; corners[2].height = 10;
+        corners[3].width = 10; corners[3].height = 10;
+        CGPathAddUnevenCornersRoundedRect(uneven, NULL, CGRectMake(0, 0, 100, 60), corners);
+        /* 80 and 20 sum to exactly the 100-wide side, so neither is reduced.
+           The old half-clamp squashed the 80 to 50, which showed up as the
+           corner at (60, 59) being inside the path. */
+        expect(!CGPathContainsPoint(uneven, NULL, CGPointMake(20, 57), false),
+            "an 80px corner radius is not squashed to half the rect");
+        expect(CGPathContainsPoint(uneven, NULL, CGPointMake(95, 57), false),
+            "the 20px corner on the same side is untouched");
+        CGPathRelease(uneven);
+    }
+
     /* ---- rounded rect path ---- */
     path = CGPathCreateWithRoundedRect(CGRectMake(8, 8, 48, 48), 12, 12, NULL);
     expect(path != NULL, "CGPathCreateWithRoundedRect");

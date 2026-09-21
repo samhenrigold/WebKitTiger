@@ -153,7 +153,9 @@ static NSOperationQueue *tigerMainOperationQueue;
 {
     if (_maxConcurrent == 1 || self == tigerMainOperationQueue)
         return (dispatch_queue_t)_queue;
-    return dispatch_get_global_queue(0, 0);
+    /* dispatch_get_global_queue returns the distinct dispatch_queue_global_t
+     * type in libtigerdispatch's headers; it is a dispatch_queue_t. */
+    return (dispatch_queue_t)dispatch_get_global_queue(0, 0);
 }
 
 - (void)addOperation:(NSOperation *)op

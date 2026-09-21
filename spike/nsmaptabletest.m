@@ -1,14 +1,12 @@
-/* NSMapTable (compat/nscompat-maptable.m) on Tiger. Stands alone because it has
-   to rename Tiger's C-struct typedef before Foundation is imported -- the same
-   rename the SDK overlay owes every other translation unit.
-   Build: spike/run.sh spike/nsmaptabletest.m  (after -DTIGER_NSMAPTABLE_TYPEDEF_RENAMED) */
+/* NSMapTable (compat/nscompat-maptable.m) on Tiger.
 
-#define NSMapTable NSMapTableCStruct
-#import <Foundation/Foundation.h>
-#undef NSMapTable
+   compat/sdk-overlay renames Tiger's colliding NSMapTable C typedef to
+   NSMapTableCStruct, so both the class and the C API are usable here with no
+   tricks. Build with the overlay on the framework search path:
 
-#define TIGER_NSMAPTABLE_TYPEDEF_RENAMED 1
-#import <TigerCompat/NSCompat.h>
+     spike/run-nsmaptabletest.sh */
+
+#import <TigerCompat/FoundationCompat.h>
 
 #include <stdio.h>
 

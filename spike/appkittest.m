@@ -144,8 +144,10 @@ static BOOL sameColor(NSColor *a, NSColor *b)
                [[big base64EncodedStringWithOptions:0] rangeOfString:@"\n"].location == NSNotFound);
     }
 
+#if !__has_feature(objc_arc)
     [view release];
     [window release];
+#endif
 
     printf("\n%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASS",
            failures, failures == 1 ? "" : "s");
@@ -167,18 +169,19 @@ static BOOL sameColor(NSColor *a, NSColor *b)
 
 int main(void)
 {
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    setbuf(stdout, NULL);
+    @autoreleasepool {
+        setbuf(stdout, NULL);
 
-    [NSApplication sharedApplication];
+        [NSApplication sharedApplication];
 
-    /* Run the checks from inside a live run loop, which is the state WebKit's
-       AppKit code actually runs in. */
-    TigerAppKitProbe *probe = [[TigerAppKitProbe alloc] init];
-    [probe performSelector:@selector(runChecks) withObject:nil afterDelay:0.0];
-    [NSApp run];
-
-    [probe release];
-    [pool release];
+        /* Run the checks from inside a live run loop, which is the state
+           WebKit's AppKit code actually runs in. */
+        TigerAppKitProbe *probe = [[TigerAppKitProbe alloc] init];
+        [probe performSelector:@selector(runChecks) withObject:nil afterDelay:0.0];
+        [NSApp run];
+#if !__has_feature(objc_arc)
+        [probe release];
+#endif
+    }
     return failures ? 1 : 0;
 }

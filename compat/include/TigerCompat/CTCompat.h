@@ -1,32 +1,37 @@
 /* TIGER: CoreText entry points Mac OS X 10.4.11 lacks.
  *
- * Tiger ships a private, pre-1.0 CoreText inside ApplicationServices (243
- * exports). WebCore calls 120 CT functions; 66 are missing. Classification and
- * rationale live in compat/CT-SURVEY.md. Implementation: compat/ctcompat.c.
+ * This is the IMPLEMENTATION-SIDE header. It declares Tiger's CoreText the way
+ * the 10.4.11 binary really is: by-value doubles, CTFontCopyTable keyed on a
+ * CFString, CTLineGetTypographicBounds taking a CFRange. compat/ctcompat.c is
+ * built against it and nothing else.
  *
- * The 10.4u SDK's CoreText.framework has a binary and no Headers directory, so
- * this header stands on its own when <CoreText/CoreText.h> cannot be included:
- * it then declares the CT types, the constants, and the subset of Tiger's own
- * CT exports that ctcompat.c and its callers use. If the 10.5 SDK's CoreText
- * headers are ever staged into the SDK overlay, they win and this file adds
- * only the missing pieces.
+ * **Do not include this together with <CoreText/CoreText.h>.** The SDK overlay
+ * at compat/sdk-overlay/CoreText.framework is the CONSUMER-SIDE header: it
+ * declares the same functions with their modern prototypes and asm-labels the
+ * mismatched ones onto the adapters in ctcompat.c. The two headers contradict
+ * each other on purpose, which is the entire mechanism. WebCore gets the
+ * overlay; only the compat layer gets this file.
+ *
+ * Classification of all 66 missing names, the disassembly the ABI came from,
+ * and the tier each function landed in are in compat/CT-SURVEY.md.
  */
 
 #ifndef TIGERCOMPAT_CTCOMPAT_H
 #define TIGERCOMPAT_CTCOMPAT_H
 
+#if defined(__CORETEXT__) || defined(__CTFONT__)
+#error "TigerCompat/CTCompat.h declares Tiger's real CoreText ABI and cannot be combined with <CoreText/CoreText.h>. See compat/CT-SURVEY.md."
+#endif
+
 #include <CoreFoundation/CoreFoundation.h>
 #include <ApplicationServices/ApplicationServices.h>
 
-/* CGFloat arrived in 10.5; the 10.4u SDK has no such type and every CoreGraphics
- * prototype in it says `float`, which on i386 is the right definition.
+/* CGFloat arrived in 10.5; the 10.4u SDK has no such type and every
+ * CoreGraphics prototype in it says `float`, which on i386 is right.
  *
- * TigerCompat/CGCompat.h also defines this, behind the same guard, so including
- * both is harmless. This header deliberately does not include that one: it
- * pulls in <ImageIO/CGImageSource.h>, which pulls CoreGraphics back in, and the
- * CoreGraphics overlay includes CGCompat.h in turn, so the cycle re-enters
- * CGCompat.h three times deep. Six lines here avoid dragging ImageIO into every
- * CoreText translation unit. */
+ * TigerCompat/CGCompat.h defines this too, behind the same guard, so including
+ * both is harmless. This header does not include that one: it pulls in
+ * <ImageIO/CGImageSource.h> and drags ImageIO into every CoreText unit. */
 #ifndef CGFLOAT_DEFINED
 #include <float.h>
 typedef float CGFloat;
@@ -36,27 +41,17 @@ typedef float CGFloat;
 #define CGFLOAT_MAX FLT_MAX
 #endif
 
-#if defined(__has_include)
-#if __has_include(<CoreText/CoreText.h>)
-#include <CoreText/CoreText.h>
-#define TIGERCOMPAT_HAVE_CORETEXT_HEADERS 1
-#endif
+/* CFError is 10.5+; Tiger's CoreFoundation has neither the type nor the API. */
+#ifndef __COREFOUNDATION_CFERROR__
+typedef struct __CFError* CFErrorRef;
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* CFError is 10.5+; Tiger's CoreFoundation has neither the type nor the API.
- * CTFontManagerRegisterFontsForURL takes a CFErrorRef out-parameter, and the
- * Tiger implementation only ever writes NULL into it. */
-#ifndef __COREFOUNDATION_CFERROR__
-typedef struct __CFError* CFErrorRef;
-#endif
-
 /* ---- types ------------------------------------------------------------- */
 
-#ifndef TIGERCOMPAT_HAVE_CORETEXT_HEADERS
 
 typedef const struct __CTFont* CTFontRef;
 typedef const struct __CTFontDescriptor* CTFontDescriptorRef;
@@ -83,15 +78,34 @@ enum {
 };
 
 enum {
-    kCTFontNoFontType = (uint32_t)-1,
-    kCTFontUIFontUser = 0,
-    kCTFontUIFontUserFixedPitch = 1,
-    kCTFontUIFontSystem = 2,
+    kCTFontNoFontType             = (uint32_t)-1,
+    kCTFontUIFontUser             = 0,
+    kCTFontUIFontUserFixedPitch   = 1,
+    kCTFontUIFontSystem           = 2,
     kCTFontUIFontEmphasizedSystem = 3,
-    kCTFontUIFontSmallSystem = 4,
-    kCTFontUIFontMiniSystem = 6,
-    kCTFontUIFontMenuItem = 10,
-    kCTFontUIFontLabel = 20
+    kCTFontUIFontSmallSystem      = 4,
+    kCTFontUIFontSmallEmphasizedSystem = 5,
+    kCTFontUIFontMiniSystem       = 6,
+    kCTFontUIFontMiniEmphasizedSystem = 7,
+    kCTFontUIFontViews            = 8,
+    kCTFontUIFontApplication      = 9,
+    kCTFontUIFontLabel            = 10,
+    kCTFontUIFontMenuTitle        = 11,
+    kCTFontUIFontMenuItem         = 12,
+    kCTFontUIFontMenuItemMark     = 13,
+    kCTFontUIFontMenuItemCmdKey   = 14,
+    kCTFontUIFontWindowTitle      = 15,
+    kCTFontUIFontPushButton       = 16,
+    kCTFontUIFontUtilityWindowTitle = 17,
+    kCTFontUIFontAlertHeader      = 18,
+    kCTFontUIFontSystemDetail     = 19,
+    kCTFontUIFontEmphasizedSystemDetail = 20,
+    kCTFontUIFontToolbar          = 21,
+    kCTFontUIFontSmallToolbar     = 22,
+    kCTFontUIFontMessage          = 23,
+    kCTFontUIFontPalette          = 24,
+    kCTFontUIFontToolTip          = 25,
+    kCTFontUIFontControlContent   = 26
 };
 
 enum {
@@ -227,7 +241,6 @@ extern const CFStringRef kCTFontVariationAttribute;
 extern const CFStringRef kCTFontAttributeName;
 extern const CFStringRef kCTFullNameKey;
 
-#endif /* !TIGERCOMPAT_HAVE_CORETEXT_HEADERS */
 
 /* Types WebCore's CoreTextSPI.h defines for itself; repeated here because
  * ctcompat.c is compiled without WebCore's headers. Guarded so that including
@@ -241,7 +254,6 @@ typedef uint8_t CTCompositionLanguage;
 typedef uint32_t CTFontTextStylePlatform;
 typedef int CTFontManagerScope;
 
-#ifndef kCTFontShapeWithKerning
 enum {
     kCTFontShapeWithKerning = (1 << 0),
     kCTFontShapeWithClusterComposition = (1 << 1),
@@ -343,7 +355,6 @@ enum {
     kCTParagraphStyleSpecifierBaseWritingDirection = 13,
     kCTParagraphStyleSpecifierCount = 14
 };
-#endif
 
 /* sfnt tags WebCore switches on that Tiger's CT does not name. */
 #ifndef kCTFontTableMATH
@@ -443,9 +454,9 @@ CGFloat CTFontGetAccessibilityBoldWeightOfWeight(CGFloat);
 /* ---- Tiger-ABI adapters ------------------------------------------------
  *
  * The modern signature for the ten Tiger exports that share a name with the
- * modern API but not its behaviour. The SDK overlay's <CoreText/*.h> binds each
- * public name to these with an asm label. Nothing in the compat layer calls
- * them; they exist for WebCore. */
+ * modern API but not its behaviour. The SDK overlay's CoreText headers bind
+ * each public name to these with an asm label. Nothing in the compat layer
+ * calls them; they exist for WebCore. */
 
 CFDataRef TigerCTFontCopyTable(CTFontRef, CTFontTableTag, CTFontTableOptions);
 double TigerCTFontGetAdvancesForGlyphs(CTFontRef, CTFontOrientation, const CGGlyph[], CGSize[], CFIndex);

@@ -27,7 +27,7 @@ CXXRT=(-nostdinc++ -isystem "$WKT/toolchain/sysroot-i386/usr/include/c++/v1" -st
 build() # $1 = mrr|arc, $2 = output
 {
     local objc=(-fobjc-runtime=macosx-fragile-10.4 -fblocks)
-    [ "$1" = arc ] && objc=(-Xclang -fobjc-arc -fobjc-runtime=macosx-fragile-10.7)
+    [ "$1" = arc ] && objc=(-fobjc-arc -fobjc-runtime=macosx-fragile-10.7)
     "$WKT/toolchain/bin/tiger-clang++" -g -O1 -Wall "${objc[@]}" \
         -femulated-tls -fobjc-exceptions -fexceptions \
         "${OVERLAY[@]}" "${SDKFILL[@]}" "${CXXRT[@]}" \

@@ -22,3 +22,5 @@
 *.o
 *.dSYM/
 /deps/build/
+.DS_Store
+/OS installers

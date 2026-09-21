@@ -807,6 +807,15 @@ static void testDegraded(CTFontRef font)
         memset(cgAdvances, 0, sizeof(cgAdvances));
         expect(CGFontGetGlyphAdvancesForStyle(cgFont, &matrix, 0, cgGlyphs, 5, cgAdvances)
             && cgAdvances[0].width > 0, "CGFontGetGlyphAdvancesForStyle fills advances");
+        /* The unhinted style must give the linear advance, matching what
+           CTFontGetAdvancesForGlyphs reports for the same glyph at 16pt. */
+        {
+            CGSize ctAdvances[5];
+            CTFontGetAdvancesForGlyphs(font, kCTFontOrientationHorizontal, cgGlyphs, ctAdvances, 5);
+            expect(cgAdvances[0].width > ctAdvances[0].width - 0.01f
+                && cgAdvances[0].width < ctAdvances[0].width + 0.01f,
+                "unhinted CGFont advance matches the CoreText advance");
+        }
         printf("     CGFont advance[0] at 16pt = %.2f\n", (double)cgAdvances[0].width);
         if (cgFont)
             CGFontRelease(cgFont);

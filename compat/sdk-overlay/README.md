@@ -202,13 +202,24 @@ program dies at runtime on the first category method, as
 It has to be `-Wl,-ObjC`. A bare `-ObjC` is a *compiler* flag that retargets the
 source language to Objective-C and breaks any C++ in the same command.
 
-`-ObjC` also pulls in `NSOperationQueue`, which is built on libtigerdispatch, so
-`-ltigerdispatch` becomes mandatory alongside `-ltigercompat` whether or not the
-program uses a queue.
+`-ObjC` pulls in *every* member that defines a class or category, so
+libtigercompat's own dependencies stop being optional. A program that links it
+this way needs all of:
+
+```
+-ltigercompat -ltigerdispatch
+-framework Foundation -framework AppKit -framework ApplicationServices
+```
+
+`-ltigerdispatch` because `NSOperationQueue` is built on it, and the two
+frameworks because of the NSEvent, NSView, NSWindow and NSColor shims in
+`compat/nscompat-appkit.m`. This is true whether or not the program itself
+mentions a queue, a window or a colour. WebKit links all of these anyway; a
+small test program does not, and that is where it bites.
 
 ## Verifying the overlay
 
-`spike/overlaytest.mm` is the check: 35 assertions covering the generic
+`spike/overlaytest.mm` is the check: 36 assertions covering the generic
 collections, `NSInteger`, `NS_ENUM` / `NS_OPTIONS`, the annotation macros,
 nullability, the NSEvent and NSWindow renames, `@available` being false for
 10.12 and true for 10.4, `CGFloat`, `CFErrorRef`, and `NSMapTable` as both the

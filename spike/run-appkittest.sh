@@ -9,7 +9,7 @@ AS=$WKT/sdk/MacOSX10.4u.sdk/System/Library/Frameworks/ApplicationServices.framew
 
 for mode in mrr arc; do
     objc=(-fobjc-runtime=macosx-fragile-10.4 -fblocks)
-    [ "$mode" = arc ] && objc=(-Xclang -fobjc-arc -fobjc-runtime=macosx-fragile-10.7)
+    [ "$mode" = arc ] && objc=(-fobjc-arc -fobjc-runtime=macosx-fragile-10.7)
     out=$WKT/spike/appkittest_$mode
     echo "== build $mode"
     "$WKT/toolchain/bin/tiger-clang" -g -O1 -Wall "${objc[@]}" -fobjc-exceptions \

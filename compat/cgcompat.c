@@ -124,12 +124,16 @@ static CGColorSpaceRef createSpaceForName(CFStringRef name)
            honest alternatives are sRGB or failing the call. */
         return createSRGBFromColorSync();
     }
-    if (CFEqual(name, kCGColorSpaceGenericRGBLinear))
-        return CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+    if (CFEqual(name, kCGColorSpaceGenericRGBLinear) || CFEqual(name, kCGColorSpaceGenericXYZ)) {
+        /* Not forwarded to Tiger's GenericRGB on purpose. Tiger caches named
+           colorspaces and hands back the *same* object for every name it
+           recognises, so forwarding two of our names there would make them
+           share one pointer and CGColorSpaceGetName could then answer with the
+           wrong one. A fresh ICC-based space keeps every name distinct. */
+        return createSRGBFromColorSync();
+    }
     if (CFEqual(name, kCGColorSpaceGenericGrayGamma2_2))
-        return CGColorSpaceCreateWithName(kCGColorSpaceGenericGray);
-    if (CFEqual(name, kCGColorSpaceGenericXYZ))
-        return CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+        return CGColorSpaceCreateDeviceGray();
     /* Generic{Gray,RGB,CMYK}: Tiger knows these itself. */
     return CGColorSpaceCreateWithName(name);
 }
@@ -146,6 +150,13 @@ CGColorSpaceRef TigerCGColorSpaceCreateWithName(CFStringRef name)
             return CGColorSpaceRetain(sNamedSpaces[i].cs);
     }
     cs = createSpaceForName(name);
+    /* Never record a second name for a colorspace already in the table: the
+       name lookup below is by pointer, so an alias would make it ambiguous and
+       break the CopyPropertyList/CreateWithPropertyList round trip. */
+    for (i = 0; i < sNamedSpaceCount; ++i) {
+        if (sNamedSpaces[i].cs == cs)
+            return cs;
+    }
     if (cs && sNamedSpaceCount < CS_CACHE_MAX) {
         sNamedSpaces[sNamedSpaceCount].name = (CFStringRef)CFRetain(name);
         sNamedSpaces[sNamedSpaceCount].cs = CGColorSpaceRetain(cs);
@@ -164,19 +175,56 @@ CFStringRef CGColorSpaceGetName(CGColorSpaceRef cs)
     return NULL;
 }
 
-CGColorSpaceModel CGColorSpaceGetModel(CGColorSpaceRef cs)
+/* Tiger's CGColorSpace struct, i386, verified on the box across every kind of
+   colorspace its API can build (spike/cgtest.c re-checks the layout at runtime):
+
+     +0x0c  kind:  0 DeviceGray  1 DeviceRGB  2 DeviceCMYK  3 CalibratedGray
+                   4 CalibratedRGB  5 Lab  6 ICCBased  7 Indexed  9 Pattern
+     +0x10  model, already in Apple's CGColorSpaceModel numbering for
+            everything except Indexed and Pattern, which store -1
+     +0x14  number of components, the value CGColorSpaceGetNumberOfComponents
+            returns
+
+   Reading it is what makes Indexed and Pattern reportable at all; the component
+   count alone cannot distinguish them from their base space, and WebCore does
+   test for Indexed. The +0x14 cross-check against the public accessor is the
+   guard: if the layout is ever not what we expect, fall back to the count. */
+#define CS_FIELD_KIND 3       /* +0x0c, in ints */
+#define CS_FIELD_MODEL 4      /* +0x10 */
+#define CS_FIELD_NCOMPONENTS 5 /* +0x14 */
+
+static CGColorSpaceModel modelFromComponentCount(CGColorSpaceRef cs)
 {
-    /* ponytail: component count is all Tiger exposes, so Indexed and Pattern
-       report as their base model. Nothing in WebCore's CG backend branches on
-       those two. */
-    if (!cs)
-        return kCGColorSpaceModelUnknown;
     switch (CGColorSpaceGetNumberOfComponents(cs)) {
     case 1: return kCGColorSpaceModelMonochrome;
     case 3: return kCGColorSpaceModelRGB;
     case 4: return kCGColorSpaceModelCMYK;
     default: return kCGColorSpaceModelUnknown;
     }
+}
+
+CGColorSpaceModel CGColorSpaceGetModel(CGColorSpaceRef cs)
+{
+    const int* fields;
+    int kind, model;
+
+    if (!cs)
+        return kCGColorSpaceModelUnknown;
+
+    fields = (const int*)cs;
+    if ((size_t)fields[CS_FIELD_NCOMPONENTS] != CGColorSpaceGetNumberOfComponents(cs))
+        return modelFromComponentCount(cs);
+
+    kind = fields[CS_FIELD_KIND];
+    if (kind == 7)
+        return kCGColorSpaceModelIndexed;
+    if (kind == 9)
+        return kCGColorSpaceModelPattern;
+
+    model = fields[CS_FIELD_MODEL];
+    if (model < kCGColorSpaceModelMonochrome || model > kCGColorSpaceModelLab)
+        return modelFromComponentCount(cs);
+    return (CGColorSpaceModel)model;
 }
 
 CGColorSpaceRef CGColorSpaceGetBaseColorSpace(CGColorSpaceRef cs) { (void)cs; return NULL; }
@@ -248,13 +296,14 @@ static const CFStringRef kGradientStopsKey = (const CFStringRef)CFSTR("stops");
 typedef struct {
     size_t componentCount; /* colour components per stop, alpha excluded */
     size_t stopCount;
+    int premultiplied;     /* kCGGradientInterpolatesPremultiplied was asked for */
     /* stopCount * (componentCount + 1) colour+alpha floats, then stopCount
        locations. */
     CGFloat values[1];
 } GradientStops;
 
 static CGGradientRef createGradient(CGColorSpaceRef cs, const CGFloat* components,
-    const CGFloat* locations, size_t count)
+    const CGFloat* locations, size_t count, int premultiplied)
 {
     size_t ncomp, stride, valueCount, bytes, i;
     GradientStops* stops;
@@ -278,6 +327,7 @@ static CGGradientRef createGradient(CGColorSpaceRef cs, const CGFloat* component
     }
     stops->componentCount = ncomp;
     stops->stopCount = count;
+    stops->premultiplied = premultiplied;
     memcpy(stops->values, components, count * stride * sizeof(CGFloat));
     for (i = 0; i < count; ++i)
         stops->values[count * stride + i] = locations ? locations[i] : (count > 1 ? (CGFloat)i / (count - 1) : 0);
@@ -300,24 +350,31 @@ static CGGradientRef createGradient(CGColorSpaceRef cs, const CGFloat* component
 CGGradientRef CGGradientCreateWithColorComponents(CGColorSpaceRef cs, const CGFloat* components,
     const CGFloat* locations, size_t count)
 {
-    return createGradient(cs, components, locations, count);
+    return createGradient(cs, components, locations, count, 0);
+}
+
+/* kCGGradientInterpolatesPremultiplied set to true is the only option Apple
+   defines for the AndOptions creators. */
+static int optionsAskForPremultiplied(CFDictionaryRef options)
+{
+    CFTypeRef value;
+    if (!options)
+        return 0;
+    value = CFDictionaryGetValue(options, kCGGradientInterpolatesPremultiplied);
+    return value && CFEqual(value, kCFBooleanTrue);
 }
 
 CGGradientRef CGGradientCreateWithColorComponentsAndOptions(CGColorSpaceRef cs,
     const CGFloat* components, const CGFloat* locations, size_t count, CFDictionaryRef options)
 {
-    /* The only option Apple defines here is premultiplied interpolation, which
-       matters solely where stops differ in alpha. ponytail: ignored; add
-       premultiplied blending in evaluateGradient if a gradient with varying
-       alpha ever looks wrong. */
-    (void)options;
-    return createGradient(cs, components, locations, count);
+    return createGradient(cs, components, locations, count,
+        optionsAskForPremultiplied(options));
 }
 
 /* Colours are read in their own space and copied straight across, widening
    gray to RGB when needed. */
 static CGGradientRef createGradientFromColors(CGColorSpaceRef cs, CFArrayRef colors,
-    const CGFloat* locations)
+    const CGFloat* locations, int premultiplied)
 {
     CFIndex count, i;
     size_t ncomp, stride, c;
@@ -352,7 +409,7 @@ static CGGradientRef createGradientFromColors(CGColorSpaceRef cs, CFArrayRef col
         }
         dst[ncomp] = CGColorGetAlpha(color);
     }
-    gradient = createGradient(space, components, locations, (size_t)count);
+    gradient = createGradient(space, components, locations, (size_t)count, premultiplied);
     free(components);
     CGColorSpaceRelease(space);
     return gradient;
@@ -360,14 +417,13 @@ static CGGradientRef createGradientFromColors(CGColorSpaceRef cs, CFArrayRef col
 
 CGGradientRef CGGradientCreateWithColors(CGColorSpaceRef cs, CFArrayRef colors, const CGFloat* locations)
 {
-    return createGradientFromColors(cs, colors, locations);
+    return createGradientFromColors(cs, colors, locations, 0);
 }
 
 CGGradientRef CGGradientCreateWithColorsAndOptions(CGColorSpaceRef cs, CFArrayRef colors,
     const CGFloat* locations, CFDictionaryRef options)
 {
-    (void)options;
-    return createGradientFromColors(cs, colors, locations);
+    return createGradientFromColors(cs, colors, locations, optionsAskForPremultiplied(options));
 }
 
 CGGradientRef CGGradientRetain(CGGradientRef g) { return g ? (CGGradientRef)CFRetain(g) : NULL; }
@@ -416,6 +472,27 @@ static void evaluateGradient(void* info, const float* in, float* out)
     hi = lo + 1;
     span = locations[hi] - locations[lo];
     f = span > 0 ? (t - locations[lo]) / span : 0;
+
+    if (s->premultiplied) {
+        /* Interpolate colour scaled by alpha, then divide back out. Without
+           this, red to transparent darkens through the middle: the midpoint
+           comes out (0.5, 0, 0) at alpha 0.5 instead of (1, 0, 0) at alpha 0.5.
+           WebCore asks for this whenever the gradient's alpha premultiplication
+           is Premultiplied, which is the CSS default for legacy sRGB. The
+           shading function's output stays unpremultiplied, as CG expects. */
+        float alphaLo = s->values[lo * stride + s->componentCount];
+        float alphaHi = s->values[hi * stride + s->componentCount];
+        float alpha = alphaLo + (alphaHi - alphaLo) * f;
+        for (c = 0; c < s->componentCount; ++c) {
+            float a = s->values[lo * stride + c] * alphaLo;
+            float b = s->values[hi * stride + c] * alphaHi;
+            float mixed = a + (b - a) * f;
+            out[c] = alpha > 0 ? mixed / alpha : 0;
+        }
+        out[s->componentCount] = alpha;
+        return;
+    }
+
     for (c = 0; c < stride; ++c) {
         float a = s->values[lo * stride + c];
         float b = s->values[hi * stride + c];
@@ -556,11 +633,30 @@ CGPathRef CGPathCreateWithRect(CGRect rect, const CGAffineTransform* transform)
 }
 
 /* Corner radii are clamped to half the rect, the way CG does it. */
+/* Shrink two radii that share one side of the rect so they fit on it, keeping
+   their ratio. An asymmetric pair that already fits, such as 80 and 20 on a
+   100-wide box, is left exactly as asked. */
+static void fitRadiiToSide(CGFloat* a, CGFloat* b, CGFloat side)
+{
+    CGFloat sum = *a + *b;
+    if (sum > side && sum > 0) {
+        CGFloat scale = side / sum;
+        *a *= scale;
+        *b *= scale;
+    }
+}
+
 void CGPathAddUnevenCornersRoundedRect(CGMutablePathRef path, const CGAffineTransform* transform,
     CGRect rect, const CGSize corners[4])
 {
-    /* corners are ordered top-left, top-right, bottom-right, bottom-left. */
-    CGFloat maxW = CGRectGetWidth(rect) / 2, maxH = CGRectGetHeight(rect) / 2;
+    /* Corner order is the one WebCore's addUnevenCornersRoundedRect fills in:
+       index 0 and 1 share the maxY side, 2 and 3 share the minY side, 0 and 3
+       share minX, 1 and 2 share maxX. WebCore names them bottom-left,
+       bottom-right, top-right, top-left because its own space is y-down; in the
+       pure coordinates CG sees they are (minX,maxY) (maxX,maxY) (maxX,minY)
+       (minX,minY). Do not "correct" this into a top-first order. It would flip
+       every asymmetric rounded rect vertically. */
+    CGFloat width = CGRectGetWidth(rect), height = CGRectGetHeight(rect);
     CGFloat minX = CGRectGetMinX(rect), maxX = CGRectGetMaxX(rect);
     CGFloat minY = CGRectGetMinY(rect), maxY = CGRectGetMaxY(rect);
     CGSize c[4];
@@ -571,9 +667,16 @@ void CGPathAddUnevenCornersRoundedRect(CGMutablePathRef path, const CGAffineTran
     if (!path || CGRectIsEmpty(rect))
         return;
     for (i = 0; i < 4; ++i) {
-        c[i].width = fminf(fmaxf(corners[i].width, 0), maxW);
-        c[i].height = fminf(fmaxf(corners[i].height, 0), maxH);
+        c[i].width = fmaxf(corners[i].width, 0);
+        c[i].height = fmaxf(corners[i].height, 0);
     }
+    /* Clamp per shared side, not to half the rect. WebCore clamps each radius
+       against the rect minus the opposite corner's radius, so a deliberately
+       lopsided border-radius is legal and must not be squashed to half. */
+    fitRadiiToSide(&c[0].width, &c[1].width, width);
+    fitRadiiToSide(&c[2].width, &c[3].width, width);
+    fitRadiiToSide(&c[0].height, &c[3].height, height);
+    fitRadiiToSide(&c[1].height, &c[2].height, height);
     /* Y grows upward in CG, so "top" is maxY. */
     CGPathMoveToPoint(path, transform, minX + c[3].width, minY);
     CGPathAddLineToPoint(path, transform, maxX - c[2].width, minY);

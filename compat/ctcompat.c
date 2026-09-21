@@ -14,9 +14,16 @@
 
 /* ---- declarations the 10.4u SDK is missing but Tiger's dylibs export ----
  *
- * CGFontCreateWithDataProvider, CGFontGetGlyphPath and CGFontGetUnitsPerEm are
- * exported by Tiger's CoreGraphics but declared nowhere in the 10.4u SDK. They
- * live in <TigerCompat/CGCompat.h>, which CTCompat.h includes.
+ * CGFontGetGlyphPath and CGFontGetUnitsPerEm are exported by Tiger's
+ * CoreGraphics but declared nowhere in the 10.4u SDK. They live in
+ * TigerCompat/CGCompat.h, which the CoreGraphics overlay hook appends to
+ * CoreGraphics.h, so including ApplicationServices is enough to get them.
+ *
+ * Note what is deliberately NOT used here: CGFontCreateWithDataProvider. Tiger
+ * exports it, but the leopard track established that it returns NULL for .ttf
+ * and .dfont, as does CGFontCreateWithName, so it is no route to a CGFontRef on
+ * this box. Nothing in this file depends on it; web fonts go through
+ * ATSFontActivateFromMemory and glyph paths through CTFontGetGraphicsFont.
  *
  * ATS activation needs nothing here either: ATSFontActivateFromMemory,
  * ATSFontFindFromContainer, ATSFontGetPostScriptName and
@@ -1289,23 +1296,56 @@ void CGFontGetGlyphsForUnichars(CGFontRef cgFont, const UniChar characters[], CG
     CFRelease(font);
 }
 
+/* Tier 1, with a correction the disassembly alone would not have caught.
+ *
+ * Tiger's CoreGraphics has CGFontGetGlyphTransformedAdvances, whose six
+ * arguments and bool return match CGFontGetGlyphAdvancesForStyle exactly, so it
+ * looks like a plain rename. On the box it is not: it dispatches through a slot
+ * in the font and **returns false for rendering style 0**, the unhinted style,
+ * which is the one WebCore asks for when it wants linear advances. Asked for a
+ * hinted style it answers, but with pixel-rounded numbers (11.0 where the
+ * linear advance is 10.67).
+ *
+ * So: use it when it answers, which honours the style the caller asked for, and
+ * otherwise fall back to CGFontGetGlyphAdvances, which returns unscaled integer
+ * advances in font units and always works, and apply the transform here. */
+bool CGFontGetGlyphTransformedAdvances(CGFontRef, const CGAffineTransform*, CGFontRenderingStyle,
+    const CGGlyph[], size_t, CGSize[]);
+bool CGFontGetGlyphAdvances(CGFontRef, const CGGlyph[], size_t, int[]);
+
 bool CGFontGetGlyphAdvancesForStyle(CGFontRef cgFont, const CGAffineTransform* matrix,
     CGFontRenderingStyle style, const CGGlyph glyphs[], size_t count, CGSize advances[])
 {
-    CTFontRef font;
+    int* unscaled;
+    CGFloat unitsPerEm;
+    bool ok;
+    size_t i;
 
-    /* Tiger has no rendering styles, so the hinted and unhinted advances are
-     * the same number. The transform becomes the font matrix at unit size, so
-     * the advances come back in the caller's text space. */
-    (void)style;
     if (!cgFont || !count || !advances)
         return false;
-    font = CTFontCreateWithGraphicsFont(cgFont, 1.0, matrix, NULL);
-    if (!font)
+    if (CGFontGetGlyphTransformedAdvances(cgFont, matrix, style, glyphs, count, advances))
+        return true;
+
+    unitsPerEm = (CGFloat)CGFontGetUnitsPerEm(cgFont);
+    if (!(unitsPerEm > 0))
         return false;
-    CTFontGetAdvancesForGlyphs(font, glyphs, advances, (CFIndex)count);
-    CFRelease(font);
-    return true;
+    unscaled = (int*)calloc(count, sizeof(int));
+    if (!unscaled)
+        return false;
+    ok = CGFontGetGlyphAdvances(cgFont, glyphs, count, unscaled);
+    if (ok) {
+        for (i = 0; i < count; ++i) {
+            CGFloat width = unscaled[i] / unitsPerEm;
+            /* A size carries no translation, so only the linear part applies,
+             * and the input height is zero. */
+            if (matrix)
+                advances[i] = CGSizeMake(matrix->a * width, matrix->b * width);
+            else
+                advances[i] = CGSizeMake(width, 0);
+        }
+    }
+    free(unscaled);
+    return ok;
 }
 
 /* ======================================================================== */
@@ -1413,7 +1453,7 @@ const CGFloat kCTFontWidthExtraExpanded = 0.3f;
 /* calls, but either take different arguments or do nothing at all, so a     */
 /* direct call links, runs and returns zeroes. Each adapter below presents   */
 /* the modern signature and reaches Tiger's real behaviour underneath. The   */
-/* SDK overlay's <CoreText/*.h> binds the public name to these with an asm   */
+/* SDK overlay's CoreText headers bind the public name to these with an asm  */
 /* label, so WebCore's own call sites need no change. Details and the        */
 /* disassembly they came from are in CT-SURVEY.md.                           */
 /* ======================================================================== */

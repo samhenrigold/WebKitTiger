@@ -23,9 +23,28 @@ enum {
     kCTFontUIFontSystem           = 2,
     kCTFontUIFontEmphasizedSystem = 3,
     kCTFontUIFontSmallSystem      = 4,
+    kCTFontUIFontSmallEmphasizedSystem = 5,
     kCTFontUIFontMiniSystem       = 6,
-    kCTFontUIFontMenuItem         = 10,
-    kCTFontUIFontLabel            = 20
+    kCTFontUIFontMiniEmphasizedSystem = 7,
+    kCTFontUIFontViews            = 8,
+    kCTFontUIFontApplication      = 9,
+    kCTFontUIFontLabel            = 10,
+    kCTFontUIFontMenuTitle        = 11,
+    kCTFontUIFontMenuItem         = 12,
+    kCTFontUIFontMenuItemMark     = 13,
+    kCTFontUIFontMenuItemCmdKey   = 14,
+    kCTFontUIFontWindowTitle      = 15,
+    kCTFontUIFontPushButton       = 16,
+    kCTFontUIFontUtilityWindowTitle = 17,
+    kCTFontUIFontAlertHeader      = 18,
+    kCTFontUIFontSystemDetail     = 19,
+    kCTFontUIFontEmphasizedSystemDetail = 20,
+    kCTFontUIFontToolbar          = 21,
+    kCTFontUIFontSmallToolbar     = 22,
+    kCTFontUIFontMessage          = 23,
+    kCTFontUIFontPalette          = 24,
+    kCTFontUIFontToolTip          = 25,
+    kCTFontUIFontControlContent   = 26
 };
 
 /* sfnt tags. Tiger exports its own as CFStrings, which is an implementation

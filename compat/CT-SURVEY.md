@@ -13,10 +13,13 @@ Three Tiger facts drive most of the work:
   `...ForLanguages`).
 - **Tiger's CoreText passes every by-value scalar as a `double`, not a `CGFloat`.**
   See the next section; this is the single most dangerous thing on the box.
-- Tiger's **CoreGraphics exports `CGFontCreateWithDataProvider`, `CGFontGetGlyphPath`
-  and `CGFontGetUnitsPerEm`** even though the 10.4u SDK's `CGFont.h` declares none of
-  them. Those, plus `ATSFontActivateFromMemory` (properly declared in the 10.4u SDK),
-  are what make web fonts and glyph paths possible at all.
+- Tiger's **CoreGraphics exports `CGFontGetGlyphPath` and `CGFontGetUnitsPerEm`** even
+  though the 10.4u SDK's `CGFont.h` declares neither. Those, plus
+  `ATSFontActivateFromMemory` (properly declared in the 10.4u SDK), are what make web
+  fonts and glyph paths possible at all. `CGFontCreateWithDataProvider` is exported too
+  but is **non-functional**: the leopard track established that it returns NULL for
+  `.ttf` and `.dfont`, as does `CGFontCreateWithName`, so ATS is the only route to a
+  `CGFontRef` from bytes. Nothing here depends on it.
 
 ## The part that will bite the port: same name, different function
 
@@ -281,14 +284,33 @@ The `kCTFontWeight*`/`kCTFontWidth*` CGFloat constants use Apple's documented -1
 ## Three CoreGraphics names that landed here
 
 `CGFontCopyFamilyName`, `CGFontGetGlyphsForUnichars` and `CGFontGetGlyphAdvancesForStyle`
-are CoreGraphics by name, but Tiger's CoreGraphics exports none of them and the only
-thing on the box that can answer them is CoreText, so they are implemented in
-`ctcompat.c` rather than `cgcompat.c`, which then needs no CoreText. All three are
-**tier 1**: wrap the `CGFontRef` with `CTFontCreateWithGraphicsFont` and ask CoreText.
+are CoreGraphics by name but absent from Tiger's CoreGraphics under those names, so they
+are implemented in `ctcompat.c` rather than `cgcompat.c`, which then needs no CoreText.
 WebCore declares all three in `PAL/pal/spi/cg/CoreGraphicsSPI.h` and calls none of them
 in this checkout, so like the rest of bucket (a) they exist to keep the port linking if
-that changes. Tiger has no rendering styles, so the hinted and unhinted advances from
-`CGFontGetGlyphAdvancesForStyle` are the same number.
+that changes.
+
+`CGFontCopyFamilyName` and `CGFontGetGlyphsForUnichars` are tier 1 through CoreText: wrap
+the `CGFontRef` with `CTFontCreateWithGraphicsFont` and ask.
+
+`CGFontGetGlyphAdvancesForStyle` is tier 1 through CoreGraphics itself, and is worth
+reading as a warning about trusting a signature match. The leopard track identified
+Tiger's `CGFontGetGlyphTransformedAdvances` as the older name for it, and the
+disassembly agrees completely: six dword arguments at 0x8 through 0x1c, in the same
+order, returning through `movzbl`. It looks like a pure rename. **It is not.** On the
+box it dispatches through a slot in the font object and returns false for rendering
+style 0, the unhinted style, which is the one WebCore asks for when it wants linear
+advances. Asked for a hinted style it does answer, but with pixel-rounded numbers: 11.0
+where the linear advance is 10.67. The implementation therefore calls it first, so a
+caller asking for a hinted style gets genuinely hinted metrics, and falls back to
+`CGFontGetGlyphAdvances`, which returns unscaled integer advances in font units and
+always works, applying the transform locally. Only the linear part of the matrix
+applies, since a size carries no translation. Verified on the box against
+`CTFontGetAdvancesForGlyphs` for the same glyph at the same size.
+
+This is the second time a name match has hidden a behaviour difference on this box, after
+the ten in the section above. The rule that keeps falling out: on Tiger, check the
+signature by disassembly and then check the behaviour by running it.
 
 ## Do not trust the count files
 
@@ -368,6 +390,15 @@ overlay. What it does need:
 - The overlay needs `-F compat/sdk-overlay` ahead of the SDK, and the ApplicationServices
   sub-framework directory also on `-F` so `<ATS/SFNTLayoutTypes.h>` resolves from
   `<CoreText/SFNTLayoutTypes.h>`. `compat/Makefile` shows both.
+
+## Leopard's CoreText cannot be used directly
+
+Worth recording so nobody tries it: the leopard track confirmed that Leopard's CoreText
+binary will not run on Tiger, because it has CoreFoundation 476's object layout inlined
+into it. So the seventeen functions it adds over Tiger's are genuinely absent from this
+machine and have to be written, not borrowed. `refs/leopard/keep/CoreText-10.5.8.i386`
+stays useful as a disassembly reference for Apple's algorithms, which is how the tier-2
+implementations here were derived, but it is a reference and not a shippable library.
 
 ## Open items for the port
 
