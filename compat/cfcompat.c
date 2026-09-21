@@ -240,6 +240,75 @@ CFStringRef CFErrorCopyDescription(CFErrorRef error)
     return CFRetain(CFSTR("unknown CFError"));
 }
 
+/* ========================================================== property lists */
+
+CFPropertyListRef CFPropertyListCreateWithData(CFAllocatorRef allocator, CFDataRef data,
+    CFOptionFlags options, CFPropertyListFormat* format, CFErrorRef* error)
+{
+    CFStringRef errorString = NULL;
+    CFPropertyListRef plist;
+
+    if (error)
+        *error = NULL;
+    plist = CFPropertyListCreateFromXMLData(allocator, data, options, &errorString);
+    if (errorString)
+        CFRelease(errorString);
+    /* Tiger's reader does not report which format it found. Binary is what
+       WebKit writes and XML is what it reads from the outside world; callers
+       that pass a format pointer only log it. */
+    if (format)
+        *format = kCFPropertyListXMLFormat_v1_0;
+    return plist;
+}
+
+CFIndex CFPropertyListWrite(CFPropertyListRef plist, CFWriteStreamRef stream,
+    CFPropertyListFormat format, CFOptionFlags options, CFErrorRef* error)
+{
+    CFStringRef errorString = NULL;
+    CFIndex written;
+
+    (void)options; /* 10.6 added no options that Tiger's writer understands. */
+    if (error)
+        *error = NULL;
+    written = CFPropertyListWriteToStream(plist, stream, format, &errorString);
+    if (errorString)
+        CFRelease(errorString);
+    return written;
+}
+
+CFDataRef CFPropertyListCreateData(CFAllocatorRef allocator, CFPropertyListRef plist,
+    CFPropertyListFormat format, CFOptionFlags options, CFErrorRef* error)
+{
+    CFWriteStreamRef stream;
+    CFDataRef data;
+
+    (void)options;
+    if (error)
+        *error = NULL;
+
+    if (format == kCFPropertyListXMLFormat_v1_0)
+        return CFPropertyListCreateXMLData(allocator, plist);
+
+    /* Binary (and OpenStep) have no Create...Data on Tiger. An allocated-buffer
+       write stream is how CFPropertyListWriteToStream is meant to be used for
+       an in-memory result; the data comes back out as the stream's
+       kCFStreamPropertyDataWritten, which is exactly what LegacyWebArchive.cpp
+       does by hand a few lines further on for the same reason. */
+    stream = CFWriteStreamCreateWithAllocatedBuffers(allocator, NULL);
+    if (!stream)
+        return NULL;
+    CFWriteStreamOpen(stream);
+    if (!CFPropertyListWriteToStream(plist, stream, format, NULL)) {
+        CFWriteStreamClose(stream);
+        CFRelease(stream);
+        return NULL;
+    }
+    data = (CFDataRef)CFWriteStreamCopyProperty(stream, kCFStreamPropertyDataWritten);
+    CFWriteStreamClose(stream);
+    CFRelease(stream);
+    return data;
+}
+
 /* kCFLocaleCurrentLocaleDidChangeNotification is 10.5. The name is Apple's, but
    nothing on Tiger ever posts it: there is no locale-change notification on
    this system, so an observer registered for it simply never fires, which is

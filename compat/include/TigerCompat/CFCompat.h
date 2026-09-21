@@ -33,6 +33,24 @@ CFArrayRef CFLocaleCopyPreferredLanguages(void);
 /* 10.5. Defined in cfcompat.c with Apple's string; Tiger never posts it. */
 extern const CFStringRef kCFLocaleCurrentLocaleDidChangeNotification;
 
+/* The 10.6 property-list entry points. Tiger has the same two operations under
+   their pre-10.6 names -- CFPropertyListCreateFromXMLData (which despite the
+   name reads binary plists too, as its own header says) and
+   CFPropertyListWriteToStream -- so these are adapters over the real
+   implementation, not reimplementations. The only thing lost is the error
+   detail: the old calls report a CFString and Tiger has no CFError to put it
+   in, so the out-parameter is written NULL, which every caller here already
+   handles (it is the "unknown error" path in LegacyWebArchive.cpp). */
+CFPropertyListRef CFPropertyListCreateWithData(CFAllocatorRef, CFDataRef,
+    CFOptionFlags options, CFPropertyListFormat* format, CFErrorRef* error);
+CFIndex CFPropertyListWrite(CFPropertyListRef, CFWriteStreamRef,
+    CFPropertyListFormat, CFOptionFlags options, CFErrorRef* error);
+/* Also 10.6, and the one that actually has to do some work: Tiger can serialise
+   a plist to a CFData only as XML (CFPropertyListCreateXMLData), so any other
+   format goes through a memory write stream. */
+CFDataRef CFPropertyListCreateData(CFAllocatorRef, CFPropertyListRef,
+    CFPropertyListFormat, CFOptionFlags options, CFErrorRef* error);
+
 /* CFRunLoopGetMain is exported by Tiger's CoreFoundation (T _CFRunLoopGetMain;
    logs/api/tiger-CF.txt) but not declared in the 10.4u SDK's <CFRunLoop.h>, so
    this is a declaration of the real function rather than a shim. Note it cannot

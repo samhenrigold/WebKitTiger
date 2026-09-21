@@ -8,6 +8,7 @@
 
 #import <AppKit/AppKit.h>
 #import <TigerCompat/AppKitCompat.h>
+#import <TigerCompat/AquaControls.h>
 
 /* =========================================================================
  * NSEvent
@@ -318,3 +319,140 @@
 
 @end
 
+/* =========================================================================
+ * NSAppearance, 10.9.
+ *
+ * One shared Aqua instance; Tiger has exactly one appearance and no way to ask
+ * for another, so +currentAppearance and +appearanceNamed: both answer it
+ * whatever they are handed. A dark-Aqua request is answered with light rather
+ * than nil on purpose: every caller in WebCore uses the result immediately and
+ * a nil appearance would be a crash, where light art on a 2005 machine is just
+ * the truth.
+ *
+ * -_drawInRect:context:options: is the interesting one. It is CoreUI's widget
+ * drawing entry point, and four control files in
+ * platform/graphics/mac/controls reach for it instead of an NSCell. The options
+ * dictionary names the widget and its state in CoreUI's vocabulary; this maps
+ * that vocabulary onto TigerDrawControl (HITheme underneath, see
+ * compat/aquacontrols.m), which is the same drawing the rest of those files get
+ * from real NSCells.
+ * ========================================================================= */
+
+NSString * const NSAppearanceNameAqua = @"NSAppearanceNameAqua";
+NSString * const NSAppearanceNameDarkAqua = @"NSAppearanceNameDarkAqua";
+NSString * const NSAppearanceNameVibrantLight = @"NSAppearanceNameVibrantLight";
+NSString * const NSAppearanceNameVibrantDark = @"NSAppearanceNameVibrantDark";
+
+/* CoreUI's keys and values. The strings are CoreUI's own -- they are what the
+   WebCore call sites put in the dictionary, via PAL/pal/spi/cocoa/CoreUISPI.h --
+   so matching on them is matching on the caller's intent, not guessing. */
+#define CUI_KEY(name, value) static NSString *const name = @value
+
+CUI_KEY(kTigerCUIWidget, "widget");
+CUI_KEY(kTigerCUIState, "state");
+CUI_KEY(kTigerCUISize, "size");
+CUI_KEY(kTigerCUIValue, "value");
+CUI_KEY(kTigerCUIPresentationState, "imagePresentationState");
+CUI_KEY(kTigerCUIAnimationTime, "animation_time");
+
+static TigerControlKind tigerWidgetKind(NSString *widget, BOOL *handled)
+{
+    *handled = YES;
+    if ([widget isEqualToString:@"button.combobox"])
+        return TigerControlMenuList;
+    if ([widget isEqualToString:@"little_arrows"])
+        return TigerControlInnerSpinButton;
+    if ([widget isEqualToString:@"progress_bar"] || [widget isEqualToString:@"progress_ind_bar"])
+        return TigerControlProgressBar;
+    *handled = NO;
+    return TigerControlButton;
+}
+
+@implementation NSAppearance
+
++ (NSAppearance *)currentAppearance
+{
+    static NSAppearance *sAqua;
+    if (!sAqua)
+        sAqua = [[NSAppearance alloc] init];
+    return sAqua;
+}
+
++ (void)setCurrentAppearance:(NSAppearance *)appearance { (void)appearance; }
++ (NSAppearance *)currentDrawingAppearance { return [self currentAppearance]; }
++ (NSAppearance *)appearanceNamed:(NSString *)name { (void)name; return [self currentAppearance]; }
+
+- (NSString *)name { return NSAppearanceNameAqua; }
+- (BOOL)_usesMetricsAppearance { return NO; }
+- (NSColor *)tintColor { return [NSColor colorForControlTint:[NSColor currentControlTint]]; }
+- (NSAppearance *)appearanceByApplyingTintColor:(NSColor *)tintColor { (void)tintColor; return self; }
+
+- (void)_drawInRect:(NSRect)rect context:(CGContextRef)context options:(NSDictionary *)options
+{
+    NSString *widget = [options objectForKey:kTigerCUIWidget];
+    BOOL handled = NO;
+    TigerControlKind kind;
+    TigerControlStyle style;
+    NSString *state, *size;
+    id value;
+
+    if (!context || !widget)
+        return;
+
+    kind = tigerWidgetKind(widget, &handled);
+    if (!handled) {
+        /* ponytail: the switch (widget keys switch_border / switch_fill /
+           switch_knob) draws nothing. Aqua 2005 has no switch control and
+           SwitchMac.mm paints it in three separate passes, so it needs its own
+           drawing rather than a mapping -- a checkbox per pass would draw three
+           checkboxes. Upgrade path: a TigerControlSwitch kind in
+           compat/aquacontrols.m, drawn as a rounded track plus knob, then one
+           more case here. Everything else CoreUI-drawn is mapped above. */
+        static NSMutableSet *sWarned;
+        if (!sWarned)
+            sWarned = [[NSMutableSet alloc] init];
+        if (![sWarned containsObject:widget]) {
+            [sWarned addObject:widget];
+            NSLog(@"TigerCompat: no Tiger drawing for CoreUI widget '%@'; nothing painted", widget);
+        }
+        return;
+    }
+
+    TigerControlStyleInit(&style, NSRectToCGRect(rect));
+
+    state = [options objectForKey:kTigerCUIState];
+    if ([state isEqualToString:@"disabled"])
+        style.states &= ~(unsigned)TigerControlStateEnabled;
+    else if ([state isEqualToString:@"pressed"])
+        style.states |= TigerControlStatePressed;
+
+    if ([[options objectForKey:kTigerCUIPresentationState] isEqualToString:@"kCUIPresentationStateInactive"])
+        style.states &= ~(unsigned)TigerControlStateWindowActive;
+
+    /* CoreUI names the size class; TigerControlStyleInit picks one from the font
+       size, so say it in those terms. The numbers are the NSControlSize font
+       sizes Aqua uses, which is what TigerControlSizeClassForStyle reads. */
+    size = [options objectForKey:kTigerCUISize];
+    if ([size isEqualToString:@"small"])
+        style.fontSize = 11;
+    else if ([size isEqualToString:@"mini"])
+        style.fontSize = 9;
+
+    value = [options objectForKey:kTigerCUIValue];
+    if ([value respondsToSelector:@selector(doubleValue)])
+        style.value = [value doubleValue];
+    value = [options objectForKey:kTigerCUIAnimationTime];
+    if ([value respondsToSelector:@selector(doubleValue)]) {
+        double t = [value doubleValue];
+        style.animationPhase = t - (double)(long)t;
+    }
+
+    TigerDrawControl(context, kind, &style);
+}
+
+@end
+
+@implementation NSView (TigerCompatAppearance)
+- (NSAppearance *)appearance { return [NSAppearance currentAppearance]; }
+- (void)setAppearance:(NSAppearance *)appearance { (void)appearance; }
+@end

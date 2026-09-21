@@ -185,6 +185,44 @@ enum {
 @end
 
 /* -------------------------------------------------------------------------
+ * NSAppearance, 10.9. Tiger has no appearance object at all -- there is one
+ * Aqua and no way to ask for another -- so this is a real class with a single
+ * shared instance, not a wrapper around something.
+ *
+ * It exists for two reasons. WebCore reads `appearance.name` to decide between
+ * light and dark art (always Aqua here), and, much more importantly,
+ * platform/graphics/mac/controls draws four widgets by calling
+ * -_drawInRect:context:options: with a CoreUI widget description -- the switch,
+ * the progress bar, the combo-box button and the little arrows. That is the
+ * modern replacement for the NSCell drawing the rest of those files still use,
+ * and it is the SPI half declared by PAL/pal/spi/mac/NSAppearanceSPI.h, which
+ * extends this class.
+ *
+ * The drawing implementation maps the CoreUI widget key onto
+ * <TigerCompat/AquaControls.h>'s TigerDrawControl, which is HITheme underneath.
+ * ------------------------------------------------------------------------- */
+extern NSString * const NSAppearanceNameAqua;
+extern NSString * const NSAppearanceNameDarkAqua;
+extern NSString * const NSAppearanceNameVibrantLight;
+extern NSString * const NSAppearanceNameVibrantDark;
+
+@interface NSAppearance : NSObject
++ (NSAppearance *)currentAppearance;
++ (void)setCurrentAppearance:(NSAppearance *)appearance;
+/* 10.16's rename of +currentAppearance, and the one WebCore actually calls. */
++ (NSAppearance *)currentDrawingAppearance;
++ (NSAppearance *)appearanceNamed:(NSString *)name;
+@property (readonly) NSString *name;
+@end
+
+/* -[NSView appearance] / -setAppearance: are 10.9 too. Tiger's views have no
+   appearance to set; the setter is accepted and ignored so that the one caller
+   (ControlFactoryMac.mm, on its offscreen drawing view) compiles. */
+@interface NSView (TigerCompatAppearance)
+@property (retain) NSAppearance *appearance;
+@end
+
+/* -------------------------------------------------------------------------
  * NSView layer backing, 10.5.
  *
  * Typed `id`, not CALayer *: Tiger's QuartzCore has no CALayer at all. WebCore

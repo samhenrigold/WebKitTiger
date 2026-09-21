@@ -387,16 +387,31 @@ CFAllocatorRef CFGetAllocator(CFTypeRef cf);
    the same reason. Apple's own guard macros are used so a later real definition
    wins. */
 
+/* Variadic, like Apple's, because both arities are used in practice: the
+   two-argument "typedef CF_ENUM(CFIndex, Name) { ... }" and the one-argument
+   "CF_ENUM(SomeAlreadyTypedefdName) { ... }", which is what
+   PAL/pal/spi/cf/CFNetworkSPI.h writes for CFHTTPCookieStorageAcceptPolicy. A
+   fixed two-parameter macro accepts only the first and fails the second with
+   "too few arguments provided to function-like macro invocation", which then
+   cascades into a dozen "use of undeclared identifier" errors for the
+   enumerators. The dispatch trick (count the arguments by which position NAME
+   lands in) is Apple's own. */
 #ifndef CF_ENUM
+#define __TIGER_CF_ENUM_GET_MACRO(_1, _2, NAME, ...) NAME
 #if __has_feature(objc_fixed_enum) || __has_extension(cxx_fixed_enum) || __has_extension(cxx_strong_enums)
-#define CF_ENUM(_type, _name) enum _name : _type _name; enum _name : _type
-#define CF_OPTIONS(_type, _name) _type _name; enum : _type
-#define CF_CLOSED_ENUM(_type, _name) enum _name : _type _name; enum _name : _type
+#define __TIGER_CF_ENUM_FIXED(_type) enum : _type
+#define __TIGER_CF_NAMED_ENUM(_type, _name) enum _name : _type _name; enum _name : _type
+#define __TIGER_CF_OPTIONS_FIXED(_type) enum : _type
+#define __TIGER_CF_NAMED_OPTIONS(_type, _name) _type _name; enum : _type
 #else
-#define CF_ENUM(_type, _name) _type _name; enum
-#define CF_OPTIONS(_type, _name) _type _name; enum
-#define CF_CLOSED_ENUM(_type, _name) _type _name; enum
+#define __TIGER_CF_ENUM_FIXED(_type) enum
+#define __TIGER_CF_NAMED_ENUM(_type, _name) _type _name; enum
+#define __TIGER_CF_OPTIONS_FIXED(_type) enum
+#define __TIGER_CF_NAMED_OPTIONS(_type, _name) _type _name; enum
 #endif
+#define CF_ENUM(...) __TIGER_CF_ENUM_GET_MACRO(__VA_ARGS__, __TIGER_CF_NAMED_ENUM, __TIGER_CF_ENUM_FIXED)(__VA_ARGS__)
+#define CF_CLOSED_ENUM(...) __TIGER_CF_ENUM_GET_MACRO(__VA_ARGS__, __TIGER_CF_NAMED_ENUM, __TIGER_CF_ENUM_FIXED)(__VA_ARGS__)
+#define CF_OPTIONS(...) __TIGER_CF_ENUM_GET_MACRO(__VA_ARGS__, __TIGER_CF_NAMED_OPTIONS, __TIGER_CF_OPTIONS_FIXED)(__VA_ARGS__)
 #endif
 
 #ifndef CF_BRIDGED_TYPE
