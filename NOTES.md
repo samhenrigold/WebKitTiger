@@ -412,3 +412,13 @@ one triage pass before it was noticed. See the triage table at the end of
   32-bit Cocoa UI process + x86_64 content process with today's fully-maintained x86_64 JIT) — spikes: jsc PORT=JSCOnly
   x86_64 on Tiger's 64-bit libSystem (agent jsc64, worktree WebKit-jsc64, logs/jsc64-spike.md) and Leopard 10.5.0's x86_64
   CF/CG/CoreText loaded privately in a 64-bit process (agent leopard, logs/leopard-x86_64-spike.md). Decision is the user's.
+
+## DIRECTION SET BY THE USER (2026-09-20 22:35)
+- Make as much as possible 64-bit; maximize performance on the Core 2 Duo, including CPU-specific optimization
+  (-march=core2 -O3, LTO, SIMD in decoders). Target sites: YouTube (needs MSE + H.264 software decode in-process),
+  React apps (JIT), graphically heavy sites like The Verge (image formats, HTTP/2, compositing).
+- Architecture: WebKit2-shaped split. 32-bit Cocoa UI process (thin: window, events, IME, pasteboard, CA compositing host
+  with the Apple TV QuartzCore) + 64-bit content process (WTF/JSC with the x86_64 JIT incl. FTL, WebCore, curl networking)
+  on Tiger's x86_64 libSystem. Rendering backend inside the content process: decided by the spikes (Leopard x86_64 CG/CT
+  loaded privately vs cairo/freetype/harfbuzz). WebKitLegacy is no longer the target; the 32-bit WebCore work continues only as
+  far as it transfers (generic Tiger gates, compat layer for the UI side).
