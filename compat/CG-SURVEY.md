@@ -1,5 +1,33 @@
 # CoreGraphics / ImageIO survey for Mac OS X 10.4.11 (i386)
 
+## Framework versions
+
+The box took Security Update 2009-005 on 2026-09-20, which patches CoreGraphics and ImageIO.
+Everything below was re-verified against the updated system.
+
+| | Before | After |
+|---|---|---|
+| CoreGraphics bundle | 1.258.77 | 1.258.85 |
+| CoreGraphics `current_version` | 258.77.0 | 258.85.0 |
+| ImageIO bundle | 1.5.6 | 1.5.9 |
+| ImageIO size | 730836 | 734980 |
+
+Both binaries changed; CoreGraphics kept its size and was patched in place. The updated copies
+are in `refs/tiger-postupdate/`.
+
+**Nothing in this document changed.** The defined export surface is identical in both
+frameworks, 3568 CoreGraphics and 269 ImageIO, with nothing added or removed.
+`spike/cgtest.c` passes all 54 checks, `spike/cgprobe.c` reports the same seven divergences,
+shadings still discard alpha, the blend modes are still ignored, and `CGGStateGetCTM` still
+returns by value, so the adapter is still correct. Only its address moved.
+
+One correction that came out of the re-check: `logs/api/tiger-ImageIO.txt` had been generated
+without filtering undefined symbols, so it listed 699 names when ImageIO defines 269. The 430
+extras were imports from CoreFoundation and libc. It has been regenerated defined-only. The
+classification here was not affected, because all 20 of the `CGImageSource` and
+`CGImageDestination` names credited to Tiger are real exports; that was re-checked against the
+filtered list rather than assumed.
+
 Input: `logs/api/missing-CG.txt` (144 names WebCore's CG backend references that are not in
 Tiger's CoreGraphics exports), `logs/api/tiger-CG.txt` (3568 CG exports),
 `logs/api/tiger-ImageIO.txt` (699 ImageIO exports, generated with `tiger-nm` during this pass),
