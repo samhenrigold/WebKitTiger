@@ -11,6 +11,22 @@
  * and 0 paints nothing, so filling opaque white through a mask of value m into a
  * cleared premultiplied RGBA context should give exactly (m, m, m, m).
  *
+ * Measured on 10.4.11:
+ *
+ *   - With a DeviceGray non-alpha image the function is CORRECT and matches the
+ *     documented semantics exactly. Destination alpha is the mask sample alone,
+ *     independent of the fill colour, and the colour channels are colour x mask
+ *     because the destination is premultiplied. That premultiplied colour channel
+ *     is almost certainly what looked like "alpha came out as mask times source
+ *     colour"; the alpha channel itself is the mask.
+ *   - A CGImageMaskCreate stencil clips EVERYTHING away.
+ *   - An RGBA image clips EVERYTHING away. This is what
+ *     GraphicsContextCG::clipToImageBuffer passes, so on Tiger that call makes all
+ *     subsequent drawing in the clipped region vanish rather than mask it.
+ *   - Case 6 controls for the obvious objection: both of those images render fine
+ *     through CGContextDrawImage, so they are well formed and it is ClipToMask
+ *     that rejects them, silently.
+ *
  * This measures, it does not assume. Every case prints the raw destination bytes.
  *
  * Build (from the repo root, in bash):
@@ -183,6 +199,87 @@ int main(void)
         expect("RGBA mask alpha changes the result at all", !(a1 == a2 && a2 == a3));
         if (a1 == a2 && a2 == a3)
             printf("    NOTE: an RGBA mask is ignored entirely; clipToImageBuffer would not clip\n");
+    }
+
+    /* 5. A ramp, not a single pixel: a varying mask under a varying colour. This is the
+     *    case cgcompat described, and it separates the two readings of "alpha came out as
+     *    mask times source colour". In a premultiplied buffer the COLOUR channels are
+     *    colour x alpha by definition; only the alpha channel answers the question. */
+    printf("\n-- 4-pixel ramp: mask 0/85/170/255 under a red-to-blue colour ramp\n");
+    {
+        static const unsigned char mvals[4] = { 0, 85, 170, 255 };
+        static unsigned char mstore[4];
+        unsigned char dst[4 * 4];
+        int alphaIsMaskAlone = 1, colourIsPremultiplied = 1;
+        memcpy(mstore, mvals, 4);
+        CGDataProviderRef mp = CGDataProviderCreateWithData(NULL, mstore, 4, NULL);
+        CGColorSpaceRef gray = CGColorSpaceCreateDeviceGray();
+        CGImageRef ramp = CGImageCreate(4, 1, 8, 8, 4, gray, kCGImageAlphaNone, mp, NULL,
+                                        false, kCGRenderingIntentDefault);
+        CGColorSpaceRelease(gray);
+        CGDataProviderRelease(mp);
+
+        CGColorSpaceRef rgb = CGColorSpaceCreateDeviceRGB();
+        memset(dst, 0, sizeof dst);
+        CGContextRef c = CGBitmapContextCreate(dst, 4, 1, 8, 16, rgb, kCGImageAlphaPremultipliedLast);
+        CGColorSpaceRelease(rgb);
+        if (c && ramp) {
+            CGContextClipToMask(c, CGRectMake(0, 0, 4, 1), ramp);
+            /* one opaque fill per column, colour varying across the row */
+            for (int i = 0; i < 4; ++i) {
+                CGFloat t = (CGFloat)i / 3;
+                CGContextSetRGBFillColor(c, 1 - t, 0, t, 1);
+                CGContextFillRect(c, CGRectMake(i, 0, 1, 1));
+            }
+            for (int i = 0; i < 4; ++i) {
+                unsigned char *px = dst + i * 4;
+                CGFloat t = (CGFloat)i / 3;
+                unsigned expR = (unsigned)((1 - t) * mvals[i] + 0.5f);
+                unsigned expB = (unsigned)(t * mvals[i] + 0.5f);
+                snprintf(label, sizeof label, "col %d mask=%3u", i, mvals[i]);
+                show(label, px);
+                if (px[3] + 1 < mvals[i] || px[3] > mvals[i] + 1u)
+                    alphaIsMaskAlone = 0;
+                if (px[0] + 2 < expR || px[0] > expR + 2 || px[2] + 2 < expB || px[2] > expB + 2)
+                    colourIsPremultiplied = 0;
+            }
+        }
+        if (c) CGContextRelease(c);
+        if (ramp) CGImageRelease(ramp);
+        expect("ramp: alpha is the mask alone, independent of colour", alphaIsMaskAlone);
+        expect("ramp: colour channels are colour x mask (premultiplied)", colourIsPremultiplied);
+    }
+
+    /* 6. Control for cases 3 and 4: are those masks well formed? Draw each one with
+     *    CGContextDrawImage, where an image mask is a stencil and an RGBA image is just
+     *    an image. If drawing works, the image is fine and CGContextClipToMask is what
+     *    rejects it. */
+    printf("\n-- control: the same images used with CGContextDrawImage, not as a clip\n");
+    {
+        CGImageRef stencil = grayMask(0, 1);          /* image mask, 0 should paint */
+        CGImageRef rgba = rgbaMask(255, 0, 0, 255);   /* opaque red */
+        Dest d;
+        int stencilDraws = 0, rgbaDraws = 0;
+        if (destInit(&d) && stencil) {
+            CGContextSetRGBFillColor(d.ctx, 0, 1, 0, 1);   /* stencil paints the fill colour */
+            CGContextDrawImage(d.ctx, CGRectMake(0, 0, 1, 1), stencil);
+            show("image mask sample=0 via DrawImage", d.px);
+            stencilDraws = d.px[3] != 0;
+            destFree(&d);
+        }
+        if (destInit(&d) && rgba) {
+            CGContextDrawImage(d.ctx, CGRectMake(0, 0, 1, 1), rgba);
+            show("rgba image via DrawImage", d.px);
+            rgbaDraws = d.px[3] != 0;
+            destFree(&d);
+        }
+        if (stencil) CGImageRelease(stencil);
+        if (rgba) CGImageRelease(rgba);
+        expect("the image mask itself is well formed", stencilDraws);
+        expect("the RGBA image itself is well formed", rgbaDraws);
+        if (stencilDraws && rgbaDraws)
+            printf("    => both images are fine; CGContextClipToMask rejects anything\n"
+                   "       that is not a DeviceGray non-alpha image, and clips everything away\n");
     }
 
     printf("\n%s (%d failure%s)\n", failures ? "MEASURED DIFFERENCES" : "all expectations held",
