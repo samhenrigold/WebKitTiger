@@ -795,3 +795,21 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   (see the Housekeeping note about six overlay availability headers). **A header that only exists staged is a header
   you have already lost**: `git status` cannot show a file that was never added, so commit new files in sdk-fill and
   the overlay the same day they are written.
+- MSE demux proven with libavformat (2026-09-20, media64 track, logs/mse-demux.md, spike/msebench.c): **no fMP4 box
+  parser needed**, but the obvious design fails. One long-lived AVFormatContext per SourceBuffer over a growing
+  append buffer (read callback returning EAGAIN when starved) decodes the first segment and then nothing, for mov
+  AND matroska: `mov_switch_root` zeroes `next_root_atom` and resets `found_mdat` *before* parsing the next root
+  atom (mov.c:10889), so the first pump at a fragment boundary with the next moof not yet appended destroys the
+  demuxer permanently (mov.c:11119). Clearing pb->error/pb->eof_reached is necessary but not sufficient; the damage
+  is in the demuxer, not avio. mov also can't open on an init segment alone (it arms next_root_atom only after
+  seeing both moov and mdat, mov.c:9549); matroska won't even open without a Cluster.
+  What works: a throwaway AVFormatContext per append over `init segment || complete buffered fragments` as a FINITE
+  stream, with one long-lived AVCodecContext per track. Decodes play, seek across a discontinuity, and remove, for
+  fMP4 H.264+AAC and WebM VP9+Opus; 0.32 ms per open, 5-7 ms per 2 s append (~0.35% of one core), and remove() is
+  free because no demuxer state pins old bytes. Timestamps need no fixup: each fragment's baseMediaDecodeTime gives
+  absolute PTS whichever segment is handed over.
+  **Trap: a truncated mdat parses into garbage packets rather than failing** (4 partial appends per segment without
+  scanning: 1 packet, 0 frames). So completeness can't be tested by trial parse; we owe ~120 LOC of top-level box /
+  EBML scanning, and the ISO-BMFF cut must be at the last complete **mdat**, not the last complete box (a moof
+  without its mdat yields nothing and gets consumed: 0 packets at every split). With the scanner, append
+  granularity stops mattering (600/600 frames at 1, 2, 4, 16 and 64 appends per segment).
