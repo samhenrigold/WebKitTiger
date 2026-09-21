@@ -272,3 +272,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - WebKit CMake tip (wkcmake): WebKitMacros.cmake's `<framework>_UNIFIED_SOURCE_EXCLUDES` filters Sources*.txt by regex before
   unified bundles are generated (runs after PlatformCocoa.cmake), so excluding directories needs no edits to the .txt lists.
 - jsc on the TigerBrowser script.html loop: ~2.24 s vs 5.3 s on Tiger's 2007 WebKit (2.4x, C loop, no JIT).
+- Testing caveat: NSPasteboard is nil for processes launched over ssh on the box (pbs not in the session's bootstrap
+  namespace); pasteboard tests need a console-session launch. Window server, windows, screencapture all work over ssh.
+- Tiger AppKit coalesces multiple setNeedsDisplayInRect: into one drawRect: with the full view bounds (more repainting than modern).
+- Cap-height/x-height: Tiger's NSFont values are closer to modern than the glyph heuristic for Helvetica (audit AppKit probe); ctcompat re-measuring per font.
