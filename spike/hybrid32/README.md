@@ -57,8 +57,13 @@ Raw runs are in `*-run.txt`.
 | 3d | same page via `movabs` + `[reg]` | works, reads 0x5EEDFACE |
 | 3e | rip-relative load with the blob itself loaded at 0x80010000 | works, reads 0x5EEDFACE, and `lea`'d address = 0x80010042 = exactly right |
 | 3f | `syscall` from long mode in a 32-bit task | **kernel panic**. The box went down hard — no console output, no reboot, power cycle required. Forking does not contain it. Do not run `asprobe --danger-syscall` |
-| 4a | two threads in long-mode loops for 2 s each | see `threadprobe-run.txt` |
-| 4b | 64→32→64 round trip cost | see `threadprobe-run.txt` |
+| 1i | does masking signals (`sigprocmask` SIG_BLOCK all) protect the guest | **yes for the signal itself** — with a 10 ms repeating `SIGALRM` pending, 0 handlers ran, the guest stayed in long mode and completed all 200 M iterations. This is the only viable mitigation, and it works |
+| 1j | but is the guest's state safe then? | **no, and this is the worst finding.** With signals blocked *and the timer off entirely*, plain preemption still corrupts state: 106–286 corrupt iterations per 200 M across six runs. The split is total: **r15 mismatches = 0 over 1.2 G iterations; the upper half of rdi mismatches 106–286 times per 200 M** (≈ once per 4 ms of execution). r8–r15 are preserved across preemption; the upper 32 bits of the *legacy* registers (rax, rcx, rdx, rsi, rdi …) are not — the kernel saves and restores them as 32-bit. `ldt64/ldt32host` only ever checked r15, so its "survived preemption" conclusion was too broad |
+| 4a | two threads in long-mode loops for 2 s each | clean: 1.18 G and 1.18–1.20 G iterations, **0 corruptions each**, with distinct sentinels so a cross-thread leak would show. Two threads in long mode at once is fine (this loop keeps its 64-bit value in r15) |
+| 4b | 64→32→64 round trip, empty thunk (`lret` only) | **131.0 ns/call** over 1 M calls (~280 cycles at 2.16 GHz) |
+| 4c | round trip calling a local 32-bit C function | **140.2 ns/call** over 1 M calls |
+| 4d | round trip calling a **libSystem** function (`getpid`, `gettimeofday`, `write`) | **cannot be done.** The call itself succeeds — the thunk's marker shows `getpid` returned the correct pid — and then the `lret` back into the long-mode segment wedges or #GPs. Not lazy binding (pre-binding every stub changes nothing) and not syscalls as such: a raw `int $0x80` in the thunk returns the right pid and gets back to long mode fine. It is specifically libSystem's own stubs (the commpage `sysenter` path) that poison the return |
+| 4e | is the far-call bridge reliable | **no.** ~8 failures against ~1.4 × 10⁹ transitions, but at wildly variable intervals — observed after 3 k, <1 k, 24 k, 78 k, 90 k, 93 k, 224 k and 5.77 M transitions, against other runs of 200 M clean. Always a #GP (trapno 13, garbage error code) or #PF landing back at the guest entry with `cs=0x17`, i.e. the return to long mode silently didn't take. Cause not isolated. At 131 ns/call that is a crash roughly every 25 s of continuous cross-calling |
 
 ## Verdict
 

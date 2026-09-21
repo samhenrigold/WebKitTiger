@@ -1,0 +1,18 @@
+== two threads + round-trip benchmark ==
+cs64=0x8f cs32=0x17
+two threads, 2 s each in long mode:
+  main   1180000000 iterations, 0 corruptions
+  worker 1180000000 iterations, 0 corruptions
+64->32->64 round trip, 1M calls in batches of 1000:
+  FAULT sig=4 eip=0x6028 cs=0x17 trapno=13 err=60928 faultvaddr=0xa0006e48 esp=0xbffffbd8 eax=0x8f ecx=0x313 edx=0x19f t32_pid=0
+  survived 3000 (+0 on the worker) mode transitions before this
+
+== mode-transition endurance, empty thunk ==
+  FAULT sig=11 eip=0x6028 cs=0x17 trapno=14 err=4 faultvaddr=0x9008 esp=0xbffffbb8 eax=0x8f ecx=0x222 edx=0x130 t32_pid=0
+  survived 90000 (+0 on the worker) mode transitions before this
+  FAULT sig=11 eip=0x6028 cs=0x17 trapno=14 err=4 faultvaddr=0x9008 esp=0xbffffbb8 eax=0x8f ecx=0xbf edx=0x116 t32_pid=0
+  survived 5766000 (+0 on the worker) mode transitions before this
+  survived all 20000000 transitions (+0 on the worker)
+== 2 threads transitioning concurrently ==
+  survived all 20000000 transitions (+19969000 on the worker)
+  survived all 20000000 transitions (+19909000 on the worker)

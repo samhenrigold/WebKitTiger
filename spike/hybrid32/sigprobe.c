@@ -288,7 +288,9 @@ int main(int argc, char** argv) {
         out[13] = 200000000ULL;
         out[14] = 0xC0FFEE000000000FULL;
         out[16] = 0x1111000500000000ULL;
-        setitimer(ITIMER_REAL, &(struct itimerval){{0,10000},{0,10000}}, NULL);
+        int notimer = argc > 3 && !strcmp(argv[3], "notimer");
+        if (!notimer) setitimer(ITIMER_REAL, &(struct itimerval){{0,10000},{0,10000}}, NULL);
+        printf("  timer %s\n", notimer ? "OFF (control)" : "on, 10 ms repeating");
         struct timeval t0, t1; gettimeofday(&t0, NULL);
         uint32_t corrupt = h32_call64(page + (g_loop - g_beg), (uint32_t)(uintptr_t)out);
         gettimeofday(&t1, NULL);
@@ -297,6 +299,8 @@ int main(int argc, char** argv) {
         printf("  with all signals blocked: %u corrupt of %llu iterations in %.0f ms, %d handler runs\n",
                corrupt, (unsigned long long)out[13], ms, nalrm);
         sigprocmask(SIG_UNBLOCK, &all, NULL);
+        printf("  split: r15 (a new register) mismatches=%u, rdi (upper half of a legacy register) mismatches=%u\n",
+               (uint32_t)out[15], (uint32_t)out[17]);
         printf("  after unblocking, %d pending SIGALRM ran\n", nalrm);
         return report() != 0 || corrupt != 0;
     } else if (!strcmp(which, "wake")) {

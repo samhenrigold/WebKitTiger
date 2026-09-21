@@ -3088,15 +3088,54 @@ And `syscall` executed in long mode from a 32-bit task **panics the kernel**. Th
 with no console output and needed a power cycle; `fork()` does not contain it. That case is now
 behind an explicit `--danger-syscall` flag in `asprobe`. Nobody should run it again.
 
-**Q4 — threads and thunk cost.** PENDING — the box is still down from the Q3 syscall panic.
-`spike/hybrid32/threadprobe.c` is written and builds: two threads running long-mode r15 loops
-with distinct sentinels for 2 s each, plus a 1M-iteration 64→32→64 round trip through a real
-`gettimeofday`/`write(2)` thunk against plain 32-bit baselines.
+**Q4 — threads and thunk cost. Verdict: threads are fine, the bridge is fast, and neither
+matters.** Two threads each spinning in long-mode code for 2 s did 1.18 G and 1.18–1.20 G
+iterations with **0 corruptions each**, using distinct sentinels so a cross-thread leak would have
+shown. The 64→32→64 round trip costs **131.0 ns/call** empty (about 280 cycles at 2.16 GHz) and
+**140.2 ns/call** when the thunk calls a local 32-bit C function, both over 1 M calls.
+
+But the thunk cannot call libSystem. `getpid`, `gettimeofday` and `write` all complete — the
+thunk's marker shows `getpid` returned the right pid — and then the `lret` back into the long-mode
+segment wedges the process or #GPs. It is not lazy binding (pre-binding every stub changes
+nothing) and it is not syscalls as such: a raw `int $0x80` in the thunk returns the right pid and
+gets back to long mode fine. It is specifically libSystem's own stubs, i.e. the commpage
+`sysenter` path, that poison the return. So a thunk may compute, and may make raw `int $0x80`
+syscalls, but may not call libSystem — which means the "thunk generator" is really a
+reimplementation of every libSystem entry point the 64-bit side touches, `malloc` and `pthread`
+included.
+
+And the bridge is not reliable even when it only does far calls: about 8 failures against
+~1.4 × 10^9 transitions, at wildly uneven intervals (observed after 3 k, <1 k, 24 k, 78 k, 90 k,
+93 k, 224 k and 5.77 M transitions, against other runs of 200 M clean), always a #GP or #PF that
+lands back at the guest entry with `cs=0x17` — the return to long mode silently did not take.
+Cause not isolated. At 131 ns a crossing that is a crash roughly every 25 s of continuous
+cross-calling.
+
+**The finding that settles it, and a correction to the earlier `ldt32host` note.** Masking every
+signal with `sigprocmask` *does* protect the guest from the Q1 demotion: with a 10 ms repeating
+SIGALRM pending, zero handlers ran, the guest stayed in long mode and finished. So the signal
+problem has a real mitigation. But with signals blocked **and the timer off entirely**, plain
+preemption still corrupts 64-bit state, and the split is total: over six runs of 200 M iterations,
+**r15 mismatched 0 times** while **the upper half of rdi mismatched 106–286 times per 200 M** —
+about once every 4 ms of execution. r8–r15 are preserved across preemption; the upper 32 bits of
+the *legacy* registers (rax, rcx, rdx, rsi, rdi …) are not, because the kernel saves and restores
+them as a 32-bit register set. `ldt64/ldt32host` only ever checked r15, so its "survived
+preemption with upper halves intact" conclusion was too broad: it is true of the eight new
+registers and false of the eight old ones.
+
+That is silent, non-deterministic data corruption in ordinary straight-line 64-bit code with no
+signals, no threads and no syscalls involved. No compiler can be told to keep every 64-bit value
+out of rax–rdi, and JSC's JIT certainly cannot. Pointers happen to survive (everything is below
+4 GB) but any 64-bit integer, any boxed JSValue, any NaN-boxed double in a legacy register is
+wrong a few hundred times a second.
 
 **Feasibility of the hybrid process: technically possible, strictly worse than the process split
 we already have, and blocked on one thing we cannot fix.**
 
-What it would need, in order of difficulty:
+The blocker is no longer signals. It is that **only r8–r15 hold 64-bit values reliably** (measured
+above), and after that, that **the thunk cannot call libSystem** and **the bridge itself faults
+every tens of seconds of heavy use**. Any one of those three is fatal on its own. What would still
+be needed even if they were fixed, in order of difficulty:
 
 1. *Conservative GC.* `MachineStackMarker` scans suspended threads' registers via
    `thread_get_state`. r8–r15 of a thread suspended in 64-bit code are unreachable (Q2), so roots
@@ -3108,12 +3147,11 @@ What it would need, in order of difficulty:
 2. *Signals.* Every signal-based JSC mechanism has to go: polling VM traps only
    (`Options::usePollingTraps`), no signalling Wasm memory, no signal-based OSR, no
    `SigillCrashAnalyzer`, and a crash in 64-bit code produces a register dump that is 32-bit
-   nonsense. Worse than the opt-outs: an *asynchronous* signal to the process is delivered to an
-   arbitrary thread, and merely running the handler demotes that thread out of long mode. The only
-   mitigation is to keep every signal masked with `pthread_sigmask` on the guest threads and
-   service signals on a dedicated 32-bit thread. That is *inferred, not measured* — the probe for
-   it (`sigprobe blocked`) is written and builds but has not run, again because of the panic. If
-   masking does not hold, the hybrid is simply dead.
+   nonsense. Beyond the opt-outs, an *asynchronous* signal to the process is delivered to an
+   arbitrary thread and merely running the handler demotes that thread out of long mode. Masking
+   every signal on the guest threads and servicing signals on a dedicated 32-bit thread does work
+   — measured, not inferred — so this one is survivable, at the cost of a signal architecture
+   nothing else in the process may violate.
 3. *libSystem thunk generator.* Bounded in surface — our x86_64 binaries import libSystem and
    libgcc_s only — but not bounded in difficulty. Per symbol: SysV x86_64 argument registers and
    xmm0–7 down to i386 cdecl stack, return marshalling (rax/rdx, xmm0, x87 st0, sret pointer),

@@ -430,3 +430,47 @@
   FAULT after 1 SIGALRMs: sig=4 eip=0x6387 cs=0x17 faultvaddr=0xc0000fad mode-marker=1
   child exit=92
 
+===== ./sigprobe blocked: all signals masked with sigprocmask =====
+== blocked ==
+  timer on, 10 ms repeating
+  with all signals blocked: 284 corrupt of 200000000 iterations in 508 ms, 0 handler runs
+  [alrm] uc_mcsize=600 eip=0x900011dc cs=0x7 (cs64=0x8f, in-guest=no)
+  split: r15 (a new register) mismatches=0, rdi (upper half of a legacy register) mismatches=284
+  after unblocking, 1 pending SIGALRM ran
+  CORRUPT rax  = 0x0000000000000000 (want 0x1111000100000000)
+  CORRUPT rcx  = 0x0000000000000000 (want 0x1111000200000000)
+  CORRUPT rdx  = 0x0000000000000000 (want 0x1111000300000000)
+  CORRUPT rsi  = 0x0000000000000000 (want 0x1111000400000000)
+  resumed=0 signals=0 registers-intact=9/13
+
+-- control: same, with the timer off --
+== blocked ==
+  timer OFF (control)
+  with all signals blocked: 286 corrupt of 200000000 iterations in 508 ms, 0 handler runs
+  split: r15 (a new register) mismatches=0, rdi (upper half of a legacy register) mismatches=286
+  after unblocking, 0 pending SIGALRM ran
+  CORRUPT rax  = 0x0000000000000000 (want 0x1111000100000000)
+  CORRUPT rcx  = 0x0000000000000000 (want 0x1111000200000000)
+  CORRUPT rdx  = 0x0000000000000000 (want 0x1111000300000000)
+  CORRUPT rsi  = 0x0000000000000000 (want 0x1111000400000000)
+  resumed=0 signals=0 registers-intact=9/13
+== blocked ==
+  timer OFF (control)
+  with all signals blocked: 271 corrupt of 200000000 iterations in 507 ms, 0 handler runs
+  split: r15 (a new register) mismatches=0, rdi (upper half of a legacy register) mismatches=271
+  after unblocking, 0 pending SIGALRM ran
+  CORRUPT rax  = 0x0000000000000000 (want 0x1111000100000000)
+  CORRUPT rcx  = 0x0000000000000000 (want 0x1111000200000000)
+  CORRUPT rdx  = 0x0000000000000000 (want 0x1111000300000000)
+  CORRUPT rsi  = 0x0000000000000000 (want 0x1111000400000000)
+  resumed=0 signals=0 registers-intact=9/13
+== blocked ==
+  timer OFF (control)
+  with all signals blocked: 280 corrupt of 200000000 iterations in 508 ms, 0 handler runs
+  split: r15 (a new register) mismatches=0, rdi (upper half of a legacy register) mismatches=280
+  after unblocking, 0 pending SIGALRM ran
+  CORRUPT rax  = 0x0000000000000000 (want 0x1111000100000000)
+  CORRUPT rcx  = 0x0000000000000000 (want 0x1111000200000000)
+  CORRUPT rdx  = 0x0000000000000000 (want 0x1111000300000000)
+  CORRUPT rsi  = 0x0000000000000000 (want 0x1111000400000000)
+  resumed=0 signals=0 registers-intact=9/13
