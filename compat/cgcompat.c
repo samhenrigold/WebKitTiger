@@ -1075,9 +1075,26 @@ void CGContextSetShouldSubpixelQuantizeFonts(CGContextRef c, bool v) { (void)c; 
 
 void CGContextSetShouldAntialiasFonts(CGContextRef context, bool shouldAntialias)
 {
-    /* Closest Tiger equivalent: font smoothing. Turning it off still leaves
-       grayscale antialiasing on, so text never goes fully aliased. */
-    CGContextSetShouldSmoothFonts(context, shouldAntialias);
+    /* A deliberate no-op, after two measurements.
+
+       CGContextSetShouldSmoothFonts, which this used to forward to, does
+       nothing on Tiger: on and off give byte-identical pixels in a bitmap
+       context, and no rendering ever produces a colour fringe
+       (spike/fontsmoothtest.c, audit track). So the old mapping only looked
+       like it did something.
+
+       The knob that does work is CGContextSetShouldAntialias, and forwarding
+       there would be wrong in both directions. It is context-wide, so it would
+       alias or smooth every shape, not just glyphs. And WebCore's only call
+       site, setCGFontRenderingMode in FontCascadeCoreText.cpp, passes true
+       unconditionally and does not bracket it with a save and restore, so
+       forwarding would quietly re-enable antialiasing for a context that had
+       deliberately turned it off for shapes.
+
+       Since the one request WebCore makes is "antialias glyphs", which is
+       Tiger's default, ignoring it costs nothing. */
+    (void)context;
+    (void)shouldAntialias;
 }
 
 void CGContextSetFontAntialiasingStyle(CGContextRef c, CGFontAntialiasingStyle s) { (void)c; (void)s; }

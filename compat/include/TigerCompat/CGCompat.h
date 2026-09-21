@@ -203,7 +203,12 @@ void CGContextDrawTiledImage(CGContextRef, CGRect, CGImageRef);
 
 /* Font rendering knobs that arrived after 10.4. Tiger's rasterizer has no
    equivalent state, so the setters are no-ops and the getters report the
-   behaviour Tiger actually has. */
+   behaviour Tiger actually has.
+
+   CGContextSetShouldAntialiasFonts is a no-op too, and measured rather than
+   assumed: Tiger's CGContextSetShouldSmoothFonts does nothing in a bitmap
+   context, and the knob that works, CGContextSetShouldAntialias, is
+   context-wide and would alias shapes as well as glyphs. See cgcompat.c. */
 void CGContextSetAllowsFontSubpixelPositioning(CGContextRef, bool);
 bool CGContextGetAllowsFontSubpixelPositioning(CGContextRef);
 void CGContextSetAllowsFontSubpixelQuantization(CGContextRef, bool);

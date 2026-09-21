@@ -224,7 +224,25 @@ static void probe_line(CTFontRef font, const UniChar *u, CFIndex n, const char *
         else { printf("%-52s", k); for (CFIndex i = 0; i < gc && i < 12; i++) printf(" %ld", (long)ip[i]); printf("\n"); }
     }
 
-    /* truncation: ask for a line narrower than the text */
+    /* Truncation, both ways. WebCore's one call site passes a real ellipsis token;
+       a NULL token is the case that diverges, so measure both. */
+    {
+        CFStringRef ell = CFSTR("\xE2\x80\xA6");
+        CFAttributedStringRef eas = mkattr(ell, font);
+        CTLineRef tokline = CTLineCreateWithAttributedString(eas);
+        static const double widths[] = { 10.0, 50.0, 1000.0 };
+        for (unsigned i = 0; i < sizeof widths / sizeof widths[0]; i++) {
+            CTLineRef a = CTLineCreateTruncatedLine(line, widths[i], kCTLineTruncationEnd, NULL);
+            snprintf(k, sizeof k, "line.%s.truncate.w%.0f.nullToken", label, widths[i]);
+            kv_b(k, a != NULL); if (a) CFRelease(a);
+            CTLineRef c = CTLineCreateTruncatedLine(line, widths[i], kCTLineTruncationEnd, tokline);
+            snprintf(k, sizeof k, "line.%s.truncate.w%.0f.ellipsisToken", label, widths[i]);
+            kv_b(k, c != NULL); if (c) CFRelease(c);
+        }
+        if (tokline) CFRelease(tokline);
+        CFRelease(eas);
+    }
+
     CTLineRef trunc = CTLineCreateTruncatedLine(line, 20.0, kCTLineTruncationEnd, NULL);
     snprintf(k, sizeof k, "line.%s.CTLineCreateTruncatedLine.created", label); kv_b(k, trunc != NULL);
     if (trunc) {
@@ -258,9 +276,9 @@ int main(int argc, char **argv) {
 
     printf("# ctprobe\n");
 #if defined(__LP64__) && __LP64__
-    printf("cgfloat_is_double                                    true\n");
+    printf("info.cgfloat_is_double                               true\n");
 #else
-    printf("cgfloat_is_double                                    false\n");
+    printf("info.cgfloat_is_double                               false\n");
 #endif
 
     /* ---- load the bundled font ---- */
@@ -325,6 +343,22 @@ int main(int argc, char **argv) {
         probe_glyphs(f, b, kMixed, 6, "mixed");
         probe_charset(f, b);
         CFRelease(f);
+    }
+
+    /* Ascent and descent scale linearly on both sides, but cap height and x-height
+       do not: Tiger quantises those two. Sweep enough sizes to show the pattern. */
+    section("metric scaling sweep");
+    {
+        static const double sweep[] = { 9, 10, 11, 13, 17, 19, 31, 100 };
+        for (unsigned i = 0; i < sizeof sweep / sizeof sweep[0]; i++) {
+            CTFontRef f = CTFontCreateWithFontDescriptor(fd, sweep[i], NULL);
+            if (!f) { snprintf(b, sizeof b, "sweep%.0f", sweep[i]); kv_null(b); continue; }
+            snprintf(b, sizeof b, "sweep%.0f.ascent", sweep[i]);    kv_f(b, (double)CTFontGetAscent(f));
+            snprintf(b, sizeof b, "sweep%.0f.descent", sweep[i]);   kv_f(b, (double)CTFontGetDescent(f));
+            snprintf(b, sizeof b, "sweep%.0f.capHeight", sweep[i]); kv_f(b, (double)CTFontGetCapHeight(f));
+            snprintf(b, sizeof b, "sweep%.0f.xHeight", sweep[i]);   kv_f(b, (double)CTFontGetXHeight(f));
+            CFRelease(f);
+        }
     }
 
     /* the size-16 font is the subject for everything structural below */

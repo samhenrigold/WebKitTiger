@@ -1,0 +1,222 @@
+matched   132
+differing 47
+only-mac  26
+only-tiger 0
+
+--- divergences ---
+cgfloat_is_double
+    mac   : true
+    tiger : false
+    why   : text differs
+desc.CTFontDescriptorCopyAttribute.Family
+    mac   : "DejaVu Sans"
+    tiger : (null)
+    why   : different shape
+desc.CTFontDescriptorCopyAttribute.Style
+    mac   : "Book"
+    tiger : (null)
+    why   : text differs
+desc.CTFontDescriptorCopyAttribute.Traits
+    mac   : dict[4]
+    tiger : (null)
+    why   : different shape
+size12.CTFontGetCapHeight
+    mac   : 8.824219
+    tiger : 9.000000
+    why   : delta 0.175781 > 1/64
+size12.CTFontGetXHeight
+    mac   : 6.638672
+    tiger : 7.000000
+    why   : delta 0.361328 > 1/64
+size12.CTFontGetSymbolicTraits
+    mac   : 0x0
+    tiger : 0x80000000
+    why   : text differs
+size12.CTFontCopyAttribute.Size
+    mac   : 12.000000
+    tiger : (null)
+    why   : text differs
+size16.CTFontGetCapHeight
+    mac   : 11.765625
+    tiger : 12.000000
+    why   : delta 0.234375 > 1/64
+size16.CTFontGetXHeight
+    mac   : 8.851562
+    tiger : 9.000000
+    why   : delta 0.148438 > 1/64
+size16.CTFontGetSymbolicTraits
+    mac   : 0x0
+    tiger : 0x80000000
+    why   : text differs
+size16.CTFontCopyAttribute.Size
+    mac   : 16.000000
+    tiger : (null)
+    why   : text differs
+size24.CTFontGetCapHeight
+    mac   : 17.648438
+    tiger : 18.000000
+    why   : delta 0.351562 > 1/64
+size24.CTFontGetXHeight
+    mac   : 13.277344
+    tiger : 13.000000
+    why   : delta 0.277344 > 1/64
+size24.CTFontGetSymbolicTraits
+    mac   : 0x0
+    tiger : 0x80000000
+    why   : text differs
+size24.CTFontCopyAttribute.Size
+    mac   : 24.000000
+    tiger : (null)
+    why   : text differs
+CTFontCopyFontDescriptor.attributes
+    mac   : [2] NSFontNameAttribute NSFontSizeAttribute
+    tiger : [3] NSCTFontTraitsAttribute NSFontNameAttribute NSFontSizeAttribute
+    why   : different shape
+CTFontCopyFontDescriptor.Family
+    mac   : "DejaVu Sans"
+    tiger : (null)
+    why   : different shape
+CTFontCopyFontDescriptor.Style
+    mac   : "Book"
+    tiger : (null)
+    why   : text differs
+CTFontCopyFeatures.count
+    mac   : 7
+    tiger : 3
+    why   : integer differs
+CTFontCopyFeatures[2].keys
+    mac   : [4] CTFeatureTypeExclusive CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+    tiger : [3] CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+    why   : different shape
+line.latin.run0.CTRunGetGlyphsPtr
+    mac   : (null)
+    tiger : 36 57 36 3 5039 3 58 68 89 72
+    why   : different shape
+line.latin.run0.CTRunGetAdvancesPtr
+    mac   : (null)
+    tiger : 9.9219 9.9219 10.9453 5.0859 10.0781 5.0859 14.7969 9.8047 9.4688 9.8438
+    why   : different shape
+line.latin.run0.CTRunGetStringIndicesPtr
+    mac   : (null)
+    tiger : 0 1 2 3 4 6 7 8 9 10
+    why   : different shape
+line.latin.CTLineCreateTruncatedLine.created
+    mac   : true
+    tiger : false
+    why   : text differs
+line.arabic.run0.CTRunGetGlyphsPtr
+    mac   : 5259 5355 5256 5285 5314
+    tiger : 1366 1394 1365 1374 1382
+    why   : integer differs
+line.arabic.run0.CTRunGetAdvancesPtr
+    mac   : (null)
+    tiger : 8.3828 12.5234 15.0625 7.7266 9.5469
+    why   : different shape
+line.arabic.CTLineCreateTruncatedLine.created
+    mac   : true
+    tiger : false
+    why   : text differs
+line.cjk.run0.CTRunGetGlyphsPtr
+    mac   : 193 568 489
+    tiger : 1200 3275 2174
+    why   : integer differs
+line.cjk.run0.CTRunGetAdvancesPtr
+    mac   : (null)
+    tiger : 16.0000 16.0000 16.0000
+    why   : different shape
+line.cjk.CTLineCreateTruncatedLine.created
+    mac   : true
+    tiger : false
+    why   : text differs
+line.mixed.CTLineGetGlyphRuns.count
+    mac   : 5
+    tiger : 3
+    why   : integer differs
+line.mixed.run0.CTRunGetGlyphCount
+    mac   : 2
+    tiger : 4
+    why   : integer differs
+line.mixed.run0.CTRunGetStringRange
+    mac   : {0, 2}
+    tiger : {0, 4}
+    why   : integer differs
+line.mixed.run0.CTRunGetGlyphsPtr
+    mac   : 68 69
+    tiger : 68 69 932 837
+    why   : different shape
+line.mixed.run0.CTRunGetAdvancesPtr
+    mac   : (null)
+    tiger : 9.8047 10.1562 10.9453 10.5469
+    why   : different shape
+line.mixed.run0.CTRunGetStringIndicesPtr
+    mac   : 0 1
+    tiger : 0 1 2 3
+    why   : different shape
+line.mixed.run1.CTRunGetStatus
+    mac   : 0x0
+    tiger : 0x1
+    why   : text differs
+line.mixed.run1.CTRunGetStringRange
+    mac   : {2, 1}
+    tiger : {4, 1}
+    why   : integer differs
+line.mixed.run1.CTRunGetGlyphsPtr
+    mac   : 932
+    tiger : 1365
+    why   : integer differs
+line.mixed.run1.CTRunGetAdvancesPtr
+    mac   : (null)
+    tiger : 15.0625
+    why   : text differs
+line.mixed.run1.CTRunGetStringIndicesPtr
+    mac   : 2
+    tiger : 4
+    why   : integer differs
+line.mixed.run2.CTRunGetStringRange
+    mac   : {3, 1}
+    tiger : {5, 1}
+    why   : integer differs
+line.mixed.run2.CTRunGetGlyphsPtr
+    mac   : 837
+    tiger : 1200
+    why   : integer differs
+line.mixed.run2.CTRunGetAdvancesPtr
+    mac   : (null)
+    tiger : 16.0000
+    why   : text differs
+line.mixed.run2.CTRunGetStringIndicesPtr
+    mac   : 3
+    tiger : 5
+    why   : integer differs
+line.mixed.CTLineCreateTruncatedLine.created
+    mac   : true
+    tiger : false
+    why   : text differs
+
+--- present only in the mac dump (tiger printed nothing here) ---
+  CTFontCopyFeatures[3].keys = [4] CTFeatureTypeExclusive CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+  CTFontCopyFeatures[4].keys = [3] CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+  CTFontCopyFeatures[5].keys = [4] CTFeatureOpenTypeTag CTFeatureTypeExclusive CTFeatureTypeName CTFeatureTypeSelectors
+  CTFontCopyFeatures[6].keys = [4] CTFeatureOpenTypeTag CTFeatureTypeExclusive CTFeatureTypeName CTFeatureTypeSelectors
+  line.latin.CTLineCreateTruncatedLine.range = {0, 11}
+  line.latin.CTLineCreateTruncatedLine.runs = 1
+  line.arabic.CTLineCreateTruncatedLine.range = {0, 5}
+  line.arabic.CTLineCreateTruncatedLine.runs = 1
+  line.cjk.CTLineCreateTruncatedLine.range = {0, 3}
+  line.cjk.CTLineCreateTruncatedLine.runs = 1
+  line.mixed.run3.CTRunGetGlyphCount = 1
+  line.mixed.run3.CTRunGetStatus = 0x1
+  line.mixed.run3.CTRunGetStringRange = {4, 1}
+  line.mixed.run3.CTRunGetAttributes = [1] NSFont
+  line.mixed.run3.CTRunGetGlyphsPtr = 1365
+  line.mixed.run3.CTRunGetAdvancesPtr = (null)
+  line.mixed.run3.CTRunGetStringIndicesPtr = 4
+  line.mixed.run4.CTRunGetGlyphCount = 1
+  line.mixed.run4.CTRunGetStatus = 0x0
+  line.mixed.run4.CTRunGetStringRange = {5, 1}
+  line.mixed.run4.CTRunGetAttributes = [1] NSFont
+  line.mixed.run4.CTRunGetGlyphsPtr = 193
+  line.mixed.run4.CTRunGetAdvancesPtr = (null)
+  line.mixed.run4.CTRunGetStringIndicesPtr = 5
+  line.mixed.CTLineCreateTruncatedLine.range = {0, 6}
+  line.mixed.CTLineCreateTruncatedLine.runs = 1

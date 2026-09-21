@@ -134,20 +134,33 @@ def stub_kind(body, acc, modern):
             and all(op in QUIET for op in mnems[:ret_at + 1]):
         return ("empty", "returns immediately, reads no argument")
 
+    # Scan calls once: a get_pc_thunk is bookkeeping, anything else is real work.
+    # A tail `jmp` to another symbol counts as a real call -- the audit track flagged
+    # this as the soft spot in their version (Tiger's CTFrameDraw is one).
+    picreg, ncall = None, 0
+    for op, args in body:
+        if op.startswith("call"):
+            m = PIC.search(args)
+            if m: picreg = "e" + m.group(1)
+            else: ncall += 1
+        elif op.startswith("jmp") and re.search(r'(^|[\s,])_[A-Za-z_]', args):
+            ncall += 1                     # tail call into a real implementation
+                                           # (targets can be C++-mangled: __ZNK...)
+
+    # Mode 3 -- constant return. Returns within seven instructions without reading
+    # an argument or calling anything: the result cannot depend on the inputs.
+    # Gated on the prototype declaring at least one argument, because a zero-argument
+    # function returning a constant is just a constant (CFArrayGetTypeID and the
+    # other type-ID getters trip this otherwise).
+    if ret_at is not None and ret_at <= 7 and not acc and ncall == 0 \
+            and modern and len(modern["plist"]) >= 1:
+        return ("const", "returns a constant without reading any argument")
+
     # Mode 2 -- fixed-global-return stub. No real call, at least one PIC-relative
     # global reference, short body, and the only argument slot touched is the
     # hidden sret pointer, i.e. it fills the caller's struct from a constant.
     #   Tiger CTRunGetImageBounds: copies 16 bytes from a global into *sret.
-    if len(body) > 25: return None
-    picreg = None
-    for op, args in body:
-        if op.startswith("call"):
-            m = PIC.search(args)
-            if not m: return None          # a real call means real work
-            picreg = "e" + m.group(1)
-        elif op.startswith("jmp") and re.search(r'(^|[\s,])_[A-Za-z_]', args):
-            return None                    # tail call into a real implementation
-                                           # (targets can be C++-mangled: __ZNK...)
+    if len(body) > 25 or ncall: return None
     # A PIC-relative global load only exists if a get_pc_thunk set up a base
     # register first. Without that, `0x10(%eax)` is an ordinary struct field
     # dereference -- which is what a genuine accessor like CTRunGetGlyphCount
@@ -156,8 +169,7 @@ def stub_kind(body, acc, modern):
     if not any(m.group(1) == picreg[1:] for op, args in body
                for m in GLOBAL.finditer(args)):
         return None
-    touched = sorted(acc)
-    if touched != [8]: return None
+    if sorted(acc) != [8]: return None
     if not modern or len(modern["plist"]) < 1: return None
     if "sret" not in modern["notes"]:
         # Slot 0 is a real first argument, not a hidden sret: the function does

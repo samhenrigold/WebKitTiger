@@ -47,11 +47,20 @@ FOUNDATION_EXPORT void NSResetMapTable(NSMapTable *table);
 FOUNDATION_EXPORT BOOL NSCompareMapTables(NSMapTable *table1, NSMapTable *table2);
 FOUNDATION_EXPORT NSMapTable *NSCopyMapTableWithZone(NSMapTable *table, NSZone *zone);
 FOUNDATION_EXPORT BOOL NSMapMember(NSMapTable *table, const void *key, void **originalKey, void **value);
-FOUNDATION_EXPORT void *NSMapGet(NSMapTable *table, const void *key);
-FOUNDATION_EXPORT void NSMapInsert(NSMapTable *table, const void *key, const void *value);
+/* TIGER SDK OVERLAY: these three are the accessors modern Foundation hands the
+   *class*, not the C struct -- JavaScriptCore's JSVirtualMachine, JSWrapperMap
+   and JSManagedValue all call them on an NSMapTable object, and the values they
+   store are raw integers rather than objects, which is exactly what the C API
+   is for there. So the class-taking spellings are declared in
+   <TigerCompat/NSCompat.h> and implemented in compat/nscompat-maptable.m, and
+   Tiger's own C entry points keep working here under a CStruct suffix, bound by
+   asm label to the symbols Foundation actually exports. The other C functions
+   below are untouched: nothing in the tree calls them on a class. */
+FOUNDATION_EXPORT void *NSMapGetCStruct(NSMapTable *table, const void *key) __asm("_NSMapGet");
+FOUNDATION_EXPORT void NSMapInsertCStruct(NSMapTable *table, const void *key, const void *value) __asm("_NSMapInsert");
+FOUNDATION_EXPORT void NSMapRemoveCStruct(NSMapTable *table, const void *key) __asm("_NSMapRemove");
 FOUNDATION_EXPORT void NSMapInsertKnownAbsent(NSMapTable *table, const void *key, const void *value);
 FOUNDATION_EXPORT void *NSMapInsertIfAbsent(NSMapTable *table, const void *key, const void *value);
-FOUNDATION_EXPORT void NSMapRemove(NSMapTable *table, const void *key);
 FOUNDATION_EXPORT NSMapEnumerator NSEnumerateMapTable(NSMapTable *table);
 FOUNDATION_EXPORT BOOL NSNextMapEnumeratorPair(NSMapEnumerator *enumerator, void **key, void **value);
 FOUNDATION_EXPORT void NSEndMapTableEnumeration(NSMapEnumerator *enumerator);

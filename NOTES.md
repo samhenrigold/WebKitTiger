@@ -213,3 +213,5 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   compensates for gradients); CGContextClipToMask is correct with gray masks but silently clips everything for stencil masks
   and RGBA images (WebCore clipToImageBuffer must convert to gray); shadows render ~26% lighter than modern CG. Canvas composite ops and CSS blend modes degrade to source-over on this port.
 - jsc timing on the box (C loop, 2.2 GHz C2D): ~1.7 M loop iterations/s; fib(25) 135 ms. ~4x Tiger's 2007 JSC.
+- Tiger CG: CGContextSetShouldSmoothFonts / SetAllowsFontSmoothing are no-ops in bitmap contexts; SetShouldAntialias is the only
+  (context-wide) knob. No subpixel font smoothing on this port for bitmap contexts. Shims stay inert by decision.

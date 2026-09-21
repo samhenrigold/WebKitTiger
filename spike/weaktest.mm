@@ -22,6 +22,15 @@ static int deallocs = 0;
 - (void)dealloc { deallocs++; [super dealloc]; }
 @end
 
+/* objc_loadWeak autoreleases its result, which would perturb the retain counts these tests check.
+   Compare through loadWeakRetained and drop the reference immediately instead. */
+static id weakPeek(id *slot)
+{
+    id o = objc_loadWeakRetained(slot);
+    [o release];
+    return o;
+}
+
 int main()
 {
     setvbuf(stdout, 0, _IONBF, 0);
@@ -31,18 +40,28 @@ int main()
     id slot = nil;
     Subject *s = [[Subject alloc] init];
     objc_storeWeak(&slot, s);
-    T("objc_storeWeak then objc_loadWeak", objc_loadWeak(&slot) == s);
-    T("objc_loadWeakRetained returns +1", objc_loadWeakRetained(&slot) == s && [s retainCount] == 2);
-    [s release];
+    T("objc_storeWeak then weak load", weakPeek(&slot) == s);
+    id retained = objc_loadWeakRetained(&slot);
+    T("objc_loadWeakRetained returns +1", retained == s && [s retainCount] == 2);
+    [retained release];
+
+    {   /* objc_loadWeak really does autorelease, so check it inside its own pool. */
+        NSAutoreleasePool *inner = [[NSAutoreleasePool alloc] init];
+        T("objc_loadWeak returns the object", objc_loadWeak(&slot) == s);
+        T("objc_loadWeak autoreleased it", [s retainCount] == 2);
+        [inner release];
+    }
+    T("autorelease balanced after pool", [s retainCount] == 1);
 
     [s release];
-    T("weak slot zeroed on dealloc", deallocs == 1 && objc_loadWeak(&slot) == nil);
+    T("weak slot zeroed on dealloc", deallocs == 1 && weakPeek(&slot) == nil);
+    objc_destroyWeak(&slot);
 
     // initWeak / destroyWeak
     Subject *s2 = [[Subject alloc] init];
     id slot2;
     objc_initWeak(&slot2, s2);
-    T("objc_initWeak", objc_loadWeak(&slot2) == s2);
+    T("objc_initWeak", weakPeek(&slot2) == s2);
     objc_destroyWeak(&slot2);
     [s2 release];
     T("objc_destroyWeak unregisters", deallocs == 2);
@@ -52,12 +71,13 @@ int main()
     id a = nil, b, c;
     objc_storeWeak(&a, s3);
     objc_copyWeak(&b, &a);
-    T("objc_copyWeak", objc_loadWeak(&b) == s3 && objc_loadWeak(&a) == s3);
+    T("objc_copyWeak", weakPeek(&b) == s3 && weakPeek(&a) == s3);
     objc_moveWeak(&c, &b);
-    T("objc_moveWeak", objc_loadWeak(&c) == s3);
+    T("objc_moveWeak", weakPeek(&c) == s3);
+    T("objc_moveWeak cleared the source", b == nil);
     [s3 release];
-    T("all copies zeroed on dealloc",
-      deallocs == 3 && objc_loadWeak(&a) == nil && objc_loadWeak(&c) == nil);
+    T("all live copies zeroed on dealloc",
+      deallocs == 3 && weakPeek(&a) == nil && weakPeek(&c) == nil);
     objc_destroyWeak(&a);
     objc_destroyWeak(&c);
 
