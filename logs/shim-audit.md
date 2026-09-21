@@ -43,7 +43,10 @@ and are correctly not shimmed.
 | libclosure-63 | `refs/libclosure-63-{runtime.c,data.c,Block_private.h,Block.h}` |
 | libdispatch-84.5.1 | `refs/libdispatch-84-semaphore.c` |
 | macports-legacy-support (git HEAD) | `refs/mlegacy/src/` |
+| Libc-583 (Snow Leopard, the first `posix_memalign`) | `refs/Libc-583-malloc.c`, `-magazine_malloc.c` |
 | Mac OS X 10.5.8 i386 frameworks | `refs/leopard/{CoreText,CoreGraphics,Foundation,CoreFoundation,libSystem.B.dylib,libobjc.A.dylib}.i386` |
+| Full install trees (10.5.0 GM, WWDC 2006 preview, 10.6.3) | `refs/leopard-9a581/root`, `refs/leopard-9a241/root`, `refs/snowleopard-10.6.3/root` |
+| Tiger's own CoreText, for the adapter audit | `sysroot/.../CoreText.framework/Versions/A/CoreText` |
 
 The 10.5.8 combo `.dmg` is gone from every Apple host. Apple's legacy Software Update catalog
 (`swscan.apple.com/content/catalogs/others/index-leopard-snowleopard.merged-1.sucatalog`) still
@@ -54,8 +57,11 @@ All spike tests pass on the Tiger box after these changes: `memaligntest` (new),
 `availtest`, `arctest`, `exctest`, `nsmaptabletest`, `nscompattest`, `dispatchtest`,
 `runcxx.sh`, `runfstest.sh`.
 
-`libdispatch-84-semaphore.c` and `Libc-391.5.22-{malloc,scalable_malloc}.c` were added to `refs/`
-for this round; Libc-391.5.22 is the exact Libc that 10.4.11 shipped.
+`libdispatch-84-semaphore.c`, `Libc-391.5.22-{malloc,scalable_malloc}.c` and
+`Libc-583-{malloc,magazine_malloc}.c` were added to `refs/` for this round. Libc-391.5.22 is the
+exact Libc 10.4.11 shipped; Libc-583 is Snow Leopard's, the first with `posix_memalign`. The
+full install trees the extraction track is unpacking supersede the combo-updater copies in
+`refs/leopard/` once their READMEs appear.
 
 ---
 
@@ -122,6 +128,24 @@ every block filled and read back; the three `EINVAL` cases; size 0; 64 live 16 K
 interleaved with ordinary `malloc` and freed out of order; 200 alloc/free cycles at 64 KB;
 `realloc` shrink and grow; `malloc_size` on our pointers, on `malloc`'d and `valloc`'d pointers
 and on a stack address; `aligned_alloc`; and 8 threads doing 200 16 KB alloc/free rounds each.
+
+**Rule 2 check against Apple's own implementation.** Libc-583 is the first Libc with
+`posix_memalign`, and its `szone_memalign` (`magazine_malloc.c:5748`) handles alignments above a
+page in its last branch by calling `large_malloc(…, MAX(vm_page_shift, __builtin_ctz(alignment)),
+…)` → `allocate_pages` (`magazine_malloc.c:940`). That function is what this shim now does, step
+for step: round the request to a page, substitute one page when it is zero, add `1 << align` to
+the allocation, bail if the sum wrapped, `mmap(0, …, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE)`,
+round up to the aligned address, `munmap` the head delta, `munmap` the tail. The only structural
+difference is bookkeeping: Apple records the block in the scalable zone's own large-entry table so
+that zone's `size()` finds it, which is only possible from inside libc, so we register a separate
+zone instead.
+
+Apple's smaller-alignment branches split blocks inside the tiny and small regions using szone
+metadata, which needs the same inside-libc access; `malloc`/`valloc` reach the same result here.
+Also worth recording: `malloc_zone_memalign` (`Libc-583-malloc.c:660`) refuses any zone with
+`version < 5` or a null `memalign` field, and Tiger's `malloc_zone_t` (version 3) has no such
+field at all. So offering memalign through Tiger's zone ABI is structurally impossible, not just
+unimplemented.
 
 Downstream note sent to wkcmake: `SystemHeap::free` uses `malloc_zone_free(m_zone, …)` with
 `m_zone` forced to the default zone on Tiger, which would not free one of these over-aligned

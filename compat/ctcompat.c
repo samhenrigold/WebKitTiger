@@ -8,6 +8,12 @@
  */
 
 #include <TigerCompat/CTCompat.h>
+/* Explicit, because CGFontGetGlyphPath and CGFontGetUnitsPerEm come from here.
+ * They also arrive transitively, since the CoreGraphics overlay hook appends
+ * this header, but relying on that would make this file break the day the hook
+ * changes. CTCompat.h deliberately does not include it, so that consumers of
+ * the public header do not pay for CoreGraphics they never asked for. */
+#include <TigerCompat/CGCompat.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -15,9 +21,12 @@
 /* ---- declarations the 10.4u SDK is missing but Tiger's dylibs export ----
  *
  * CGFontGetGlyphPath and CGFontGetUnitsPerEm are exported by Tiger's
- * CoreGraphics but declared nowhere in the 10.4u SDK. They live in
- * TigerCompat/CGCompat.h, which the CoreGraphics overlay hook appends to
- * CoreGraphics.h, so including ApplicationServices is enough to get them.
+ * CoreGraphics but declared nowhere in the 10.4u SDK. They come from
+ * TigerCompat/CGCompat.h, included above.
+ *
+ * CGFontGetGlyphAdvances and CGFontGetGlyphTransformedAdvances are the same
+ * kind of gap and are declared at their use site below, next to the note about
+ * why the obvious rename does not work.
  *
  * Note what is deliberately NOT used here: CGFontCreateWithDataProvider. Tiger
  * exports it, but the leopard track established that it returns NULL for .ttf
