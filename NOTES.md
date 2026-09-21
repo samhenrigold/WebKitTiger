@@ -992,3 +992,8 @@ that was actually affected by their absence (only ICU, already fixed). No change
   Video frames go 64-bit decoder -> shm -> CA layer in the UI process directly (CAVideo), unaffected.
 - compat/check-ownership.sh + Makefile hook committed (dispatch 45e5131); wrong ownership fails install, half-built
   arch warns. VIDEO/MSE on in all three configs (serialization conditions); neutral graphics encoding defaults on.
+- N1 briefs (wcplan 955a022, logs/n1-briefs.md): 12 briefs, all survive an N0 failure (only 4 CMake vars in WEB change),
+  so the first wave is dispatched now. Revised N1 estimate 3455-5705 lines / 14-20 days (the plan under-costed the
+  TIGER_WIRE_* remap across 69 files and the font cascade). NullImageBufferBackend already exists (157 lines, used by
+  RemoteRenderingBackend), so the pixel-less backend brief is ~30 lines of wiring. Long pole: 64-bit FontCache/
+  FontCascade over the manifest (fallback decided entirely in the recording process).
