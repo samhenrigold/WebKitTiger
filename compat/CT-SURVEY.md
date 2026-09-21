@@ -47,7 +47,7 @@ The seventh is `CTLineGetImageBounds`, which never looks at its line: it copies 
 global rect into the struct return and comes back. Anything wanting ink bounds on Tiger
 has to compute them from glyph bounding rects itself.
 
-**Four take different arguments** from the modern API of the same name:
+**Five take different arguments** from the modern API of the same name:
 
 | Function | Tiger's real signature |
 | --- | --- |
@@ -55,13 +55,14 @@ has to compute them from glyph bounding rects itself.
 | `CTFontGetAdvancesForGlyphs` | `CGSize (CTFontRef, const CGGlyph[], CGSize[], CFIndex)` — **no orientation**, and the summed advance comes back as a CGSize rather than a double. |
 | `CTFontGetBoundingRectsForGlyphs` | `CGRect (CTFontRef, const CGGlyph[], CGRect[], CFIndex)` — no orientation. |
 | `CTLineGetTypographicBounds` | `double (CTLineRef, CFRange, CGFloat*, CGFloat*, CGFloat*)` — takes a **CFRange** the modern four-argument form does not. The range is only checked against the glyph count, so `{0, 0}` is always safe; calling it the modern way puts the ascent pointer where the range goes and the call quietly returns 0. |
+| `CTLineDraw` | `void (CTLineRef, CGContextRef, CFRange)` — also takes a **CFRange**. It compares `location + length` against the line's glyph count with an integer `cmpl` and draws nothing when the sum is larger, so a modern two-argument call passes stack junk as the range and draws the line only when that junk happens to be `{0, 0}` or `{0, count}`. Five call sites in tree. |
 
-These ten are **not** in `missing-CT.txt`, because they are exported under exactly the
+These eleven are **not** in `missing-CT.txt`, because they are exported under exactly the
 name WebCore calls. They are the worst kind of problem: they link, they run, and they
 return zeroes.
 
 **This is now handled, and WebCore needs no edits.** `ctcompat.c` carries a
-`TigerCT...`-prefixed adapter for each of the ten, presenting the modern signature and
+`TigerCT...`-prefixed adapter for each of the eleven, presenting the modern signature and
 reaching Tiger's real behaviour underneath, and the SDK overlay's `<CoreText/*.h>` binds
 the public name to the adapter with an `__asm__` label. WebCore writes `CTFontCopyTable`
 and the call lands on `_TigerCTFontCopyTable`. The same mechanism covers the by-value
@@ -266,8 +267,10 @@ descent + leading.
 constraint size (clamped, `CGFLOAT_MAX` in a `CGPath` upsets Tiger CT), sums line heights
 and takes the widest line.
 `CTRunGetBaseAdvancesAndOrigins` copies out of `CTRunGetAdvancesPtr` (`CTRunGetAdvances`
-itself is one of the stubs) and zeroes the origins; with no glyph origins on Tiger,
-`CTRunGetInitialAdvance` is `CGSizeZero` and
+itself is one of the stubs) and zeroes the origins. That is safe rather than merely
+convenient: Tiger's `CTRunGetStatus` sets bit 0 for right-to-left and bit 1 for
+non-monotonic, and **never sets `kCTRunStatusHasOrigins`**, so WebCore's origins branch
+can never be taken. `CTRunGetInitialAdvance` is `CGSizeZero` and
 `kCTRunStatusHasOrigins` is never set.
 `CTTypesetterCreateWithUniCharProviderAndOptions` drops the options dictionary onto
 `CTTypesetterCreateWithUniCharProvider`. The one option WebCore passes is
@@ -335,6 +338,32 @@ applies, since a size carries no translation. Verified on the box against
 This is the second time a name match has hidden a behaviour difference on this box, after
 the ten in the section above. The rule that keeps falling out: on Tiger, check the
 signature by disassembly and then check the behaviour by running it.
+
+## Two habits that keep paying
+
+**Write the whole buffer.** The three copying `CTRunGet*` adapters used to leave the
+caller's buffer untouched when the pointer variant returned NULL, which is the *only*
+case WebCore calls them in: `ComplexTextControllerCoreText.mm` takes the span and falls
+back to the copying form precisely when its data is null, over a `Vector::grow` that does
+not zero POD elements. So the early return handed back uninitialized heap, and for string
+indices those are values used to index into the character buffer. Of the three, only
+indices can really come back NULL — Tiger's glyph and advance accessors are plain pointer
+arithmetic, while `GetStringIndices` dispatches through a virtual — but all three now
+write every element. Indices are rebuilt from `CTRunGetStringRange`, ascending for LTR and
+descending for RTL, and only when the run is monotonic, which Tiger does report.
+
+**Return the error value the caller tests for.**
+`CTFontGetBoundingRectsForGlyphs` returned `CGRectZero` on failure where real CoreText
+returns `CGRectNull`. Callers tell them apart with `CGRectIsNull`, and `CGRectZero` is a
+perfectly valid empty rect at the origin.
+
+Two placement approximations are documented in the source rather than fixed, because
+tier 1 has nothing better and neither is reachable today. `CTRunDraw` accumulates from the
+context's text position, where real CoreText reads the run's own positions and ignores the
+text position entirely; Tiger exports no `CTRunGetPositions` and its `TRun::GetPositions`
+is a local symbol, so the adapter needs the text position set **per run**. And
+`CTLineGetImageBounds` accumulates its pen across runs, which assumes visual
+left-to-right layout and misplaces the ink of an RTL run.
 
 ## Do not trust the count files
 
