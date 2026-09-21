@@ -403,5 +403,6 @@ one triage pass before it was noticed. See the triage table at the end of
   (inert already) or the inspector client files (breaks link). Must-fix: WebDelegateImplementationCaching.mm casts objc_msgSend
   to a float-returning fn pointer -> objc_msgSend_fpret on i386 (silent garbage otherwise); curl's CA bundle path is compiled as
   a host path -> ship cacert.pem in Resources and set it at runtime (CurlSSLHandle::setCACertPath, PlayStation pattern).
-  Re-check with the patched clang: the plan says @implementation ivars in two .m files fail; the wrapper's
-  -fobjc-fragile-extension-ivars should make them compile (WebFeature.m auto-synthesis too).
+  Checked: plain .m files with @implementation ivars and auto-synthesized properties compile and run on the box with the
+  patched clang (spike/fragileivars_c.m), so the plan's two ivar items (WebPanelAuthenticationHandler.m,
+  WebJavaScriptTextInputPanel.m, WebFeature.m) need no edits.
