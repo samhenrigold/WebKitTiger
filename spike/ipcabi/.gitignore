@@ -2,5 +2,7 @@ abitest32
 abitest64
 abitest32-unpatched
 abitest64-unpatched
+spancheck32
+spancheck64
 *.dSYM/
 .DS_Store
