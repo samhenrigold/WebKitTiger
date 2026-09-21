@@ -1673,7 +1673,8 @@ processes take the curl and OpenSSL platform arms. Both are done.
 | 10 | 1 | a link failure in a build-time tool, not a compile error |
 | 11 | 17 | new files reached now that the scroll enum exists |
 | 12 | 15 | |
-| 13 | **0 compile errors** | archive still linking when this was written |
+| 13 | 2 | the last two, both files including CoreMedia directly |
+| 14 | **0 compile errors** | queued; see the status note at the end of this section |
 
 Pass 8 going up is the normal shape of this work and worth saying plainly: every flag that
 gets turned on, and every arm that gets switched, reveals a batch of files that were
@@ -1790,9 +1791,12 @@ and screenshots. Launch, sleep and screencapture are one ssh invocation, per the
 file.
 
 **Status: the source compiles clean against the built headers; it has not linked or run.**
-libWebCore.a did not exist yet when this was written — pass 13 reports zero compile errors and
-was still working through JavaScriptCore, which the USE_AVFOUNDATION change in PlatformUse.h
-invalidated the precompiled header for. Two Makefile details that took iterations and are
+libWebCore.a did not exist yet when this was written. Every compile error in the i386 GPU
+configuration is fixed and committed, but the archive itself has not been produced: the
+USE_AVFOUNDATION change in PlatformUse.h invalidated the precompiled header, so passes 13 and
+14 are rebuilding all of JavaScriptCore and WebCore from scratch (937 edges), on a machine
+that is also building the x86_64 web port for another track. Pass 14 is queued behind 13 and
+picks up the last two exclusions. Nothing is known to be wrong; it is only unfinished. Two Makefile details that took iterations and are
 worth keeping: the toolchain file's flags are not in the tiger-clang wrapper and have to be
 repeated (without them `<Availability.h>` alone stops the build), and WebCore's and JSC's own
 **header maps** are the only sane way to resolve their 2,000-odd unqualified includes.
