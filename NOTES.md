@@ -1018,3 +1018,5 @@ by anything current). Verified: spike/exctest.mm and spike/runfstest.sh (spike/f
 both pass on the box against the rebuilt archive. x86_64's libclang_rt.builtins-x86_64.a lives
 in toolchain/sysroot-x86_64/usr/lib (jsc64's build), outside build/, so it was never at risk.
 Added to the ARTIFACT OWNERSHIP MAP above.
+- Two-tier text input verified on the box (browsershell 3630da0): in-callback query sees the pending state, post-keyDown
+  query sees the old applied state in ~0.05 ms without blocking, post-round-trip sees the new state; 30/30 assertions.
