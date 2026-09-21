@@ -440,3 +440,7 @@ one triage pass before it was noticed. See the triage table at the end of
   frameworks to exclude; CFNetwork cookie SPI moot under curl; modern CG/ImageIO SPI; AppKit 10.10+ API; Security SecTrust
   vintage (CSSM adapter possible); wheel-phase gating fallout; method_copyReturnType & co. missing in Tiger's runtime (objcrt);
   crypto via LibreSSL). The JSString.h subscript ambiguity is a fragile-ABI artifact, not 32-bit. No link attempted.
+- Audio bridge proven (spike/audiobridge, 9dc8fe2): 64-bit producer -> shm_open/mmap SPSC ring -> 32-bit CoreAudio consumer
+  (Component Manager API on Tiger; no CoreAudio/AudioUnit/AudioToolbox x86_64 slices exist). 0 underruns, ~12 ms steady latency,
+  <4% CPU. RULE for any 32/64-bit shared struct: 4-byte fields only (i386 ABI 4-byte-aligns 8-byte fields; x86_64 8-byte-aligns
+  them); split 64-bit values into two uint32_t; verify sizeof/offsetof from both compilers (spike/audiobridge/ringlayouttest.c).
