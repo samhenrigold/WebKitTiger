@@ -641,3 +641,54 @@ cgcompat's find this round was `CGShading` silently discarding the alpha its fun
 signature matches, the arguments are read, and the behaviour is still wrong. That needs a runtime
 probe on the box, not disassembly. Worth keeping in mind when a shim looks correct by inspection
 and the output is still wrong.
+
+---
+
+## Behavioural probes: the failure mode no static screen reaches
+
+The ABI screen finds functions whose shape is wrong. It cannot find a function whose signature
+matches, whose arguments are read, and whose behaviour is still wrong. Three of those have now
+turned up on this port, so they are worth probing deliberately rather than discovering through a
+rendering bug.
+
+Known so far, both from the cgcompat track: Tiger honours **none** of the twelve 10.5 Porter-Duff
+blend modes, all of them compositing as `kCGBlendModeNormal` (`spike/blendtest.c`), and Tiger's
+`CGShading` discards the alpha its function returns.
+
+### `CGContextClipToMask` — correct for gray, silently fatal for anything else
+
+`spike/clipmasktest.c`, runner `spike/run-clipmasktest.sh`. This was flagged as unmodellable after
+the gradient work saw destination alpha that looked like mask times source colour. Measured, that
+is not what happens.
+
+| Mask | Result |
+|---|---|
+| DeviceGray, no alpha | **correct**, matches the documented semantics exactly |
+| `CGImageMaskCreate` stencil | clips everything away |
+| RGBA image | clips everything away |
+
+With a gray mask the destination alpha is the mask sample alone and does not move when the fill
+colour changes: white, red, mid grey and black all give `a=128` through a mask of 128. The colour
+channels are colour times mask, which is what premultiplied means, so filling mid grey through
+mask 128 gives `r=64 a=128` — and reading `r` as the alpha yields exactly "mask times source
+colour". Verified across five mask values, four fill colours, and a four-pixel ramp with mask
+0/85/170/255 under a red-to-blue colour ramp, where alpha came back 0/85/170/255 exactly.
+
+The probe controls for the obvious objection that the rejected masks were malformed: both render
+correctly through `CGContextDrawImage`, so they are well formed and `ClipToMask` is what rejects
+them, with no error and no diagnostic.
+
+**Consequence outside the shims.** `GraphicsContextCG::clipToImageBuffer`
+(`GraphicsContextCG.cpp:1078`) passes an RGBA image, and the call site already carries a FIXME
+saying the image needs to be grayscale. On Tiger that call does not mask, it blanks every
+subsequent drawing operation in the clipped region. Sent to wkcmake; the fix is a grayscale
+conversion at the call site, in WebCore rather than in compat. The symptom is misleading — no
+crash, no error return, content simply absent — so it is worth checking first if masked content
+goes missing.
+
+### Remaining behavioural targets
+
+cgcompat's priority order, by how badly a silent failure would show:
+`CGContextSetShouldSmoothFonts` and the antialiasing knobs, `CGContextSetInterpolationQuality`
+(which `NativeImageCG` pairs with the blend-mode Copy above), `CGPatternCreateWithImage2`'s tiling
+argument, and `CGContextBeginTransparencyLayer` under a non-identity CTM.
