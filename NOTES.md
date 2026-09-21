@@ -1292,3 +1292,75 @@ Next step when work resumes: wkcmake's item first (it gates everything), then js
 - jsc64's two fixes cherry-picked into WebKit tiger-fontcache (91ae27ac VMTraps hlt→SIGILL, 7e71da8d footprint) and
   verified in the PORT=Tiger jsc on the box: `--watchdog=1500` on a DFG/FTL loop → "JavaScript execution terminated." exit 3;
   `--footprint` reports a real 17.9 MB. tiger-jsc64 (WebKit-jsc64) is now fully folded into the main tree.
+
+## 2026-09-21 — WebCore compiles for the WEB process under PORT=Tiger x86_64 (webcore64 track)
+
+- GATE PASSED. `ninja -C build/tiger-web-port` is clean with no target argument: WTF, bmalloc, PAL,
+  JavaScriptCore, all of WebCore and bin/jsc. lib/libWebCore.a is 35 MB from 540 objects
+  (214 WebCore.dir + 151 WebCoreStyle + 138 WebCoreDOMAndRendering + 30 WebCoreJSBindings + 7 WebCoreInspector),
+  each object a unified-source bundle of up to 16 TUs. WebKit eb76c9b9..ebf1a287 on tiger-fontcache.
+- TRAP, and the one that nearly hid half the work: WEBKIT_DEFINE_SUBTARGET_WITH_PREFIX attaches the four
+  WebCore subtargets to WebCore with `target_link_libraries(... INTERFACE ...)`, so for a STATIC WebCore the
+  subtarget objects go to *consumers*, not into libWebCore.a, and `ninja WebCore` does not build them.
+  `ninja WebCore` succeeding means only the platform/ half compiled. Always build the subtargets by name, or
+  just run ninja with no target.
+- Error trajectory, `ninja -k 0`: pass 1 (2 causes, stale tree) -> pass 2 (1) -> pass 3 (105) -> pass 4 (3) ->
+  pass 5 (0, libWebCore.a links) -> pass 6, subtargets (276) -> pass 7 (0) -> pass 8, whole tree (25) -> pass 9 (0).
+  Logs in logs/webcore64-pass-N.log. Reconfigure of build/tiger-web-port from scratch was needed first: the
+  existing cache predated USE_SYSTEM_MALLOC=ON, so it was building libpas.
+- New files: Source/WebCore/{PlatformTiger.cmake,SourcesTiger.txt}, Source/WebCore/PAL/pal/PlatformTiger.cmake.
+  The x86_64 arm is WinCairo's cairo arm crossed with WPE: platform/{Cairo,Curl,FreeType,ImageDecoders,OpenSSL}.cmake,
+  the generic/unix files, and none of the cocoa/mac/cg/ct ones. The i386 arm is `include(PlatformCocoa.cmake)`.
+  ctcompat's PlatformTigerFonts.cmake is included when it exists.
+  NOT included: TextureMapper (an OpenGL compositor; the web process presents nothing, and USE_GRAPHICS_LAYER_WC
+  is about the remoting shape, not a local GL path) — that alone was 60 of pass 3's 105 errors.
+- Configure line, for the record (TIGER=ON must be on the command line: WebKitXcodeSDK.cmake runs before project()
+  and therefore before the toolchain file):
+    cmake -S WebKit -B build/tiger-web-port -G Ninja -DPORT=Tiger -DTIGER=ON \
+      -DCMAKE_OSX_SYSROOT=$PWD/sdk/MacOSX10.4u.sdk -DCMAKE_TOOLCHAIN_FILE=$PWD/toolchain/tiger64.cmake \
+      -DTIGER_PROCESS=WEB -DCMAKE_BUILD_TYPE=Release -DDEVELOPER_MODE=OFF -DENABLE_WEBCORE=ON -DUSE_JPEGXL=OFF
+- Root causes fixed, in the order they turned up:
+  1. TIGER_IMPORTED_LIB now takes include subdirectories. WebCore includes <hb.h>, <cairo.h>, <ft2build.h>,
+     <png.h> unqualified and the sysroot keeps those in per-library subdirectories.
+  2. WEBKIT_TIGER_PLATFORM_ARGS was only set on the i386 arm. generate-platform-args preprocesses wtf/Platform.h
+     in a custom command that inherits no compile options, and PlatformOS.h includes <Availability.h>, which
+     lives only in compat/sdk-overlay.
+  3. _WEBKIT_ADD_PCH_OBJECT emitted a .mm PCH object for any target naming PREFIX_LANGUAGES OBJCXX, including on
+     a port that never calls enable_language(OBJCXX): "Objective-C was disabled in precompiled file". It now
+     skips languages the project did not enable.
+  4. HAVE_DISPATCH_H off for TIGER64 (its one use selects ParallelJobsLibdispatch.h, and there is no
+     <dispatch/dispatch.h> for x86_64 on 10.4). The i386 side keeps it; compat/dispatch is real there.
+  5. WTF/PlatformTiger.cmake installs posix/SocketPOSIX.h and unix/UnixFileDescriptor.h under
+     USE_UNIX_DOMAIN_SOCKETS; PlatformJSCOnly.cmake only does it for the GLib ports and WebCore's
+     SharedMemory.h needs the latter.
+  6. LP64-Darwin size_t: `encoder << v.size()` has no WTF::Persistence overload here, because uint64_t is
+     unsigned long long while size_t is unsigned long. On Linux LP64 they are the same type, which is why
+     KeyedEncoder/DecoderGeneric and the curl CertificateInfo coder have never hit it. Cast to uint64_t, as the
+     neighbouring call sites in the same files already do. Worth remembering: any `<< something.size()` on this
+     port is a compile error waiting.
+  7. "Darwin means Apple's libraries" conditions: CryptoKey{EC,RSA} and page/Crypto.cpp select CommonCrypto under
+     OS(DARWIN); AXCoreObject.h declares m_wrapper for a fixed list of platforms but defines wrapper()/setWrapper()/
+     detachWrapper() unconditionally (220 errors on its own; TIGER64 joins the PLAYSTATION/HAIKU ref-counted arm).
+  8. thread_local is rejected at -mmacosx-version-min=10.4 on both architectures; the second memo in
+     CornerShapeUtilities.cpp had not been converted, and the existing PLATFORM(TIGER) guard now covers TIGER64.
+  9. JavaScriptCore's corpse tool and mya are gated on APPLE, which here is a 2005 Apple: task_generate_corpse,
+     THREAD_IDENTIFIER_INFO, dyld_images.h and libedit's x86_64 slice all postdate 10.4. APPLE AND NOT TIGER.
+  10. FontCacheTiger64.cpp signature drift against the current tree (WTFMove -> WTF::move, CString::data() is
+      const char8_t* so two conversions go through toStdString(), fontForPlatformData() already returns Ref<Font>,
+      m_fontCascade is a CheckedRef). Logic untouched.
+- Flags changed: USE_JPEGXL OFF (no libjxl cross-built). Neither it nor USE_AVIF appears in a serialization
+  condition. All four trees reconfigure clean and all four cross pairs still report "agree" from
+  tiger-check-ipc. tiger-net-port needed -DUSE_JPEGXL=OFF by hand (existing cache).
+- Deliberate holes, all noted in the source:
+  - platform/graphics/tiger64/hb-icu.h carries upstream hb_icu_script_to_script inline, because the cross-built
+    HarfBuzz has no --with-icu build. One function; delete the file when deps rebuilds HarfBuzz.
+  - PublicSuffixStoreCurl.cpp and LibPSL::LibPSL are removed from the source list: libpsl is not cross-built.
+    A link will miss PublicSuffixStore.
+  - The font stack still compiles FontPlatformDataFreeType/SimpleFontDataFreeType/GlyphPageTreeNodeFreeType
+    (upstream's, which is what ctcompat intends); FontCacheFreeType and FontSetCache are replaced by the
+    tiger64 ones through PlatformTigerFonts.cmake.
+- What is NOT done: nothing links a web process yet, so the platform implementations WebCore expects at link
+  time (PlatformScreen, Pasteboard/PlatformPasteboard, MIMETypeRegistry, UserAgent, RenderTheme,
+  SystemFontDatabase, Icon, ImageAdapter, MainThreadSharedTimer, EventHandler, DragController, AXObjectCache,
+  Editor, ScrollbarsController's platform half, the media backend) are all still missing. They are link-time
+  work, not compile-time; the next gate is ENABLE_WEBKIT/TIGER_WEBKIT2 and a real link.
