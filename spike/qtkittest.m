@@ -28,6 +28,14 @@
 
 #import <QTKit/QTKit.h>
 #import <ApplicationServices/ApplicationServices.h>
+#include <limits.h>
+
+// QTMovieOpenForPlaybackAttribute is a 7.6.3+ addition, not in the 10.4u SDK's
+// QTMovie.h at all (checked: grep finds nothing). Declare the key locally —
+// per Apple's QTKit release notes the string value is exactly
+// "QTMovieOpenForPlaybackAttribute" (an NSNumber BOOL), same family as
+// QTMovieOpenAsyncOKAttribute (which the SDK header does have).
+static NSString * const QTMovieOpenForPlaybackAttributeLocal = @"QTMovieOpenForPlaybackAttribute";
 
 // -------------------------------------------------------- load-state polling
 
@@ -87,12 +95,21 @@ static void writeCGImageToPNG(CGImageRef img, NSString *path)
 
 static void probeMovie(NSString *path)
 {
+    // Own autorelease pool per file: on 7.6.4 (unlike 7.2), draining a single
+    // top-level pool holding four still-live QTMovies at once triggers a
+    // reproducible EXC_BAD_ACCESS in objc_msgSend during final pool release
+    // (see README "quirks" — crash log points at QuickTimeComponents'
+    // background reader/decode threads). Draining per-file, with an explicit
+    // -invalidate first, keeps each movie's teardown isolated.
+    NSAutoreleasePool *filePool = [[NSAutoreleasePool alloc] init];
+
     fprintf(stderr, "\n=== %s ===\n", [path UTF8String]);
 
     NSError *error = nil;
     QTMovie *movie = [QTMovie movieWithFile:path error:&error];
     if (!movie) {
         fprintf(stderr, "  movieWithFile:error: failed: %s\n", [[error description] UTF8String]);
+        [filePool release];
         return;
     }
 
@@ -151,7 +168,14 @@ static void probeMovie(NSString *path)
                     NSString *outPath = [NSString stringWithFormat:@"/tmp/qtkit-frame-%@.png",
                                           [[path lastPathComponent] stringByDeletingPathExtension]];
                     writeCGImageToPNG(img, outPath);
-                    CFRelease(result);
+                    // NOTE: do NOT CFRelease(result) here. Despite the toll-free CGImageRef
+                    // payload, this came back from an ObjC method whose name doesn't start
+                    // with alloc/new/copy/mutableCopy, so by the Cocoa ownership convention
+                    // it is autoreleased, not owned by the caller. CFRelease-ing it anyway
+                    // (an earlier version of this file did) double-frees it once the
+                    // enclosing autorelease pool drains -- corrupts the heap and crashes
+                    // with "-[NSCFType ]: selector not recognized" on a garbage self
+                    // pointer, confirmed by removing this exact call. See README quirks.
                 } else {
                     fprintf(stderr, "  unexpected type, runtime class (if ObjC) = %s\n",
                             object_getClassName((id)result));
@@ -209,9 +233,146 @@ static void probeMovie(NSString *path)
             NSString *outPath = [NSString stringWithFormat:@"/tmp/qtkit-playing-%@.png",
                                   [[path lastPathComponent] stringByDeletingPathExtension]];
             writeCGImageToPNG((CGImageRef)result, outPath);
-            CFRelease(result);
+            // See the "do NOT CFRelease" note above -- same autoreleased object.
         }
     }
+
+    [filePool release];
+}
+
+// ------------------------------------------------ playback-mode open (7.6.3+)
+
+// Opens with QTMovieOpenForPlaybackAttribute=YES (playback-optimized; Apple's
+// docs say a movie opened this way may not support frameImageAtTime: for
+// arbitrary times) and QTMovieOpenAsyncOKAttribute=YES (async open allowed).
+// Reports load-state progression and whether frameImageAtTime: still works.
+static void probePlaybackModeOpen(NSString *path)
+{
+    NSAutoreleasePool *filePool = [[NSAutoreleasePool alloc] init];
+    fprintf(stderr, "\n=== %s (QTMovieOpenForPlaybackAttribute=YES, OpenAsyncOKAttribute=YES) ===\n",
+            [path UTF8String]);
+
+    NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
+                            path, QTMovieFileNameAttribute,
+                            [NSNumber numberWithBool:YES], QTMovieOpenForPlaybackAttributeLocal,
+                            [NSNumber numberWithBool:YES], QTMovieOpenAsyncOKAttribute,
+                            nil];
+    NSError *error = nil;
+    QTMovie *movie = [QTMovie movieWithAttributes:attrs error:&error];
+    if (!movie) {
+        fprintf(stderr, "  movieWithAttributes:error: failed: %s\n", [[error description] UTF8String]);
+        [filePool release];
+        return;
+    }
+
+    fprintf(stderr, "  waiting for QTMovieLoadStateComplete (logging every state seen)...\n");
+    NSMutableArray *statesSeen = [NSMutableArray array];
+    long lastState = LONG_MIN;
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:15.0];
+    for (;;) {
+        long state = [[movie attributeForKey:QTMovieLoadStateAttribute] longValue];
+        if (state != lastState) {
+            [statesSeen addObject:[NSNumber numberWithLong:state]];
+            fprintf(stderr, "  loadState -> %ld\n", state);
+            lastState = state;
+        }
+        if (state >= QTMovieLoadStateComplete || state == QTMovieLoadStateError)
+            break;
+        if ([deadline timeIntervalSinceNow] <= 0) {
+            fprintf(stderr, "  TIMED OUT waiting for load state\n");
+            break;
+        }
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+                                  beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    }
+    fprintf(stderr, "  distinct load states seen (in order): %s\n", [[statesSeen description] UTF8String]);
+
+    NSValue *sizeValue = [movie attributeForKey:QTMovieNaturalSizeAttribute];
+    NSSize naturalSize = sizeValue ? [sizeValue sizeValue] : NSZeroSize;
+    fprintf(stderr, "  naturalSize: %.0fx%.0f\n", naturalSize.width, naturalSize.height);
+
+    QTTime t = QTMakeTimeWithTimeInterval(0.5);
+    NSDictionary *frameAttrs = [NSDictionary dictionaryWithObject:QTMovieFrameImageTypeCGImageRef
+                                                             forKey:QTMovieFrameImageType];
+    NSError *frameError = nil;
+    void *result = [movie frameImageAtTime:t withAttributes:frameAttrs error:&frameError];
+    if (!result) {
+        fprintf(stderr, "  frameImageAtTime:CGImageRef in playback mode -> nil, error: %s\n",
+                [[frameError description] UTF8String]);
+    } else {
+        CFTypeID typeID = CFGetTypeID(result);
+        BOOL isCGImage = (typeID == CGImageGetTypeID());
+        fprintf(stderr, "  frameImageAtTime:CGImageRef in playback mode -> non-nil, isCGImageRef=%s\n",
+                isCGImage ? "YES" : "NO");
+        if (isCGImage) {
+            describeCGImage((CGImageRef)result);
+            // Autoreleased, not owned -- do not CFRelease.
+        }
+    }
+
+    [filePool release];
+}
+
+// ---------------------------------------------------------- per-frame timing
+
+// Measures wall-clock cost of frameImageAtTime:withAttributes:error: with
+// QTMovieFrameImageTypeCGImageRef across `sampleCount` evenly spaced times in
+// the movie, reporting min/avg/max milliseconds per call.
+static void measureFrameImageCost(NSString *path, int sampleCount)
+{
+    NSAutoreleasePool *filePool = [[NSAutoreleasePool alloc] init];
+    fprintf(stderr, "\n=== timing: %s ===\n", [path UTF8String]);
+
+    NSError *error = nil;
+    QTMovie *movie = [QTMovie movieWithFile:path error:&error];
+    if (!movie) {
+        fprintf(stderr, "  movieWithFile:error: failed: %s\n", [[error description] UTF8String]);
+        [filePool release];
+        return;
+    }
+    if (!waitForLoadState(movie, QTMovieLoadStateComplete, 15.0)) {
+        fprintf(stderr, "  failed to reach QTMovieLoadStateComplete\n");
+        [filePool release];
+        return;
+    }
+
+    NSValue *sizeValue = [movie attributeForKey:QTMovieNaturalSizeAttribute];
+    NSSize naturalSize = sizeValue ? [sizeValue sizeValue] : NSZeroSize;
+    QTTime duration = [movie duration];
+    double durationSeconds = duration.timeScale ? (double)duration.timeValue / duration.timeScale : 0.0;
+    fprintf(stderr, "  naturalSize=%.0fx%.0f duration=%.3fs samples=%d\n",
+            naturalSize.width, naturalSize.height, durationSeconds, sampleCount);
+
+    NSDictionary *attrs = [NSDictionary dictionaryWithObject:QTMovieFrameImageTypeCGImageRef
+                                                        forKey:QTMovieFrameImageType];
+    double minMs = 1e9, maxMs = 0, totalMs = 0;
+    int ok = 0;
+    int i;
+    for (i = 0; i < sampleCount; i++) {
+        double t = durationSeconds * (i + 0.5) / sampleCount;
+        QTTime qt = QTMakeTimeWithTimeInterval(t);
+        NSDate *start = [NSDate date];
+        NSError *frameError = nil;
+        void *result = [movie frameImageAtTime:qt withAttributes:attrs error:&frameError];
+        double ms = -[start timeIntervalSinceNow] * 1000.0;
+        if (result && CFGetTypeID(result) == CGImageGetTypeID()) {
+            ok++;
+            if (ms < minMs) minMs = ms;
+            if (ms > maxMs) maxMs = ms;
+            totalMs += ms;
+            // Autoreleased, not owned -- do not CFRelease (accumulates in filePool
+            // until this function's pool drains, fine for sampleCount this small).
+        } else {
+            fprintf(stderr, "  sample %d at t=%.3fs FAILED: %s\n", i, t,
+                    frameError ? [[frameError description] UTF8String] : "(nil, no error)");
+        }
+    }
+    if (ok > 0) {
+        fprintf(stderr, "  %d/%d frames ok: min=%.1fms avg=%.1fms max=%.1fms\n",
+                ok, sampleCount, minMs, totalMs / ok, maxMs);
+    }
+
+    [filePool release];
 }
 
 // ------------------------------------------------------------------------- main
@@ -231,6 +392,17 @@ int main(int argc, const char **argv)
     probeMovie([dir stringByAppendingPathComponent:@"test.mov"]);
     probeMovie([dir stringByAppendingPathComponent:@"test.mp3"]);
     probeMovie([dir stringByAppendingPathComponent:@"test.m4a"]);
+
+    // 7.6.3+ playback-optimized open path.
+    probePlaybackModeOpen([dir stringByAppendingPathComponent:@"test.mp4"]);
+
+    // What does 7.6.4 actually decode: High profile, and a larger Main-profile clip.
+    probeMovie([dir stringByAppendingPathComponent:@"test-high.mp4"]);
+    probeMovie([dir stringByAppendingPathComponent:@"test-720p-main.mp4"]);
+
+    // Per-frame decode+frameImage cost, small vs. large frame.
+    measureFrameImageCost([dir stringByAppendingPathComponent:@"test.mp4"], 10);
+    measureFrameImageCost([dir stringByAppendingPathComponent:@"test-720p-main.mp4"], 10);
 
     fprintf(stderr, "\nqtkittest: done\n");
     [pool release];
