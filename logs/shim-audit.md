@@ -792,3 +792,16 @@ is fractional destination rects antialiasing against each other rather than anyt
 clip. `GraphicsContextCG.cpp:517` passes a `FloatRect` straight from layout, so this fires on any
 repeated background. The remedy is to round each tile's destination rect to the pixel lattice, or
 to disable antialiasing around the loop.
+
+---
+
+## Open items that are not shim work
+
+Three findings from this audit land outside `compat/` and are tracked here so they do not get lost
+between tracks.
+
+| Item | Owner | State |
+|---|---|---|
+| `GraphicsContextCG::clipToImageBuffer` passes an RGBA image to `CGContextClipToMask`, which on Tiger clips everything away and blanks subsequent drawing | WebCore, sent to wkcmake | needs a grayscale conversion at `GraphicsContextCG.cpp:1078`; the call site's own FIXME already says the image ought to be grayscale |
+| Tiger honours none of the twelve Porter-Duff blend modes, all compositing as Normal | WebCore | **cannot be shimmed**: the mode is context state consumed by every later drawing call, not a parameter to intercept. `NativeImageCG`'s single-pixel colour read depends on `kCGBlendModeCopy` replacing an uninitialized buffer, so it returns a wrong colour |
+| Protocol ext records, needed by JavaScriptCore's JSExport | build flags | **decided**: NOTES.md LINK RULE 2, never strip local symbols |
