@@ -6,7 +6,7 @@ Tiger's CoreGraphics exports), `logs/api/tiger-CG.txt` (3568 CG exports),
 `logs/api/used-CG.txt` / `used-kCG.txt`.
 
 Implementation: `compat/cgcompat.c`, declarations in `compat/include/TigerCompat/CGCompat.h`.
-Test: `spike/cgtest.c`, 51 checks, all passing on the box.
+Test: `spike/cgtest.c`, 53 checks, all passing on the box.
 
 ## Counts
 
@@ -285,6 +285,49 @@ declares anyway. Two are live and need a gate:
 `ImageIOSPI.h` overlaps this header on thirteen names, all of them `extern const CFStringRef`
 declarations or function prototypes identical to these. No enums, so no gate needed there.
 
+### Calling-convention screen
+
+A matching name is not a matching ABI. The CoreText track found Tiger's `CTLineDraw` takes an
+extra `CFRange`, so a modern call passes stack junk and silently draws nothing. The same screen
+ran over CoreGraphics and ImageIO: 285 entry points that WebCore or WebKitLegacy calls and that
+Tiger exports under the same name.
+
+| | Count |
+|---|---|
+| Screened | 285 |
+| Declared by the 10.4u SDK, compared against the modern prototype | 220 |
+| SPI with no SDK declaration, screened against Tiger's prologue | 65 |
+| Genuine mismatches | 1 |
+
+For the 220 the 10.4u SDK declares, the comparison is exact rather than heuristic: that header
+*is* Tiger's prototype. Argument counts and i386 byte totals match the modern prototypes
+everywhere, and no Tiger prototype takes a by-value `double`. The 10.4u `float` to modern
+`CGFloat` mapping is byte-for-byte on i386.
+
+The 65 SPI entry points were screened by comparing the highest `(%ebp)` argument slot Tiger's
+prologue reads against what the modern prototype passes. That produces false positives, because
+`otool` labels only exported symbols, so a scan runs on through unlabelled static functions.
+Thirteen candidates came out; all but one were cleared by calling them on the box with the
+modern prototype and checking the result. `CGColorSpaceEqualToColorSpace`,
+`CGDataProviderCreateWithCopyOfData`, `CGContextGetBaseCTM`, `CGPatternCreateWithImage2`,
+`CGStyleCreateShadow2` and `CGColorTransformConvertColorComponents` all behave correctly.
+`CGContextGetBaseCTM` looked wrong only because the screen did not model the hidden
+struct-return pointer.
+
+**The one real mismatch is `CGGStateGetCTM`.** Tiger returns the matrix *by value*; WebCore
+declares it as returning `const CGAffineTransform *`. Through the modern declaration the
+`CGGStateRef` lands in the hidden struct-return slot, so CG takes the next stack word as the
+gstate and writes 24 bytes through the gstate pointer. `CGCompat.h` pins the real entry point
+with an `__asm__` label under its true signature and macro-renames the call onto a wrapper that
+restores the pointer-returning shape.
+
+It is unreachable on Tiger today: a `CGGStateRef` can only come from a delegate-backed context,
+and Tiger exports neither `CGContextCreateWithDelegate` nor `CGContextGetGState`. The adapter
+exists so that enabling that path later cannot silently corrupt memory. `spike/cgtest.c` still
+exercises the real convention, by handing the Tiger entry point a buffer with a known pattern:
+the implementation copies six dwords from the gstate plus 4 and touches nothing else, so the
+returned matrix proves the by-value return without needing a real gstate.
+
 ### Conflicts with PAL's CoreGraphicsSPI.h
 
 WebCore declares much of this SPI itself, so a unit including both sees both. Overlapping
@@ -322,7 +365,7 @@ reads back pixels at the endpoints and midpoint, fills a rounded rect through
 `CGContextDrawPathDirect` and checks that the corner stays unpainted, transforms a path, checks
 the transparency layer clips to its rect, and decodes a PNG through `CGImageSource`. It also
 covers both interpolation modes, the colorspace model including Indexed and Pattern, name
-aliasing and the property list round trip, and a lopsided rounded rect. 51 checks, all passing.
+aliasing and the property list round trip, and a lopsided rounded rect. 53 checks, all passing.
 
 One thing the test surfaced that is worth knowing for the rest of the port: filling with
 `CGContextSetRGBFillColor` in an ICC sRGB context goes through a generic-RGB to sRGB

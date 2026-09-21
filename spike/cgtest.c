@@ -302,6 +302,26 @@ int main(void)
     pixelAt(40, 40, &r, &g, &b, &a);
     expect(a < 40, "transparency layer clips to its rect");
 
+    /* ---- Tiger ABI adapter: CGGStateGetCTM returns the matrix by value ---- */
+    {
+        /* Tiger's implementation copies six dwords from gstate+4 and touches
+           nothing else, so a plain buffer with a known pattern exercises the
+           real calling convention without needing a delegate-backed context
+           (which Tiger cannot create). If the adapter were wrong, the matrix
+           would come back as something other than words 1 through 6. */
+        CGFloat buffer[8];
+        const CGAffineTransform* t;
+        buffer[0] = 99;
+        buffer[1] = 1; buffer[2] = 2; buffer[3] = 3;
+        buffer[4] = 4; buffer[5] = 5; buffer[6] = 6;
+        buffer[7] = 99;
+        t = CGGStateGetCTM((CGGStateRef)buffer);
+        expect(t && t->a == 1 && t->b == 2 && t->c == 3
+            && t->d == 4 && t->tx == 5 && t->ty == 6,
+            "CGGStateGetCTM adapter reads Tiger's by-value return correctly");
+        expect(CGGStateGetCTM(NULL) == NULL, "CGGStateGetCTM adapter tolerates NULL");
+    }
+
     /* ---- ImageIO: decode a PNG ---- */
     {
         CFURLRef url = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,

@@ -134,17 +134,19 @@ void memset_pattern16(void *__b, const void *__pattern16, size_t __len);
 }
 #endif
 
-/* C11 aligned_alloc, absent from Tiger's libc, and the free that matches it.
-   Implemented in compat/cfcompat.c -- see there for why the result is not
-   free()-able and what calls tiger_aligned_free(). */
-#ifdef __cplusplus
-extern "C" {
-#endif
-void *aligned_alloc(size_t __alignment, size_t __size);
-void tiger_aligned_free(void *__object);
-#ifdef __cplusplus
+/* C11 aligned_alloc, absent from Tiger's libc. posix_memalign in
+   compat/libcompat.c honours any power-of-two alignment (mmap plus a registered
+   malloc zone above a page), and the result is free()-able either way, so this
+   is a plain inline over it. JavaScriptCore depends on this being exact:
+   MarkedBlock::blockFor() finds a block's footer by masking a cell pointer with
+   ~(blockSize - 1), and blockSize is 16 KB. */
+static __inline__ void *aligned_alloc(size_t __alignment, size_t __size)
+{
+    void *__p = 0;
+    if (posix_memalign(&__p, __alignment, __size) != 0)
+        return 0;
+    return __p;
 }
-#endif
 #ifdef __cplusplus
 extern "C" {
 #endif

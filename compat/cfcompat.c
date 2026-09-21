@@ -208,57 +208,9 @@ CFArrayRef CFLocaleCopyPreferredLanguages(void)
     return CFArrayCreate(kCFAllocatorDefault, NULL, 0, &kCFTypeArrayCallBacks);
 }
 
-/* ---- aligned_alloc, and the free that matches it ------------------------ */
-
-/* Tiger has no aligned allocator at all: posix_memalign is absent, and the
-   emulation in libcompat.c tops out at valloc's page alignment. JavaScriptCore
-   needs 16 KB alignment for every MarkedBlock -- MarkedBlock::blockFor() finds a
-   block's footer by masking a cell pointer with ~(blockSize - 1) -- so a
-   page-aligned block makes the collector read the footer of whatever happens to
-   sit 16 KB below, which is how this port's first jsc run failed.
-
-   Verified on the box: posix_memalign(16384, 16384) returns 4 KB-aligned
-   addresses, eight times out of eight.
-
-   Apple's own aligned allocator lives inside the malloc zone, which Tiger's does
-   not expose, so the block is over-allocated and an aligned interior pointer is
-   returned with the base stored just below it. That makes the result NOT
-   free()-able, so the pair is closed by tiger_aligned_free() below, which
-   bmalloc's free() calls on this platform. malloc_size() returns 0 for an
-   interior pointer -- the zone looks the address up as a block start -- which is
-   what tells the two kinds of pointer apart. */
-
-#include <malloc/malloc.h>
-
-void *aligned_alloc(size_t alignment, size_t size)
-{
-    char *raw, *aligned;
-
-    if (!alignment || (alignment & (alignment - 1)))
-        return 0;   /* not a power of two */
-
-    /* Tiger's malloc is 16-byte aligned, so small alignments need nothing. */
-    if (alignment <= 16)
-        return malloc(size ? size : 1);
-
-    raw = (char *)malloc(size + alignment);
-    if (!raw)
-        return 0;
-
-    /* Adding a whole alignment before rounding down guarantees the result is
-       strictly above raw, so it is always an interior pointer, and that the gap
-       is at least 16 bytes -- room for the base pointer below it. */
-    aligned = (char *)(((uintptr_t)raw + alignment) & ~(uintptr_t)(alignment - 1));
-    ((void **)aligned)[-1] = raw;
-    return aligned;
-}
-
-void tiger_aligned_free(void *object)
-{
-    if (!object)
-        return;
-    if (!malloc_size(object))            /* interior pointer: one of ours */
-        free(((void **)object)[-1]);
-    else
-        free(object);
-}
+/* aligned_alloc lives in compat/include/tigerprelude.h as an inline over
+   posix_memalign, which compat/libcompat.c implements for real: malloc at or
+   below 16 bytes of alignment, valloc up to a page, and above that an mmap'd
+   region registered as a malloc zone so plain free() still finds it. An earlier
+   version of this file over-allocated and returned an interior pointer, which
+   needed its own free; that is gone now that the platform does it properly. */

@@ -1081,6 +1081,22 @@ CGFontAntialiasingStyle CGContextGetFontAntialiasingStyle(CGContextRef c)
 }
 bool CGFontRenderingGetFontSmoothingDisabled(void) { return false; }
 
+/* ====================================================== Tiger ABI mismatch */
+
+/* See CGCompat.h. Tiger returns the matrix by value; WebCore expects a pointer
+   into the gstate, so the value is parked in a static and its address returned.
+   ponytail: one static, so the result is valid until the next call on this
+   thread, which is what the pointer-returning contract implies anyway. Give it
+   thread-local storage if the delegate path is ever enabled and threaded. */
+const CGAffineTransform* CGGStateGetCTMCompat(CGGStateRef gstate)
+{
+    static CGAffineTransform sTransform;
+    if (!gstate)
+        return NULL;
+    sTransform = TigerCGGStateGetCTM(gstate);
+    return &sTransform;
+}
+
 /* ================================================================== ImageIO */
 
 size_t CGImageSourceGetPrimaryImageIndex(CGImageSourceRef source) { (void)source; return 0; }

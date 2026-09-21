@@ -220,6 +220,30 @@ void CGContextSetFontAntialiasingStyle(CGContextRef, CGFontAntialiasingStyle);
 CGFontAntialiasingStyle CGContextGetFontAntialiasingStyle(CGContextRef);
 bool CGFontRenderingGetFontSmoothingDisabled(void);
 
+/* ------------------------------------------------------- Tiger ABI mismatch */
+
+/* Tiger's CGGStateGetCTM returns the matrix BY VALUE. WebCore's
+   CoreGraphicsSPI.h declares it as returning `const CGAffineTransform *`.
+   Calling it through the modern declaration would put the CGGStateRef in the
+   hidden struct-return slot, so CG would take its second stack word as the
+   gstate and write 24 bytes through the gstate pointer instead of reading it.
+
+   Found by comparing Tiger's prologue against the modern prototype: the
+   function reads 0x8(%ebp) as a destination and 0xc(%ebp) as the source, then
+   copies six dwords from source+4. It is the only mismatch in 285 screened
+   CoreGraphics and ImageIO entry points.
+
+   It is also unreachable on Tiger today, because a CGGStateRef can only come
+   from a delegate-backed context and Tiger exports neither
+   CGContextCreateWithDelegate nor CGContextGetGState. The adapter exists so
+   that enabling that path later cannot silently corrupt memory. */
+#ifndef CGGSTATE_TYPEDEF_DEFINED
+typedef struct CGGState *CGGStateRef;
+#endif
+CGAffineTransform TigerCGGStateGetCTM(CGGStateRef) __asm__("_CGGStateGetCTM");
+const CGAffineTransform* CGGStateGetCTMCompat(CGGStateRef);
+#define CGGStateGetCTM CGGStateGetCTMCompat
+
 /* --------------------------------------------------------------------- font */
 
 /* Tiger's CoreGraphics exports these three, but the 10.4u SDK's CGFont.h
