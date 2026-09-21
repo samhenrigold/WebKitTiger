@@ -3029,3 +3029,120 @@ Cheapest thing that captures nearly all of it, in order:
    setting. If the integer-ppem gap ever matters enough, the only thing that would close it is
    Apple's own interpreter, i.e. rasterising in the 32-bit process, which is what the other mode
    is for.
+
+### 2026-09-21 — spike/hybrid32: the in-process hybrid dies on signals, GC and a kernel panic (hybrid32)
+
+Follow-up to the two `ldt64` sections. Those left three things "untested and decisive"; this
+answers all three plus the thread and cost questions. Probes, build notes and the full result
+table: `spike/hybrid32/README.md`; raw runs in `spike/hybrid32/*-run.txt`.
+
+Method note, because it makes these cheap to extend: there is no separate assembler step. Each
+probe is one i386 `.c` file built with `toolchain/bin/tiger-clang`, and the 64-bit guest is
+`.code64` inline asm in the same file between global labels, `memcpy`'d onto an RWX page at
+runtime (`h32common.h`). The guest must be position-independent and must call nothing.
+
+**Q1 — signals. Verdict: fatal, and not only for faults.** A 32-bit `SA_SIGINFO` handler does get
+SIGILL for `ud2`, SIGILL/`trapno=13` for `hlt`, SIGBUS for a load from a `PROT_NONE` page and
+SIGTRAP for `int3`, all taken inside the long-mode segment. But the frame is purely i386:
+`uc_mcsize` is 600 = `I386_MCONTEXT_SIZE` in every case, and `SA_64REGSET` (0x0200) — which the
+10.4 headers do define — is accepted by `sigaction` in a 32-bit process and changes nothing. The
+faulting IP is truthful (everything is below 4 GB): eip matches the faulting instruction exactly
+for ud2/hlt/the bad load, and fault+1 for int3, with `es.faultvaddr` and `si_addr` both reporting
+the real 0x30000000 target. `cs` is 0x17 on the trap path — the 0x8f LDT selector is simply not in
+the frame — though the *interrupt* path does report 0x8f. r8–r15 and the upper halves of rax–rdi
+are nowhere: scanning the 600-byte mcontext, the ucontext and 2 KB of sigframe stack for the
+sentinels finds zero hits.
+
+The handler can advance eip and return, but **it comes back in 32-bit mode**; writing `cs = 0x8f`
+into the mcontext is ignored, and the guest's next instructions decode as 32-bit garbage. The
+same is true of a *non-fault* signal: one `SIGALRM` from a `setitimer`, arriving in the guest spin
+loop, permanently demotes the thread — a marker instruction with identical encoding in both modes
+reads 1 (32-bit) rather than 2 (long) immediately afterwards. A handler that far-jumps back
+instead of returning does re-enter long mode, but r8–r15 have already been destroyed by the
+delivery path, so the guest faults instantly on a garbage r13. (Contrast `ldt64/ldt32host`: plain
+preemption with *no* handler run preserves r8–r15 perfectly. It is running the handler, not the
+interrupt, that costs the state.)
+
+**Q2 — thread_get_state. Verdict: 32-bit only, so conservative GC cannot work as designed.** On a
+thread parked in the guest, `x86_THREAD_STATE32` succeeds with count 16 and is truthful about eip,
+esp and even `cs = 0x8f` — you can at least *detect* a long-mode thread. `x86_THREAD_STATE64`
+returns `KERN_INVALID_ARGUMENT` (4). The generic `x86_THREAD_STATE` succeeds with count 44 but
+comes back with `tsh.flavor = x86_THREAD_STATE32`, `tsh.count = 16`; the 64-bit arm of the union
+is never used. `thread_set_state(x86_THREAD_STATE64, …)` is likewise rejected with 4, and the
+guest's r15 was still the sentinel after resume. Side result worth keeping: r8 and r15 *do*
+survive suspend/resume untouched — they are preserved, just invisible.
+
+**Q3 — address space and code model. Verdict: usable, with a hard 2 GB line and one landmine.**
+mmap hints in a 32-bit task are honoured from 0x40000000 all the way to 0xff000000 and the pages
+are read/write; 0xfff00000 and above are ENOMEM. Unhinted allocations stay low (a 512 MB and even
+a 2 GB `MAP_ANON` both landed at 0x2008000), so you have to ask for high addresses to get them.
+`MAP_FIXED` over 0x90000000 unmaps the dyld shared region and kills the process instantly — use
+hints only. For 64-bit code: an absolute disp32 reference to an address ≥ 2 GB
+(`movl 0x80000000, %eax`) sign-extends to 0xffffffff80000000 and does **not** simply fault — the
+process wedges with the kernel retrying the instruction forever and has to be killed. The same
+page reached through `movabs`+`[reg]` works, and rip-relative addressing with the blob itself
+loaded at 0x80010000 works and `lea`s exactly the right address. So small-code-model 64-bit code
+is fine as long as everything it names absolutely lives below 0x80000000.
+
+And `syscall` executed in long mode from a 32-bit task **panics the kernel**. The box went down
+with no console output and needed a power cycle; `fork()` does not contain it. That case is now
+behind an explicit `--danger-syscall` flag in `asprobe`. Nobody should run it again.
+
+**Q4 — threads and thunk cost.** PENDING — the box is still down from the Q3 syscall panic.
+`spike/hybrid32/threadprobe.c` is written and builds: two threads running long-mode r15 loops
+with distinct sentinels for 2 s each, plus a 1M-iteration 64→32→64 round trip through a real
+`gettimeofday`/`write(2)` thunk against plain 32-bit baselines.
+
+**Feasibility of the hybrid process: technically possible, strictly worse than the process split
+we already have, and blocked on one thing we cannot fix.**
+
+What it would need, in order of difficulty:
+
+1. *Conservative GC.* `MachineStackMarker` scans suspended threads' registers via
+   `thread_get_state`. r8–r15 of a thread suspended in 64-bit code are unreachable (Q2), so roots
+   in callee-saved 64-bit registers are missed and the collector frees live objects. There is no
+   option to turn this off; JSC's design assumes register scanning. The fix is cooperative
+   suspension — every guest thread polls a flag, spills all GPRs to a known buffer and parks —
+   which JSC does not have on this path. Call it 2–4 invasive weeks in `MachineStackMarker` and
+   the JIT's safepoint handling, and it changes GC latency characteristics.
+2. *Signals.* Every signal-based JSC mechanism has to go: polling VM traps only
+   (`Options::usePollingTraps`), no signalling Wasm memory, no signal-based OSR, no
+   `SigillCrashAnalyzer`, and a crash in 64-bit code produces a register dump that is 32-bit
+   nonsense. Worse than the opt-outs: an *asynchronous* signal to the process is delivered to an
+   arbitrary thread, and merely running the handler demotes that thread out of long mode. The only
+   mitigation is to keep every signal masked with `pthread_sigmask` on the guest threads and
+   service signals on a dedicated 32-bit thread. That is *inferred, not measured* — the probe for
+   it (`sigprobe blocked`) is written and builds but has not run, again because of the panic. If
+   masking does not hold, the hybrid is simply dead.
+3. *libSystem thunk generator.* Bounded in surface — our x86_64 binaries import libSystem and
+   libgcc_s only — but not bounded in difficulty. Per symbol: SysV x86_64 argument registers and
+   xmm0–7 down to i386 cdecl stack, return marshalling (rax/rdx, xmm0, x87 st0, sret pointer),
+   completely different struct-by-value rules, varargs for the printf family, and every struct
+   with a `long`, `time_t`, `off_t` or pointer in it laid out differently on the two sides
+   (`struct stat`, `struct timeval`, the pthread types, mach message bodies). Reverse 32→64 thunks
+   are needed for every callback that crosses back (`pthread` start routines, comparators, CF
+   callbacks). For the few hundred symbols involved, 1–3 months plus a permanent maintenance
+   surface — this is WoW64 with none of the kernel's help.
+4. *Fixed-address blob loader.* A 64-bit Mach-O cannot be loaded by the 32-bit dyld, so the
+   backend is a statically linked, non-PIC x86_64 image at a fixed base, stripped to raw segments,
+   mapped by a ~200-line 32-bit loader. Easy — the probes here are most of it. The constraint that
+   costs is Q3: the blob, its data, the JS heap and all JIT code memory must live below
+   0x80000000, or the JIT must be audited never to emit absolute `[disp32]` operands
+   (`AbsoluteAddress` in `MacroAssemblerX86_64` does exactly that). Halving the address space in a
+   process that also hosts AppKit, CG and a window backing store is a real cost.
+5. *No syscalls anywhere in the 64-bit image.* Enforced by kernel panic, not by a fault. One
+   stray `syscall` from a statically linked libc routine or from JIT-generated code takes the
+   machine down. That means nothing from libSystem may be statically linked into the blob at all;
+   every last call goes through a thunk, and the blob needs a mechanical audit for
+   `syscall`/`sysenter`/`int 0x80` bytes before it is ever run.
+
+What it buys is exactly one thing: no IPC serialisation between DOM and JS. Set against a
+GC redesign, a hand-written ABI bridge for all of libSystem, a 2 GB ceiling, the loss of every
+signal-based JIT mechanism, and a failure mode that panics the machine, that is not a trade worth
+taking. **Recommendation: keep the 64-bit content process + thin 32-bit UI split.**
+
+The reusable part is narrower and genuinely useful: a *small, self-contained* 64-bit compute
+kernel inside a 32-bit process — no syscalls, no signals expected, no GC, bounded runtime, all
+memory below 2 GB — is viable today with just `h32common.h` and a far-call entry point. A codec
+inner loop, a rasteriser, or a hash/compression kernel would work. Anything with a runtime under
+it would not.

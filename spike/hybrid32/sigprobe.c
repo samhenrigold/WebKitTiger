@@ -218,8 +218,8 @@ static void wd(int s) { (void)s; if (g_child) kill(g_child, SIGKILL); }
 // Run every case in a forked child under a 8 s watchdog: a fault the kernel
 // cannot deliver as a signal shows up as an endless re-execution loop.
 static int run_all(const char* self) {
-    static const char* cases[] = {"ud2","hlt","segv","int3","alarm","wake"};
-    for (int i = 0; i < 6; i++) for (int rs = 0; rs < 2; rs++) {
+    static const char* cases[] = {"ud2","hlt","segv","int3","alarm","wake","blocked"};
+    for (int i = 0; i < 7; i++) for (int rs = 0; rs < 2; rs++) {
         fflush(stdout);
         g_child = fork();
         if (g_child == 0) { execl(self, self, cases[i], rs ? "64" : "32", g_mode, (char*)0); _exit(127); }
@@ -275,6 +275,29 @@ int main(int argc, char** argv) {
         printf("  loop returned: %u corrupt iterations of %llu in %.0f ms, %d SIGALRMs delivered\n",
                corrupt, (unsigned long long)out[13], ms, nalrm);
         printf("  r15 mismatches=%u rdi mismatches=%u\n", (uint32_t)out[15], (uint32_t)out[17]);
+        return report() != 0 || corrupt != 0;
+    } else if (!strcmp(which, "blocked")) {
+        // The only plausible mitigation: keep every async signal masked on the
+        // threads that run guest code, and handle signals on a 32-bit-only
+        // thread. Does masking really keep the guest in long mode?
+        install(SIGALRM, alrm, extra);
+        install(SIGSEGV, handler, extra); install(SIGBUS, handler, extra);
+        install(SIGILL, handler, extra);  install(SIGTRAP, handler, extra);
+        sigset_t all; sigfillset(&all);
+        sigprocmask(SIG_BLOCK, &all, NULL);
+        out[13] = 200000000ULL;
+        out[14] = 0xC0FFEE000000000FULL;
+        out[16] = 0x1111000500000000ULL;
+        setitimer(ITIMER_REAL, &(struct itimerval){{0,10000},{0,10000}}, NULL);
+        struct timeval t0, t1; gettimeofday(&t0, NULL);
+        uint32_t corrupt = h32_call64(page + (g_loop - g_beg), (uint32_t)(uintptr_t)out);
+        gettimeofday(&t1, NULL);
+        setitimer(ITIMER_REAL, &(struct itimerval){{0,0},{0,0}}, NULL);
+        double ms = (t1.tv_sec-t0.tv_sec)*1e3 + (t1.tv_usec-t0.tv_usec)/1e3;
+        printf("  with all signals blocked: %u corrupt of %llu iterations in %.0f ms, %d handler runs\n",
+               corrupt, (unsigned long long)out[13], ms, nalrm);
+        sigprocmask(SIG_UNBLOCK, &all, NULL);
+        printf("  after unblocking, %d pending SIGALRM ran\n", nalrm);
         return report() != 0 || corrupt != 0;
     } else if (!strcmp(which, "wake")) {
         install(SIGALRM, alrm, extra);
