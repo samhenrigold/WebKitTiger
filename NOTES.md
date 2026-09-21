@@ -1199,3 +1199,39 @@ Next step when work resumes: wkcmake's item first (it gates everything), then js
 - Cache trap: toolchain *_FLAGS_INIT only apply on first configure; tiger-web had no -march=core2 until the cache was
   refreshed by hand. Reconfigure from scratch (or -DCMAKE_*_FLAGS) after toolchain-file changes.
 - Next gate: WebCore for the WEB process under PORT=Tiger x86_64 (cairo/freetype/harfbuzz/curl, no CG/CT/CF).
+
+## 2026-09-21 — the 64-bit WebCore font stack (ctcompat)
+
+**7/7 of the spike/textpixel cases reproduce through WebCore's font database, worst glyph 0.00001 pt from CoreText**
+(asserted tolerance 0.02). Run it: `spike/tigerfontcache/make`, `scp` both binaries to the box,
+`./tigerfontcachetest ~/tiger-fonts.json ct-reference.txt` (exit non-zero on any failure).
+
+- Manifest (root 272d1e5) now carries per-face **BMP coverage ranges** from `CTFontCopyCharacterSet`: 70 KB -> 946 KB,
+  176 faces. That is what makes fallback a binary search in a process with no CoreText, no ATS and no CF, instead of
+  opening 174 font files per missing glyph. `spike/fontmanifest.c` builds with the recipe in its own header comment.
+- WebKit 96d2502f (branch tiger-fontcache): `platform/graphics/tiger64/` holds `TigerFontDatabase` (manifest reader +
+  cascade: requested family, then Tiger's generic map for the language, then everything installed),
+  `TigerAppleKern` (Apple-format `kern`, applied to the leading glyph), `FontCacheTiger64.cpp` (the WebCore glue) and a
+  `FontSetCache` stub. `Source/WebCore/PlatformTigerFonts.cmake` is the font source list; PlatformTiger.cmake includes it.
+- **FontCacheFreeType.cpp and FontSetCache.cpp are removed from the build**, nothing else is: FontPlatformData,
+  Font::platformInit/platformGlyphInit, GlyphPageTreeNode, cairo and ComplexTextControllerHarfBuzz are upstream's and
+  compile as-is. Fontconfig stays only as the property bag `cairo_ft_font_face_create_for_pattern` and
+  FontPlatformDataFreeType read: FC_FILE/FC_INDEX come from the manifest, no config, no cache, no directory scan.
+  Fontconfig matching would fight the cascade and cannot see the 76 faces that live only in a resource fork.
+- **FreeType opens the real paths**, which is how .dfont suitcases and resource-fork faces work at all; HarfBuzz gets
+  the face through `hb_ft_face_create_referenced` and keeps its own OT font funcs.
+- Rule 2 (shape finer than 1/64) is already satisfied upstream: ComplexTextController scales 16.16. The control in the
+  test shapes case 1 at 26.6 and measures **0.125 pt** of accumulated drift, so the regression is caught, not assumed.
+- **Rule 1 is narrower than it looked.** With an FT-backed face HarfBuzz takes its AAT path, which already puts the whole
+  Apple `kern` pair value on the leading glyph — shaping with `-kern` plus our own table and shaping with kerning left
+  on now agree to 0.00001 pt. The explicit application is kept anyway: it makes the result independent of which HarfBuzz
+  path fires for a given face, and spike/textpixel's 0.99 pt error is what happens when the other path does. The control
+  that has teeth is kerning ignored entirely: **4.98 pt**.
+- The CoreText reference is recorded once on the box by `spike/tigerfontcache/ctreference32.c` (i386, CT) from the request
+  lines `tigerfontcachetest --record` writes, and committed as `ct-reference.txt`. Positions accumulate
+  `CTRunGetAdvancesPtr`, which is what raster32 compared against when the seven cases were declared pixel-identical.
+- OPEN for the full WebCore compile: none of this has been compiled by CMake (WebCore does not configure for x86_64 yet,
+  and that tree belongs to the wcompile track) — only the WTF-free half is built and run, by the spike. `FontCacheTiger64.cpp`
+  is written against the current signatures in FontCacheFreeType.cpp and will need a first-error pass. Also open:
+  `@font-face` (FontCustomPlatformDataFreeType is in the build but untried), astral-plane coverage (manifest is BMP only,
+  `covers()` returns false above U+FFFF), vertical text, and the RTL arm of the kern rule (written by symmetry, not measured).

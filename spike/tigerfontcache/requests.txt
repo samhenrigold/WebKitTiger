@@ -1,0 +1,7 @@
+latin kerned	Helvetica	16	0	87	97	118	105	110	103	32	65	86	32	84	111	32	102	108	117	102	102	121
+system font	LucidaGrande	13	0	87	97	118	105	110	103	32	65	86	32	84	111	32	102	108	117	102	102	121
+bold request	Helvetica-Bold	16	0	87	97	118	105	110	103	32	65	86	32	84	111	32	102	108	117	102	102	121
+arabic via Helvetica	GeezaPro	16	1	1575	1576	1580	1583
+cjk via Helvetica	LiGothicMed	16	0	20013	25991	28204	35430
+font from bytes	GeezaPro	16	1	1575	1576	1580	1583
+latin rejected by shaper	Helvetica	16	0	87	101	98	32	102	111	110	116	32	65	86
