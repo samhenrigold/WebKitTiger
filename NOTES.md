@@ -229,5 +229,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   half points on Tiger (adapters requested); every other metric matches modern to 6 decimals.
 
 ## Git rule (2026-09-20 21:10)
-- Commit only your own paths: `git add <files you changed>` then commit. Never `git add -A` on this shared tree; it sweeps other
-  agents' in-flight work into your commit. The lead commits NOTES.md and memory-adjacent files only.
+- Commit only your own paths: `git add <files>` then `git commit -- <same files>` (a scoped add is not enough: commit takes the
+  whole index, including files someone else staged). Never `git add -A` on this shared tree. NOTES.md is shared: append your
+  own bullets/sections and include NOTES.md in your path-scoped commit; don't rewrite others' text.
+- HarfBuzz 14.5 (meson, static, OT shaper only) is in the sysroot; deps/spike-tests/test_harfbuzz.c shaped Latin and Arabic on the box.
+- Static ABI screening is complete (tools/abi-screen.py, logs/abi-screen-cf.md): 510 functions, every over-read already adapted.
