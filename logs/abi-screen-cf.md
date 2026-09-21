@@ -312,21 +312,70 @@ into unlabelled code and decode garbage. `CGPDFPageGetBoxRect` picked up a bogus
 `addb %cl, 0x489d845(%ebp)` and scored 76 MB of arguments. Offsets beyond 0x400 are
 now discarded and the function flagged instead.
 
-### Recommended next step, with evidence
+## Third prototype source: WebKit's own SPI headers
 
-The largest remaining blind spot is that **the tool gives up when the modern SDK does
-not declare a function**, which is 43 of the CoreGraphics set and 7 of the
-CoreFoundation set. That bucket is not empty of findings: `CGGStateGetCTM` sits in it,
-and it is precisely the one genuine CoreGraphics mismatch the cgcompat track found by
-hand (commit `fd4afe3`). My run scores it `tiger=8`; WebCore's own SPI declaration is
-`const CGAffineTransform* CGGStateGetCTM(CGGStateRef)`, which is 4 bytes, so Tiger's
-extra 4 bytes are the hidden `sret` of a by-value return — an over-read the tool would
-have flagged had it read WebKit's SPI headers for prototypes the way it reads the SDK.
+The tool used to give up whenever the modern SDK had no declaration, which was 43 of
+the CoreGraphics set, 5 of the CoreFoundation set and 1 of CoreText. For that API,
+WebKit's own `*SPI.h` headers are the prototype it actually compiles against, so they
+are the right record to screen against. `spi_lowering()` now lifts those declarations
+out textually and lowers them for i386 through the same clang path.
 
-Teaching `modern_lowering()` to fall back to WebKit's own `*SPI.h` declarations would
-close this. It is the single highest-value change left in this tool, and the five
-CoreFoundation SPI functions in the section above had to be hand-checked for exactly
-the same reason.
+Lifting them textually rather than including the headers is deliberate:
+`CoreGraphicsSPI.h` pulls in `wtf/Platform.h` and `wtf/text/WTFString.h`, so it will
+not parse standalone. Two details made the difference between working and not:
+
+- **Compile the extracted declarations as C++ inside `extern "C"`.** In C, an unknown
+  parameter type reads as a K&R parameter name and clang says "a parameter list
+  without types", which gives nothing to heal from. C++ says
+  `unknown type name 'CGGStateRef'`, which the tool heals by synthesising the type.
+- **Synthesised types are opaque handles or enums**, both 4 bytes on i386, so totals
+  stay exact. Fourteen were synthesised for CoreGraphics (`CGGStateRef`, `CGStyleRef`,
+  `CGContextType`, `CGSWindowID`, …), and some declarations are also found in a `.mm`
+  next to the call rather than in a header, which needed a second pass:
+  `FormDataStreamCFNet.mm` declares `CFReadStreamCreate` with an `EXTERN` prefix.
+
+### It flags CGGStateGetCTM
+
+The check the lead asked for. `CGGStateGetCTM` is now screened rather than skipped and
+comes out as the **single over-read in CoreGraphics**: Tiger reads 8 bytes where
+WebCore's declaration `const CGAffineTransform *CGGStateGetCTM(CGGStateRef)` passes 4.
+Those extra 4 bytes are the hidden `sret` of a by-value return. That is exactly the one
+genuine CoreGraphics mismatch the cgcompat track found by hand in commit `fd4afe3` and
+has already adapted, so the tool now reproduces it from a cold start.
+
+### Final results, all four frameworks
+
+| framework | screened | over-reads | under-reads | undetermined before | undetermined after |
+|---|---|---|---|---|---|
+| CoreFoundation + ATS + LaunchServices + HIServices + Security | 206 | 0 | 0 | 6 | 1 |
+| CoreGraphics | 250 | 1 | 4 | 52 | 9 |
+| CoreText | 54 | 6 | 3 | 4 | 3 |
+
+**No new hits.** Every over-read the extension exposes is already known and already
+adapted:
+
+- `CGGStateGetCTM` — cgcompat, `fd4afe3`.
+- The six CoreText over-reads (`CTFontCreateCopyWithAttributes`,
+  `CTFontCreateWithFontDescriptor`, `CTFontCreateWithGraphicsFont`,
+  `CTFontCreateWithName`, `CTFontDescriptorCreateWithNameAndSize`, `CTLineDraw`) are
+  the `double`-to-`CGFloat` migration. ctcompat covers all six, four through
+  `TigerCT*` adapters and two by redeclaring them with `double size` in
+  `CTCompat.h`, whose comment describes the same misalignment this screen measures.
+
+CoreFoundation's five recovered SPI prototypes all confirm the hand-checks recorded
+above, and its undetermined count falls to one: `CFPreferencesGetAppIntegerValue`, the
+forwarding thunk that reads no arguments itself.
+
+The under-reads are benign in cdecl and all have the same cause — the callee takes the
+address of a by-value struct and passes it on instead of loading the fields.
+`CGContextSetCTM`, `CGContextSetBaseCTM` and `CGContextConcatCTM` each read 8 of the 28
+bytes they are passed; `CGRectIsNull` reads 8 of 16, because a null rect is detectable
+from the origin alone.
+
+The nine remaining CoreGraphics undetermined are `CF_INLINE`-style functions with no
+out-of-line declaration anywhere (`CGPointEqualToPoint`, `CGSizeApplyAffineTransform`
+and friends), the same class as `CFRangeMake`: they are inlined at every call site and
+never reach the dynamic linker, so there is nothing to screen.
 
 ## Appendix: all 206 screened functions
 

@@ -93,9 +93,13 @@ using the same shading geometry for both, and the two are combined into a premul
 image that is drawn into the clip. CG still does all the geometry, which is the part worth
 keeping. An opaque gradient skips all of it.
 
-`CGContextClipToMask` was the obvious route and is deliberately not used. Tiger's version does
-not take the destination's alpha from the mask alone: with a colour ramp that varies, the
-resulting alpha came out as the mask times the source colour instead of the mask.
+`CGContextClipToMask` would have worked too, and is not used for historical reasons rather than
+technical ones. While this path was being built, a mask-clipped draw looked like it gave the
+destination an alpha of mask times source colour. Direct probes later showed that reading was
+of the premultiplied *colour* channel, which is colour times mask by definition; `ClipToMask`
+takes the destination alpha from the mask exactly. The two-bitmap composite stays because it is
+measured and passing, not because anything is wrong with `ClipToMask`. See the behavioural
+section below for its one real constraint.
 
 **Premultiplied interpolation is honoured.** `kCGGradientInterpolatesPremultiplied` is not a
 corner case: `GradientRendererCG.cpp` passes it whenever the gradient's alpha premultiplication
@@ -188,6 +192,17 @@ The route is recorded in `cgcompat.c` for the day a caller passes `false`.
 
 The two font antialiasing style accessors stay inert because Tiger has nothing to map them to
 at all: no `CGContextSetFontRenderingStyle`, nothing style-shaped in its exports.
+
+`CGCompat.h` declares `CGFontSetShouldAntialias` and `CGFontShouldAntialias` so the names live
+in one place, with their signatures read off Tiger's prologues rather than assumed. Nothing in
+compat calls them.
+
+**Interpolation quality is binary on Tiger.** The rasterizer collapses Default, Low, Medium and
+High into one quality; only None differs. The setter stores all five values faithfully and
+reads them back unchanged, so a shim cannot detect the loss by querying the context, and
+`CGContextGetInterpolationQualityRange` reports [0, 0]. Wherever WebCore picks Low or Medium to
+trade quality for speed, Tiger gives it High. Measured on the audit track; details in
+`compat/CG-PROBE.md`.
 
 The smoothing claim is bounded to bitmap contexts, which is what the canvas and ImageBuffer
 paths use; a window context cannot be tested headlessly.

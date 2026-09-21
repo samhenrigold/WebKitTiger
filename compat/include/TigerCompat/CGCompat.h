@@ -228,6 +228,25 @@ void CGContextSetFontAntialiasingStyle(CGContextRef, CGFontAntialiasingStyle);
 CGFontAntialiasingStyle CGContextGetFontAntialiasingStyle(CGContextRef);
 bool CGFontRenderingGetFontSmoothingDisabled(void);
 
+/* Private, exported by Tiger, and the faithful upgrade path for
+   CGContextSetShouldAntialiasFonts if a call site ever passes false, for
+   instance to support -webkit-font-smoothing: none. Declared here so the names
+   live in one place; nothing in compat calls them today.
+
+   Unlike CGContextSetShouldAntialias, this flag is per-FONT, so clearing it
+   aliases glyphs while shapes in the same context stay smooth. That is exactly
+   the semantics CGContextSetShouldAntialiasFonts wants. Two cautions before
+   using it: the flag mutates the CGFont object, which is shared and cached, so
+   it leaks into every other context using that font until restored; and WebCore
+   usually sets the font after configuring state, so CGContextGetFont may not
+   have the right font yet when the setter runs.
+
+   Signatures read off Tiger's prologues rather than assumed: the setter takes
+   the font at 0x8 and the flag at 0xc and stores bit 0 of the byte at
+   font+0x3c; the getter takes the font at 0x8 and returns that bit. */
+void CGFontSetShouldAntialias(CGFontRef, bool);
+bool CGFontShouldAntialias(CGFontRef);
+
 /* ------------------------------------------------------- Tiger ABI mismatch */
 
 /* Tiger's CGGStateGetCTM returns the matrix BY VALUE. WebCore's
