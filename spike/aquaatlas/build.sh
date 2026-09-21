@@ -11,7 +11,8 @@ OUT=$HERE/out
 # so a compile error used to print, be ignored, and the previous binary shipped
 # and ran -- which silently turned two regenerations into no-ops.
 if ! "$WKT/toolchain/bin/tiger-clang" -g -O1 -Wall -fobjc-runtime=macosx-fragile-10.4 \
-    -fobjc-exceptions "$HERE/aquaatlas.m" \
+    -fobjc-exceptions -isystem "$WKT/compat/include" \
+    "$HERE/aquaatlas.m" "$WKT/compat/aquacontrols.m" \
     -framework Cocoa -framework Carbon -framework ApplicationServices \
     -o "$HERE/aquaatlas" 2> "$HERE/build.log"; then
     grep -v 'unused during compilation' "$HERE/build.log" >&2

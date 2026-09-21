@@ -1,0 +1,28 @@
+{
+  "colors": {
+    "selectedTextBackground": [0.7098, 0.8353, 1.0000, 1.0000],
+    "selectedText": [0.0000, 0.0000, 0.0000, 1.0000],
+    "secondarySelectedControl": [0.8314, 0.8314, 0.8314, 1.0000],
+    "alternateSelectedControl": [0.2196, 0.4588, 0.8431, 1.0000],
+    "alternateSelectedControlText": [1.0000, 1.0000, 1.0000, 1.0000],
+    "keyboardFocusIndicator": [0.4941, 0.6784, 0.8510, 1.0000],
+    "control": [0.9255, 0.9255, 0.9255, 1.0000],
+    "controlText": [0.0000, 0.0000, 0.0000, 1.0000],
+    "controlBackground": [1.0000, 1.0000, 1.0000, 1.0000],
+    "disabledControlText": [0.5000, 0.5000, 0.5000, 1.0000],
+    "text": [0.0000, 0.0000, 0.0000, 1.0000],
+    "textBackground": [1.0000, 1.0000, 1.0000, 1.0000],
+    "windowBackground": [0.9255, 0.9255, 0.9255, 1.0000],
+    "grid": [0.8000, 0.8000, 0.8000, 1.0000],
+    "headerText": [0.0000, 0.0000, 0.0000, 1.0000]
+  },
+  "alternatingRowColors": [[1.0000, 1.0000, 1.0000, 1.0000], [0.9294, 0.9529, 0.9961, 1.0000]],
+  "systemFont": {
+    "regular": {"family": "Lucida Grande", "size": 13.00, "ascender": 12.57, "descender": -2.74, "lineHeight": 15.31},
+    "small": {"family": "Lucida Grande", "size": 11.00, "ascender": 10.63, "descender": -2.32, "lineHeight": 12.96},
+    "mini": {"family": "Lucida Grande", "size": 9.00, "ascender": 8.70, "descender": -1.90, "lineHeight": 10.60}
+  },
+  "smallSystemFontSize": 11.00,
+  "systemFontSize": 13.00,
+  "labelFontSize": 10.00
+}

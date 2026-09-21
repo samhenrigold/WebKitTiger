@@ -1,25 +1,64 @@
 # aquaatlas
 
-Renders Tiger's real Aqua controls into an atlas the 64-bit content process can
-paint from. The 64-bit side has no AppKit, so every control
-`RenderThemeMac` / `ThemeMac` / `ScrollbarThemeMac` would draw is rendered here
-by the system's own code and shipped across as pixels plus a manifest.
+Harness for `compat/aquacontrols.m`, which is the actual deliverable.
 
-Build, run on the box, and fetch the result:
+WebCore already describes a native control as a serialisable `ControlPart` plus
+a `ControlStyle` and hands the pair to whichever process can draw it. On this
+port the 64-bit content process has no AppKit, so the 32-bit render process
+draws them through `TigerDrawControl` in
+`<TigerCompat/AquaControls.h>`, a C API implemented by porting
+`WebCore/platform/graphics/mac/controls/*.mm` to what 10.4 has.
+
+This directory renders every kind, state and size class into PNGs so the
+artwork can be looked at, and dumps the system colours and font metrics the
+content process needs.
 
 ```
 spike/aquaatlas/build.sh          # writes spike/aquaatlas/out/
 ```
 
-366 PNGs and `atlas.json`. 32-bit MRR Cocoa, ARGB8888 premultiplied, 1x.
+540 PNGs plus `metrics.json`. 32-bit MRR Cocoa, ARGB8888 premultiplied, 1x.
 
-## What is in the manifest
+## What came from WebKit rather than being invented
 
-Per image: control id, state, size, pixel rect, 9-slice insets, which axes
-stretch, the minimum size those insets imply, and the natural size the control
-reports for itself. Scrollbars additionally carry part rects for the thumb, the
-two track halves and both arrows. Then a `colors` block with the system colours
-`RenderTheme` asks `NSColor` for.
+The cell types and their configuration follow `ControlFactoryMac`: the button
+cell's `NSButtonTypeMomentaryPushIn` with a nil title, the toggle cells'
+exterior focus ring and `allowsMixedState`, the popup's `usesItemFromMenu:NO`,
+the search field's rounded bezel, the slider cell pinned to the small control
+size. The size-class-from-font rule is `ControlMac::controlSizeForFont`, asking
+`+[NSFont systemFontSizeForControlSize:]` rather than hardcoding thresholds. The
+`cellSize` and `cellOutsets` tables are the ones from `ButtonMac`,
+`ToggleButtonMac` and `MenuListMac`, and `inflatedRect` centres and grows the
+same way `ControlMac` does. `ButtonMac::bezelStyle`'s rule that a button taller
+than the rounded bezel gets the square one is kept.
+
+## Where Tiger forced a difference
+
+**The button family draws through HITheme, not the cell.** `-[NSCell
+drawWithFrame:inView:]` produces byte-identical pixels whether or not its
+window is key, so the window-inactive appearance is unreachable through the
+cell. `HIThemeDrawButton` takes the state as an argument, has distinct active,
+inactive, pressed and disabled artwork, and is what AppKit draws through
+underneath. The cells are still configured because the geometry comes from
+them; only the final blit is HITheme. Buttons, check boxes, radios and popups
+therefore have a real inactive appearance; text fields, search fields and
+progress bars do not, because nothing on 10.4 exposes one for them.
+
+**No mini artwork for the toggles.** Tiger's `ThemeButtonKind` has small
+variants for the check box, radio button and bevel button and no mini ones, so
+mini falls back to small.
+
+**Indeterminate progress has one frame.** `ProgressBarMac` advances the barber
+pole by an animation phase; Tiger's `NSProgressIndicator` owns its own timer and
+exposes no phase.
+
+**Search field uses the rounded text field bezel.** `NSSearchFieldCell` exists
+on 10.4 but draws its bezel through the search field's own subviews. The frame
+artwork is the same, and the magnifier and cancel glyphs are separate parts that
+WebCore draws as `SearchFieldResults` and `SearchFieldCancelButton` anyway.
+
+**`NSRectFromCGRect` is 10.5**, and on 10.4 `NSRect` and `CGRect` are distinct
+structs, so the conversion is written out rather than cast.
 
 ## Five things that were measured rather than assumed
 
