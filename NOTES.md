@@ -1101,3 +1101,6 @@ Added to the ARTIFACT OWNERSHIP MAP above.
     has an x86_64 slice on this system, so it would have to be a non-Cocoa port over IPC. Untested and load-bearing for that:
     thread_get_state(x86_THREAD_STATE64) for conservative GC scanning, and POSIX-signal delivery into JIT code
     (HAVE(MACH_EXCEPTIONS) is off: mach_exc.defs is 10.5+).
+- Wire-flag decisions: .messages.in in scope with .serialization.in; PLATFORM(MAC) -> sixth flag TIGER_WIRE_MAC = 1 on
+  every side (Mac product; the 64-bit side carries the fields), distinct from TIGER_WIRE_APPKIT. Remap tool:
+  tools/tiger-wire-remap.py (objcrt 214c214), dry-run by default, consumes the probe's list.
