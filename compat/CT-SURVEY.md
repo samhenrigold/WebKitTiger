@@ -724,6 +724,28 @@ it. Reinstalling from `refs/leopard-9a241/tools/README` takes a minute and is ea
 mistake for a real failure; the first run after an update reported every probe key as
 missing rather than differing, which is the shape that tells you the binary is not there.
 
+## Checks that pass for the wrong reason
+
+Every verification rule in this file came from a check that passed while the thing it was
+checking was broken, so they are worth stating as a group rather than only at their point
+of use. `compat/CG-PROBE.md` carries the same list from the CoreGraphics side, arrived at
+independently.
+
+- **Poison the output buffer, do not zero it.** Zeroing hides a function that writes fewer
+  elements than its count promises. `CGFontGetGlyphsForUnicodes` matches CoreText exactly
+  on a zeroed buffer and leaves a surrogate-pair slot untouched on a poisoned one.
+- **Test more than two fonts, and pick them for coverage.** The same divergence is
+  invisible in Arial and Georgia, where neither side finds a glyph and both write zero.
+- **Hand both sides identical bytes.** Comparing a metric by font *name* across two
+  machines measures the difference between two font files as much as between two
+  implementations, which is how NSFont briefly looked better than reading the OS/2 table.
+- **Evidence that a comparison is sound must be independent of what is being compared.**
+  `hhea` ascent agreeing says nothing about outlines; a matching argument list says
+  nothing about what a function does with them.
+- **A matching signature is evidence about the call, not the callee.** Twice now:
+  `CGFontGetGlyphAdvancesForStyle` returning false for rendering style 0, and
+  `CGFontGetGlyphsForUnicodes` above.
+
 ## Do not trust the count files
 
 `logs/api/used-CT.txt` and `used-kCT.txt` count **identifier occurrences, not calls**, and
