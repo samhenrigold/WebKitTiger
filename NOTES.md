@@ -581,3 +581,23 @@ one triage pass before it was noticed. See the triage table at the end of
   Reuses the whole 32-bit investment; Apple-exact text/graphics; JIT kept. Open question: is RemoteRenderingBackend/display-list
   remoting usable with PLATFORM(COCOA) off + USE(CG) on (logs/render-process-survey.md)? Fallback (b) cairo-in-64-bit;
   (a) Leopard frameworks opportunistic. Font handle: HarfBuzz metrics/shaping in 64-bit must match CT rasterization in 32-bit.
+- 64-bit media (2026-09-20 22:30, media64 track, logs/media64-plan.md): **only libSystem, libz and libstdc++ are
+  x86_64 on the box** — CoreAudio, AudioToolbox, CoreFoundation, QuickTime and QTKit are all i386/ppc only. So the
+  64-bit content process gets software decode and nothing else: no CoreMedia, no audio device, no CG.
+  FFmpeg 8.0 (decoders only, static, -O3 -march=core2, SSSE3 asm via nasm, pthread frame threading, libdav1d) builds
+  for x86_64-apple-macosx10.4 and is installed in toolchain/sysroot-x86_64/usr — deps/build-ffmpeg64.sh. Three Tiger
+  fixes in that script: -Dstatic_assert=_Static_assert (Tiger's assert.h has none); FFmpeg's `xmm_reg` renamed to
+  ff_xmm_reg (Tiger's <mach/i386/thread_status.h> defines struct xmm_reg); and the installed libav*/libsw* headers are
+  deleted before each build, because tiger-clang64's own -I$sysroot/include outranks FFmpeg's -I and shadows the
+  source tree (same include-path trap as compat/include).
+  Decode on the 2.2 GHz C2D, best of 3, 1/2 threads (spike/decodebench.c, spike/run-decodebench.sh,
+  logs/decodebench-tiger.txt): H.264 High 480p 177/255 fps, 720p 73/112, 1080p 29/50; VP9 480p 112/154, 720p 47/76;
+  AV1 480p (dav1d) 119/194. Audio 1 thread: AAC 261x realtime, MP3 127x, Opus 122x. yuv420p->BGRA with swscale
+  1.37/3.08/6.99 ms per 480p/720p/1080p frame. **720p30 H.264 costs 12 ms of a 33 ms budget; 1080p30 costs 27 ms.**
+  QTKit 7.6.4's software path did ~2 fps at 720p, so this is ~50x faster and is the argument for the split.
+  Backend decision: purpose-written MediaPlayerPrivateFFmpeg (~5,300 LOC content-side + ~700 UI-side), not GStreamer
+  (32k LOC of GTK/WPE-coupled glue on top of cross-building GLib + six gst modules against a libc with no CF).
+  MSE is cheap because SourceBufferPrivate.cpp's coded-frame processing is port-independent: we only owe
+  appendInternal, parsed with libavformat over a custom AVIO on a growing buffer. Audio must leave the process —
+  clone RemoteAudioDestinationProxy's shape (AudioDestinationResampler + shared ring buffer) into the 32-bit UI
+  process. Two decoder threads is the right number; a third buys nothing on two cores.
