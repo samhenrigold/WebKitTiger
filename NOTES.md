@@ -173,3 +173,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   on the box, spike/aligntest.c). Always rebuild from clean before trusting a compat test: stale archives hid two regressions.
 - Trap seen twice on this box: a Tiger export whose name AND argument list match the modern API can still behave differently
   (return false for style 0, return a fixed rect, be an empty stub). Check by disassembly, then run it.
+- Baseline from spike/TigerBrowser on Tiger's own 2007 WebKit: a 2,000,000-iteration JS loop takes ~5.3 s (no JIT). Compare our
+  C-loop jsc against that. HTTPS fails through Tiger's CFNetwork/SSL as expected (no SNI/TLS 1.2); curl backend fixes it.
+- GUI processes launched over ssh die when that ssh session closes (nohup doesn't detach on Tiger). Do launch + sleep +
+  screencapture in ONE ssh invocation, or launch via `open` and let the app outlive the session.
