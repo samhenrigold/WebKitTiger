@@ -1382,10 +1382,22 @@ compiles; the archive does not yet link, and the spike is not reached.** Why, be
 | 3 | 30 | AppKit/CG/CF shims, first cut |
 | 4 | 44 | *up*, not down: files that had been failing on an early `#include` got far enough to report real errors |
 | 5 | 44 | C++ enum-type fixes |
-| 6 | 43 | graphics path clean |
+| 6 | 43 | graphics path nearly clean |
+| 7 | 42 | graphics path clean, **verified by object file** |
 
-Pass 6's 43 contain **no file from platform/graphics/cg, platform/graphics/displaylists, or
-ImageBuffer**. That was the assignment's compile half.
+At pass 7 every translation unit containing a file from `platform/graphics/cg`,
+`platform/graphics/displaylists` or `ImageBuffer` has produced a `.o`:
+GraphicsContextCG, ImageBufferCGBackend, ImageBufferCGBitmapBackend, PathCG, GradientCG,
+NativeImageCG, ColorCG, ColorSpaceCG, PatternCG, ImageDecoderCG, DisplayList,
+DisplayListItems, DisplayListRecorderImpl, ImageBuffer. That was the assignment's compile
+half.
+
+**Check the object, not the log.** Pass 6 was first reported as "graphics path clean" on the
+strength of no `platform/graphics/cg` path appearing in the error list. It was not: the
+unified bundle holding GraphicsContextCG.cpp was failing on `ImageIOSPI.h` and
+`MediaAccessibilitySoftLink.h`, neither of which is under `platform/graphics/cg`, and one
+failing file takes the whole bundle's object with it. Grepping the log by directory cannot
+see that; `ls` on the expected `.o` can.
 
 ### Root causes, and the one lesson worth carrying
 
