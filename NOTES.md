@@ -687,3 +687,7 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   superset and nobody has a reason to overwrite it. Until that is settled the overwrite can recur, and it is silent.
 - `deps/spike-tests/test_exceptions64.cpp` (the deps track's minimal case) passes with the current archive, verified
   verbatim with their own command line, as does `spike/cxx64exc.cpp`. Neither ever needed a link-order or visibility change.
+- UI shell: spike/TigerBrowser (76c6b53) = CARenderer-hosted page view + toolbar/find bar/menus + framework check; the app
+  bundles the decollided private QuartzCore. Tiger's system QuartzCore ALSO loads transitively via AppKit in any Cocoa app,
+  so decollide.py is mandatory for every UI-side process. An NSOpenGLView's surface composites over sibling views: dock the
+  window's NSScroller beside the page view, never over it. The box's stderr-to-file is fully buffered (use setvbuf or fflush).
