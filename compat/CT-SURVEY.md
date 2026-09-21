@@ -542,6 +542,15 @@ ATS's and adds the modern set, values taken from the Xcode 27 SDK rather than me
 because these are `feat` table identifiers and a wrong number silently selects a different
 feature. The overlay's `CoreText.h` now pulls that header in, as modern CoreText's does.
 
+Two neighbouring gaps in the same file were closed the same way. Tiger's
+`kTextSpacingType` selectors stop at half width, so `kThirdWidthTextSelector` and
+`kQuarterWidthTextSelector` are declared here along with the rest of that contiguous
+group. And `kCTFontBaselineAdjustAttribute`, which `FontPlatformDataCoreText.cpp` reads
+and writes, **is exported by Tiger's CoreText**: it needed a declaration, not a stub, and
+resolves on the box to the real `NSCTFontBaselineAdjustAttribute`. Worth checking the
+export list before assuming an attribute is absent, since a declare-only stub would have
+silently shadowed a working key.
+
 **Tiger's shaper honours only the legacy spelling, and Tiger's fonts declare only the
 legacy spelling.** Measured: of eight system faces, Hoefler Text and Didot declare feature
 type 3 and nothing declares 37 or 38. Applying type 3 selector 3 to Hoefler Text really

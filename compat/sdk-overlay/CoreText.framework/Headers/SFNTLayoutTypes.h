@@ -44,4 +44,16 @@ enum {
     kUpperCasePetiteCapsSelector    = 2
 };
 
+/* Selectors for kTextSpacingType (22). Tiger's header stops at half width, so
+ * the four Apple added later are missing; WebCore's width-variant mapping wants
+ * third and quarter width. Declared as the whole published group rather than
+ * the two in use, since they are one contiguous enum and splitting it would be
+ * arbitrary. Values from the Xcode 27 SDK. */
+enum {
+    kThirdWidthTextSelector         = 3,
+    kQuarterWidthTextSelector       = 4,
+    kAltProportionalTextSelector    = 5,
+    kAltHalfWidthTextSelector       = 6
+};
+
 #endif /* __CORETEXT_SFNTLAYOUTTYPES__ */

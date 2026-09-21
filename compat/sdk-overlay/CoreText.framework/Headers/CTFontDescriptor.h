@@ -32,6 +32,7 @@ CT_EXTERN const CFStringRef kCTFontFeatureSettingsAttribute;
 CT_EXTERN const CFStringRef kCTFontFixedAdvanceAttribute;
 CT_EXTERN const CFStringRef kCTFontVariationAttribute;
 CT_EXTERN const CFStringRef kCTFontFileURLAttribute;
+CT_EXTERN const CFStringRef kCTFontBaselineAdjustAttribute;
 
 /* --- attribute keys from libtigercompat --------------------------------- */
 CT_EXTERN const CFStringRef kCTFontURLAttribute;
