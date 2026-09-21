@@ -275,4 +275,6 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - Testing caveat: NSPasteboard is nil for processes launched over ssh on the box (pbs not in the session's bootstrap
   namespace); pasteboard tests need a console-session launch. Window server, windows, screencapture all work over ssh.
 - Tiger AppKit coalesces multiple setNeedsDisplayInRect: into one drawRect: with the full view bounds (more repainting than modern).
-- Cap-height/x-height: Tiger's NSFont values are closer to modern than the glyph heuristic for Helvetica (audit AppKit probe); ctcompat re-measuring per font.
+- Cap-height/x-height: Tiger's NSFont quantizes to the same half-point grid as its CoreText (same ATS measurement); the 16pt
+  Helvetica agreement was a lucky size. The midpoint heuristic stays (Courier, no OS/2 on either OS, agrees to 0.04%). Hazard:
+  WebCore paths that read NSFont metrics on this port will disagree with the CT-derived ones; check per call site.
