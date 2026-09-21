@@ -318,3 +318,12 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   libxml/libxslt/OpenSSL/libz system binaries changed. sysroot/ is being re-mirrored (agent "remirror"; old copy will be
   sysroot-old-preupdates/, old export lists logs/api/preupdate/). All CT/CG/ImageIO/ctprobe suites are being re-run on the
   updated box. Our own deps are static, so only the shim measurements are affected.
+- QTKit 7.6.4 (logs/qtkit-plan.md §8, spike/qtkittest.m): QTVideoRendererWebKitOnly (private) now exists, so the 2018
+  backend's software paint path ([renderer drawInRect:]) ports ~unchanged; QTMovieLayer still absent (needs 10.5 AppKit).
+  H.264 High profile and 720p decode on 7.6.4. frameImageAtTime:withAttributes:error: returns an AUTORELEASED CGImageRef:
+  never CFRelease it (7.6.4 crashes at pool drain). Cost: ~48 ms/frame at 320x240, ~1.4 s/frame at 720p via frameImageAtTime
+  (use the renderer path for playback). QTMovieOpenForPlaybackAttribute=YES still allows frameImageAtTime on 7.6.4.
+- Gate rule (wkcmake): shim when Tiger can truthfully answer, gate when the concept doesn't exist (NS_ACTIVITY, HDR, NSAppearance,
+  touch bar...). Whoever implements a symbol owns its declaration; WebKit's PAL SPI header steps aside under TIGER.
+- Upstream bugs found so far: WTF AvailableMemory 32-bit overflow on >4 GB RAM; JSRemoteInspector.cpp reaches RemoteInspector
+  unguarded with ENABLE_REMOTE_INSPECTOR off; NativeImageCG single-pixel read on an uninitialized buffer.
