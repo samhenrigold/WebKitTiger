@@ -89,3 +89,23 @@
 /toolchain/bin/tiger-ranlib
 /toolchain/bin/tiger-strip
 !/sdk/MacOSX10.4u.sdk.sha256
+
+# Sibling WebKit worktrees (their own repos, like /WebKit/), scratch sysroots,
+# and the second CMake build root.
+/WebKit-jsc64/
+/WebKit-ipc/
+/sysroot-new/
+/sysroot-old/
+/toolchain/sysroot-x86_64/
+/build-wkcmake/
+
+# Cross-compiled test binaries; each has its source next to it.
+/deps/spike-tests/test_*
+/spike/cxx64exc64
+/spike/fragileivars_c
+/spike/hello
+/spike/os64test64
+/spike/oslife6464
+/spike/oslog6464
+/spike/textpixel/raster32
+/spike/textpixel/shaper64
