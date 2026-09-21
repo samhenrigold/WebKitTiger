@@ -1950,3 +1950,60 @@ is the verification run and was at 236/882 with zero failures when this was writ
 `libWebCore.a` still does not exist, so: **no pixel-compare number, no screenshot, no GPU
 process link or run numbers.** `spike/gpureplay/run.sh` closes that loop in one invocation the
 moment the archive lands.
+
+### 2026-09-21 — bin/TigerNetworkProcess fetches, over HTTP and over TLS 1.3 (wk2web)
+
+- **spike/wk2web/netdriver.cpp**, ~300 lines, is the harness: it stands in for the UI process and the
+  web process at once and for nothing else — no WebPageProxy, no PageClient, no drawing area. C++
+  against libWebKit.a, because every parameter struct on the way in goes through the generated
+  serializers. It is built by the `netdriver` target in Source/WebKit/PlatformTiger.cmake, only when
+  the source is present, and dead-stripped like the other x86_64 executables (137 MB stripped).
+- **RESULTS on the box**, three runs, against `python -m SimpleHTTPServer` (10.4 ships Python 2.3.5,
+  spike/wk2web/boxserver.sh) and a real TLS 1.3 site:
+
+      InitializeNetworkProcess reply                70-76 ms after fork
+      http://127.0.0.1:8391/hello.txt               200, 19 bytes, text/plain, 6-7 ms
+                                                    body "tiger-netdriver-ok", asserted
+      https://www.cloudflare.com/                   200, 1,323,287 bytes, text/html, 179-236 ms
+                                                    body starts "<!DOCTYPE html><html lang=..."
+      network process RSS after both loads          22.9 MB (19.6 MB idle)
+      exit after the driver drops both connections  status 0
+
+  TLS version: **TLSv1.3 / TLS_CHACHA20_POLY1305_SHA256, HTTP/2**, read from the same libcurl and
+  LibreSSL build with deps/spike-tests/test_curl_smoke64 against the same URL (0.119 s TTFB). The
+  negotiated protocol is not surfaced through ResourceResponse, so netdriver cannot print it itself;
+  the two share one libcurl, so it is the same handshake.
+- **THE SEQUENCE, confirmed by running it.** InitializeNetworkProcess and
+  CreateNetworkConnectionToWebProcess are `-> ()` in NetworkProcess.messages.in, which is
+  async-with-reply, NOT Synchronous — only PerformSynchronousLoad is the latter. Everything in
+  NetworkProcessCreationParameters, WebsiteDataStoreParameters and NetworkProcessConnectionParameters
+  has a default that means "no disk", which is what a driver wants.
+- **THREE THINGS THE NETWORK PROCESS WAS RIGHT TO REJECT**, all of them the harness's fault, and all
+  worth knowing before writing the real UI process:
+  1. `NetworkResourceLoadParameters` has no default constructor: its first four members are
+     ObjectIdentifiers, which have none. Brace-initialise it the way WebLoaderStrategy does.
+  2. `loadParameters.identifier` must be set. `performSynchronousLoad` opens with
+     `RELEASE_ASSERT(identifier)` — an unset one crashes the network process rather than replying.
+  3. The first party must be on an allow list. `performSynchronousLoad`'s first line is a
+     MESSAGE_CHECK on `NetworkProcess::allowsFirstPartyForCookies`, whose list arrives once, per web
+     process, in `NetworkProcessConnectionParameters::allowedFirstPartiesForCookies`. A request whose
+     `firstPartyForCookies` is not in it is dropped **without a reply**, so the symptom is a caller
+     that waits forever on a sync message, not an error. A real UI process grows that set as the web
+     process is told what it may load.
+- **AND ONE THING THE PORT HAD WRONG**, which this is the first thing to have exercised: HTTPS could
+  not verify anything. CurlSSLHandleWin.cpp, reused for its OpenSSL cipher and curve lists, sets no CA
+  path and leaves it to libcurl's compile-time default — and ours is
+  `--with-ca-bundle=$SYSROOT/etc/ssl/cacert.pem`, a path inside the BUILD sysroot that does not exist
+  on a 10.4 machine. 10.4's own keychain roots expired years ago and there is no x86_64 Security
+  framework to read them with, so `platform/network/tiger64/CurlSSLHandleTiger64.cpp` resolves the
+  bundle at runtime: `TIGER_CA_BUNDLE`, then `CURL_CA_BUNDLE`, then
+  `/usr/local/share/webkittiger/cacert.pem`, next to where the font manifest goes. Missing, it says so
+  once instead of failing every load in silence. Proven both ways: with the bundle, 200; with
+  `TIGER_CA_BUNDLE` pointing at nothing, `CurlErrorDomain 77`. Verification is live.
+- **AND A BUG OF MINE FROM THE ROUND BEFORE**, which only a two-process conversation could show. The
+  two-second liveness probe sends a zero-byte datagram — and it is *delivered*. The peer's recvmsg
+  returned 0, `readyReadHandler` read 0 as end-of-stream, and both ends of every connection shot each
+  other two seconds after opening. The fix is the correct reading of the primitive, not a workaround:
+  SOCK_DGRAM has no end-of-stream at all, so on Tiger a zero-length read is a zero-length DATAGRAM and
+  means "keep draining". Every other port keeps the close. Four log lines on the box found it in one
+  run; it is invisible from reading, and it is exactly what the probe existed to avoid.
