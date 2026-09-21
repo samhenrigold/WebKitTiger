@@ -1,25 +1,80 @@
 # TigerBrowser
 
-A small MRR Cocoa app that hosts the classic WebKit1 `WebView` API
-(`WebView`/`WebFrame`/`WebFrameLoadDelegate`/`WebPolicyDelegate`/`WebUIDelegate`
-from `WebKit/WebKit.h`). This is the browser shell we will later relink
-against our own WebKitLegacy build — the API is identical between Tiger's
-system WebKit and modern WebKitLegacy. For now it links against the 10.4u
-SDK's `/System/Library/Frameworks/WebKit.framework` and runs against Tiger's
-own WebKit on the box (originally build 4522/2007; **as of 2026-09-20 the box
-has Safari 4.1.3 installed, which upgraded the system WebKit.framework to
-533.19.4, build 4533.19.4** — TigerBrowser needed no changes to pick this up,
-since it always links the system framework by path).
+The 32-bit UI-process app shell for the WebKit2-shaped split (see
+`NOTES.md` "DIRECTION SET BY THE USER" and "WEBKIT2 SPLIT SURVEY"). It used
+to host a classic WebKit1 `WebView`; **2026-09-20 it was merged with
+`spike/CAHost`'s Core Animation compositor host** and now hosts a
+`TigerPageView` (CARenderer over an `NSOpenGLView`, same phase-2 tiled
+CALayer page as CAHost) instead. No real web content and no 64-bit content
+process are wired up yet — the page view paints a stub placeholder (a
+checkerboard tile grid + a banner showing the current URL) so the window's
+scrolling, resizing, hit-testing, menus and keyboard access can all be
+exercised and built on before the content process exists.
 
-## Layout
+## Structure
 
-- `TigerBrowser.m` — the whole app (one file, no nib; all UI built by hand
-  in `-initWithURLString:`).
-- `Makefile` — builds `build/TigerBrowser.app` with `tiger-clang`.
-- `Info.plist` — bundle metadata, `LSMinimumSystemVersion` 10.4.
-- `testpages/` — five local test pages plus an `index.html` linking them
-  (layout/CSS, images (PNG+JPEG), a form, a JS timing loop, and an
-  `https://www.apple.com/` link).
+One file, `TigerBrowser.m`, no nib, MRR, fragile ObjC runtime. Classes, top
+to bottom in the file:
+
+- **`checkFrameworksLoaded()`** — a plain C function, not a class. Walks
+  `_dyld_image_count()`/`_dyld_get_image_name()` at launch and aborts loudly
+  (`NSRunAlertPanel` + `exit(1)`) if the bundled, decollided
+  `Contents/Frameworks/QuartzCore.framework` isn't among the loaded images.
+  Called first thing in `main()`, before any window is built.
+- **`TigerPageView : NSOpenGLView`** — the compositor host. Owns the
+  `CARenderer`, the `viewport`/`page` `CALayer` pair (`viewport` is
+  `masksToBounds` + `geometryFlipped`, matching CAHost), a manual grid of
+  256px tile `CALayer`s (`buildTileGrid`/`updateTiles`, `TILE_SIZE`/
+  `PAGE_WIDTH`/`PAGE_HEIGHT` `#define`s at the top of the file), the
+  `-drawLayer:inContext:` delegate that calls `paintStubPage()`, scrolling
+  (`-setScrollY:`, `-scrollerAction:`, `-scrollWheel:`), hit-testing
+  (`-mouseDown:` logs view point → page point → hit layer name), and the
+  Edit-menu responder-chain actions (`-cut:`/`-copy:`/`-paste:`/
+  `-selectAll:`/`-undo:`/`-redo:`, all just `fprintf`-logging via
+  `-logEditCommand:` — no real text model exists yet).
+- **`TigerFindBar : NSView`** — a small view (label + `NSTextField` + Done
+  button) that `TigerBrowserController` shows/hides for Cmd-F. Its field's
+  action (`-performFind:` on the controller) just logs the search text.
+- **`TigerBrowserController`** — owns the window and all the chrome: the
+  toolbar row (back/forward/reload buttons, address field), the find bar,
+  the status field, the `TigerPageView` + its `NSScroller` sibling (an
+  `NSOpenGLView`'s surface composites over whatever's under it, so per CAHost
+  the scroller can't overlap it — it's a separate view docked to the right
+  edge), and a simple in-memory `_history`/`_historyIndex` array so
+  back/forward/reload have real (if stub) behavior to drive. Also owns the
+  View-menu stub actions (`-zoomActualSize:`/`-zoomIn:`/`-zoomOut:`, logged
+  only). Sets up the full-keyboard-access tab chain explicitly
+  (`-setNextKeyView:` across back → forward → reload → address field → page
+  view → scroller → back), since Tiger's `NSWindow` doesn't infer one from
+  view geometry.
+- **`TigerBrowserAppDelegate`** — thin: builds the controller, forwards
+  `openLocation:`/`performFindPanelAction:`/zoom actions from the menu bar
+  to it.
+- **`main()`** — `NSApplication` setup, the frameworks check, then builds
+  the menu bar by hand: File (Open Location, Cmd-L), Edit (Undo/Redo/Cut/
+  Copy/Paste/Select All, all target-`nil` so they dispatch through the
+  responder chain to `TigerPageView`, plus Find..., Cmd-F), View (Actual
+  Size/Zoom In/Zoom Out).
+
+Shared helpers near the top of the file (`makeColor`, `makeCheckerImage`,
+`paintStubPage`) are adapted directly from `spike/CAHost/CAHost.m`'s phase-2
+code — same technique, trimmed of CAHost's video/animation/auto-scroll
+benchmark extras that don't belong in the shell.
+
+## Files
+
+- `TigerBrowser.m` — the whole app.
+- `Makefile` — builds `build/TigerBrowser.app`. Depends on
+  `spike/CAHost/Frameworks/QuartzCore.framework` (runs CAHost's
+  `rebundle.sh` if it isn't already built) and copies it into
+  `Contents/Frameworks/`, matching CAHost's install-name convention
+  (`@executable_path/../Frameworks/QuartzCore.framework/...`). Links
+  `-framework Cocoa -framework OpenGL -framework ApplicationServices
+  -framework QuartzCore` (from the bundled framework's `-F` search path) —
+  no more `-framework WebKit`.
+- `Info.plist` — bundle metadata, `LSMinimumSystemVersion` 10.4, unchanged.
+- `testpages/` — left over from the WebView era (see "Archived" below); not
+  used by the current shell, kept for whenever real content loading returns.
 
 ## Build
 
@@ -28,94 +83,94 @@ cd spike/TigerBrowser
 make
 ```
 
-Produces `build/TigerBrowser.app`. Links `-framework Cocoa -framework WebKit`
-against the 10.4u SDK, `-fobjc-runtime=macosx-fragile-10.4`, MRR.
+`tiger-otool -L` on the built binary confirms the private install name:
 
-## Features implemented
-
-- Toolbar row: back (`<`), forward (`>`), reload (`R`) buttons, and an
-  `NSTextField` address bar that loads its text on Enter (bare host names
-  get `http://` prepended).
-- Status/progress text field along the bottom, driven by
-  `webView:setStatusText:` (WebUIDelegate) and by load-start/load-finish
-  (shows "Loading..." / clears on finish/error).
-- `WebView` filling the rest of the content view, full autoresizing.
-- Window title tracks the page title via `webView:didReceiveTitle:forFrame:`.
-- Cmd-L ("Open Location..." in the File menu) focuses and selects the
-  address field.
-- Loads `about:blank` on launch, or `argv[1]` if one is passed.
-- Load lifecycle logged to stderr: `didStartProvisionalLoadForFrame:`,
-  `didCommitLoadForFrame:`, `didFinishLoadForFrame:`,
-  `didFailProvisionalLoadWithError:forFrame:`, `didFailLoadWithError:forFrame:`.
-- `decidePolicyForNavigationAction:` always calls `[listener use]` (no
-  interception).
-- JS `alert()` → `NSRunAlertPanel` via `webView:runJavaScriptAlertPanelWithMessage:`;
-  `confirm()` wired the same way, mapped to OK/Cancel.
+```
+@executable_path/../Frameworks/QuartzCore.framework/Versions/A/QuartzCore (compatibility version 1.2.0, current version 1.6.0)
+```
 
 ## Running on the box
 
 ```
 scp -O -r build/TigerBrowser.app tiger:/Users/shg/
-scp -O -r spike/TigerBrowser/testpages tiger:/Users/shg/TigerBrowser-testpages
 ssh tiger '/Users/shg/TigerBrowser.app/Contents/MacOS/TigerBrowser \
-    "file:///Users/shg/TigerBrowser-testpages/index.html" > /tmp/tb.log 2>&1 & sleep 3; screencapture -x /tmp/tb.png'
+    "https://example.com/test-page" > /tmp/tb.log 2>&1 & sleep 3; screencapture -x /tmp/tb.png'
 ```
 
-## Screenshots (all taken on the 10.4.11 box)
+## Screenshot
 
-- `screenshot.png` — index page, toolbar + address bar + status bar.
-- `screenshot-layout.png` — CSS floats/borders/table/fonts.
-- `screenshot-images.png` — PNG and JPEG both decode and render.
-- `screenshot-form.png` — native Aqua text field, popup button, checkbox, submit button.
-- `screenshot-js.png` — JS timing loop; 2,000,000-iteration loop took **5298 ms**
-  on Tiger's original 2007 system WebKit (build 4522, non-JIT interpreter-only
-  JavaScriptCore). **Update 2026-09-20, after the user installed Safari 4.1.3
-  for Tiger** (which replaces `/System/Library/Frameworks/WebKit.framework`
-  with WebKit 533.19.4, build 4533.19.4 — first JIT-capable JavaScriptCore on
-  Tiger): the same loop now takes **~59 ms** (three runs: 59, 62, 56 ms;
-  screenshots `screenshot-js-run1.png`..`run3.png`), roughly **90x faster**.
-  TigerBrowser itself is unchanged — it always linked the system
-  `WebKit.framework` by path, so it picked up Safari 4.1.3's WebKit
-  automatically on relaunch. This is the number to compare against the
-  project's C-loop jsc build (2.24 s on the same loop) — Safari 4.1.3's JIT
-  is now dramatically faster than our interpreter-only C-loop jsc, the
-  opposite of the relationship implied by the original 5.3 s baseline.
+`screenshot-shell.png` (2026-09-20, on the 10.4.11 box): toolbar with back/
+forward/reload buttons and the loaded URL in the address field, window title
+following the URL, the `TigerPageView` showing the checkerboard tile grid
+with the blue URL banner at the top of the page, the `NSScroller` sibling on
+the right, and the status field at the bottom reading
+`Loaded (stub): https://example.com/test-page`. (The crash-report dialog
+visible in the screenshot is an unrelated teammate's `CAVideo` test running
+concurrently on the same shared box — not TigerBrowser.)
 
 ## What works
 
-Everything above works cleanly: native WebKit1 delegate methods, page
-loading, title tracking, status text, CSS layout (floats, tables, fonts),
-image decoding (PNG + JPEG), native form controls, and JavaScript execution.
-No crashes, no missing delegate methods, no fragile-ABI issues in the app
-shell itself.
+- Frameworks-loaded check passes: the bundled, decollided QuartzCore is
+  correctly bound (confirmed via the `_dyld_get_image_name` dump this check
+  logs). Tiger's *system* QuartzCore is also loaded in the same process —
+  apparently a transitive AppKit dependency, not something this app links
+  directly — but since `decollide.py` already renamed the private copy's
+  `CI*` Core Image class names to `ZI*`, the two coexisting doesn't collide
+  (this app never touches Core Image/QuickTime anyway).
+- CARenderer hosts the tiled page exactly as in CAHost phase 2: 48 tiles
+  (4x12 at 256px) painted on demand via `-drawLayer:inContext:`, correct
+  `geometryFlipped` top-left page coordinates, checkerboard + URL banner
+  render correctly on screen.
+- Toolbar, address bar (loads on Enter), status bar, window title tracking,
+  back/forward/reload against the in-memory history stack, Cmd-L to focus
+  the address field, Cmd-F to open/close the find bar, Edit/View menus all
+  built and wired.
+- No crashes, no missing selectors, no fragile-ABI issues merging CAHost's
+  CA-hosting code into the browser-chrome shell.
 
-## Tiger WebKit / environment quirks found
+## Known rough edges
 
-- **HTTPS to a modern TLS 1.2/SNI site fails through Tiger's system WebKit.**
-  `https://www.apple.com/` fails provisional load with "secure connection
-  failed" (`webView:didFailProvisionalLoadWithError:forFrame:`). Tiger's
-  system CFNetwork/SSL stack predates SNI and modern TLS ciphers — this is
-  the same gap the deps track's curl/LibreSSL work is meant to cover once
-  WebKitLegacy's own network stack replaces Tiger's. Plain HTTP and
-  `file://` loads both work fine. Not a WebView API problem, a system
-  TLS-stack limitation. **Still fails identically after the Safari 4.1.3
-  update** (re-checked 2026-09-20, `screenshot-https.png`) — the Safari
-  update replaces `WebKit.framework` but evidently not whatever TLS bits
-  `NSURLConnection`/CFNetwork use underneath, so this gap is unaffected by
-  the WebKit version bump.
-- **No missing/renamed WebFrameLoadDelegate, WebPolicyDelegate, or
-  WebUIDelegate methods were hit.** Every delegate method used here exists
-  on Tiger's 10.4.11 WebKit exactly as declared in the 10.4u SDK headers
-  (`WebView.h`, `WebFrame.h`, `WebFrameLoadDelegate.h`, `WebPolicyDelegate.h`,
-  `WebUIDelegate.h`) — no `-fobjc-fragile-extension-ivars` issues, no
-  `NSApplicationActivationPolicyRegular` (10.6+, not in the 10.4u SDK headers,
-  omitted here; the app defaults to a regular foreground app without it).
-- **A GUI app launched via `ssh tiger 'cmd &'` (even with `nohup`) reliably
-  dies within a couple of seconds of the *launching* ssh connection closing**,
-  even though it renders correctly first. `nohup` alone does not fully detach
-  it from the session (no `setsid` on Tiger's shell). Workaround used here:
-  do the launch, `sleep`, and `screencapture -x` all inside **one** ssh
-  invocation, so the process's controlling session stays alive for the whole
-  capture. Something in AppKit's window-server bootstrap-port connection
-  appears tied to that session; worth another look if we need long-running
-  on-box processes for automated testing later.
+- Interactive verification of scrolling/hit-testing via UI-scripted clicks
+  (`osascript`/System Events) was unreliable on the shared Tiger box during
+  this session — a teammate's concurrently-running `CAWidgets`/`CAVideo`
+  test windows kept stealing frontmost/key-window status between my
+  `activate` and `click` calls, and stderr redirected to a file on the box
+  is fully buffered (not line-buffered), so `-mouseDown:`'s hit-test log
+  didn't appear until process exit. The scrolling/hit-testing code itself is
+  the same method bodies as CAHost's own already-validated implementation
+  (`-setScrollY:`, `-scrollerAction:`, `-mouseDown:`), not new code, so this
+  is a test-environment contention issue on a shared box, not a sign the
+  functionality doesn't work — but it wasn't independently re-screenshotted
+  mid-scroll in this session. Worth a clean re-verification pass once the
+  box isn't shared with concurrent GUI tests.
+- Back/forward/reload only manipulate the address bar, window title and page
+  banner text (via the stub history array) — there's no real navigation or
+  content yet, by design (that's the 64-bit content process's job later).
+
+## Archived: the WebView1 era (superseded 2026-09-20)
+
+Before this merge, `TigerBrowser.m` hosted a classic WebKit1 `WebView`
+against Tiger's system `WebKit.framework` and could actually load pages.
+That work is superseded but the findings remain useful background:
+
+- `screenshot.png`, `screenshot-layout.png`, `screenshot-images.png`,
+  `screenshot-form.png` — WebView1 rendering local test pages (CSS layout,
+  PNG/JPEG, native Aqua form controls) correctly on Tiger's original 2007
+  system WebKit.
+- `screenshot-js.png`, `screenshot-js-run{1,2,3}.png` — a 2,000,000-iteration
+  JS loop took **5298 ms** on Tiger's original non-JIT WebKit, and **~59 ms**
+  (59/62/56 ms across three runs) after the user installed Safari 4.1.3,
+  which upgraded `/System/Library/Frameworks/WebKit.framework` to 533.19.4
+  (first JIT-capable JavaScriptCore on this box) — roughly a 90x speedup,
+  and the number that flips the comparison against the project's
+  interpreter-only C-loop jsc build (2.24s on the same loop).
+- `screenshot-https.png` — `https://www.apple.com/` fails ("secure
+  connection failed") through Tiger's system WebKit both before and after
+  the Safari 4.1.3 update; the update evidently doesn't touch whatever TLS
+  bits CFNetwork/`NSURLConnection` use underneath. Not relevant to the
+  current CA-hosted shell (no networking at all right now), kept as a
+  finding for whenever the 64-bit content process's curl-based networking
+  lands.
+- No missing/renamed `WebFrameLoadDelegate`/`WebPolicyDelegate`/
+  `WebUIDelegate` methods were ever hit on Tiger's WebKit.
+- `testpages/` is this era's test fixture set; unused by the current shell.
