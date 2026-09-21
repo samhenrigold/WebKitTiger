@@ -2696,15 +2696,40 @@ Among the font *options*: **gray AA, hinting off, no gamma, no stem darkening, n
 costs +13% error, full +39%, subpixel +15%, gamma 0.85 +4%, embolden +71%. Stem darkening is a no-op on
 the seven TrueType `.dfont` faces and only over-inks the CFF Hiragino line by 24%.
 
-**But the biggest disagreement was not an option at all — it is a half-quantum grid offset.** Sweeping a
-global horizontal shift finds a clean V with one minimum at dx = −0.125 px that takes **30%** off the
-error (2.665 → 1.865). Two probes pin the mechanism exactly: quantising our glyph x to the *nearest*
-1/4 px is byte-identical to not quantising (so cairo already snaps glyph origins to a 1/4-pixel grid),
-while *flooring* to 1/4 px scores 1.865, identical to the −0.125 shift. Both rasterisers use the same
-1/4-pixel horizontal grid and disagree on the rounding rule: **Quartz floors to it, cairo rounds to
-nearest**, so our glyphs sit 1/8 px right of Quartz's on every face and size. Flooring glyph x to 1/4 px
-before `cairo_show_glyphs` removes it, costs nothing, and is orthogonal to hinting (−30% at none, −26%
-at slight, −18% at full). Related: never round x to *whole* pixels, which costs +43%.
+**The biggest disagreement is not an option at all — the two rasterisers use different glyph
+position grids.** An earlier version of this section said Quartz floors x to 1/4 px and cairo rounds
+to nearest. The cairo half was right, the Quartz half was wrong, and it was wrong because a shift
+sweep only measures average bias and the first grid probe drew a whole 56-glyph line per offset — with
+glyphs at many fractional x no quantiser ever reproduces a bitmap, so any axis reads as "continuous".
+Probing with a **single glyph** at 1/16 px offsets collapses properly (equal hashes = same cell):
+
+| axis | Quartz / CoreText, offscreen bitmap, 10.4 | cairo image surface |
+|------|-------------------------------------------|---------------------|
+| x    | **1/3 px**, floor                          | 1/4 px, round to nearest |
+| y    | **whole pixels**, floor in CG's bottom-up space (= **ceil** in cairo's top-down space) | 1/4 px, round to nearest |
+
+Quartz has *no* vertical subpixel positioning; cairo has quarter-pixel. Nothing in the original sample
+caught this because every baseline in it was an integer. With fractional baselines
+(`FT_LINE0 17.25`, `FT_LEADING 30.375`, fractional parts walking .25 .625 .0 .375 .75 .125 .5 .875):
+
+```
+y-asis         3.929  41.22   soft 1.04  solid 0.93   <- what fast mode does today
+y-round        4.676  48.02                            (worse than doing nothing)
+y-floor        7.745  74.08                            (worst variant in the project)
+y-ceil         2.625  28.56   soft 1.00  solid 1.00   <- -33%
+yceil+x3round  2.759  29.87
+yceil+q4floor  1.837  20.37
+yceil+x3floor  1.617  17.95   <- both grids matched, -59%
+```
+
+`y-ceil` alone is -33%, and it is the rule rather than a lucky constant: floor is the worst variant in
+the project and round is worse than doing nothing. Its inkluma, 28.56, is exactly the integer-baseline
+score, so ceil removes the fractional-baseline penalty completely. The `soft 1.04 / solid 0.93` on
+`y-asis` is the blur stated numerically: cairo spreads each horizontal stroke over two rows where
+Quartz snaps it onto one. Matching x too (floor to 1/3) reaches **1.617 / 17.95, -59%**, better than
+the best integer-baseline result the spike ever produced. That x3floor beats q4floor and x3round is
+what establishes the 1/3 grid — it is not the mean bias, since the shift sweep put the best uniform
+shift at -0.125 and -0.1875 as worse, while floor-to-1/3 carries a -1/6 bias and beats both.
 
 **Pixel fitting.** Mean absolute error nearly hid a real perceptual difference, because a crisply
 grid-fitted stem in the wrong column scores worse than a blurry stem in the right one. Scored on
@@ -2714,7 +2739,7 @@ with Times 16 3.6% short on stem-edge contrast. `slight` overshoots both (0.721)
 positional fidelity. The gap is ~4%, on bold faces, in the soft direction — real but small, and the
 grid fix above addresses the stem-to-pixel alignment that reads as "pixel fitting" without hinting.
 
-The remaining residual, 20.4/255 mean over inked pixels after the grid fix, is the two scan-converters'
+The remaining residual, 17.95/255 mean over inked pixels with both grids matched, is the two scan-converters'
 antialiasing kernels disagreeing on edge coverage; no option addresses it and only rasterising with
 Quartz would.
 
@@ -2755,16 +2780,54 @@ And the rule that is not a setting, and is worth more than both of the above put
 Quartz's glyph grid:
 
 ```c++
-// Wherever fast mode fills the cairo_glyph_t array, per glyph:
+// Wherever fast mode fills the cairo_glyph_t array, per glyph, in device space:
 //
-// Quartz and cairo both place glyphs on a 1/4-pixel horizontal grid and round
-// onto it differently: Quartz floors, cairo rounds to nearest. Left alone, every
-// glyph we draw sits 1/8 px right of where Tiger draws it -- uniformly, on every
-// face and size measured. Flooring here puts us on Quartz's grid and takes 30%
-// off the pixel difference against CoreText, for free. Do NOT round to whole
-// pixels instead; that costs +43%.
-glyph.x = std::floor(penX * 4.0) / 4.0;
+// Quartz and cairo quantise glyph positions to different grids (measured, see
+// spike/fasttext): Quartz uses 1/3 px in x and WHOLE PIXELS in y, flooring in
+// its bottom-up device space; cairo uses 1/4 px and rounds to nearest on both
+// axes. Left alone every horizontal stroke we draw is spread over two rows
+// where Tiger snaps it onto one, which is the blur that reads as missing
+// "pixel fitting". Matching both grids is worth 59% of the pixel difference
+// against CoreText and costs two arithmetic ops per glyph.
+//
+// y: ceil, not round and not floor -- floor is the worst variant measured
+// (+97%) and round is worse than doing nothing. cairo's y runs downward, so
+// Quartz's floor in CG coordinates is a ceil here.
+// x: floor to 1/3. Do NOT round x to whole pixels; that costs +43%.
+glyph.x = std::floor(penX * 3.0) / 3.0;
+glyph.y = std::ceil(baselineY);
 ```
+
+**Where it goes.** WebCore does not round glyph positions anywhere in the Cairo path — they stay float
+from `GlyphBuffer` (float `FloatSize`/`FloatPoint` members, `GlyphBufferMembers.h:53`) through
+`FontCascade::drawGlyphBuffer` (`FontCascade.cpp:1574`, no rounding; the only `roundf` in that file is
+`avgCharWidth` at `:573`) into the `cairo_glyph_t` array. The one place every glyph for this port is
+emitted is the accumulation loop in
+
+    Source/WebCore/platform/graphics/cairo/FontCairo.cpp:58-76   FontCascade::drawGlyphs()
+
+```cpp
+auto xOffset = point.x();
+auto yOffset = point.y();
+for (size_t i = 0; i < glyphs.size(); ++i) {
+    if (append)
+        cairoGlyphs.append({ glyphs[i], xOffset, yOffset });   // <- snap here
+    xOffset += advances[i].width();
+    yOffset += advances[i].height();
+}
+```
+
+Snap the value being appended, not the accumulator: the running pen must stay unquantised or the
+rounding compounds along the run, which is the same trap `spike/textpixel` hit with 26.6 shaping.
+`CairoOperationRecorder.cpp` has a parallel loop but is not compiled for Tiger
+(`OptionsTiger.cmake:235` sets `USE_COORDINATED_GRAPHICS OFF`), so FontCairo.cpp is the only emitter.
+
+**Caveat this measurement does not cover:** the grids are device-space, and that loop works in user
+space. At 1x with a translation-only CTM they coincide, which is every case measured here. Under a
+scale or rotation the snap would be wrong and should simply be skipped — which is exactly what
+`GraphicsContextState::m_shouldSubpixelQuantizeFonts` (`GraphicsContextState.h:216`, default true,
+set false for non-integral/rotated transforms at `RenderLayer.cpp:3519`) already means. The cairo path
+currently never reads that flag; only the CoreText path does. Gate the snap on it.
 
 `FontRenderOptions::setHinting` sets `hint_metrics` back to ON, so the `setHinting` call above has to
 come before the `cairo_font_options_set_hint_metrics` call, not after.

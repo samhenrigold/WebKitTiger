@@ -4,10 +4,10 @@
 #define FASTTEXT_SAMPLE_H
 
 #define FT_W 720
-#define FT_H 260
+#define FT_H 264
 #define FT_X0 12.0          /* left margin, in points */
-#define FT_LINE0 24.0       /* first baseline, from the top */
-#define FT_LEADING 30.0
+#define FT_LINE0 17.25      /* first baseline, from the top -- deliberately NOT an integer */
+#define FT_LEADING 30.375   /* fractional parts walk .25 .625 .0 .375 .75 .125 .5 .875 */
 
 typedef struct { const char* psName; double size; const char* utf8; } SampleLine;
 

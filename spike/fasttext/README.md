@@ -73,33 +73,66 @@ gray-slight-embolden0.3-g0.85       5.328    54.04    1.307   -  1.32 1.26 1.42 
 `out/contact.png` is the reference on top and the best three under it; `out/results.txt` is
 the run verbatim. To the eye the four bands are the same text.
 
-## The correction that mattered most: a half-quantum grid offset
+## The glyph position grids, measured
 
-The table above says "nothing to tune", and at the level of cairo font options that is true.
-It is also misleading, because the largest disagreement was not an option at all. Sweeping a
-global horizontal shift over the whole sample finds a clean V with a single minimum at
-**dx = -0.125 px**, which cuts the error by 30%:
+**Correcting an earlier version of this file.** It said Quartz floors x to a 1/4-pixel grid and
+cairo rounds to nearest. The cairo half was right; the Quartz half was wrong, and it was wrong
+because the probe was wrong. Sweeping a global shift only ever measures an *average* bias, and
+the first grid probe drew a whole 56-glyph line at each offset — with glyphs at many different
+fractional x, no quantiser ever reproduces a bitmap exactly, so every offset hashes differently
+and the axis reads as "continuous" whatever the grid actually is.
+
+Probing with **one glyph**, at 1/16 px offsets, collapses correctly: offsets inside one
+quantisation cell render to identical pixels, so runs of equal hashes are the grid. (The y axis
+was safe either way, because every glyph on a line shares its y.)
+
+| axis | Quartz / CoreText, offscreen bitmap, 10.4 | cairo image surface |
+|------|-------------------------------------------|---------------------|
+| x    | **1/3 px**, 3 cells per pixel, floor       | 1/4 px, round to nearest |
+| y    | **whole pixels**, floor in CG's bottom-up device space | 1/4 px, round to nearest |
+
+The x cell boundaries land at 0.375 and 0.6875 rather than 1/3 and 2/3 because the probe glyph's
+own fractional left bearing shifts the phase; the spacing, 0.3125 against a 1/16 sample step, is
+1/3. For y only the 0 offset renders differently from 1/16..15/16, so the cell boundary sits
+immediately above the integer: Quartz floors y in CG coordinates, and since cairo's y runs the
+other way, the matching rule in cairo's top-down space is **ceil**.
+
+## Fractional baselines, which is where this actually bites
+
+Every baseline in the first version of this sample was an integer, so nothing exercised the y
+grid at all. With `FT_LINE0 = 17.25` and `FT_LEADING = 30.375` the eight baselines walk the
+fractional parts .25 .625 .0 .375 .75 .125 .5 .875, and the gap opens up:
 
 ```
-shift-dx-0.250   2.267      shift-dx+0.000   2.665   <- as drawn
-shift-dx-0.188   2.050      shift-dx+0.062   3.146
-shift-dx-0.125   1.865  <-  shift-dx+0.125   3.784
-shift-dx-0.062   2.179      shift-dx+0.250   5.193
+variant             luma  inkluma      ink   soft  solid
+y-asis             3.929    41.22    0.987   1.04   0.93   <- what fast mode does today
+y-round            4.676    48.02    0.987   1.00   1.00
+y-floor            7.745    74.08    0.987   1.00   1.00
+y-ceil             2.625    28.56    0.987   1.00   1.00   <- matches Quartz's rule
+yceil+q4floor      1.837    20.37    0.987   1.01   1.00
+yceil+x3round      2.759    29.87    0.987   1.01   0.99
+yceil+x3floor      1.617    17.95    0.987   1.01   1.00   <- both grids matched
+yceil+slight       2.936    32.15    1.002   0.90   1.10
 ```
 
-Two probes identify it exactly. Quantising our glyph x to the nearest 1/4 px is
-**byte-identical to not quantising at all** (2.665 either way), so cairo is already snapping
-glyph origins to a 1/4-pixel grid. Quantising by *flooring* to 1/4 px instead scores 1.865 —
-identical to the -0.125 shift, as it must be, since floor is round-to-nearest of x - 1/8.
+`y-ceil` alone takes **33%** off. Two things confirm it is the right rule rather than a lucky
+constant: `y-floor` is the worst variant in the entire project (+97%), and `y-round` is *worse
+than doing nothing* — only ceil matches. And `y-ceil`'s inkluma, 28.56, is exactly what the
+integer-baseline sample scored, so ceil removes the fractional-baseline penalty completely
+rather than merely reducing it.
 
-So both rasterisers place glyphs on the same 1/4-pixel horizontal grid, and they disagree
-about the rule: **Quartz floors to the grid, cairo rounds to nearest.** Our glyphs sit half a
-quantum — 1/8 px — to the right of Quartz's, uniformly, on every face and size in the sample.
-Flooring glyph x to 1/4 px before `cairo_show_glyphs` removes it, is free, and is orthogonal
-to every other setting: it takes 30% off hinting none, 26% off slight and 18% off full.
+Look at the `soft`/`solid` columns for `y-asis`: 1.04 soft and 0.93 solid against the reference.
+That is the blur, stated numerically — cairo spreads each horizontal stroke across two rows at
+quarter-pixel precision where Quartz snaps it onto one. It is the same "pixel fitting" that was
+visible by eye on "jigs" and "quartz", and it is much worse at fractional baselines than the
+integer-baseline sample ever showed.
 
-It does not go to zero (1.865 remains), so the two grids agree on average rather than
-per glyph. But it is the single biggest available win and it is not a font option.
+Matching the x grid too — floor to 1/3 px — takes it to **1.617 / 17.95, a 59% reduction**
+against what fast mode does today, and beats the best integer-baseline result this spike ever
+produced. `x3floor` beating `q4floor` (1.837) and `x3round` (2.759) is what establishes the 1/3
+grid: this is not the mean bias doing the work, because the earlier shift sweep put the best
+uniform shift at -0.125 and showed -0.1875 as *worse*, while floor-to-1/3 carries a mean bias of
+-1/6 and is better than both. A grid effect, not a bias.
 
 ## Pixel fitting, and why the mean-error metric nearly missed it
 
@@ -148,10 +181,9 @@ adds 24% ink the reference does not have (see the last per-line column of
 The direction to tune *in* would have been lighter, not heavier, and there is no knob for
 that.
 
-**Do not round glyph x to whole pixels.** `gray-none-intpos` is the same rendering with
-integer pen positions and it costs **+43% error** (2.665 → 3.814). Quarter-pixel positioning
-is real and both rasterisers do it; whole-pixel rounding throws it away. Floor to 1/4 px,
-never to 1.
+**Do not round glyph x to whole pixels.** `gray-none-intpos` costs **+43% error**. Subpixel
+positioning in x is real on both sides; whole-pixel rounding throws it away. Floor x to 1/3 px.
+In y it is the opposite: Quartz has no subpixel positioning at all, so ceil to a whole pixel.
 
 **Subpixel antialiasing is strictly a regression here** (+15% error at every hint style),
 because the reference has no colour in it at all. It is not a look to be tuned toward; it
@@ -159,7 +191,7 @@ is a look Quartz is not producing.
 
 ## What the residual is
 
-After the grid fix, 20.37/255 mean error over inked pixels — about 8% — with stroke weight
+With both grids matched, 17.95/255 mean error over inked pixels — about 7% — with stroke weight
 matched to 1.3%.
 That is not weight, gross position or hinting; it is the rasterisers' antialiasing kernels
 disagreeing about how to share coverage between adjacent pixels on a curve. Quartz's
