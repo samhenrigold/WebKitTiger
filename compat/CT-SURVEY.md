@@ -363,6 +363,22 @@ that changes.
 `CGFontCopyFamilyName` and `CGFontGetGlyphsForUnichars` are tier 1 through CoreText: wrap
 the `CGFontRef` with `CTFontCreateWithGraphicsFont` and ask.
 
+**`CGFontGetGlyphsForUnichars` has a tempting native candidate that does not survive
+testing.** Tiger exports `CGFontGetGlyphsForUnicodes`, whose prologue reads four arguments
+spanning 0x8 to 0x14 and dereferences a real font structure, matching the modern prototype
+exactly. Compared against `CTFontGetGlyphsForCharacters` on the box over Latin, Latin-1
+accents, Arabic, uncovered CJK, NUL, space, no-break space and `U+FFFF`, the two agree on
+every glyph id. They diverge on **surrogate pairs**: for `U+D83D U+DE00` in DejaVu Sans,
+CoreText writes `5846, 0` while `CGFontGetGlyphsForUnicodes` writes `5846` and **leaves
+the second slot untouched**, which a buffer poisoned with `0xFFFF` makes visible. Arial
+and Georgia hide it, because neither side finds a glyph and both write zero.
+
+So it is the same hazard as the run getters: a function that writes fewer elements than
+its count promises, over a caller that may not have zeroed. The CoreText route stays,
+since it zeroes the buffer first and CoreText fills every slot. This is the second time a
+byte-for-byte matching argument list has concealed a behavioural difference, after
+`CGFontGetGlyphAdvancesForStyle`.
+
 `CGFontGetGlyphAdvancesForStyle` is tier 1 through CoreGraphics itself, and is worth
 reading as a warning about trusting a signature match. The leopard track identified
 Tiger's `CGFontGetGlyphTransformedAdvances` as the older name for it, and the
