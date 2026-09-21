@@ -198,6 +198,106 @@ the previous section plus:
 - Functions with no frame pointer would read arguments off `%esp` and score nothing;
   none of the 206 did.
 
+## Stub detection (added later, across CoreText, CoreGraphics and CoreFoundation)
+
+`tools/abi-screen.py` now also carries the two stub detectors from the audit track's
+screen, because a signature that matches perfectly says nothing about whether the
+function does anything. Credit for both modes and for the `CGLayerGetSize` false
+positive: the `audit` agent.
+
+- **Mode 1, empty body.** First `ret` within five instructions, nothing but frame
+  bookkeeping, no argument read at all. Tiger's `CTRunGetGlyphs` is
+  `push ebp; mov esp,ebp; pop ebp; ret`.
+- **Mode 2, fixed-global-return stub.** No real call (a `get_pc_thunk` does not
+  count, a tail `jmp` into a real implementation disqualifies), at least one
+  PIC-relative global load, 25 instructions or fewer, and the only argument slot
+  touched is the hidden `sret` pointer. Tiger's `CTRunGetImageBounds` copies 16
+  bytes from a global into the caller's `CGRect` and never looks at the run.
+
+  Two details cost real false positives before this worked. A PIC-relative global
+  load only exists if a `get_pc_thunk` established a base register first; without
+  that check, an ordinary struct dereference like `0x10(%eax)` matches, and every
+  genuine accessor (`CTRunGetGlyphCount`, `CTRunGetStatus`, `CTLineGetGlyphRuns`,
+  eight more) was reported as a stub. And the tail-call check has to match
+  C++-mangled targets: `CTRunGetGlyphsPtr` jumps to `__ZNK13TStorageRange9GetGlyphsEv`,
+  which a `_[A-Za-z]` pattern misses because the name begins with two underscores.
+
+**Mode 2 is verified live here.** The audit track found afterwards (commit `f2c7588`)
+that the version committed on their side was dead — it compared a set against a list,
+which is never equal, so it reported nothing, and the original `CTRunGetImageBounds`
+find had come from an earlier working draft. The re-implementation in
+`tools/abi-screen.py` compares `sorted(acc)` against `[8]` and was checked against the
+real binary before use: it returns `('global', 'fills the sret struct from a fixed
+global, ignores every argument')` for `CTRunGetImageBounds`, `('empty', ...)` for
+`CTRunGetGlyphs`, and `None` for the genuine accessors `CTRunGetGlyphCount`,
+`CTRunGetStatus` and `CTLineGetGlyphRuns`.
+
+Requiring slot 0 to be a real `sret` is a refinement on the mode as described: it
+separates `CTRunGetImageBounds` (true positive) from `CGLayerGetSize` (the known
+false positive, which reads its layer and only falls back to a global when the layer
+is NULL). Functions matching the shape *without* `sret` are reported in a demoted
+`global?` bucket rather than called stubs.
+
+### Result: no new hits
+
+| framework | screened (WebKit-called) | empty-body stubs | global-return stubs |
+|---|---|---|---|
+| CoreFoundation + ATS + LaunchServices + HIServices + Security | 206 | 0 | 0 |
+| CoreGraphics | 250 | 0 | 0 |
+| CoreText | 54 | 3 | 0 |
+
+The three CoreText hits are `CTRunGetGlyphs`, `CTRunGetAdvances` and
+`CTRunGetStringIndices`, all three already documented in `logs/shim-audit.md` and
+already carrying ctcompat adapters. Nothing new.
+
+A sweep of **every** export rather than only the called ones (1094 CoreText, 2025
+CoreFoundation, 8760 CoreGraphics symbols) adds `CTRunDraw` and `CTLineGetImageBounds`
+— both also already in the shim audit — plus `CTRunGetImageBounds`, which is the
+audit agent's find and which WebKit does not call. Everything else it turns up is
+private window-server surface (`CGS*`, `CGX*`, `VFB*`) or internal statics (`dummy`,
+`no_op`, `rgn_size`), so the all-exports sweep needs a relevance filter before it is
+worth running routinely.
+
+### Three tool bugs found and fixed while re-running
+
+Extending to CoreGraphics exposed defects that the CoreFoundation set never triggered.
+The CoreFoundation numbers above are unchanged by all three.
+
+1. **`byval` parameters were sized as zero.** `CGContextFillRect(CGContextRef, CGRect)`
+   scored 4 bytes instead of 20, and **47 of CoreGraphics' 250 functions looked
+   mismatched**. The tool now sizes every `%struct.X` from the IR type table. No CF
+   function takes a by-value struct, which is why this hid until now.
+2. **`leal 0xc(%ebp)` was counted as a 4-byte read.** Taking the address of a by-value
+   argument and passing it on — what `CGContextFillRect` does with its `CGRect` —
+   makes the extent invisible, so these are now `undetermined` rather than scored.
+3. **Over-reads and under-reads were conflated.** Only a callee reading *past* the
+   argument list is an ABI break; reading less is harmless under cdecl, since the
+   caller pops. `CGRectIsNull` reads 8 of the 16 bytes it is passed because a null
+   rect is detectable from the origin alone. The two directions are now reported
+   separately, and after the fixes CoreGraphics has **0 over-reads**, which agrees
+   with the cgcompat track's independent conclusion.
+
+Also guarded: `otool` labels only exported symbols, so a scan can run past a function
+into unlabelled code and decode garbage. `CGPDFPageGetBoxRect` picked up a bogus
+`addb %cl, 0x489d845(%ebp)` and scored 76 MB of arguments. Offsets beyond 0x400 are
+now discarded and the function flagged instead.
+
+### Recommended next step, with evidence
+
+The largest remaining blind spot is that **the tool gives up when the modern SDK does
+not declare a function**, which is 43 of the CoreGraphics set and 7 of the
+CoreFoundation set. That bucket is not empty of findings: `CGGStateGetCTM` sits in it,
+and it is precisely the one genuine CoreGraphics mismatch the cgcompat track found by
+hand (commit `fd4afe3`). My run scores it `tiger=8`; WebCore's own SPI declaration is
+`const CGAffineTransform* CGGStateGetCTM(CGGStateRef)`, which is 4 bytes, so Tiger's
+extra 4 bytes are the hidden `sret` of a by-value return — an over-read the tool would
+have flagged had it read WebKit's SPI headers for prototypes the way it reads the SDK.
+
+Teaching `modern_lowering()` to fall back to WebKit's own `*SPI.h` declarations would
+close this. It is the single highest-value change left in this tool, and the five
+CoreFoundation SPI functions in the section above had to be hand-checked for exactly
+the same reason.
+
 ## Appendix: all 206 screened functions
 
 | function | framework | call sites | modern i386 arg bytes | Tiger arg bytes | verdict |
