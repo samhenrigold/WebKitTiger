@@ -670,3 +670,10 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   `make -C compat install` (i386) / `make -C compat ARCH=x86_64 install`; never hand-build and copy it. A stale archive
   broke every 64-bit throw for an hour (two producers). Check: a 64-bit C program calling _dyld_find_unwind_sections(&main,..)
   must return 1. Canonical 64-bit C++ link line is in spike/run64.sh (spike/cxx64exc.cpp: 8 exception cases pass).
+- ARTIFACT OWNERSHIP MAP (single producer each): libtigercompat.a (compat/Makefile, both arches); libtigerdispatch.a
+  (compat/dispatch/Makefile, i386 only, not needed 64-bit); libc++/libc++abi/libunwind i386 (build/runtimes-i386 via the cmake in
+  logs/runtimes-configure.log) and x86_64 (jsc64's build dir, same recipe; record its path in logs/jsc64-spike.md); compiler-rt
+  builtins i386 (build/builtins-i386, by-hand script in NOTES) and x86_64 (jsc64); all third-party deps i386
+  (deps/build-c-deps.sh) and x86_64 (deps/build-deps-x86_64.sh); ffmpeg x86_64 (deps/build-ffmpeg64.sh); sdk overlay
+  (compat/sdk-overlay/make-overlay.sh + per-framework owners); QuartzCore private bundle (spike/CAHost/rebundle.sh + decollide.py).
+  If you need a rebuild, run the owner's script; never copy artifacts by hand.
