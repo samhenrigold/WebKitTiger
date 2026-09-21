@@ -1161,3 +1161,4 @@ Added to the ARTIFACT OWNERSHIP MAP above.
 - FINDING: CA does not copy at -setContents: (48 tiles/12 MB over mmap → +0.1 MB RSS) but copies at texture upload; in-place mutation of the mapping has no effect. Zero-copy handoff is real; every change needs a fresh image.
 - spike/CAHost/README.md added; CAWidgets marked superseded by ControlPart remoting.
 - cahost stopped after this report (budget). Compositor side of the GPU process waits until WK2 builds.
+- Box state from cahost: screensaver idle timer disabled (`defaults -currentHost write com.apple.screensaver idleTime 0`), reversible; possible stale root-owned crashdump dialog from a CAVideo run (two were already killed via sudo earlier; recheck when the box answers — it timed out at 03:23). shm tile-to-contents cost NOT measured (tiles were a local mapping); scene was 48 tiles not 200 at 900 px/s.
