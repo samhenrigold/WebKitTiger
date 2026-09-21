@@ -428,3 +428,6 @@ one triage pass before it was noticed. See the triage table at the end of
 - Post-update ABI screen: 510 functions, no new hits (dd2d487). WebCore 32-bit compile: 51 failures left, named list.
 - qtkit-plan §9: QTVisualContext C API lives in QuickTime.framework (present on 7.6.4); video as a GL quad in the CARenderer
   frame (no IOSurface, so no zero-copy CALayer.contents). Relevant only to a 32-bit media path now.
+- USER DECISION (22:50): the 2021 pin is OFF THE TABLE, not even as a fallback. The port runs the 2026 WebKit tree, period.
+  JS performance comes from the 64-bit content process with today's x86_64 JIT; if the 64-bit path failed, the answer would
+  be the 2026 tree on the interpreter, never an older browser.
