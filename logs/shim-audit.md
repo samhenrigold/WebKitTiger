@@ -563,10 +563,19 @@ table would have returned the label font wherever WebCore asked for the menu ite
 
 ## Systematic ABI screen over CoreText, CoreGraphics and CoreFoundation
 
-`CTLineDraw` was found by hand-counting stack offsets. ctcompat's point that "three of this class
-now, and a systematic screen beats finding them one at a time" is right, so the screen is now a
-tool: `spike/abi-screen.py`. It covers the three ways a Tiger function can link cleanly and still
-not work, none of which produce a warning, an error or a crash:
+`CTLineDraw` was found by hand-counting stack offsets, and ctcompat's point that "three of this
+class now, and a systematic screen beats finding them one at a time" is right.
+
+**A screen already existed.** `tools/abi-screen.py` was committed in `1aa43fc` by another track,
+and it is better than the one I wrote: it takes the modern side from clang's own i386 lowering
+(`-target i386-... -emit-llvm`) rather than parsing headers, so sret, byval and struct flattening
+are exact rather than modelled, and it accounts for access width, which mine did not (a trailing
+`double` arrives as one `movsd 0xc(%ebp)`, and counting the displacement alone undercounts it by
+four bytes). I deleted my duplicate. What follows is therefore an independent re-derivation that
+happens to cross-check theirs, plus two detectors their tool does not have.
+
+The three ways a Tiger function can link cleanly and still not work, none of which produce a
+warning, an error or a crash:
 
 1. **Exported but empty.** `CTRunGetGlyphs` is `push ebp; mov ebp,esp; pop ebp; ret`, so it leaves
    the caller's buffer untouched.
@@ -574,9 +583,11 @@ not work, none of which produce a warning, an error or a crash:
    struct return and never looks at the line.
 3. **Exported with a different signature.** `CTLineDraw` takes `(line, context, CFRange)`.
 
-Mode 3 compares the highest incoming-argument slot each function *reads* against the i386 stack
-slots the modern prototype implies, parsed from the host SDK headers. Two details are load-bearing,
-and both were bugs in the first version:
+Mode 3 is what `tools/abi-screen.py` already does. My version compared the highest incoming-argument
+slot each function *reads* against the i386 stack slots the modern prototype implies, parsed from
+the host SDK headers. Two details were load-bearing, and both were bugs in my first version, which
+is the main reason this is worth writing down: the other track avoided both by not parsing headers
+at all.
 
 - `-0x20(%ebp)` is a local, `0x20(%ebp)` is an argument. Without the sign check every function with
   a stack frame looks mismatched; the first run returned 12 CoreText candidates, 9 of them noise.
@@ -590,8 +601,9 @@ only reports a constant return when the prototype declares at least one argument
 
 ### Results
 
-With both corrections the screen has **no false positives** across the 436 functions WebCore calls
-that Tiger exports.
+With both corrections the screen had **no false positives** across the 436 functions WebCore calls
+that Tiger exports. The CoreFoundation and CoreGraphics results agree with `logs/abi-screen-cf.md`,
+reached by a different method, which is the useful part of having duplicated the work.
 
 | Framework | Compared | Empty / constant | Ignores arguments | Signature mismatch |
 |---|---|---|---|---|
@@ -606,13 +618,16 @@ size` where modern CoreText takes `CGFloat`, which the SDK overlay already decla
 `CTFontCreateWithName` does `movsd 0xc(%ebp), %xmm0` and calls a constructor whose mangled name is
 literally `CTFont::CTFont(__CFString const*, double, CGAffineTransform const*)`.
 
-**CoreGraphics and CoreFoundation are clean for everything WebCore calls.** That is a useful
-negative result: the CoreGraphics problems found this round were not signature mismatches but
-behavioural ones, which no static screen can catch.
+**CoreGraphics and CoreFoundation are clean for everything WebCore calls**, agreeing with the
+other track's independent run over CoreFoundation, ATS, LaunchServices and Security. That is a
+useful negative result: the CoreGraphics problems found this round were not signature mismatches
+but behavioural ones, which no static screen can catch.
 
-### Over every export, not just WebCore's callers
+### Modes 1 and 2, which the existing tool does not cover
 
-Run with `--all`, CoreText has four more empty or constant stubs (`CTRunDraw`,
+The empty-body and argument-ignoring detectors are additive and have been handed to whoever owns
+`tools/abi-screen.py` rather than kept as a second tool. Over every export rather than WebCore's
+callers, CoreText has four more empty or constant stubs (`CTRunDraw`,
 `CTFontCreateUIFontForLocale`, `CTFontCreateWithQuickdrawNameAndStyle`, `CTRunGetEmbeddedObject`),
 and a second argument-ignoring function alongside `CTLineGetImageBounds`: **`CTRunGetImageBounds`
 has the identical shape**, 17 instructions copying a global into the struct return. Sent to the
