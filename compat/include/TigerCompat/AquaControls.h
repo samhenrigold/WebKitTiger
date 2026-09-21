@@ -116,6 +116,13 @@ int TigerWriteControlMetricsJSON(const char *path);
 int TigerControlSizeClassForStyle(const TigerControlStyle *style);
 CGSize TigerControlPreferredSize(TigerControlKind kind, const TigerControlStyle *style);
 
+/* The rect TigerDrawControl will actually paint into for this style. It is
+ * usually larger than style->rect, because a cell's bezel and shadow live
+ * outside the border box; WebCore calls the same thing rectForBounds. Callers
+ * need it for damage rects, and a test needs it to line a drawn control up
+ * against a live one. */
+CGRect TigerControlDrawingBounds(TigerControlKind kind, const TigerControlStyle *style);
+
 #ifdef __cplusplus
 }
 #endif

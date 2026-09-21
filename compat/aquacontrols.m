@@ -296,6 +296,33 @@ static CGRect inflatedRect(CGRect bounds, TigerControlKind kind, int sizeClass, 
     return rect;
 }
 
+CGRect TigerControlDrawingBounds(TigerControlKind kind, const TigerControlStyle *style)
+{
+    if (!style)
+        return CGRectZero;
+    int sizeClass = TigerControlSizeClassForStyle(style);
+    float zoom = (style->zoomFactor > 0) ? style->zoomFactor : 1;
+
+    switch (kind) {
+    case TigerControlButton:
+    case TigerControlDefaultButton:
+    case TigerControlSquareButton: {
+        CGSize natural = cellSizeFor(TigerControlButton, 0);
+        if (kind == TigerControlSquareButton || style->rect.size.height > natural.height * zoom)
+            return style->rect;
+        return inflatedRect(style->rect, TigerControlButton, sizeClass, zoom);
+    }
+    case TigerControlCheckbox:
+    case TigerControlRadio:
+    case TigerControlMenuList:
+    case TigerControlMenuListButton:
+        return inflatedRect(style->rect, kind, sizeClass, zoom);
+    default:
+        break;
+    }
+    return style->rect;
+}
+
 CGSize TigerControlPreferredSize(TigerControlKind kind, const TigerControlStyle *style)
 {
     int sizeClass = TigerControlSizeClassForStyle(style);
@@ -457,6 +484,20 @@ void TigerDrawControl(CGContextRef context, TigerControlKind kind, const TigerCo
         return;
     }
 
+    /* Measured against live NSControls in a real window on 10.4: an NSButton
+     * and an NSButtonCell check box draw identical pixels whether or not their
+     * window is key, but an NSPopUpButtonCell does not. So the window's key
+     * state is the only way to reach the popup's inactive artwork, and it costs
+     * nothing for the controls that ignore it. An earlier version drew the
+     * whole button family through HIThemeDrawButton to get an inactive
+     * appearance instead; that produced artwork which does not match a live
+     * control, which is a worse failure than not varying. */
+    ensureDrawingView();
+    if (style->states & TigerControlStateWindowActive)
+        [gWindow makeKeyAndOrderFront:nil];
+    else
+        [gWindow orderOut:nil];
+
     beginDrawing(context);
 
     NSRect frame;
@@ -466,42 +507,39 @@ void TigerDrawControl(CGContextRef context, TigerControlKind kind, const TigerCo
     case TigerControlButton:
     case TigerControlDefaultButton:
     case TigerControlSquareButton: {
+        NSButtonCell *button = buttonCell(kind == TigerControlDefaultButton);
         /* ButtonMac::bezelStyle: a button taller than the rounded bezel's
          * natural height for its size class gets the square bezel, because the
-         * rounded one cannot stretch vertically. kThemeBevelButton is the
-         * square one. */
+         * rounded one cannot stretch vertically. */
         CGSize natural = cellSizeFor(TigerControlButton, 0);
-        BOOL square = (kind == TigerControlSquareButton)
-                      || rect.size.height > natural.height * zoom;
-        CGRect bounds = square ? rect : inflatedRect(rect, TigerControlButton, sizeClass, zoom);
-        endDrawing(context);
-        drawThemeButtonKind(context, square ? kThemeBevelButton : kThemePushButton,
-                            bounds, style);
-        return;
+        if (kind == TigerControlSquareButton || rect.size.height > natural.height * zoom)
+            [button setBezelStyle:NSShadowlessSquareBezelStyle];
+        else
+            [button setBezelStyle:NSRoundedBezelStyle];
+        applyStates(button, style, sizeClass);
+        cell = button;
+        frame = ([button bezelStyle] == NSRoundedBezelStyle)
+            ? toNSRect(inflatedRect(rect, TigerControlButton, sizeClass, zoom))
+            : toNSRect(rect);
+        break;
     }
 
     case TigerControlCheckbox:
     case TigerControlRadio: {
-        /* Tiger's ThemeButtonKind has small variants for these two and no mini
-         * ones, so mini falls back to small, the closest artwork here. */
-        BOOL smallish = (sizeClass != 0);
-        ThemeButtonKind themeKind = (kind == TigerControlRadio)
-            ? (smallish ? kThemeRadioButtonSmall : kThemeRadioButton)
-            : (smallish ? kThemeCheckBoxSmall : kThemeCheckBox);
-        CGRect bounds = inflatedRect(rect, kind, sizeClass, zoom);
-        endDrawing(context);
-        drawThemeButtonKind(context, themeKind, bounds, style);
-        return;
+        NSButtonCell *toggle = toggleCell(kind == TigerControlRadio);
+        applyStates(toggle, style, sizeClass);
+        cell = toggle;
+        frame = toNSRect(inflatedRect(rect, kind, sizeClass, zoom));
+        break;
     }
 
     case TigerControlMenuList:
     case TigerControlMenuListButton: {
-        CGRect bounds = inflatedRect(rect, kind, sizeClass, zoom);
-        endDrawing(context);
-        drawThemeButtonKind(context,
-            (kind == TigerControlMenuList) ? kThemePopupButton : kThemeBevelButton,
-            bounds, style);
-        return;
+        NSPopUpButtonCell *popUp = popUpCell();
+        applyStates(popUp, style, sizeClass);
+        cell = popUp;
+        frame = toNSRect(inflatedRect(rect, kind, sizeClass, zoom));
+        break;
     }
 
     case TigerControlTextField:

@@ -1,0 +1,16 @@
+In file included from /Users/shg/Developer/WebKitTiger/spike/aquaatlas/comparecontrols.m:21:
+/Users/shg/Developer/WebKitTiger/toolchain/sysroot-i386/usr/include/TigerCompat/AquaControls.h:6:34: warning: '/*' within block comment [-Wcomment]
+    6 |  * platform/graphics/mac/controls/*.mm). On this port the 64-bit content process
+      |                                  ^
+1 warning generated.
+/Users/shg/Developer/WebKitTiger/compat/aquacontrols.m:4:52: warning: '/*' within block comment [-Wcomment]
+    4 |  * A port of WebCore/platform/graphics/mac/controls/*.mm to what 10.4 has. The
+      |                                                    ^
+In file included from /Users/shg/Developer/WebKitTiger/compat/aquacontrols.m:14:
+/Users/shg/Developer/WebKitTiger/toolchain/sysroot-i386/usr/include/TigerCompat/AquaControls.h:6:34: warning: '/*' within block comment [-Wcomment]
+    6 |  * platform/graphics/mac/controls/*.mm). On this port the 64-bit content process
+      |                                  ^
+/Users/shg/Developer/WebKitTiger/compat/aquacontrols.m:192:13: warning: unused function 'drawThemeButtonKind' [-Wunused-function]
+  192 | static void drawThemeButtonKind(CGContextRef context, ThemeButtonKind kind,
+      |             ^~~~~~~~~~~~~~~~~~~
+3 warnings generated.

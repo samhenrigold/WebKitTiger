@@ -113,3 +113,82 @@ rects inside it, measured with `HIThemeGetTrackPartBounds`, which is the shape
 - The default-button pulse is not rendered; the atlas has the unpulsed artwork.
 - Text field and slider track have no distinct window-inactive artwork, per the
   NSCell finding above. Routing them through HITheme would fix it.
+
+## Acceptance test: TigerDrawControl against live AppKit controls
+
+`spike/aquaatlas/compare.sh` puts real `NSButton`, `NSPopUpButton`,
+`NSTextField`, `NSSlider`, `NSProgressIndicator` and `NSScroller` instances in a
+real key window on the box, drives each into every state the API supports, reads
+the pixels back from the window's backing store, and compares them channel by
+channel against `TigerDrawControl` for the same kind, size class and state.
+Mismatched pairs are written to `spike/aquaatlas/compare/`.
+
+Backing store rather than `screencapture`: it is the same rendering the screen
+shows, without the window shadow, the menu bar, or a crop landing a pixel out.
+A screenshot would add differences that are not the controls'.
+
+### Result
+
+| Control | States byte-identical | Worst remaining |
+|---|---|---|
+| button | normal, pressed, disabled, inactive | focused, 19% of pixels |
+| textfield | normal, disabled, inactive | focused, 28% |
+| checkbox | none | ~25% in every state, max channel delta 78 |
+| radio | none | ~17% in every state |
+| menulist | none | 5% inactive and disabled, 13% normal |
+| slider | none | 18%, and the best alignment is at the search limit |
+| progressbar | none | 69% |
+| scrollbar | none | 32% |
+
+Seven states are byte-identical, which is what says the approach works at all:
+the same cell, configured the same way, drawn through the same AppKit into a
+bitmap, gives exactly the pixels a live control gives.
+
+### Three things the test had to get right before it measured anything
+
+Each of these produced a confident, wrong answer first.
+
+**The process must be foregrounded**, via `TransformProcessType`, from inside a
+`.app` bundle whose first launch has already registered it with LaunchServices.
+Otherwise no window is key, every live control draws its inactive artwork, and
+every comparison fails for a reason unrelated to the code. The test now refuses
+to report unless its window is genuinely key.
+
+**The backdrop has to be the real one.** Filling with `+windowBackgroundColor`
+looks right and is not: that colour is a pattern, so a flat fill differs from
+the real window background everywhere the control is transparent. Capturing the
+region with the control hidden and compositing over that took the button from
+66% differing to 8.9%.
+
+**The live control must be sized to the painted bounds, not the border box.**
+WebCore hands the API a CSS border box and the cell paints outside it; an
+`NSControl` draws its cell across its whole frame. Comparing a live control
+sized to the border box against a cell drawn across border box plus outsets
+compares two different sizes of button. Fixing that took the button from 8.9%
+differing to byte-identical.
+
+### What is still wrong, and the shape of it
+
+**Focus rings drift in every control that has one**, which is where the drift
+was expected. The ring is the largest single remaining category.
+
+**Checkbox and radio differ by a constant amount in every state**, including
+disabled and inactive, at a max channel delta of 78 and 180. The pair renders
+look the same at a glance, so this is a small geometric or antialiasing
+difference repeated over the glyph rather than wrong artwork.
+
+**Slider, progress bar and scrollbar are not really comparable yet.** The
+harness compares a whole live `NSSlider` against a slider *track*, and a whole
+`NSScroller` against `HIThemeDrawTrack`. Those need the live control decomposed
+into the parts WebCore asks for before the numbers mean anything.
+
+### One earlier finding corrected
+
+An earlier pass concluded that `NSCell` drawing never varies with window key
+state, and moved the whole button family to `HIThemeDrawButton` to get an
+inactive appearance. Measuring live controls shows the finding was right for
+`NSButton` and the check box and wrong for `NSPopUpButtonCell`, which does vary.
+More importantly the HITheme artwork does not match a live control, so that
+departure made things worse: matching AppKit means using AppKit. The button
+family is back on `NSCell`, and the window is ordered out for the inactive state
+because that is the only way to reach the popup's inactive artwork.
