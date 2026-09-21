@@ -390,3 +390,10 @@ one triage pass before it was noticed. See the triage table at the end of
   720p software decode manages ~2 fps (drawInRect 220-390 ms). Its notification constant is exported but undeclared in the SDK:
   dlsym it (WebKit's SOFT_LINK does the same). For HD: QuickTime's OpenGL visual-context path (QTOpenGLTextureContextCreate /
   setVisualContext:, exported in 7.6.4) into the CARenderer host, or downscale.
+- JIT verdict (logs/jit-i386-plan.md): upstream removed ARMv7 JIT (857bd433, 2026-08-01) and ALL 32-bit JSValues (29ceb3c0,
+  2026-08-02) six weeks before our checkout; x86-32 JIT was gone since 2021 (bug 229331). Our i386 jsc runs the C loop with
+  64-bit JSValues. Resurrecting a 32-bit JIT = 17-31k LOC rebuilding the value representation across LLInt/Baseline/DFG against
+  an upstream deleting it. Decision: no JIT; JS is interpreter-speed on this port (2.24 s vs Safari 4.1.3's 59 ms on the test
+  loop). Only percent-level CLoop/compiler tuning remains (try -O3/LTO for JSC).
+- WebCore M2 first full pass: 97/557 failed; CommonCryptoSPI types + HAVE_TASK_IDENTITY_TOKEN off cleared 177 errors; media
+  pipeline excluded; second pass running.
