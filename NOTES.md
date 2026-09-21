@@ -305,3 +305,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - Compositing design (logs/ca-hosting-design.md): PlatformCALayerTiger as a sibling of PlatformCALayerCocoa; TileController/
   TileGrid port as-is (they already use plain CALayers); derive zPosition in setTransform for non-affine transforms or 3D
   elements vanish; phase 1 = USE_CA on with AnimatedOpacityTrigger only, HAVE_IOSURFACE off; ~2400 new LOC through phase 2.
+- Video path confirmed on the box (spike/qtkittest.m): -[QTMovie frameImageAtTime:withAttributes:error:] with
+  QTMovieFrameImageTypeCGImageRef returns a real CGImageRef (CFTypeID == CGImageGetTypeID) for H.264 Baseline+AAC MP4/MOV;
+  audio-only MP3/M4A play; works with or without NSApplication. QTKit's 10.5 availability annotations must be neutralized
+  around the import (same #undef trick as the CA headers). Test media under spike/qtkit-media/.
