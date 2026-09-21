@@ -229,8 +229,9 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   half points on Tiger (adapters requested); every other metric matches modern to 6 decimals.
 
 ## Git rule (2026-09-20 21:10)
-- Commit only your own paths: `git add <files>` then `git commit -- <same files>` (a scoped add is not enough: commit takes the
-  whole index, including files someone else staged). Never `git add -A` on this shared tree. NOTES.md is shared: append your
+- Commit only your own paths: `git commit -o <files> -F msgfile` (`-o` commits exactly the named paths regardless of what else
+  is staged; `git commit -- <paths>` also works). Never `git add -A`, never `git commit --amend` (amend commits the whole shared
+  index). Check `git show --stat` after each commit. A wrong message is cheaper than a wrong file set; don't rewrite history. Never `git add -A` on this shared tree. NOTES.md is shared: append your
   own bullets/sections and include NOTES.md in your path-scoped commit; don't rewrite others' text.
 - HarfBuzz 14.5 (meson, static, OT shaper only) is in the sysroot; deps/spike-tests/test_harfbuzz.c shaped Latin and Arabic on the box.
 - Static ABI screening is complete (tools/abi-screen.py, logs/abi-screen-cf.md): 510 functions, every over-read already adapted.
@@ -238,3 +239,4 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   clip-to-rects, masking colors all match modern. cgcompat's CGContextDrawTiledImage loop seams at fractional origins (fix pending).
   Shadows ~92% of modern ink; no alpha correction by decision (would worsen large blurs).
 - CoreText cap-height/x-height adapters: midpoint of flat and round glyph heights reproduces modern CT to 0.03% (was 5.8%).
+- HarfBuzz on Tiger proven with GSUB: DejaVu 'fi' -> one ligature glyph; Arabic joined forms differ from isolated (deps/HARFBUZZ.md).
