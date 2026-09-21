@@ -1133,3 +1133,7 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   glyph 0, which caught a shaper that let an Arabic-only face reach Latin; downloaded faces now get the same coverage
   check as installed ones. Bytes shipped inline in 60 KB chunks, not OOL Mach descriptors (their size differs across
   the split).
+- Four configs on PORT=Tiger, all six pairs agree (wkcmake, WebKit 251aadb1 / a8eca4e): UI i386 + GPU i386 with
+  CG/CT/CF/AppKit on; Web/Network x86_64 with them off and cairo on; GPU_PROCESS flag on in all four. Seventh
+  unagreeable flag found by the check: USE(CAIRO) (64-bit local raster only). DECISION: TIGER_WIRE_CAIRO = 0 on every
+  side; cairo types never go on the wire, same treatment as CG.
