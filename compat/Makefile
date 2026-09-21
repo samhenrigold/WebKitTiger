@@ -79,6 +79,7 @@ endif
 install: $(LIB)
 	mkdir -p $(PREFIX)/lib $(PREFIX)/include && cp $(LIB) $(PREFIX)/lib/libtigercompat.a && cp -R include/. $(PREFIX)/include/ && cp BlocksRuntime/Block.h $(PREFIX)/include/
 	@$(MAKE) --no-print-directory ARCH=$(ARCH) check
+	@$(WKT)/compat/check-ownership.sh $(ARCH)
 clean:
 	rm -rf $(OBJDIR) $(LIB)
 -include $(DEPS)

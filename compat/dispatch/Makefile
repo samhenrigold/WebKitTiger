@@ -57,6 +57,7 @@ install: $(LIB)
 	cp $(LIB) $(PREFIX)/lib/libtigerdispatch.a
 	for d in $(HDRS); do mkdir -p $(PREFIX)/include/$$d && cp -R include/$$d/. $(PREFIX)/include/$$d/; done
 	@$(MAKE) --no-print-directory ARCH=$(ARCH) check
+	@$(WKT)/compat/check-ownership.sh $(ARCH)
 
 # The staged headers are what every consumer actually gets, since the compiler
 # wrappers pass -I$(PREFIX)/include ahead of any -isystem a caller adds. Check

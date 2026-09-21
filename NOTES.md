@@ -749,6 +749,12 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   Lesson: a home change is ONE commit touching both makefiles, never two independent ones.
 - Do NOT identify archives by md5: ar stores member mtimes, so cmp-identical objects give different checksums. Every md5
   quoted earlier was a snapshot. Verify behaviourally (spike/run64.sh cxx64exc, nm for expected symbols).
+- **Enforced now: `compat/check-ownership.sh` runs at the end of BOTH install targets** (compat and compat/dispatch), so a
+  wrong state fails the install instead of waiting to be noticed. It nm's both archives per arch and requires exactly one
+  owner for os_log_create / os_unfair_lock_lock / os_release (+ dispatch_async on i386), printing the owner per symbol.
+  It catches both failure modes we hit: BOTH archives defining a symbol (links rc=0, no duplicate-symbol error, since the
+  second member is never pulled, so the copies drift with link order picking the winner) and NEITHER defining it (every
+  test binary fails identically to a missing -l flag). Half-built arches warn rather than fail; an unbuilt arch is skipped.
 - Leopard x86_64 CG hang root-caused (leopard, 2729346): CGBitmapContextCreate -> CGFontDefaultAllowsFontSmoothing ->
   pthread_once -> CGSGetDisplayIsLCD -> mach_msg to Tiger's 32-bit WindowServer, which never replies. Bootstrap-lookup
   interception is not reached (port obtained via direct MIG). Branch stays closed.
