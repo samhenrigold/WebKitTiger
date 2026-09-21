@@ -152,10 +152,17 @@ def stub_kind(body, acc, modern, tiger_nargs=None):
     # Gated on the prototype declaring at least one argument, because a zero-argument
     # function returning a constant is just a constant (CFArrayGetTypeID and the
     # other type-ID getters trip this otherwise).
+    # Suppress only when a prototype positively says the function takes no
+    # arguments (CFArrayGetTypeID and the other type-ID getters are constants by
+    # definition). When no header declares it -- true of Tiger's private CoreText,
+    # which neither the modern SDK nor the 10.4u/10.5 SDKs describe -- report it
+    # and mark the uncertainty, rather than discarding a real finding for want of
+    # a prototype.
     nargs = len(modern["plist"]) if modern else tiger_nargs
-    if ret_at is not None and ret_at <= 7 and not acc and ncall == 0 \
-            and nargs is not None and nargs >= 1:
-        return ("const", "returns a constant without reading any argument")
+    if ret_at is not None and ret_at <= 7 and not acc and ncall == 0 and nargs != 0:
+        return ("const" if nargs else "const?",
+                "returns a constant without reading any argument"
+                + ("" if nargs else "; no prototype, may simply take none"))
 
     # Mode 2 -- fixed-global-return stub. No real call, at least one PIC-relative
     # global reference, short body, and the only argument slot touched is the
@@ -171,8 +178,10 @@ def stub_kind(body, acc, modern, tiger_nargs=None):
                for m in GLOBAL.finditer(args)):
         return None
     if sorted(acc) != [8]: return None
-    if (len(modern["plist"]) if modern else (tiger_nargs or 0)) < 1: return None
-    if not modern: return ("global?", "reads only arg 0 and a global; no modern prototype to confirm sret")
+    nargs2 = len(modern["plist"]) if modern else tiger_nargs
+    if nargs2 == 0: return None
+    if not modern:
+        return ("global?", "reads only arg 0 and a global; no prototype to confirm sret")
     if "sret" not in modern["notes"]:
         # Slot 0 is a real first argument, not a hidden sret: the function does
         # read something. Tiger's CGLayerGetSize looks like this -- it reads the

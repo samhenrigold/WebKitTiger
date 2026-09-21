@@ -208,6 +208,9 @@ positive: the `audit` agent.
 - **Mode 1, empty body.** First `ret` within five instructions, nothing but frame
   bookkeeping, no argument read at all. Tiger's `CTRunGetGlyphs` is
   `push ebp; mov esp,ebp; pop ebp; ret`.
+- **Mode 3, constant return.** Returns within seven instructions without reading an
+  argument or calling anything, so the result cannot depend on the inputs. Tiger's
+  `CTFontCreateUIFontForLocale` is `xorl %eax,%eax; ret`.
 - **Mode 2, fixed-global-return stub.** No real call (a `get_pc_thunk` does not
   count, a tail `jmp` into a real implementation disqualifies), at least one
   PIC-relative global load, 25 instructions or fewer, and the only argument slot
@@ -238,25 +241,52 @@ false positive, which reads its layer and only falls back to a global when the l
 is NULL). Functions matching the shape *without* `sret` are reported in a demoted
 `global?` bucket rather than called stubs.
 
-### Result: no new hits
+### Result over the WebKit-called sets: no new hits
 
-| framework | screened (WebKit-called) | empty-body stubs | global-return stubs |
-|---|---|---|---|
-| CoreFoundation + ATS + LaunchServices + HIServices + Security | 206 | 0 | 0 |
-| CoreGraphics | 250 | 0 | 0 |
-| CoreText | 54 | 3 | 0 |
+| framework | screened (WebKit-called) | empty | constant | global-return |
+|---|---|---|---|---|
+| CoreFoundation + ATS + LaunchServices + HIServices + Security | 206 | 0 | 0 | 0 |
+| CoreGraphics | 250 | 0 | 0 | 0 |
+| CoreText | 54 | 3 | 0 | 0 |
 
 The three CoreText hits are `CTRunGetGlyphs`, `CTRunGetAdvances` and
-`CTRunGetStringIndices`, all three already documented in `logs/shim-audit.md` and
-already carrying ctcompat adapters. Nothing new.
+`CTRunGetStringIndices`, all already documented in `logs/shim-audit.md` and already
+carrying ctcompat adapters. Nothing new.
 
-A sweep of **every** export rather than only the called ones (1094 CoreText, 2025
-CoreFoundation, 8760 CoreGraphics symbols) adds `CTRunDraw` and `CTLineGetImageBounds`
-— both also already in the shim audit — plus `CTRunGetImageBounds`, which is the
-audit agent's find and which WebKit does not call. Everything else it turns up is
-private window-server surface (`CGS*`, `CGX*`, `VFB*`) or internal statics (`dummy`,
-`no_op`, `rgn_size`), so the all-exports sweep needs a relevance filter before it is
-worth running routinely.
+Over **all 155 public-shaped CoreText exports** rather than only the called ones, the
+three modes agree exactly with the audit track's independently derived expectations:
+
+| mode | functions |
+|---|---|
+| empty | `CTRunDraw`, `CTRunGetAdvances`, `CTRunGetGlyphs`, `CTRunGetStringIndices` |
+| constant | `CTFontCreateUIFontForLocale`, `CTFontCreateWithQuickdrawNameAndStyle`, `CTRunGetEmbeddedObject` |
+| global-return | `CTLineGetImageBounds`, `CTRunGetImageBounds` |
+
+Sweeping CoreFoundation and CoreGraphics the same way turns up only private
+window-server surface (`CGS*`, `CGX*`, `VFB*`) and internal statics (`dummy`, `no_op`,
+`rgn_size`, `CFMachPortInvalidateAll`), so an all-exports sweep needs a relevance
+filter before it is worth running routinely.
+
+### The prototype gate had the wrong polarity
+
+Mode 3 is gated so that a zero-argument function returning a constant is not called a
+stub — `CFArrayGetTypeID` is a constant by definition. Gating that on *having* a
+prototype turned out to discard real findings: Tiger's CoreText is private, and
+`CTFontCreateUIFontForLocale`, `CTFontCreateWithQuickdrawNameAndStyle` and
+`CTRunGetEmbeddedObject` are declared by **no** header available here — not the Xcode 27
+SDK, not the 10.4u SDK (which has no CoreText headers at all), not the 10.5 SDK
+reference copy. All three are `xorl %eax,%eax; ret`, and all three were being dropped
+for want of a prototype.
+
+The gate now suppresses only when a prototype *positively says* the function takes no
+arguments, and reports an unprototyped match as `const?` with the uncertainty named.
+Absence of evidence annotates a finding rather than discarding it. `CFArrayGetTypeID`
+is still suppressed, because it does have a prototype and that prototype says zero.
+
+A 10.4u fallback prototype source was added for the same gate (`tiger_lowering()`),
+which helps elsewhere but recovered nothing for CoreText. It is deliberately not used
+for the size comparison, where checking Tiger's code against Tiger's own header would
+be circular.
 
 ### Three tool bugs found and fixed while re-running
 
