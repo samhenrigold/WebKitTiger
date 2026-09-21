@@ -360,3 +360,9 @@ one triage pass before it was noticed. See the triage table at the end of
 - BOX STATE FROZEN 2026-09-20 22:00 EDT: 10.4.11 8S2167 fully updated (111 receipts; last: Java release 9, iPhoto 7.1.5 at
   21:58). WebKit.framework 4533.19.4 (Safari 4.1.3), QTKit/QuickTime 7.6.4, Security Update 2009-005, Xcode 2.5. No further
   Apple updates exist for Tiger. Any measurement dated before 21:57 EDT was against the pre-update system.
+- Post-update re-verification (22:00 state): CoreGraphics 1.258.77->1.258.85, ImageIO 1.5.6->1.5.9, CoreText/ATS patched with the
+  SAME version strings (md5 differs): exports identical everywhere, the 29 load-bearing CoreText functions byte-identical in
+  disassembly, all CT/CG/ImageIO suites and probes reproduce exactly. Version strings do not detect Apple patches; compare bytes.
+- Reboots clear the box's /tmp: redeploy test binaries and the 9A241 oracle rig after any reboot ("missing" != "differs").
+- JS reality check: Safari 4.1.3's WebKit (533.19.4, i386 JIT) runs TigerBrowser's 2M-iteration loop in ~59 ms; our C-loop jsc
+  takes 2.24 s (~38x slower). The 2007 non-JIT WebKit took 5.3 s. HTTPS still fails through the system stack after the update.
