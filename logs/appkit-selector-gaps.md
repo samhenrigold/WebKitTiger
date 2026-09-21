@@ -31,7 +31,43 @@ AppKit probe found `-[NSScreen backingScaleFactor]` by asking for it, and missed
 So: triage it, do not implement it. The value is that the next gap gets found by reading rather
 than by a compile or a runtime failure.
 
-## The list
+## Triaged (nscompat, same day)
+
+The list below is kept as produced. Its disposition after nscompat triaged it against gating,
+build status and what Tiger actually has:
+
+- **Shimmed and tested on the box (13).** The four `accessibilityDisplayShould*` on NSWorkspace
+  answering NO, which is the state of a machine whose Universal Access has no such switches;
+  `+[NSEvent pressedMouseButtons]`, answered **for real** via `CGEventSourceButtonState`, since
+  Quartz Event Services shipped in 10.4; `+[NSMenu menuTypeForEvent:]`; `+[NSRunLoop mainRunLoop]`;
+  `+[NSCalendar calendarWithIdentifier:]`; `disableSuddenTermination`/`enableSuddenTermination` as
+  counting no-ops, since sudden termination is a launchd contract Tiger does not have;
+  `propertyListWithData:options:format:error:`; and
+  `graphicsContextWithCGContext:flipped:`, which is a pure rename because Tiger's graphics port
+  already is a `CGContextRef`.
+- **Want gates, not shims.** `beginActivityWithOptions:reason:` and `endActivity:` sit behind
+  `HAVE(NS_ACTIVITY)`, turned on for every Mac at `PlatformHave.h:420` with no version check —
+  the same shape as the HDR case. The `NSAppearance` cluster (`currentDrawingAppearance`,
+  `setCurrentAppearance:`, `appearanceNamed:`) is already routed to a no-op by the porting plan.
+- **Other tracks.** `preferredScrollerStyle` belongs to the ScrollbarThemeMac rewrite; the
+  CoreAnimation three are the atv track's, as flagged above.
+- **One false positive in 48.** `propertyListFromData:` in `WebArchive.mm` is inside a `LOG` format
+  string, not a message send — and Tiger has the method anyway. A good rate for a heuristic, and
+  the failure mode is benign: it costs a reader a minute, not a wrong shim.
+- **Undecided**, needing a call nobody has made: the spelling and substitutions panel cluster, the
+  Quick Look and share menu items, and the immediate-action selectors. All WebKitLegacy UI, and
+  several may be gated off once that layer is configured.
+
+**The complementary-failure result is the interesting part.** This tool reconstructs a selector
+from its keyword parts, so it found three live gaps a literal string search had dismissed —
+`propertyListWithData:options:format:error:`, `graphicsContextWithCGContext:flipped:` and
+`beginActivityWithOptions:reason:` — because a real call site interleaves the arguments and never
+contains the joined-up selector text. The literal search in turn caught the `LOG`-string false
+positive this tool counted. Neither substitutes for the other, which was the point that produced
+this list in the first place. The narrow rule: **to ask whether a multi-part selector is used,
+reconstruct it; never grep it.**
+
+## The list, as produced
 
 - `currentDrawingAppearance` — 12 site(s), e.g. `WebCore/platform/graphics/mac/AppKitControlSystemImage.mm`
 - `systemUptime` — 3 site(s), e.g. `WebCore/platform/cocoa/PlaybackSessionModelMediaElement.mm`
