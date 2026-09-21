@@ -873,3 +873,19 @@ build. Link line and test binary: deps/spike-tests/test_curl_smoke.c.
   next agent's path-scoped commit can sweep it up: my removal of the stray sdk-fill/Availability.h landed inside
   wkcmake's dc61a3c, not in mine, and my own `git commit -o` then failed with "pathspec did not match" because the
   path was already gone. Plain `rm` the file and name it in your own `git commit -o` instead.
+- INCIDENT 2026-09-21 ~02:57 (wkcmake): top-level build/ deleted by a cleanup loop (zsh no-word-split on a colon list ->
+  empty path). Lost: WebCore fifth-pass tree, LLVM build tree. Kept: toolchain/llvm-tiger install, logs/wc-build.log,
+  all sources/patches. Rule: removal scripts validate every path and dry-run print first; nothing new under build/ until
+  the fixed script is reviewed.
+- Per-process CMake (wkcmake, WebKit b1fc713d / dc61a3c): one shared feature-flag list for all configs; check target
+  compares flags by name then hashes generated serializers. Findings: VIDEO/MSE/GPU_PROCESS/WEBASSEMBLY appear in
+  serialization conditions so they are all-or-nothing across processes; 55 names are PlatformEnable/PlatformHave
+  macros, not CMake options, including USE(CG)/CoreText, so per-side divergence needs the Tiger port header + a
+  non-Cocoa options file (next piece). Decisions: WK2 off behind a switch until then; WebKitLegacy off; Render config
+  folded into UI.
+- MSE demux (media64 27d5bfb/f41223b, logs/mse-demux.md): one long-lived AVFormatContext over a growing buffer FAILS
+  (mov demuxer destroys its continuation state at a fragment boundary); WORKS: throwaway format context per append over
+  init+complete fragments, persistent decoders per track, 0.1-0.3 ms/open, ~0.35% of a core. Truncated mdat parses to
+  garbage, so a ~120-line box/EBML completeness scanner is required; cut at the last complete mdat, not last box.
+- x86_64 curl (deps 23d12ca): youtube/theverge/react.dev all TLS 1.3 + HTTP/2 + br/gzip via shipped cacert.pem,
+  TTFB 74-169 ms; links with -ltigercompat only.
