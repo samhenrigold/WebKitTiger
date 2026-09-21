@@ -242,3 +242,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   Shadows ~92% of modern ink; no alpha correction by decision (would worsen large blurs).
 - CoreText cap-height/x-height adapters: midpoint of flat and round glyph heights reproduces modern CT to 0.03% (was 5.8%).
 - HarfBuzz on Tiger proven with GSUB: DejaVu 'fi' -> one ligature glyph; Arabic joined forms differ from isolated (deps/HARFBUZZ.md).
+- Shaping boundary refined (logs/ct-probe.md, commit bb1cf0d): Tiger's CoreText does OpenType liga/kern and AAT Arabic identically
+  to modern; it lacks only OpenType *joining* (initial/medial/final selection by the shaper) and reordering, i.e. complex scripts in
+  fonts without morx. 41/49 of Tiger's font files have morx/mort; the six Hiragino CJK faces are OpenType-only (costs vertical
+  forms/ruby). HarfBuzz fallback scope: complex scripts in AAT-less fonts. Glyph rasterization geometry is identical to modern.
