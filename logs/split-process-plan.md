@@ -15,9 +15,19 @@ Revised after the user set the direction (`NOTES.md`, "DIRECTION SET BY THE
 USER"): option (3) is chosen, the targets are YouTube, React applications and
 The Verge, and the governing principle is **as much 64-bit as possible**.
 
-`logs/leopard-x86_64-spike.md` has landed and §2.1 is rewritten around it.
-`logs/jsc64-spike.md` has not, so the JIT premise in §3.2 and milestone N0 in §6
-remain the one unverified load-bearing assumption. Where I could settle a
+**Branch (d) — "32-bit rendering, 64-bit everything else" — is now the primary
+recommendation** (§2.0), following the user's proposal and
+`logs/render-process-survey.md`. Branch (b), Cairo in the 64-bit process,
+remains the guaranteed fallback; branch (a), Leopard's frameworks, is
+opportunistic. §6.3 compares all three.
+
+Spikes folded in since the first draft: `logs/leopard-x86_64-spike.md` (§2.1),
+`logs/render-process-survey.md` (§2.0), `logs/hb-vs-ct.md` (§2.0.4, which
+retires that branch's top risk), `spike/ipc32x64` (§2.0.3),
+`logs/decodebench-tiger.txt` and `logs/media64-plan.md` (§3.1), and the controls
+survey `a375b4c` (§2.7, which corrected a mistake of mine).
+`logs/jsc64-spike.md` has not landed, so the JIT premise in §3.2 and milestone
+N0 remain the one unverified load-bearing assumption. Where I could settle a
 question myself from the repo, I did, and those answers are marked **measured**.
 
 ---
@@ -218,7 +228,12 @@ at `:405`. XPC is 10.7.
 PlayStation's is the pattern with nothing attached: create the socket pair, set
 buffer sizes, build `argv`, launch, hand the server end to
 `didFinishLaunchingProcess`. Swap its one `PlayStation::launchProcess` call for
-`posix_spawn` with the client fd left un-`CLOEXEC`. **Estimate 90–130 LOC.**
+the launch primitive with the client fd left un-`CLOEXEC`. **Estimate 90–130 LOC.**
+
+**Correction: use `fork` + `exec`, not `posix_spawn`.** `spike/ipc32x64`
+established that Tiger has no `posix_spawn` (it is 10.5). The same spike
+confirmed `bootstrap_register` works, so Mach naming is available if the Mach
+transport is ever preferred over the Unix one.
 
 ### 1.4 SharedMemory — take the Unix implementation
 
@@ -338,7 +353,205 @@ to the extent that its fixes are generic rather than Cocoa-specific.
 
 ## 2. The content process rendering backend
 
-### 2.1 Branch (a): Leopard's x86_64 frameworks loaded privately
+### 2.0 Branch (d): 32-bit rendering, 64-bit everything else — **primary**
+
+This is WebKit's GPU-process shape with the roles inverted: the process that
+holds the platform graphics is the small one. A **64-bit WebProcess** does
+JavaScript, DOM, layout, image decoding, text shaping and display-list
+*recording*; a **32-bit process** *replays* those display lists against Tiger's
+real CoreGraphics and CoreText through the compat layer we have already
+verified, and hosts the CA compositor.
+
+It supersedes branches (a) and (b) as the recommendation. They remain below:
+**(b) is the guaranteed fallback, (a) is opportunistic.**
+
+#### 2.0.1 Why it wins
+
+The decisive argument is not performance, it is that **this is the only branch
+that puts the project's existing verified work on the side of the line where it
+is used.** 104 CoreText checks against a live Leopard oracle, 54 CoreGraphics
+checks with behavioural probes, the ABI screen over 510 functions, the
+`ctcompat` metric adapters, `cgcompat`'s gradient and tiling fixes — under
+branch (b) all of that is stranded on a UI process that barely draws. Here it is
+the renderer.
+
+It is also the only branch with a **shipping upstream precedent for exactly this
+mechanism**. Per `logs/render-process-survey.md`, WinCairo remotes DOM rendering
+to its GPU process by default
+(`Shared/WebPreferencesDefaultValues.cpp:324-335`), using the same generic
+backend Cocoa uses with the Cocoa flag off. The files build unconditionally for
+every CMake port from `Sources.txt:32-47`. Of roughly 110 messages in
+`RemoteGraphicsContext.messages.in`, exactly two are platform-gated.
+
+And it keeps everything the split was for: the x86_64 JIT, a 64-bit address
+space, 64-bit ffmpeg decode, crash isolation.
+
+#### 2.0.2 The topology: two processes, not three
+
+**The brief asked for a separate render process; the survey recommends against
+it and I agree.** Put the replay in the 32-bit UI process, alongside AppKit and
+the compositor.
+
+| | merged UI + render (recommended) | separate render process |
+|---|---|---|
+| Processes | 2 (+ NetworkProcess) | 3 (+ NetworkProcess) |
+| Hop from replay to screen | none — same process as the CA host | one more IPC hop per frame |
+| Hop for control drawing | none — AppKit is right there | another hop |
+| Scheduling on 2 cores | better | three runnable processes on two cores |
+| Crash isolation of graphics | none | yes |
+| Reversible? | **yes — splitting later is cheap** | merging later is impossible |
+
+The asymmetry in that last row decides it. Start merged.
+
+The **NetworkProcess stays 64-bit** (§2.6): pure C++ over curl, no frameworks,
+and it keeps TLS and HTTP/2 off the WebProcess's cores.
+
+So: **64-bit WebProcess, 64-bit NetworkProcess, 32-bit UI+render process.**
+
+#### 2.0.3 Data flow
+
+| What crosses | As | Direction |
+|---|---|---|
+| 2D drawing | display-list items over the shared-memory stream ring with two semaphores | 64 → 32 |
+| Text | **glyph IDs + per-glyph advances + one anchor point** — shaping already done in the recorder | 64 → 32 |
+| Native controls | `ControlPart` + `ControlStyle`, serialized upstream already (§2.7) | 64 → 32 |
+| Decoded images | `ShareableBitmap` handles; a source image in the stream is a resource identifier | 64 → 32 |
+| Canvas | remote `ImageBuffer`s | both |
+| Font handles | `FontPlatformDataAttributes` — file path, PostScript name, size, synthetic bold/oblique, orientation, variation axes, feature settings; web fonts ship bytes | 64 → 32 |
+| **Font metrics and advances** | plain floats, computed by **real CoreText in the 32-bit process**, cached per handle | 32 → 64 |
+| Layer tree deltas | the Windows coordinated-layer delta, retargeted | 64 → 32 |
+| Decoded video frames | shared bitmaps, or a video layer in the compositor (§3.1) | 64 → 32 |
+
+The measured IPC characteristics on the box (`spike/ipc32x64`, commits
+`6c45186`/`f88e046`) say this is affordable:
+
+| Measurement | Result |
+|---|---|
+| Mach round trip | **11 µs** |
+| 64 KB inline message | 241 MB/s |
+| Shared-frame memcpy | ~900 MB/s |
+| Double-buffered pipeline | ~176 fps |
+| GL upload, 1440×900 BGRA from the mapping | ~8 ms, no copy |
+
+Three findings from that spike that constrain the design: **Tiger has no
+`posix_spawn`**, so process launch is `fork`+`exec` (which revises §1.3);
+`bootstrap_register` works, so Mach naming is available; and
+`mach_make_memory_entry_64` is preferred over `shm_open` for crash-safe
+lifetime. Exception ports give crash isolation without `task_for_pid`. Client
+storage is *slower* for changing textures — do not use it.
+
+Note that 11 µs and 900 MB/s make the **merged** topology even more clearly
+right: a third process would add a hop of that order to every frame for no
+benefit we need.
+
+#### 2.0.4 Fonts: the hard part, and the spike that mostly closed it
+
+The survey names fonts as the only concentrated risk, and it is right that this
+is where the design could fail. Two halves:
+
+**Glyph agreement.** A glyph ID indexes the font file's outline table, so if
+both sides open the same file and face, the numbers match. That is how GTK, WPE
+and Skia already work. The survey's top risk was **AAT shaping divergence**:
+Tiger's system faces are AAT-first with `morx` and no GSUB, HarfBuzz implements
+those tables but not provably bit-identically to CoreText, and there is no
+upstream precedent for HarfBuzz-shaping AAT faces for CoreText rasterization.
+
+**`logs/hb-vs-ct.md` has since measured it, and the answer is yes.** HarfBuzz
+layout against Tiger CoreText rasterization agrees **to within 0.03 pt on run
+width and 0.008 pt per glyph**, for every font tested, at 12, 16 and 24 pt —
+including Helvetica, Lucida Grande and Geeza Pro, i.e. the AAT and AAT-Arabic
+cases. Both sides were handed **identical bytes** rather than a font name, which
+is the methodological point that makes the result mean anything. One
+font-specific caveat and one Tiger incapability remain, neither forcing per-font
+routing.
+
+That retires risk #1 from the survey's list. Treat the remaining font work as
+engineering rather than research.
+
+**Metrics.** Do not recompute them in the 64-bit process. WebKit's CoreText
+metrics initialiser is a pile of CoreText-specific heuristics — a typographic
+ascent override under conditions, a 15% ascent bump for named faces, a rounding
+ladder, an x-height measured from a glyph bounding box rather than a table.
+Reimplementing that is a bug farm, and a one-pixel divergence makes layout and
+paint disagree.
+
+**Have the 32-bit process compute metrics and per-glyph advances with real
+CoreText and return plain floats, cached per font handle.** Then layout and
+rendering agree by construction. The `metricsOverrides` field already in
+`FontPlatformDataAttributes` is the hook, and synthetic-bold offset is pure
+arithmetic on fields already in the handle.
+
+The lead asked specifically whether `hmtx`-derived advances match CoreText's
+unhinted advances. The survey's answer is that unhinted advances do agree and
+hinting is what breaks them at small sizes; the hb-vs-ct numbers bear that out.
+**But the metrics service makes the question moot**, which is the better reason
+to adopt it: we never derive an advance in the 64-bit process at all.
+
+Two rules that follow, both cheap and both easy to get wrong later:
+
+- **Name faces by PostScript name, never by index.** Tiger's system fonts are
+  suitcases and collections, and index ordering is not stable across a name
+  lookup.
+- **Font fallback moves entirely into the recording process.** The CoreText
+  complex-text controller exists partly to ask CoreText which font it chose per
+  run; this design forbids that, so every draw must name a concrete resolved
+  face. That means a real font cache and cascade over file-scanned metadata, and
+  it is where missing-glyph bugs will come from.
+
+#### 2.0.5 The known structural gaps
+
+From the survey, both must be fixed before a pixel appears:
+
+1. **WebKit's serialization is symmetric by construction.** The same generated
+   coder runs on both sides, so a type whose encoding depends on a platform
+   `#if` corrupts the wire silently rather than failing to compile. Colour space
+   and bitmap configuration are the named offenders: **force the neutral
+   encoding on both sides**. This is the failure mode to fear, because it
+   produces wrong pixels, not a build error.
+2. **There is no image-buffer backend for "no 2D library".** The 64-bit side
+   records without rasterizing, so it needs a **pixel-less shareable-bitmap
+   backend**, about 150 LOC.
+
+#### 2.0.6 What this costs
+
+| Piece | LOC |
+|---|---|
+| Render-side assembly: PlayStation-shaped port + CG/CoreText WebCore + our compat layer | 800–1,200 |
+| Neutral colour-space and bitmap-configuration encoding, both sides | 150–250 |
+| Pixel-less shareable-bitmap backend for the 64-bit side | 150 |
+| Font handle de-CoreFoundation-ed, both directions | 300–450 |
+| Metrics service and cache | 300–500 |
+| Font cache and cascade over scanned metadata, 64-bit side | 800–1,500 |
+| Shaping: HarfBuzz wiring for a CoreGraphics-shaped tree | 400–700 |
+| Layer delta retargeted at the UI process, scene applier for real layers | 400–600 |
+| Backing store blit and tile plumbing | 200–300 |
+| Port glue for the 64-bit process | 1,400–1,600 |
+| **Subtotal** | **≈ 4,900–7,250** |
+| UI process itself (additive, largely independent) | 3,000–4,200 |
+| Aqua controls (§2.7) | ~525 + the Tiger NSCell drawing |
+| Media (§3.1) | ~6,000 |
+
+Reused unchanged: about 1,600 lines of recording-side layer code, the whole
+stream transport, and every line of `compat/` that touches CoreGraphics or
+CoreText.
+
+#### 2.0.7 Residual risks
+
+Ordered, with the survey's ranking amended by the hb-vs-ct result:
+
+1. **Serializer asymmetry** — now the top risk, because it fails silently as
+   wire corruption rather than visibly. Fix before first pixel.
+2. **Font fallback rewritten from scratch** in the recording process.
+3. **Metrics disagreement** between the sides. Mitigated by making the render
+   process authoritative, which is the whole point of the metrics service.
+4. ~~AAT shaping divergence~~ — **measured and retired** by `logs/hb-vs-ct.md`.
+5. **The same-clang rule** (§0.3). A build-environment rule, not code: easy to
+   violate by accident, confusing when violated.
+6. **Shared-memory limits** on Tiger under aggressive tile allocation. A
+   measurement, not an unknown.
+7. **Path geometry** in the 64-bit process needs the scalar implementation.
+
+### 2.1 Branch (a): Leopard's x86_64 frameworks loaded privately — opportunistic
 
 **Status, per `logs/leopard-x86_64-spike.md`: plausible, one fault away.**
 The spike has run on the box and supersedes the estimate I made from the SDK
@@ -426,7 +639,7 @@ configuration — `USE_CG`, `USE_CORE_TEXT`, the CG and CoreText backends — bu
 still with **no AppKit**, which §2.5 shows is the part that actually hurts. So
 branch (a) buys back text and raster quality, not native controls.
 
-### 2.2 Branch (b): the cross-platform backend — **recommended**
+### 2.2 Branch (b): the cross-platform backend — **the guaranteed fallback**
 
 **Cairo is alive in this tree and is the default for a new port.**
 `Source/WebCore/platform/graphics/cairo/` is 41 files / 7,362 LOC;
@@ -670,345 +883,130 @@ processes**, not two.
 
 ---
 
-### 2.7 Aqua controls — required, and how to actually get them
+### 2.7 Aqua controls — WebKit already remotes them
 
-The user's decision is that controls must look **and behave** like Aqua. This
-section supersedes §2.4's "accept Adwaita for v1" and §2.5's option (3).
+The user's requirement is that controls look **and behave** like Aqua. The
+answer turns out to be much cheaper than the two designs this section previously
+carried, because **WebKit already serializes native controls and remotes their
+drawing to another process.**
 
-It also revises the first two proposals made for it. The short version: **live
-AppKit controls in the page cannot work, capturing them can, and the capture
-should travel to the content process rather than staying in the UI process as a
-layer.** The reasoning follows, because each step rules out the previous
-design for a concrete reason.
+**Correction to record.** The previous version of this section designed an
+offscreen-`NSWindow` capture cache, ~3,250–4,750 LOC, on the stated basis that
+"`ControlPart` appears nowhere in `Source/WebKit`; there is no existing
+cross-process control-painting protocol to copy." **That was wrong**, from a
+grep that missed it. The mechanism is right there:
 
-#### 2.7.1 Why live NSControls over the page fail
-
-The z-order objection is correct and fatal. A live `NSView` sits above the
-surface it overlaps, so page content can never draw over it. Real pages do that
-constantly: a sticky header scrolling over a form, a modal overlay dimming the
-page, a `position: absolute` tooltip, a CSS `background` on an ancestor with
-`mix-blend-mode`. The control would punch through all of them.
-
-It is not only z-order. A live view cannot be clipped by an arbitrary CSS clip
-path, cannot participate in `opacity`, `filter` or a 3D transform, and cannot be
-rendered into an `ImageBuffer` for `-webkit-canvas` or a snapshot. And on this
-port the page is presented as a GL surface in an `NSOpenGLView`
-(`logs/ca-hosting-design.md`), which a sibling view would unconditionally
-obscure.
-
-There is also a historical answer worth recording, because it is tempting to
-assume the old machinery is still there. **It is not.**
-`Source/WebCore/platform/Widget.h` (263 LOC) still typedefs
-`PlatformWidget` to `NSView *` on Cocoa, and `RenderWidget`
-(`rendering/RenderWidget.{h,cpp}`, 111/532 LOC) is still the layout-to-widget
-bridge — but it has exactly **two** subclasses, `RenderFrameBase` (iframes) and
-`RenderEmbeddedObject` (plugins). **No form control is a `RenderWidget`.** Of 60
-`PlatformWidget` uses across 29 files, none puts a native control in the page;
-they are coordinate conversion, plugin event routing, accessibility, and
-WebKitLegacy's host view. The KWQ-era design is gone, and rebuilding on `Widget`
-would mean reviving an abstraction that assumes the view shares an address space
-with layout — which here it does not.
-
-#### 2.7.2 Why "capture to a CALayer in the UI process" is only half right
-
-Rendering the control offscreen and compositing the capture solves z-order *if
-there is a layer tree to insert it into at the right depth*. Our recommended
-drawing area (§1.5) is `DrawingAreaCoordinatedGraphics` on its non-accelerated
-path, which ships **one `ShareableBitmap` of the page** plus dirty rects. There
-is no per-layer structure in the UI process to sort against, so a control layer
-would land either above everything or below everything — the same problem in a
-new place.
-
-That leaves two real choices:
-
-| | (A) capture → **content process** | (B) capture stays UI-side as a layer |
-|---|---|---|
-| Z-order, clipping, transforms, opacity, filters | **correct by construction** — it is an image in the normal paint stream | correct only with a full layer tree, which we do not have |
-| Requires compositing | no | yes, a real one |
-| Snapshot, canvas, print | works | does not |
-| Latency on state change | one IPC round trip, unless pre-cached (§2.7.4) | immediate |
-| New machinery | one message pair + a cache | a layer tree crossing the ABI boundary |
-
-**Take (A).** The capture travels UI → content, and `PlatformControl::draw()`
-blits it during ordinary painting. Everything CSS can do to an image then works
-on a control for free, and no compositing is needed. Option (B) becomes
-available later if the CARenderer path in `logs/ca-hosting-design.md` matures
-into a real layer tree, and it would then be a per-control optimisation, not the
-architecture.
-
-#### 2.7.3 The seam: `ControlFactory`, not `RenderTheme`
-
-`RenderTheme` has **156 virtuals and zero pure virtuals**, so "implement a
-theme" has no compiler-enforced surface. The clean interface is one layer down:
-
-| Interface | Path | Surface |
-|---|---|---|
-| `ControlFactory` | `platform/graphics/controls/ControlFactory.h:64-82` | **18 pure virtuals**, 16 unconditional |
-| `PlatformControl` | `platform/graphics/controls/PlatformControl.h:40-59` | **5 virtuals** — `updateCellStates`, `draw`, `sizeForBounds`, `rectForBounds`, `setFocusRingClipRect` |
-| `ControlPart` | `.../ControlPart.h` | 18 concrete parts; caches its `PlatformControl` at `:60` |
-| `EmptyControlFactory` | `.../EmptyControlFactory.{h,cpp}` (66/148) | every method `return nullptr`; `ControlPart::draw` early-returns on null |
-
-Three properties make this close to purpose-built for the design:
-
-- **Per-element identity is free.** A `ControlPart` is owned by the `RenderBox`
-  (`RenderBox.cpp:1855`) and caches its `PlatformControl`, so there is already a
-  stable object whose lifetime matches the renderer. Nothing has to be invented
-  to key a cache against.
-- **`EmptyControlFactory` is the incremental-adoption mechanism.** Return
-  `nullptr` for every part not yet wired and it paints nothing, harmlessly.
-- **`RenderThemeAdwaita` overrides zero `paint*` methods.** It does everything
-  through `ControlFactory`. That is the proof the strategy works, and its
-  114/490 LOC with **40 overrides** is the realistic floor for
-  `RenderThemeTigerAqua` — metrics, colours and the three
-  `canCreateControlPartFor*` predicates (`RenderTheme.h:106-108`), which must
-  return `true` or `RenderBox` falls back to the old `paint*` switch.
-
-#### 2.7.4 The state key, and why latency is not a problem
-
-`ControlStyle::States` (`platform/graphics/controls/ControlStyle.h:38-57`) is
-**18 flags in a single `OptionSet` over a `uint32_t`**: `Hovered`, `Pressed`,
-`Focused`, `Enabled`, `Checked`, `Default`, `WindowActive`, `Indeterminate`,
-`SpinUp`, `Presenting`, `FormSemanticContext`, `DarkAppearance`,
-`InlineFlippedWritingMode`, `LargeControls`, `ReadOnly`, `ListButton`,
-`ListButtonPressed`, `VerticalWritingMode`.
-
-WebCore extracts them once, up front, in
-`RenderTheme::extractControlStyleStatesForRendererInternal`
-(`RenderTheme.cpp:757-801`), and hands the resulting `ControlStyle` to
-`GraphicsContext::drawControlPart`. So the cache key is:
-
-```
-{ StyleAppearance, OptionSet<ControlStyle::State>, FloatSize, float fontSize,
-  float zoomFactor, Color accentColor, Color textColor }
-```
-
-roughly **40 bytes, every field fixed-width, no pointers, no `size_t`** — so it
-crosses the 32/64 boundary with no work (§0.3).
-
-**The key insight: the reachable state space per control is tiny.** Of the 18
-flags, a push button reaches perhaps six combinations that differ visually
-(normal, hovered, pressed, disabled, focused, default, times window-active). A
-checkbox adds checked and indeterminate. So:
-
-> When a control first appears at a given size, the UI process renders **all of
-> its reachable states in one pass** and ships them as a single sheet. Every
-> subsequent state change is a content-side cache hit.
-
-That removes the latency objection entirely: a button press is a local lookup,
-not a round trip, and press feedback is as immediate as a native app's. The IPC
-cost is one message per (control type, size, font) tuple per page, which for a
-typical form is a handful.
-
-This is the same idea as the atlas, generalised: **the atlas is the static,
-bundle-shipped instance of it, and the live path is the dynamic one.**
-
-#### 2.7.5 The atlas, and what it is for
-
-`spike/aquaatlas/` already generates real Aqua renderings on the box —
-per-state PNGs (`button-regular-{normal,pressed,disabled,focused,inactive,…}.png`)
-plus an `atlas.json` manifest carrying the 17 system colours and the alternating
-row colours, at `ARGB8888-premultiplied`. The generator drives real
-`NSButtonCell`, `NSPopUpButtonCell` and `NSSliderCell`, and falls through to
-`HIThemeDrawButton`/`HIThemeDrawTrack` for the parts AppKit will not expose
-directly (`aquaatlas.m:433-508`).
-
-Its role in the final design is **bootstrap and fallback**, not the primary
-path:
-
-1. **First paint.** Ships in `Contents/Resources/`, so a control is Aqua from
-   the first frame, before any UI-process round trip completes.
-2. **Standard sizes.** The three `NSControlSize`s cover most real controls, so
-   many pages never need a dynamic capture at all.
-3. **9-slice.** The manifest's insets let one capture stretch to arbitrary
-   widths, which is what makes a static atlas useful for buttons and text
-   fields at all.
-4. **Degradation.** If the UI process is slow, busy, or the capture fails, the
-   atlas is a correct answer rather than a missing control.
-
-#### 2.7.6 Behaviour — the honest analysis
-
-The user asked for Aqua *behaviour*: "menus, button and press states, keyboard
-interaction, literally everything." The important and slightly counter-intuitive
-finding is that **most of this does not require AppKit at all, because WebCore
-already implements it and its behaviour already matches.**
-
-| Behaviour | Who implements it | Matches Aqua? |
-|---|---|---|
-| Press state (mouse down inside, drag out cancels, drag back re-arms) | WebCore, `Element::active()` | yes — identical semantics |
-| Hover | WebCore, `Element::hovered()` | yes |
-| Focus ring, focus on click and tab | WebCore + `ControlStyle::Focused` | yes, once the artwork is Aqua. Note `outline: none` suppresses it at state extraction (`RenderTheme.cpp:770`), which is correct |
-| Checkbox and radio toggling, radio group exclusivity | WebCore | yes |
-| Space and Return activation | WebCore, and `RenderTheme::popsMenuBySpaceOrReturn` exists for the Mac convention | yes |
-| Tab order | WebCore sequential focus navigation | yes |
-| **`<select>` dropdown** | **UI process, real `NSMenu`** via `WebPopupMenuProxyMac` (77/246 LOC) | **genuinely native** |
-| Context menus, colour picker, file picker | UI process, native | native |
-| Cocoa key bindings in text fields (Ctrl-A, Ctrl-E, Option-arrow) | UI process `NSTextInput` interpretation → WebCore editing commands | yes, and the `NSTextInput` analysis in `logs/webkitlegacy-plan.md` §1.4 transfers directly |
-| Slider drag, page-click, arrow keys | WebCore | yes |
-
-So the split is: **AppKit uniquely provides pixels; WebCore already provides
-behaviour.** That is a much better position than it first appears, and it is why
-the capture design delivers what was asked for rather than a compromise.
-
-What genuinely differs, with the cheap answer for each:
-
-| Difference | Answer |
+| Evidence | Location |
 |---|---|
-| **Default button pulse.** Tiger's default button breathes at ~1 Hz. A static capture cannot | Capture 3–4 phases and cycle them on a timer in the content process, or drop the pulse. Recommend capturing the phases; it is a signature Aqua detail and costs one extra sheet |
-| **Scroller "jump to here"** (`AppleScrollerPagingBehavior`, Option-click, and on Tiger the pref that makes a track click jump) | Read the default in the UI process and forward it; WebCore's `ScrollbarTheme::shouldSnapBackToDragOrigin` and the page-vs-jump decision are already parameterised |
-| **Live resize behaviour** of controls | Not applicable; WebCore relayouts |
-| **Slider tick snapping** | WebCore honours `<datalist>` ticks; AppKit's `allowsTickMarkValuesOnly` has no HTML equivalent. Ignore |
-| **Menu key-repeat and type-select in `NSMenu`** | Free — it is a real `NSMenu` |
-| **Nested tracking loops** | Avoid them. `WebPopupMenuProxyMac.mm:192-220` has to synthesize a fake mouse-up because the menu's nested runloop swallowed the real one (bug 57904). Any tracking loop added to the UI process inherits that class of bug |
+| `DrawControlPart(Ref<ControlPart> part, FloatRoundedRect borderRect, float deviceScaleFactor, ControlStyle style) StreamBatched` | `GPUProcess/graphics/RemoteGraphicsContext.messages.in:124` |
+| `ControlStyle` serialized, with its 18-flag `State` OptionSet | `Shared/WebCoreArgumentCoders.serialization.in:2249-2271` |
+| `ControlPart` serialized, with its subclass list | `Shared/WebCoreArgumentCoders.serialization.in:2325-2326` |
+| Proxy and replay sides | `WebProcess/GPU/graphics/RemoteGraphicsContextProxy.{h,cpp}`, `GPUProcess/graphics/RemoteGraphicsContext.{h,cpp}` |
 
-#### 2.7.7 Scrollbars
+So the capture cache, the state enumeration, the atlas consumer and the bespoke
+message pair are all unnecessary. Both earlier rejections in this section stand
+for their original reasons — live `NSView`s for z-order, and the vestigial
+`Widget`/`RenderWidget` machinery — but the replacement is upstream's, not ours.
 
-Scrollbars are the highest-visibility control because they sit at the window
-edge against real Aqua chrome.
+#### 2.7.1 The design
 
-The mechanism is the same capture path, plus two pieces that already exist:
+`ControlPart` and `ControlStyle` ride the same display-list stream as everything
+else (§2.0.3) into the 32-bit process, which draws them with **real `NSCell`s
+and `HITheme`**. In branch (d) that process is the merged UI+render process; in
+branches (a) or (b) it is the UI process, and the routing is the same.
 
-- **`ScrollbarTheme`** (`platform/ScrollbarTheme.h`, 124 LOC, ~32 virtuals, none
-  pure) supplies metrics only. WebCore's layout depends on
-  `scrollbarThickness()` — 15 on Tiger, from
-  `+[NSScroller scrollerWidthForControlSize:]` — and on
-  `thumbPosition`/`thumbLength`/`trackPosition`/`trackLength` (`:97-100`).
-  Painting is independent and may return `false`.
-  `ScrollbarThemeAdwaita` (72/224 LOC) is the floor.
-- **`RemoteScrollbarsController`**
-  (`WebProcess/WebPage/RemoteLayerTree/RemoteScrollbarsController.{h,mm}`,
-  85/164 LOC) is the **existing precedent for out-of-process scrollbars**:
-  WebCore still creates `Scrollbar` objects, still lays out for their thickness
-  and still hit-tests, while the controller declines to draw and forwards state.
-  `ScrollableArea::setScrollbarsController` (`ScrollableArea.h:462`) is the
-  injection point.
+The drawing implementation is `compat/aquacontrols.m`, which the nscompat track
+is porting from `Source/WebCore/platform/graphics/mac/controls/*Mac.mm` — that
+is, from the logic Safari itself uses, adapted to Tiger's cells.
 
-Artwork comes from `HIThemeDrawTrack` captures, which `spike/aquaatlas`
-(`:498-508`) already produces, noting its comment that `HIThemeDrawTrack` draws
-the whole scroller at once where WebCore wants the parts separately. That is a
-real wrinkle: capture the whole track per (length, thumb position, state) is too
-large a key space, so capture the *parts* — track ends, track middle for
-9-slicing, thumb ends and middle, the two arrows in each state — and assemble.
+What this yields, and it is worth being precise because it is stronger than
+anything the earlier designs offered:
 
-This applies equally to `overflow: scroll` elements, which is the case a
-UI-process `NSScroller` could never have served.
+- **Safari's exact pixels.** Not a lookalike, not a capture of a cell we
+  configured by hand, but the same `*Mac.mm` control logic driving the same
+  `NSCell` API.
+- **WebCore's behaviours**, unchanged: press, hover, focus, radio exclusivity,
+  space and return activation, tab order. §2.7.3 still applies.
+- **Real `NSMenu` popups**, already native through `WebPopupMenuProxyMac`.
 
-#### 2.7.8 System colours and fonts
-
-`atlas.json` already carries the 17 system colours read from real `NSColor` on
-the box, which feeds `RenderTheme::systemColor(CSSValueID, OptionSet<StyleColorOptions>)`
-and the ~20 `platform*Color` virtuals. That is strictly better than the
-hand-mapped approximations in `compat/include/TigerCompat/AppKitCompat.h`,
-which exist for the 32-bit UI process and should stay there.
-
-Fonts need care. The UI font is Lucida Grande 13 on Tiger, and its **metrics
-must agree between the two processes**, or a captured button's text will not
-match where WebCore thinks the baseline is. Two rules:
-
-1. The content process reads the same font files from `/System/Library/Fonts`
-   and `/Library/Fonts` — via FreeType under branch (b), or Leopard CoreText
-   under branch (a) — and resolves by **family name**, matching what the UI
-   process asked `NSFont` for.
-2. **Draw the control's text in the content process, not in the capture.**
-   Capture the bezel only. This sidesteps the metrics question entirely for
-   buttons, popups and text fields, keeps text selection and hit-testing
-   correct, and means one bezel capture serves every label. `NSButtonCell` will
-   happily draw an empty title, which is what `spike/aquaatlas` already does
-   (`[[NSButtonCell alloc] init]` with no title set).
-
-Rule 2 is the important one and should be stated as a design invariant:
-**captures are chrome, never text.**
-
-#### 2.7.9 Mechanics on 10.4
-
-Confirmed present in the 10.4u SDK:
-
-| API | Header | Line |
-|---|---|---|
-| `-bitmapImageRepForCachingDisplayInRect:` | `AppKit/NSView.h` | 206 |
-| `-cacheDisplayInRect:toBitmapImageRep:` | `AppKit/NSView.h` | 207 |
-| `-displayRectIgnoringOpacity:inContext:` | `AppKit/NSView.h` | 204 |
-| `+graphicsContextWithBitmapImageRep:` | `AppKit/NSGraphicsContext.h` | 47 |
-
-**`-[NSBitmapImageRep initWithCGImage:]` does not exist on 10.4** — it is 10.5.
-So the capture path is `bitmapImageRepForCachingDisplayInRect:` →
-`cacheDisplayInRect:toBitmapImageRep:` → `-bitmapData` → `memcpy` into the
-`ShareableBitmap` mapping. Do not plan a `CGImage` hop.
-
-Controls are hosted in an **offscreen `NSWindow`** so that first-responder state
-is real, which is what makes focus rings come out right: a cell only draws its
-focus ring when its view is the window's first responder and the window is key.
-Use `-[NSWindow setAutodisplay:NO]` and an ordered-out window.
-
-`ShareableBitmap` now lives in WebCore
-(`platform/graphics/ShareableBitmap.{h,cpp}`, 240/198 LOC) and its serialized
-configuration is `IntSize` plus `unsigned` fields and a `uint64_t` size — **no
-pointers, no `size_t`, arch-clean on the wire**.
-
-The one structural precedent for a UI→content bitmap is
-**`UpdateAttachmentIcon`** (`WebProcess/WebPage/WebPage.messages.in:750`), where
-`WebPageProxyCocoa.mm:529` renders an `NSImage` into a `ShareableBitmap` and
-sends the handle. It is exactly the right shape and exactly one message with no
-state key, no cache and no invalidation — so the transport is proven and
-everything structural is new.
-
-#### 2.7.10 What still cannot be Aqua
-
-**Text rendering is the larger fidelity problem, and controls do not fix it.**
-Under branch (b), FreeType with HarfBuzz produces Linux-looking text: different
-hinting, different stem darkening, no Quartz gamma-corrected blending, and no
-LCD subpixel smoothing. Aqua buttons wrapped around non-Aqua text will read as
-wrong in a way that is harder to name than a wrong checkbox but just as
-visible — and it affects every page, not just forms.
-
-Two mitigations, in order of preference:
-
-1. **Branch (a), if the `CGBitmapContextCreate` fault clears.** Leopard's
-   x86_64 CoreText needs **zero** shims (§2.1), which is the strongest argument
-   for finishing that spike. It would give genuine Mac text rendering, and the
-   control design here is unchanged by it — `ControlFactory` blits a bitmap
-   either way.
-2. **FreeType tuned to approximate CoreText**: hinting off (`FT_LOAD_NO_HINTING`),
-   light or no autohinter, linear alpha blending, and gamma correction applied
-   to the coverage values. This gets the *weight* and *blur* closer to Quartz.
-   It does not get LCD subpixel smoothing, which on Tiger is a per-user default
-   and is what most 2005 users had switched on. Note that Tiger's own
-   `CGContextSetShouldSmoothFonts` is already a no-op in bitmap contexts
-   (`NOTES.md`), so the 32-bit port had no subpixel smoothing either — this is
-   a gap against *other* Mac apps, not a regression against our own baseline.
-
-Also not achievable, and worth saying plainly: anything driven by a live AppKit
-animation timer that we choose not to capture in phases, and any future OS
-control behaviour, since these captures freeze Tiger's 2005 artwork. The second
-is a feature here, not a limitation.
-
-#### 2.7.11 Effort
+#### 2.7.2 Cost
 
 | Piece | LOC |
 |---|---|
-| `RenderThemeTigerAqua : RenderTheme` — ~40 overrides, zero `paint*`, modelled on `RenderThemeAdwaita` (114/490) | 500–700 |
-| `TigerControlFactory : ControlFactory` — 18 methods | 200–300 |
-| `PlatformControl` subclasses, one per part, 5 virtuals each, ~12 parts worth having | 600–900 |
-| Content-side capture cache: key hashing, sheet unpacking, 9-slice blit, invalidation | 400–600 |
-| IPC: the widget-capture message pair + serialization | 150–250 |
-| UI-side control renderer: offscreen `NSWindow`, cell construction per part, state enumeration, `cacheDisplayInRect:` + `memcpy` | 700–1,000 |
-| Atlas consumer: manifest parsing, bundle lookup, 9-slice insets, system colours | 300–400 |
-| `ScrollbarThemeTigerAqua` + a `ScrollbarsController` subclass (floors: 72/224 and 85/164) | 400–600 |
-| **Total** | **≈ 3,250–4,750** |
+| Routing `DrawControlPart` to the 32-bit process and into the Tiger drawing code | ~275 |
+| Scrollbars, hand-drawn with `HITheme` | ~250 |
+| `compat/aquacontrols.m` — the Tiger `NSCell`/`HITheme` drawing itself | nscompat track |
+| **Our side** | **≈ 525** |
 
-`spike/aquaatlas/` already exists and covers the generator side for the static
-case, so a meaningful fraction of the UI-side row is written.
+Scrollbars need their own code rather than riding `ControlPart` because
+`ScrollbarThemeMac` is built on `NSScrollerImp`, the 10.7 overlay-scrollbar
+class. Tiger has `HIThemeDrawTrack` and `+[NSScroller scrollerWidthForControlSize:]`
+instead. The `ScrollbarTheme` surface is metrics-only — 124 LOC, ~32 virtuals,
+none pure — and WebCore's layout depends on `scrollbarThickness()` (15 on
+Tiger) and the four `thumb`/`track` geometry virtuals at `ScrollbarTheme.h:97-100`.
+`ScrollbarThemeAdwaita` (72/224 LOC) is the shape to copy. This also covers
+`overflow: scroll` elements, which a UI-process `NSScroller` never could.
 
-Set against the alternatives: this is **more than the ~2,000 LOC Aqua painter
-set** estimated in §2.5, and it is **far less than the 1,500–2,500 LOC of new
-IPC surface** that live-view remoting would have needed *on top of* a layer
-tree. It also produces pixel-exact Aqua rather than a hand-drawn approximation,
-which a painter set never could. Given that the requirement is now absolute
-rather than a preference, it is the right spend.
+Set against the alternatives this section previously proposed: **525 LOC instead
+of 3,250–4,750 for the capture cache, or ~2,000 for a hand-drawn painter set
+that could never be pixel-exact.** `spike/aquaatlas` keeps a narrower role as a
+reference for verifying that the remoted drawing matches, and as a source for
+the 17 system colours its `atlas.json` already captures from real `NSColor`.
 
-Where it lands in the schedule: it is **not** N7 work. Ship the Adwaita theme at
-N2 to get the browser running (it costs 80 LOC and unblocks everything), and do
-this between N7 and N8, once events and the compositing path are proven.
-Sequencing it earlier trades a working browser for prettier buttons.
+**`spike/CAHost` phase 4, the offscreen-view prototype, is cancelled** and
+should not be built.
+
+#### 2.7.3 Behaviour — unchanged from the earlier analysis
+
+Most Aqua behaviour does not require AppKit, because WebCore already implements
+it and its semantics already match. This table survives the redesign intact:
+
+| Behaviour | Who implements it | Matches Aqua? |
+|---|---|---|
+| Press state, including drag-out cancel and drag-back re-arm | WebCore, `Element::active()` | yes |
+| Hover | WebCore, `Element::hovered()` | yes |
+| Focus ring, focus on click and tab | WebCore + `ControlStyle::Focused`; note `outline: none` suppresses it at state extraction (`RenderTheme.cpp:770`), correctly | yes |
+| Checkbox and radio toggling, radio group exclusivity | WebCore | yes |
+| Space and Return activation | WebCore; `RenderTheme::popsMenuBySpaceOrReturn` carries the Mac convention | yes |
+| Tab order | WebCore sequential focus navigation | yes |
+| **`<select>` dropdown** | UI process, real `NSMenu` via `WebPopupMenuProxyMac` (77/246 LOC) | **genuinely native** |
+| Context menus, colour picker, file picker | UI process, native | native |
+| Cocoa key bindings in text fields | UI process `NSTextInput` → WebCore editing commands. See `logs/textinput-plan.md`: a lean Tiger `NSTextInput` view over the C API, ~1,000 LOC, with 5 query messages needing synchronous variants and `NSNotFound` clamped between 32- and 64-bit | yes |
+| Slider drag, page-click, arrow keys | WebCore | yes |
+
+Two residual differences, both cheap:
+
+- **Default-button pulse.** Tiger's default button breathes at ~1 Hz. With
+  remoted drawing this is actually easier than with captures: the 32-bit process
+  owns a real cell and can animate it, driven by a repaint timer.
+- **Scroller "jump to here"** (`AppleScrollerPagingBehavior`). Read the default
+  in the 32-bit process; WebCore's page-vs-jump decision is already
+  parameterised.
+
+One warning carried forward: **avoid nested tracking loops in the 32-bit
+process.** `WebPopupMenuProxyMac.mm:192-220` has to synthesize a fake mouse-up
+because the menu's nested runloop swallowed the real one (bug 57904). Anything
+that spins its own loop inherits that class of bug.
+
+#### 2.7.4 System colours, fonts, and what still cannot be Aqua
+
+System colours come from real `NSColor` in the 32-bit process, feeding
+`RenderTheme::systemColor` and the ~20 `platform*Color` virtuals.
+`spike/aquaatlas/out/atlas.json` already carries all 17 read from the box.
+
+**Under branch (d), the text-rendering gap closes.** This was the larger
+fidelity problem and the strongest remaining argument for branch (a): under
+branch (b), FreeType text next to Aqua controls reads as wrong on every page.
+Branch (d) rasterizes with **Tiger's own CoreText**, so text is native by
+construction — and per §2.0.4 the shaping matches to 0.03 pt. That removes the
+concern rather than mitigating it, and is a second independent reason to prefer
+(d).
+
+What remains out of reach: **accessibility**. Remote AX is closed on Tiger — it
+needs a 10.7 private class and an ObjC runtime in the content process. V1 must
+**declare absence** (the web view reports a group role with no children, ~15
+LOC) rather than appear broken. Tiger shipped VoiceOver, so this is a known
+regression and belongs in the README.
 
 ## 3. The three target sites
 
@@ -1022,17 +1020,22 @@ including the NetworkProcess.
 
 Three processes, not two, because the NetworkProcess is mandatory (§2.6):
 
+Under branch (d), the recommended primary (§2.0.2):
+
 | Process | Arch | Contains |
 |---|---|---|
-| UI | **i386** | AppKit, the window, events, IME, pasteboard, menus, the CARenderer compositing host |
-| Content (WebProcess) | **x86_64** | WTF, JSC with the full JIT stack, WebCore, Cairo/FreeType, the media pipeline |
+| UI + render | **i386** | AppKit, window, events, IME, pasteboard, menus; the CARenderer compositing host; **display-list replay against Tiger's real CoreGraphics and CoreText**; Aqua control drawing; CoreAudio |
+| WebProcess | **x86_64** | WTF, JSC with the full JIT stack, WebCore, HarfBuzz shaping, image decode, display-list recording, the media pipeline |
 | Network | **x86_64** | curl, LibreSSL, nghttp2, the cookie and cache stores |
 
 Running the NetworkProcess 64-bit costs nothing — it is pure C++ over curl with
-no framework dependencies — and keeps TLS and HTTP/2 off the content process's
-cores. On a 2-core machine a third process is a real scheduling cost, so if
-measurement shows contention, the fallback is to run the network code inside the
-content process rather than to move it to 32-bit.
+no framework dependencies — and keeps TLS and HTTP/2 off the WebProcess's cores.
+On a 2-core machine a third process is a real scheduling cost, so if measurement
+shows contention, the fallback is to run the network code inside the WebProcess
+rather than to move it to 32-bit.
+
+Under branches (a) or (b) the middle row keeps the rendering and the first row
+shrinks to AppKit and compositing; everything else here is unchanged.
 
 ### 3.1 YouTube: Media Source Extensions
 
@@ -1122,15 +1125,66 @@ picks from the survivors, so this single function forces the `avc1`+`mp4a`
 ladder. Note that `MediaSourceTypeSupportedCache` memoizes per content-type
 string, so the answer cannot change at runtime without clearing it.
 
-Realistic target: **360p smooth, 480p likely, 720p on a good day.** Aim the
-first milestone at `isTypeSupported` returning true for
-`video/mp4; codecs="avc1.42E01E"` and one keyframe painted into a
-`GraphicsContext`.
+#### Measured on the box, which raises the target substantially
+
+`spike/decodebench.c` on the 2.2 GHz Core 2 Duo, ffmpeg x86_64 `-march=core2`,
+best of 3 (`logs/decodebench-tiger.txt`):
+
+| Stream | 1 thread | **2 threads** | swscale → BGRA |
+|---|---|---|---|
+| H.264 High 480p30 | 177 fps | **255 fps** | 1.4 ms |
+| **H.264 High 720p30** | 73 fps | **112 fps (8.9 ms)** | **3.1 ms** |
+| H.264 High 1080p30 | 29 fps | **50 fps (20 ms)** | 7.0 ms |
+| VP9 480p30 | 112 fps | **154 fps** | 1.4 ms |
+| VP9 720p30 | 47 fps | **76 fps** | 3.2 ms |
+| AV1 480p30 (dav1d) | 119 fps | **194 fps** | 1.4 ms |
+| AAC / MP3 / Opus | 261× / 127× / 122× realtime | | |
+
+Two decoder threads is the right number; a third buys nothing on two cores.
+
+**So the target is 720p H.264, comfortably.** Decode plus convert is ~12 ms of a
+33 ms frame budget, leaving two thirds of the machine for YouTube's
+JavaScript-heavy player, which is the real constraint on that site. 1080p30 is
+27 ms and leaves nothing — decode-only possible, not viable with a page running.
+
+For scale: QTKit 7.6.4's software path managed **~2 fps at 720p**
+(`NOTES.md`, `spike/qtrenderertest.m`). This is roughly **50× faster**, and it
+is the single clearest argument for the whole split.
+
+Codec policy can therefore relax: **prefer H.264, and allow VP9 up to 480p** if
+YouTube insists on it, since 480p VP9 at 154 fps is cheaper than 720p H.264.
+Refuse VP9 at 720p and above, and refuse AV1 above 480p.
+
+Aim the first milestone at `isTypeSupported` returning true for
+`video/mp4; codecs="avc1.42E01E"` and one keyframe painted.
 
 Audio goes out through the already-proven `spike/audiobridge` ring to the 32-bit
-UI process, which owns CoreAudio (there are no x86_64 CoreAudio, AudioUnit or
+process, which owns CoreAudio (there are no x86_64 CoreAudio, AudioUnit or
 AudioToolbox slices). That path measured 0 underruns at ~12 ms latency under 4%
-CPU, and the shared-struct 4-byte rule from §0.3 applies to its ring header.
+CPU, and the shared-struct 4-byte rule from §0.3 applies to its ring header. The
+shape to clone is `RemoteAudioDestinationProxy`'s — an
+`AudioDestinationResampler` plus a shared ring buffer.
+
+**Effort** (`logs/media64-plan.md`): `MediaPlayerPrivateFFmpeg` ~**5,300 LOC**
+content-side plus ~**700 LOC** on the 32-bit side. MSE is cheap because
+`SourceBufferPrivate.cpp`'s coded-frame processing is port-independent; we owe
+only `appendInternal`, parsed with libavformat over a **custom AVIO on a growing
+buffer**.
+
+**The frame path under branch (d)** has two options, and the second is the one
+to aim for:
+
+1. **Decoded frames as shared bitmaps**, painted by the 32-bit process as part
+   of the normal display-list replay. Simplest, correct everywhere, and it costs
+   a full-frame blit per frame.
+2. **A video layer in the compositor.** The 32-bit process already hosts the CA
+   compositor, so a decoded frame can become a layer's `contents` directly and
+   skip the page-repaint path entirely. `spike/ipc32x64` measured a 1440×900
+   BGRA GL upload from the mapping at ~8 ms with no copy, so at 720p this is
+   well inside budget.
+
+Start with (1) because it needs nothing new, and move to (2) once compositing is
+proven — at which point video costs a texture upload rather than a page repaint.
 
 ### 3.2 React applications: the JIT tiers
 
@@ -1340,11 +1394,15 @@ the largest uncertainty in the process model.
 
 The short version: **the UI-side work all transfers, the graphics-shim work does
 not, and the toolchain and dependency work transfers to whichever side it was
-built for.** The CoreText and CoreGraphics shim tracks, which are the two
-largest investments after WTF, become UI-process-only assets under branch (b) —
-and the UI process barely draws anything. That is the real cost of this
-direction, and it should be said out loud to whoever is running those tracks
-before they invest another day.
+built for.**
+
+**Branch (d) changes this conclusion, and it is the strongest argument for it.**
+Under branch (b) the CoreText and CoreGraphics shim tracks — the two largest
+investments after WTF — become UI-process-only assets, and the UI process barely
+draws. Under branch (d) that process *is* the renderer, so all of it is load-
+bearing: `ctcompat`'s 104 checks against a live oracle, `cgcompat`'s 54 checks
+and behavioural fixes, the metric adapters, the ABI screen. Nothing is stranded.
+The earlier warning to those tracks is withdrawn.
 
 ---
 
@@ -1356,19 +1414,19 @@ before they invest another day.
 |---|---|---|---|
 | **N-1** | Split the arch-blind Tiger block | `OptionsCocoa.cmake:165-199` forces `ENABLE_C_LOOP` and turns off JIT/video/MSE for all of `TIGER`, and hardcodes the i386 sysroot at `:299`/`:469`. **Nothing below can be configured until this is split on architecture** | 1–2 d |
 | **N0** | `jsc` x86_64 runs on the box with the JIT on | `jsc -e 'print(1+1)'`, then JetStream 2 and the 2M-iteration loop. **This is the whole premise.** The Leopard spike has already proved every JIT *prerequisite* on the box — RWX `mmap`, the W^X flip, executing generated code, `mach_vm`, 16 MB stacks, 64 GB of VA — so the remaining risk is JSC itself, not the platform | in flight (`jsc64` agent) |
-| **N1** | x86_64 dependency set complete | build pixman, cairo, harfbuzz, curl for x86_64; everything else is already there | 2–3 d |
-| **N2** | `PORT=TigerContent` WebCore configures and compiles | clone PlayStation: `OptionsTigerContent.cmake` (250–350 LOC), `PlatformTigerContent.cmake` (150–250), the seven `platform/playstation/`-shaped files (~480), `RenderThemeTigerContent` (~80) | 10–15 d |
-| **N3** | WebCore links, and a headless render-to-PNG works | proves Cairo, FreeType, HarfBuzz, the decoders and curl end to end without any IPC | 5–8 d |
+| **N1** | x86_64 dependency set complete | harfbuzz and curl for x86_64 (freetype, fontconfig, png, jpeg, webp, xml2, sqlite, ssl, ICU, ffmpeg are built). Cairo and pixman only if branch (b) is taken | 1–3 d |
+| **N2** | The two WebCore configurations compile | 64-bit recording side (no 2D library) and 32-bit replay side (CG + CoreText + compat). Includes the neutral colour-space encoding and the pixel-less image-buffer backend, both of which must land before any pixel | 12–18 d |
+| **N3** | Display lists replay | 64-bit records, 32-bit replays to a PNG. Proves the stream, the serializer symmetry fix and the font handle. **The font metrics service lands here** | 8–12 d |
 | **N4** | WebKit2 content process builds and runs headless | `USE_UNIX_DOMAIN_SOCKETS`, the three ABI fixes, `MessageInfo` widened, the `requires` guard; `Shared/unix/AuxiliaryProcessMain.cpp` | 5–8 d |
 | **N5** | Two processes talk | `ProcessLauncherTiger.cpp` (~120), `PageClientImpl` + view stack cloned from PlayStation (~856); a page loads and paints into a `ShareableBitmap` | 8–12 d |
 | **N6** | Pixels on screen | UI process wraps the bitmap as a `CGImage` and sets it as a `CALayer`'s contents in the CARenderer host; `logs/ca-hosting-design.md` is the reference | 5–8 d |
 | **N7** | Interactive | events, `WebPopupMenuProxy` as a real `NSMenu`, pasteboard, IME, scrolling | 10–15 d |
-| **N7.5** | **Aqua controls (§2.7)** | the UI-side offscreen renderer, the capture cache, `TigerControlFactory`, the atlas consumer, Aqua scrollbars. Replaces the Adwaita theme shipped at N2 | 12–18 d |
+| **N7.5** | **Aqua controls (§2.7)** | route `DrawControlPart` into `compat/aquacontrols.m` (~275) plus `HITheme` scrollbars (~250). Far cheaper than the capture design this replaced | 3–5 d |
 | **N8** | The Verge class works | HTTP/2 via nghttp2, brotli, WebP and AVIF decode, tiled scrolling within the bandwidth budget of §3.3 | 8–12 d |
 | **N9** | YouTube plays | `MediaPlayerPrivateTiger` + `MediaSourcePrivateTiger` + `SourceBufferPrivateTiger` cloned from `platform/mock/mediasource/` (1,060 LOC skeleton), libavformat demux behind `appendInternal`, libavcodec + `sws_scale` behind `paint()`, codec policy forcing `avc1`/`mp4a`, audio over the proven bridge | 15–25 d |
 
-**N-1 through N7.5: roughly 58–90 engineer-days** to an interactive browser
-with pixel-exact Aqua controls,
+**N-1 through N7.5: roughly 52–83 engineer-days** to an interactive browser
+with native text and pixel-exact Aqua controls,
 comparable to the WebCore milestone estimate in `logs/webcore-plan.md` and on
 top of it rather than instead of it. **N8 and N9 add 23–37 days** and are the
 least predictable, N9 especially: A/V sync and sustained decode throughput on a
@@ -1379,21 +1437,22 @@ New code, by area:
 
 | Area | LOC |
 |---|---|
-| WebCore port files (`OptionsTigerContent`, `PlatformTigerContent`, theme, screen, MIME, user agent, font database, SSL handle) | 1,600–2,500 |
-| WebKit2 glue (launcher, PageClient, view, popup proxy) | 1,200–1,800 |
+| Branch (d) render + recording sides (§2.0.6) | 4,900–7,250 |
+| WebKit2 glue (launcher, PageClient, view, popup proxy) — note `fork`+`exec`, Tiger has no `posix_spawn` | 1,200–1,800 |
 | IPC ABI fixes | ~30 |
+| **Aqua controls (§2.7) — our side** | **~525** |
 | Optional: fontconfig-free `FontCacheFreeType` fork | +600 |
-| **Aqua controls (§2.7)** — theme, ControlFactory, PlatformControls, capture cache, IPC, UI-side renderer, atlas consumer, scrollbars. **Required, not optional** | **+3,250–4,750** |
-| **Baseline, to an interactive browser with Aqua controls** | **≈ 6,050–9,050** |
-| Media backend, `MediaPlayerPrivateTiger` and friends (N9) | +4,000–6,000 |
-| Optional: fontconfig-free `FontCacheFreeType` fork | +600 |
-| **Everything** | **≈ 10,650–15,650** |
+| UI process itself (additive, largely independent) | 3,000–4,200 |
+| **Baseline, to an interactive browser with native text and Aqua controls** | **≈ 9,650–13,800** |
+| Media, `MediaPlayerPrivateFFmpeg` (N9): 5,300 content-side + 700 on the 32-bit side | +6,000 |
+| **Everything** | **≈ 15,650–19,800** |
 
-Rejected and recorded: **live AppKit controls in the page** (§2.7.1 — fatal
-z-order problem, and the `Widget`/`RenderWidget` machinery it would need is
-vestigial), **remote live-view compositing** (§2.7.2 option B — needs a layer
-tree we do not have), and **a hand-drawn Aqua painter set** (§2.5's ~2,000 LOC,
-which could never be pixel-exact).
+Rejected and recorded: **live AppKit controls in the page** (fatal z-order, and
+the `Widget`/`RenderWidget` machinery is vestigial), **offscreen-view capture
+with a state cache** (§2.7 — unnecessary once `DrawControlPart` was found;
+`spike/CAHost` phase 4 is cancelled), **a hand-drawn Aqua painter set** (~2,000
+LOC, never pixel-exact), and **GStreamer** (§3.1 — 1.2–1.5M LOC of GLib chain to
+port).
 
 ### 6.2 Branch (a), if the Leopard spike succeeds
 
@@ -1422,16 +1481,32 @@ x86_64 JIT; if the 64-bit path failed, the answer would be the 2026 tree on the
 interpreter, never an older browser."* So this is a two-way comparison, not a
 three-way one.
 
-| | (1) 2026 tree, interpreter, single 32-bit process | **(3) 64-bit content process** |
+First, between the three rendering branches (§2.0–2.2):
+
+| | **(d) 32-bit render, 64-bit rest** | (b) Cairo in 64-bit | (a) Leopard frameworks in 64-bit |
+|---|---|---|---|
+| Status | **primary** | guaranteed fallback | opportunistic |
+| Rendering fidelity | **native, by construction** | a lookalike; different text | native *if* the stack loads and behaves |
+| Text | Tiger CoreText; shaping agrees to 0.03 pt (`hb-vs-ct.md`) | FreeType/HarfBuzz throughout | Leopard CoreText, needs 0 shims |
+| Aqua controls | **real `NSCell`s, Safari's pixels** | painter set or nothing | real cells, but no AppKit at 64 bits |
+| Compat-layer reuse | **complete — it is the renderer** | none | partial; different release's binaries |
+| Upstream precedent | **WinCairo, by default** | GTK, WPE, PlayStation | none |
+| New code | 4,900–7,250 (+3,000–4,200 UI) | ~2,800–4,300 + a whole graphics backend | unknown until the fault clears |
+| Concentrated risk | serializer asymmetry, font fallback | shaping and theme fidelity | does the stack load at all |
+| Fails how | in text, visibly and early | gradually, in fidelity | all at once, at load |
+
+Then, against not doing the split at all:
+
+| | (1) 2026 tree, interpreter, single 32-bit process | **(3) the split, branch (d)** |
 |---|---|---|
 | JS on the 2M-iteration loop | 2.24 s | x86_64 JIT + FTL; Safari 4.1.3's i386 JIT does it in 59 ms, so expect that order |
 | Architecture | one process, WebKit1 | **three** processes, WebKit2 |
-| Extra engineering | none beyond the existing plans | 6,050–9,050 LOC to interactive with Aqua controls, 46–72 days plus ~12–18 for §2.7 |
-| Rendering | Tiger CoreGraphics + CoreText, native Aqua | Cairo + FreeType; **controls are pixel-exact Aqua via §2.7's capture path**; text is the residual gap unless branch (a) clears |
-| **YouTube** | **no** — QTKit cannot do MSE | yes, non-DRM, 360–480p realistic |
+| Extra engineering | none beyond the existing plans | ~8,400–11,975 LOC to interactive with Aqua controls and native text |
+| Rendering | Tiger CoreGraphics + CoreText, native Aqua | **the same, via branch (d)** — real CG, real CoreText, real `NSCell`s |
+| **YouTube** | **no** — QTKit cannot do MSE, and its software path did ~2 fps at 720p | yes, non-DRM, **720p H.264 comfortably** (~50× QTKit) |
 | **React apps** | unusable at interpreter speed | the reason for the architecture |
 | Crash isolation | none | yes |
-| CT/CG shim investment | fully used | stranded (UI process only) |
+| CT/CG shim investment | fully used | **fully used — branch (d) makes the 32-bit process the renderer** |
 | Address space | ~2.7 GB | full 64-bit |
 | Risk | low, and largely retired | concentrated in N0 |
 
@@ -1461,8 +1536,14 @@ every other milestone here, and nothing in §5.1 should start before it reports.
    dependency initialising incorrectly under flat namespace.
 3. **Unverified and load-bearing** — the arch-blind block at
    `Source/cmake/OptionsCocoa.cmake:165-199` forces `ENABLE_JIT` and
-   `ENABLE_C_LOOP` for all of `TIGER`. Until it is split on architecture, N0
-   cannot even be configured the way it needs to be.
+   `ENABLE_C_LOOP` for all of `TIGER`. Under branch (d) it now has to be split
+   **three** ways, not two: 64-bit WebProcess, 64-bit NetworkProcess, 32-bit
+   UI+render. Until then N0 cannot be configured.
+4. **Closed since the first draft**, recorded so nobody re-opens them: the
+   content process needs no x86_64 libdispatch (§4); HarfBuzz and Tiger CoreText
+   agree to 0.03 pt (§2.0.4); `DrawControlPart` already exists so controls need
+   no bespoke mechanism (§2.7); 720p H.264 decodes at 112 fps (§3.1);
+   `NetworkProcess/curl` is live upstream (§2.6).
 
 The third question I had listed here — whether the content process needs an
 x86_64 libdispatch — is **answered in §4: it does not.** `RunLoopGeneric` and
