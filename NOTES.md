@@ -221,3 +221,5 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - Tiger CG: private CGFontSetShouldAntialias/CGFontShouldAntialias (per-font flag) is the faithful target for
   CGContextSetShouldAntialiasFonts (kept no-op: WebCore only passes true; flag mutates a shared cached CGFont). Interpolation
   quality is binary on Tiger (None vs everything else = High); reading state back can't detect it.
+- Image libs in the sysroot (deps/build-c-deps.sh): libpng 1.6.48, libjpeg-turbo 3.1 (no SIMD), libwebp 1.5 (+demux/mux/sharpyuv),
+  all static with .pc files. For WebP / PNG-in-ICO / CMYK JPEG via WebKit's cross-platform decoders; ImageIO stays default.

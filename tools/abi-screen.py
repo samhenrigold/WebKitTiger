@@ -344,10 +344,14 @@ def spi_lowering(names, workdir):
         bad |= set(re.findall(r"redefinition of '([A-Za-z0-9_]+)'", r.stderr))
         if not bad: return {}, synth
         for b in bad: cur.pop(b, None)
+    structs = ir_struct_sizes(ir)
     out = {}
     for line in open(ir):
         m = DECL.match(line.rstrip())
-        if m: out[m.group(1)] = m.group(2)
+        if m:
+            d = parse_sig(m.group(2), structs)
+            d["src"] = "WebKit SPI header"
+            out[m.group(1)] = d
     return out, synth
 
 
@@ -379,33 +383,32 @@ def modern_lowering(names, workdir):
         m = DECL.match(line.rstrip())
         if not m: continue
         out[m.group(1)] = parse_sig(m.group(2), structs)
-    return out
+    return out, dropped
 
 
 def parse_sig(params, structs):
     """Turn one IR `declare` parameter list into an i386 stack footprint."""
-    if True:
-        total, variadic, notes, plist = 0, False, [], []
-        for p in split_params(params):
-            if p == "...": variadic = True; continue
-            if "inreg" in p: notes.append("inreg"); continue
-            if "sret(" in p: notes.append("sret"); total += 4; continue
-            mb = re.search(r'byval\(([^)]*)\)', p)
-            if mb:
-                # A byval struct occupies its full size on the stack. Skipping it
-                # scored CGContextFillRect(ctx, CGRect) as 4 bytes instead of 20
-                # and made most of CoreGraphics look mismatched.
-                n = structs.get(mb.group(1).strip(), 4)
-                notes.append("byval:%s=%d" % (mb.group(1), n))
-                plist.append((total, n, "agg")); total += n
-                continue
-            base = p.split()[0]
-            if base in ("i64", "double"):
-                plist.append((total, 8, "fp8" if base == "double" else "int8")); total += 8
-            elif base in ("ptr", "i32", "i8", "i16", "float", "i1"):
-                plist.append((total, 4, "fp4" if base == "float" else "int4")); total += 4
-            else: notes.append("?:" + base); total += 4
-        return dict(bytes=total, variadic=variadic, notes=notes, plist=plist, sig=params), dropped
+    total, variadic, notes, plist = 0, False, [], []
+    for p in split_params(params):
+        if p == "...": variadic = True; continue
+        if "inreg" in p: notes.append("inreg"); continue
+        if "sret(" in p: notes.append("sret"); total += 4; continue
+        mb = re.search(r'byval\(([^)]*)\)', p)
+        if mb:
+            # A byval struct occupies its full size on the stack. Skipping it
+            # scored CGContextFillRect(ctx, CGRect) as 4 bytes instead of 20
+            # and made most of CoreGraphics look mismatched.
+            n = structs.get(mb.group(1).strip(), 4)
+            notes.append("byval:%s=%d" % (mb.group(1), n))
+            plist.append((total, n, "agg")); total += n
+            continue
+        base = p.split()[0]
+        if base in ("i64", "double"):
+            plist.append((total, 8, "fp8" if base == "double" else "int8")); total += 8
+        elif base in ("ptr", "i32", "i8", "i16", "float", "i1"):
+            plist.append((total, 4, "fp4" if base == "float" else "int4")); total += 4
+        else: notes.append("?:" + base); total += 4
+    return dict(bytes=total, variadic=variadic, notes=notes, plist=plist, sig=params)
 
 # -------------------------------------------------------------------- driver --
 def called_names(prefixes):
@@ -455,7 +458,12 @@ def main(argv):
                     "CTLineGetTypographicBounds"]
 
     modern, dropped = modern_lowering(screened, workdir)
-    tnargs = tiger_lowering(sorted(dropped), workdir) if dropped else {}
+    # Where the current SDK has no declaration, WebKit's own SPI headers are the
+    # prototype it actually compiles against, so use those rather than give up.
+    spi, synth = spi_lowering(sorted(dropped), workdir) if dropped else ({}, {})
+    for n, d in spi.items():
+        modern.setdefault(n, d)
+    tnargs = tiger_lowering(sorted(set(dropped) - set(spi)), workdir) if dropped else {}
     dis = {fw: disassemble(FRAMEWORKS[fw][0]) for fw in fws}
 
     clean, cands, undet, shape, under, stubs = [], [], [], [], [], []
@@ -513,8 +521,15 @@ def main(argv):
             why = it[4] if len(it) > 4 else ("" if m else "(no modern prototype)")
             print("   %-44s calls=%-4d tiger=%-5s modern=%-5s %s"
                   % (n, c, t.get("bytes"), m["bytes"] if m else "-", why))
-    if dropped:
-        print("\ndropped (no modern declaration): %s" % ", ".join(sorted(dropped)))
+    still = sorted(set(dropped) - set(spi))
+    if spi:
+        print("\nprototypes recovered from WebKit's own SPI headers: %d of %d"
+              % (len(spi), len(dropped)))
+        if synth:
+            print("  types synthesised as opaque (4 bytes on i386): %s"
+                  % ", ".join(sorted(synth)))
+    if still:
+        print("\nno prototype from any source: %s" % ", ".join(still))
     return 1 if cands or shape or [x for x in stubs if x[2] != "global?"] else 0
 
 if __name__ == "__main__":
