@@ -105,6 +105,18 @@ Expected, and not a bug. Modern macOS treats DeviceRGB as sRGB; Tiger's generic 
 ships rather than mapping it onto generic RGB, and why pixel assertions elsewhere should set
 colours with an explicit sRGB `CGColorRef`.
 
+### Interpolation quality is binary (audit track)
+
+`CGContextSetInterpolationQuality` accepts all five values and reads them back unchanged, but
+the rasterizer collapses them: Default, Low, Medium and High render byte-identically on a 4x4
+to 32x32 upscale. Only None is distinct. `CGContextGetInterpolationQualityRange` reports
+[0, 0], corroborating from a different direction.
+
+So the None versus High pair in the table above, which matched, was the whole feature rather
+than a sample of it. Anywhere WebCore selects Low or Medium to trade quality for speed, Tiger
+gives it High. A shim cannot detect the loss by reading the state back, because the setter
+stores the value faithfully; only the rasterizer ignores it.
+
 ### Font smoothing is inert (audit track)
 
 `spike/fontsmoothtest.c`, commit f7338be. `CGContextSetShouldSmoothFonts` on versus off gives
@@ -117,14 +129,29 @@ contexts with an alpha channel even on modern macOS. The claim is bounded: this 
 contexts, which is what WebCore's canvas and ImageBuffer paths use. A window context could
 differ and cannot be tested headlessly.
 
+**A working per-font knob does exist.** `CGFontSetShouldAntialias` is private but exported and
+per-font: clearing it takes a glyph run from inked 593 and antialiased 542 down to inked 235
+and antialiased 0, while shapes in the same context stay smooth. The flag is bit 0 of a byte at
+`font+0x3c`, read back by `CGFontShouldAntialias`. Every result holds identically whether the
+glyphs are drawn through `CGContextSelectFont` and `CGContextShowTextAtPoint` or through the
+path WebCore actually uses, `ATSFontFindFromName` to `CGFontCreateWithPlatformFont` to
+`CGContextShowGlyphsWithAdvances`.
+
 **Consequence here.** `CGContextSetShouldAntialiasFonts` used to forward to
-`SetShouldSmoothFonts`, so it only looked like it did something. It is now an explicit no-op.
-Forwarding to `SetShouldAntialias` instead was considered and rejected: that knob is
-context-wide and would alias every shape, and WebCore's only call site,
-`setCGFontRenderingMode` in `FontCascadeCoreText.cpp`, passes `true` unconditionally without
-bracketing it in a save and restore. Forwarding would therefore re-enable antialiasing for a
-context that had deliberately turned it off for shapes, to satisfy a request for glyph
-antialiasing that Tiger does by default anyway.
+`SetShouldSmoothFonts`, so it only looked like it did something. It is now an explicit no-op,
+and it stays inert even though the per-font knob above has exactly the right semantics, because
+wiring it up would cost something and buy nothing. WebCore's only call site,
+`setCGFontRenderingMode` in `FontCascadeCoreText.cpp:294`, passes `true` unconditionally, and
+antialiased glyphs are Tiger's default. Against that, the flag mutates the shared, cached
+`CGFont`, so it would leak into every other context using that font, and WebCore usually sets
+the font after configuring state, so the context may not have the font yet when the setter
+runs. The route is recorded in `cgcompat.c` for the day a caller passes `false`.
+
+The two font antialiasing style accessors stay inert because Tiger has nothing style-shaped to
+map them to at all: no `CGContextSetFontRenderingStyle`, and nothing else in its smoothing and
+antialias exports beyond the context Should/Allows pairs, their GState backings, the per-font
+flag above, a `CGFontAllowsFontSmoothing` that takes no arguments and reads a process-wide
+global, and a `__CGFontSmoothingMode` data symbol.
 
 ## What matched
 

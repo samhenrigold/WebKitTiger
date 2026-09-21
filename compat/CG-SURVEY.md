@@ -178,12 +178,19 @@ on Tiger. On and off give byte-identical pixels and no rendering ever produces a
 (`spike/fontsmoothtest.c`, audit track; see `compat/CG-PROBE.md`). The only working knobs are
 `CGContextSetShouldAntialias` and `CGContextSetAllowsAntialiasing`, and both are context-wide.
 
-So `CGContextSetShouldAntialiasFonts` and the two font antialiasing style accessors stay inert
-here. Remapping them onto `SetShouldAntialias` would alias or smooth every shape in the
-context, not just glyphs, and WebCore's only call site passes `true` unconditionally without
-bracketing it, so the remap could undo a deliberate decision to alias shapes. The claim is
-bounded to bitmap contexts, which is what the canvas and ImageBuffer paths use; a window
-context cannot be tested headlessly.
+There is, however, a working per-font equivalent. `CGFontSetShouldAntialias` is private but
+exported and honoured by the rasterizer: clearing it takes a glyph run fully aliased while
+shapes in the same context stay smooth. `CGContextSetShouldAntialiasFonts` still stays inert,
+because wiring it up would cost something and buy nothing. WebCore's only call site passes
+`true` unconditionally and antialiased glyphs are already Tiger's default, while the flag
+mutates the shared, cached `CGFont` and so would leak into every other context using that font.
+The route is recorded in `cgcompat.c` for the day a caller passes `false`.
+
+The two font antialiasing style accessors stay inert because Tiger has nothing to map them to
+at all: no `CGContextSetFontRenderingStyle`, nothing style-shaped in its exports.
+
+The smoothing claim is bounded to bitmap contexts, which is what the canvas and ImageBuffer
+paths use; a window context cannot be tested headlessly.
 
 **Constants.** About 40 `CFStringRef` data symbols Tiger does not export, defined with Apple's
 string values: the colorspace names, `kCGColorWhite`/`Black`/`Clear`,

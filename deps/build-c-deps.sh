@@ -142,4 +142,63 @@ build_icu() {
 }
 build_icu
 
+# --- Image decoders for WebCore's cross-platform image decoders: Tiger's ImageIO can't
+# decode WebP, fails on PNG-compressed ICO frames, and decodes CMYK JPEG near-black
+# (logs/imageio-probe.md). ---
+
+build libpng libpng-1.6.48
+
+# CMake (not autotools): -DWITH_SIMD=0 avoids needing nasm (not installed on this Mac) for
+# i386 SIMD codepaths. -DWITH_TURBOJPEG=0 skips the turbojpeg wrapper API/tools, which we
+# don't need. Uses its own toolchain file since it's CMake, not `build()`'s ./configure.
+build_libjpeg_turbo() {
+  local name=libjpeg-turbo src=libjpeg-turbo-3.1.0 builddir=$WKT/deps/build/libjpeg-turbo-i386
+  mkdir -p $builddir
+  cat > $builddir/toolchain-tiger.cmake <<EOF
+set(CMAKE_SYSTEM_NAME Darwin)
+set(CMAKE_SYSTEM_PROCESSOR i386)
+set(CMAKE_C_COMPILER $WKT/toolchain/bin/tiger-clang)
+set(CMAKE_CXX_COMPILER $WKT/toolchain/bin/tiger-clang++)
+set(CMAKE_AR $WKT/toolchain/bin/tiger-ar)
+set(CMAKE_RANLIB $WKT/toolchain/bin/tiger-ranlib)
+set(CMAKE_FIND_ROOT_PATH $P)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+EOF
+  log "$name configure"
+  ( cd $builddir && cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=$builddir/toolchain-tiger.cmake \
+      -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$P \
+      -DENABLE_SHARED=0 -DENABLE_STATIC=1 -DWITH_SIMD=0 -DWITH_TURBOJPEG=0 \
+      -DCMAKE_C_FLAGS="-I$P/include" -DCMAKE_EXE_LINKER_FLAGS="-L$P/lib -ltigercompat" \
+      $WKT/deps/src/$src ) > $WKT/logs/dep-$name.log 2>&1 || \
+    { echo "$name CONFIGURE FAILED"; tail -30 $WKT/logs/dep-$name.log; return 1; }
+  log "$name make"
+  ( cd $builddir && make -j8 && make install ) >> $WKT/logs/dep-$name.log 2>&1 || \
+    { echo "$name MAKE FAILED"; grep -E "error:" $WKT/logs/dep-$name.log | head -10; return 1; }
+  echo "$name OK"
+}
+build_libjpeg_turbo
+
+# libwebp: static, with mux/demux (both enabled by default). --disable-{png,jpeg,tiff,gif,
+# wic,gl,sdl} keeps its example tools (cwebp/dwebp/gif2webp/vwebp/...) from pulling in the
+# optional codec/UI deps; but we don't need those tools at all, so skip them entirely by
+# building/installing only `sharpyuv` (its internal color-conversion helper lib) and `src`
+# (libwebp/libwebpdecoder/libwebpmux/libwebpdemux) -- not `examples` or `imageio`. The
+# ImageIO-dependent Mac "extras" target (`--enable-libwebpextras`) defaults to off already.
+build_libwebp() {
+  local name=libwebp dir=libwebp-1.5.0
+  log "$name configure"
+  (cd $dir && ./configure --host=$HOST --prefix=$P --disable-shared --enable-static \
+    --disable-png --disable-jpeg --disable-tiff --disable-gif --disable-wic --disable-gl --disable-sdl) \
+    > $WKT/logs/dep-$name.log 2>&1 || { echo "$name CONFIGURE FAILED"; tail -30 $WKT/logs/dep-$name.log; return 1; }
+  log "$name make"
+  (cd $dir && make -j8 -C sharpyuv && make -j8 -C src) >> $WKT/logs/dep-$name.log 2>&1 || \
+    { echo "$name MAKE FAILED"; grep -E "error:" $WKT/logs/dep-$name.log | head -10; return 1; }
+  (cd $dir && make -C sharpyuv install && make -C src install) >> $WKT/logs/dep-$name.log 2>&1 || \
+    { echo "$name INSTALL FAILED"; tail -30 $WKT/logs/dep-$name.log; return 1; }
+  echo "$name OK"
+}
+build_libwebp
+
 ls $P/lib/*.a

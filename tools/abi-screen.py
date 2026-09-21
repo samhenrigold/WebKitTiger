@@ -290,6 +290,22 @@ def spi_declarations(names):
                     if name in found: continue
                     if "template" in ret or "class " in ret: continue
                     found[name] = "%s %s(%s);" % (ret, name, args.strip() or "void")
+    # Some are declared inline in a .mm next to the call rather than in a header:
+    # FormDataStreamCFNet.mm declares CFReadStreamCreate with an EXTERN prefix.
+    missing = want - set(found)
+    if missing:
+        for d in WEBKIT_DIRS:
+            for dirpath, _, files in os.walk(os.path.join(ROOT, "WebKit/Source", d)):
+                for f in files:
+                    if not f.endswith((".h", ".mm", ".cpp", ".m")): continue
+                    try: text = open(os.path.join(dirpath, f), errors="ignore").read()
+                    except OSError: continue
+                    for m in decl.finditer(text.replace("\\\n", " ")):
+                        ret, name, args = m.group(1).strip(), m.group(2), m.group(3)
+                        if name in found or name not in missing: continue
+                        ret = re.sub(r'^(EXTERN|extern "C"|extern|WTF_EXTERN_C_BEGIN)\s+', "", ret)
+                        if "template" in ret or "class " in ret: continue
+                        found[name] = "%s %s(%s);" % (ret, name, args.strip() or "void")
     return found
 
 
@@ -362,8 +378,15 @@ def modern_lowering(names, workdir):
     for line in open(ir):
         m = DECL.match(line.rstrip())
         if not m: continue
+        out[m.group(1)] = parse_sig(m.group(2), structs)
+    return out
+
+
+def parse_sig(params, structs):
+    """Turn one IR `declare` parameter list into an i386 stack footprint."""
+    if True:
         total, variadic, notes, plist = 0, False, [], []
-        for p in split_params(m.group(2)):
+        for p in split_params(params):
             if p == "...": variadic = True; continue
             if "inreg" in p: notes.append("inreg"); continue
             if "sret(" in p: notes.append("sret"); total += 4; continue
@@ -382,9 +405,7 @@ def modern_lowering(names, workdir):
             elif base in ("ptr", "i32", "i8", "i16", "float", "i1"):
                 plist.append((total, 4, "fp4" if base == "float" else "int4")); total += 4
             else: notes.append("?:" + base); total += 4
-        out[m.group(1)] = dict(bytes=total, variadic=variadic, notes=notes, plist=plist,
-                               sig=m.group(2))
-    return out, dropped
+        return dict(bytes=total, variadic=variadic, notes=notes, plist=plist, sig=params), dropped
 
 # -------------------------------------------------------------------- driver --
 def called_names(prefixes):
