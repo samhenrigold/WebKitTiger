@@ -168,3 +168,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   make-overlay.sh; nscompat owns AppKit.framework in the overlay; ctcompat CoreText.framework; cgcompat CoreGraphics.framework.
 - LINK RULE: anything linking libtigercompat.a needs `-Wl,-ObjC` (its Foundation surface is categories, which a static archive
   only pulls in with -ObjC) and `-ltigerdispatch` (NSOperationQueue depends on it). Silent failure otherwise: "selector not recognized" at runtime.
+- From the shim audit (logs/shim-audit.md): Tiger runs objc4-267.1; its objc_addClass repairs hand-built classes (null cache,
+  clear CLS_* flags), which is why objc_allocateClassPair works. posix_memalign is now real (mmap + malloc zone; verified 16 B–1 MB
+  on the box, spike/aligntest.c). Always rebuild from clean before trusting a compat test: stale archives hid two regressions.
+- Trap seen twice on this box: a Tiger export whose name AND argument list match the modern API can still behave differently
+  (return false for style 0, return a fixed rect, be an empty stub). Check by disassembly, then run it.
