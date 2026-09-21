@@ -32,6 +32,7 @@
 #import <WebCore/ImageBufferParameters.h>
 #import <WebCore/PixelBuffer.h>
 #import <WebCore/PixelBufferFormat.h>
+#import <JavaScriptCore/InitializeThreading.h>
 #import <wtf/MainThread.h>
 #import <wtf/RetainPtr.h>
 
@@ -47,6 +48,7 @@
 #import <OpenGL/OpenGL.h>
 #import <OpenGL/gl.h>
 #import <stdio.h>
+#import <unistd.h>
 #import <stdlib.h>
 #import <string.h>
 
@@ -96,21 +98,41 @@ static Ref<const DisplayList::DisplayList> recordContent(const Content& c)
     return DisplayList::DisplayList::create(WTF::move(items));
 }
 
-static void drawContentDirectly(CGContextRef cg, const Content& c)
+// The colours have to be set IN THE CONTEXT'S OWN COLOUR SPACE.
+// CGContextSetRGBFillColor means device RGB, and CoreGraphics then converts
+// device RGB to the context's sRGB, which moves a saturated colour by as much
+// as 57 levels per channel. The display-list side sets sRGB components
+// directly, so the direct side has to as well or the comparison is measuring
+// the colour-space conversion instead of the replay.
+static void setFill(CGContextRef cg, CGColorSpaceRef space, float r, float g, float b)
 {
-    CGContextSetRGBFillColor(cg, 1, 1, 1, 1);
+    CGFloat components[4] = { r / 255, g / 255, b / 255, 1 };
+    RetainPtr<CGColorRef> color = adoptCF(CGColorCreate(space, components));
+    CGContextSetFillColorWithColor(cg, color.get());
+}
+
+static void setStroke(CGContextRef cg, CGColorSpaceRef space, float r, float g, float b)
+{
+    CGFloat components[4] = { r / 255, g / 255, b / 255, 1 };
+    RetainPtr<CGColorRef> color = adoptCF(CGColorCreate(space, components));
+    CGContextSetStrokeColorWithColor(cg, color.get());
+}
+
+static void drawContentDirectly(CGContextRef cg, CGColorSpaceRef space, const Content& c)
+{
+    setFill(cg, space, 255, 255, 255);
     CGContextFillRect(cg, c.background);
 
-    CGContextSetRGBFillColor(cg, 32 / 255.0f, 96 / 255.0f, 220 / 255.0f, 1);
+    setFill(cg, space, 32, 96, 220);
     CGContextFillRect(cg, c.blueRect);
 
     CGContextSaveGState(cg);
     CGContextClipToRect(cg, c.clipRect);
-    CGContextSetRGBFillColor(cg, 240 / 255.0f, 160 / 255.0f, 20 / 255.0f, 1);
+    setFill(cg, space, 240, 160, 20);
     CGContextFillRect(cg, c.clippedFill);
     CGContextRestoreGState(cg);
 
-    CGContextSetRGBStrokeColor(cg, 20 / 255.0f, 140 / 255.0f, 60 / 255.0f, 1);
+    setStroke(cg, space, 20, 140, 60);
     CGContextSetLineWidth(cg, c.lineWidth);
     CGContextStrokeRect(cg, c.strokedRect);
 }
@@ -256,13 +278,21 @@ static Compare comparePixels(const uint8_t* a, const uint8_t* b, size_t rowBytes
 
 int main(int argc, const char** argv)
 {
-    bool show = false;
+    // -show, or the marker file. Tiger's `open` cannot pass arguments to an
+    // application (--args is 10.6), and a window this process opens after being
+    // launched over ssh never comes up -- makeKeyAndOrderFront just blocks --
+    // so the on-screen half has to go through `open`, which runs it in the
+    // console session. The marker is how that run asks for the window.
+    bool show = access("/tmp/gpureplay-show", F_OK) == 0;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "-show"))
             show = true;
     }
 
     WTF::initializeMainThread();
+    // The pixel buffer getPixelBuffer hands back is a JSC Uint8ClampedArray, so
+    // JSC's allocators have to be up even though this spike runs no script.
+    JSC::initialize();
 
     Content content;
 
@@ -311,12 +341,30 @@ int main(int argc, const char** argv)
     // reference has to be given the same one or every rect lands mirrored.
     CGContextTranslateCTM(reference.get(), 0, kTile);
     CGContextScaleCTM(reference.get(), 1, -1);
-    drawContentDirectly(reference.get(), content);
+    drawContentDirectly(reference.get(), sRGB.get(), content);
 
     auto span = replayed->bytes();
     Compare cmp = comparePixels(span.data(), referenceBits, rowBytes, kTile, kTile);
     printf("gpureplay: %u differing pixels of %d, worst channel delta %u\n",
         cmp.differingPixels, kTile * kTile, cmp.worstChannelDelta);
+
+    // The readback's own shape, which is the first thing to look at if the
+    // comparison goes wrong: a PixelBuffer reporting anything but 256x256 and
+    // 262144 bytes means this spike and libWebCore disagree about a struct.
+    printf("  replay buffer %dx%d, %zu bytes\n",
+        replayed->size().width(), replayed->size().height(), span.size());
+    // Four sample points, replay against reference: the background, inside the
+    // blue rect, inside the clipped fill, and on the stroke. When the two
+    // disagree these say at a glance whether the replay drew nothing, drew in
+    // the wrong byte order, or drew upside down.
+    static const int samplePoints[4][2] = { { 8, 8 }, { 60, 60 }, { 200, 60 }, { 42, 152 } };
+    for (int i = 0; i < 4; ++i) {
+        const uint8_t* r = span.data() + (size_t)samplePoints[i][1] * rowBytes + samplePoints[i][0] * 4;
+        const uint8_t* d = referenceBits + (size_t)samplePoints[i][1] * rowBytes + samplePoints[i][0] * 4;
+        printf("  (%3d,%3d) replay %02x %02x %02x %02x   direct %02x %02x %02x %02x\n",
+            samplePoints[i][0], samplePoints[i][1], r[0], r[1], r[2], r[3], d[0], d[1], d[2], d[3]);
+    }
+    fflush(stdout);
 
     int status = cmp.differingPixels ? 1 : 0;
 
@@ -334,8 +382,10 @@ int main(int argc, const char** argv)
     store.bytesPerRow = rowBytes;
     memcpy(store.base, span.data(), rowBytes * kTile);
 
+    // No -setActivationPolicy:, which is 10.6. The bundle's Info.plist is what
+    // makes this a foreground application on 10.4.
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
     [NSApplication sharedApplication];
-    [NSApp setActivationPolicy:0];
     NSRect frame = NSMakeRect(200, 200, kTile, kTile);
     NSWindow* window = [[NSWindow alloc] initWithContentRect:frame
                                                    styleMask:NSTitledWindowMask | NSClosableWindowMask
@@ -348,9 +398,12 @@ int main(int argc, const char** argv)
     [view setTileStore:store];
     [window setContentView:view];
     [window makeKeyAndOrderFront:nil];
+    printf("  window visible %d, screens %d\n", (int)[window isVisible], (int)[[NSScreen screens] count]);
+    fflush(stdout);
     [NSApp setDelegate:[[GPUReplayDelegate alloc] init]];
     [NSApp run];
 
+    [pool release];
     free(referenceBits);
     return status;
 }

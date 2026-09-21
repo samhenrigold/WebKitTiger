@@ -6,6 +6,9 @@
 # Links the i386 GPU configuration's WebCore. Build that first:
 #   ninja -C build/tiger-gpu WebCore
 #
+# No freetype and no brotli: USE_FREETYPE is 0 on i386 (CoreText does the text)
+# and the i386 curl was built without brotli, so neither is in that sysroot.
+#
 # The library list and its order are cribbed from the web process's own link
 # line (build/tiger-web-port/build.ninja, CXX_EXECUTABLE_LINKER__WebProcess),
 # minus cairo and the image codecs the i386 side does not build, plus the
@@ -30,7 +33,14 @@ APP      := $(ROOT)/build/GPUReplay.app
 # not in the tiger-clang wrapper, so they are repeated here. Without them
 # <Availability.h> alone is enough to stop the build.
 SDKFW    := $(ROOT)/sdk/MacOSX10.4u.sdk/System/Library/Frameworks
-CXXFLAGS := -std=c++23 -fobjc-runtime=macosx-fragile-10.4 -O2 -g \
+# -DNDEBUG and -fno-threadsafe-statics are not cosmetic: WTF's RefCounted, Ref
+# and the ASSERT-carrying value types change LAYOUT with assertions on, so a
+# spike built without them reads every WebCore object at the wrong offsets. The
+# first symptom was a PixelBuffer reporting 133189632x262144.
+CXXFLAGS := -std=c++23 -fobjc-runtime=macosx-fragile-10.4 -O3 -g -DNDEBUG \
+            -fno-threadsafe-statics -fcoroutines \
+            -DPAS_BMALLOC -DWEBRTC_WEBKIT_BUILD \
+            -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE \
             -fno-exceptions -fno-rtti -fwrapv -fno-strict-aliasing \
             -femulated-tls -fno-stack-protector \
             -D__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES=0 \
@@ -73,10 +83,9 @@ WKLIBS := $(BUILD)/lib/libWebCore.a $(BUILD)/lib/libJavaScriptCore.a \
 SYSLIBS := $(SYSROOT)/lib/libicui18n.a $(SYSROOT)/lib/libicuuc.a $(SYSROOT)/lib/libicudata.a \
            $(SYSROOT)/lib/libxml2.a $(SYSROOT)/lib/libxslt.a $(SYSROOT)/lib/libsqlite3.a \
            $(SYSROOT)/lib/libcurl.a $(SYSROOT)/lib/libssl.a $(SYSROOT)/lib/libcrypto.a \
-           $(SYSROOT)/lib/libharfbuzz.a $(SYSROOT)/lib/libfreetype.a \
+           $(SYSROOT)/lib/libharfbuzz.a \
            $(SYSROOT)/lib/libjpeg.a $(SYSROOT)/lib/libpng.a \
            $(SYSROOT)/lib/libwebpdemux.a $(SYSROOT)/lib/libwebp.a $(SYSROOT)/lib/libsharpyuv.a \
-           $(SYSROOT)/lib/libbrotlidec.a $(SYSROOT)/lib/libbrotlicommon.a \
            $(SYSROOT)/lib/libz.a
 
 # -force_load on libtigercompat only, NOT the port's usual -ObjC. The LINK RULE
@@ -106,14 +115,14 @@ all: $(APP)
 $(FW)/Versions/A/QuartzCore:
 	bash $(CAHOST)/rebundle.sh
 
-$(APP): GPUReplay.mm $(CAHOST)/CAScene.mm $(CAHOST)/CAScene.h $(WKLIBS) Info.plist $(FW)/Versions/A/QuartzCore
+$(APP): GPUReplay.mm tombstones.s tombstone-classes.mm $(CAHOST)/CAScene.mm $(CAHOST)/CAScene.h $(WKLIBS) Info.plist $(FW)/Versions/A/QuartzCore
 	rm -rf $(APP)
 	mkdir -p $(APP)/Contents/MacOS $(APP)/Contents/Frameworks
 	cp Info.plist $(APP)/Contents/Info.plist
 	printf 'APPL????' > $(APP)/Contents/PkgInfo
 	cp -R $(FW) $(APP)/Contents/Frameworks/
 	$(CLANGXX) $(CXXFLAGS) -o $(APP)/Contents/MacOS/GPUReplay \
-	  GPUReplay.mm $(CAHOST)/CAScene.mm $(LDFLAGS)
+	  GPUReplay.mm $(CAHOST)/CAScene.mm tombstones.s tombstone-classes.mm $(LDFLAGS)
 
 clean:
 	rm -rf $(APP)
