@@ -38,14 +38,21 @@ its ascent with `movss`. **The 10.5 SDK's CoreText headers are therefore wrong f
 binary and must not be used to compile against it.** `CTCompat.h` carries correct
 prototypes for everything the compat layer touches.
 
-**Seven exports do nothing.** Six have a body of exactly `xor eax, eax; ret`:
+**Nine exports do nothing.** Seven have a body of exactly `xor eax, eax; ret`:
 `CTFontCreateUIFontForLocale`, `CTFontCreateWithQuickdrawNameAndStyle`, `CTRunGetGlyphs`,
-`CTRunGetAdvances`, `CTRunGetStringIndices` and `CTRunDraw`. Only the `Ptr` variants
-(`CTRunGetGlyphsPtr`, `CTRunGetAdvancesPtr`, `CTRunGetStringIndicesPtr`) return real
-data, which is lucky, because `ComplexTextControllerCoreText.mm` already prefers them.
-The seventh is `CTLineGetImageBounds`, which never looks at its line: it copies a fixed
-global rect into the struct return and comes back. Anything wanting ink bounds on Tiger
-has to compute them from glyph bounding rects itself.
+`CTRunGetAdvances`, `CTRunGetStringIndices`, `CTRunDraw` and `CTRunGetEmbeddedObject`.
+Only the `Ptr` variants (`CTRunGetGlyphsPtr`, `CTRunGetAdvancesPtr`,
+`CTRunGetStringIndicesPtr`) return real data, which is lucky, because
+`ComplexTextControllerCoreText.mm` already prefers them.
+
+The other two are `CTLineGetImageBounds` and `CTRunGetImageBounds`, which never look at
+their line or run: each copies a fixed global rect into its struct return and comes back.
+Anything wanting ink bounds on Tiger has to compute them from glyph bounding rects
+itself, which `runInkBounds` in `ctcompat.c` does for both.
+
+`CTRunGetEmbeddedObject` is the only one of the nine with no adapter, because nothing in
+WebCore calls it and there is nothing sensible to return: embedded objects are a
+`CTGlyphInfo` feature the port does not use.
 
 **Five take different arguments** from the modern API of the same name:
 
@@ -55,14 +62,15 @@ has to compute them from glyph bounding rects itself.
 | `CTFontGetAdvancesForGlyphs` | `CGSize (CTFontRef, const CGGlyph[], CGSize[], CFIndex)` — **no orientation**, and the summed advance comes back as a CGSize rather than a double. |
 | `CTFontGetBoundingRectsForGlyphs` | `CGRect (CTFontRef, const CGGlyph[], CGRect[], CFIndex)` — no orientation. |
 | `CTLineGetTypographicBounds` | `double (CTLineRef, CFRange, CGFloat*, CGFloat*, CGFloat*)` — takes a **CFRange** the modern four-argument form does not. The range is only checked against the glyph count, so `{0, 0}` is always safe; calling it the modern way puts the ascent pointer where the range goes and the call quietly returns 0. |
+| `CTRunGetImageBounds` | Exported, and its body copies a fixed global into the struct return without reading the run. Same shape as `CTLineGetImageBounds`. No call site in tree, but the overlay would otherwise have declared it as working. |
 | `CTLineDraw` | `void (CTLineRef, CGContextRef, CFRange)` — also takes a **CFRange**. It compares `location + length` against the line's glyph count with an integer `cmpl` and draws nothing when the sum is larger, so a modern two-argument call passes stack junk as the range and draws the line only when that junk happens to be `{0, 0}` or `{0, count}`. Five call sites in tree. |
 
-These eleven are **not** in `missing-CT.txt`, because they are exported under exactly the
+These thirteen are **not** in `missing-CT.txt`, because they are exported under exactly the
 name WebCore calls. They are the worst kind of problem: they link, they run, and they
 return zeroes.
 
 **This is now handled, and WebCore needs no edits.** `ctcompat.c` carries a
-`TigerCT...`-prefixed adapter for each of the eleven, presenting the modern signature and
+`TigerCT...`-prefixed adapter for each of the thirteen, presenting the modern signature and
 reaching Tiger's real behaviour underneath, and the SDK overlay's `<CoreText/*.h>` binds
 the public name to the adapter with an `__asm__` label. WebCore writes `CTFontCopyTable`
 and the call lands on `_TigerCTFontCopyTable`. The same mechanism covers the by-value
@@ -444,6 +452,27 @@ are worth recording because they are the same trap this port keeps hitting: 9A24
 plain `CTFontGetAdvancesForGlyphs` is five-argument while Tiger's is four, and its
 `CTFontCreateForCharacters` looks like a working export but is a stub. Guessing the arity
 crashed the process.
+
+### The screen, as a tool
+
+The technique that found `CTLineDraw` is now `spike/abi-screen.py`, and it covers all
+three ways a Tiger export can link cleanly and still not work: an empty body, a body that
+returns a global without reading its arguments, and a signature that differs from the
+modern prototype. Run it as `spike/abi-screen.py CT CG CF`.
+
+Over the 436 functions WebCore calls that Tiger exports it reports, with no false
+positives: **CoreText** has the problems catalogued above and nothing else;
+**CoreGraphics** (200 compared) and **CoreFoundation** (188 compared) have **none at
+all**. That negative result is worth as much as the findings. The CoreGraphics trouble on
+this port has been behavioural, not structural, which is the one mode a static screen
+cannot see: `CGShading` matches its modern signature and reads every argument, and still
+drops the alpha component. That kind needs a runtime probe, which is what
+`spike/ctoracle.c` is for on the CoreText side.
+
+The two functions the screen flags in CoreText that are **not** findings are
+`CTFontCreateWithName` and `CTFontCreateWithGraphicsFont`, which read one slot more than
+the modern prototype. That is the by-value `double` size showing up, and the overlay
+already declares both correctly.
 
 ### The TRANSITIONAL cross-check
 

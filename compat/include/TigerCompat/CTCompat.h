@@ -482,6 +482,7 @@ void TigerCTRunGetStringIndices(CTRunRef, CFRange, CFIndex[]);
 void TigerCTRunDraw(CTRunRef, CGContextRef, CFRange);
 CGRect TigerCTLineGetImageBounds(CTLineRef, CGContextRef);
 void TigerCTFontGetSideBearingsForGlyphs(CTFontRef, CTFontOrientation, const CGGlyph[], CGFloat[], CFIndex);
+CGRect TigerCTRunGetImageBounds(CTRunRef, CGContextRef, CFRange);
 void TigerCTLineDraw(CTLineRef, CGContextRef);
 CTFontRef TigerCTFontCreateUIFontForLocale(CTFontUIFontType, CGFloat size, CFStringRef locale);
 

@@ -648,6 +648,20 @@ static void testLines(CTFontRef font)
                     expect(!poisoned, "CTRunGetStringIndices writes every element it promises");
                     free(runIndices);
                 }
+                {
+                    /* Tiger's CTRunGetImageBounds copies a fixed global and
+                       never reads the run. The adapter must produce real ink
+                       bounds, and they must sit inside the line's. */
+                    CGRect runInk = CTRunGetImageBounds(run, NULL, CFRangeMake(0, 0));
+                    CGRect lineInk = CTLineGetBoundsWithOptions(line, kCTLineBoundsUseGlyphPathBounds);
+                    printf("     run ink = %.2f x %.2f, line ink = %.2f x %.2f\n",
+                        (double)runInk.size.width, (double)runInk.size.height,
+                        (double)lineInk.size.width, (double)lineInk.size.height);
+                    expect(!CGRectIsNull(runInk) && runInk.size.width > 0 && runInk.size.height > 0,
+                        "CTRunGetImageBounds adapter returns real ink bounds");
+                    expect(runInk.size.width <= lineInk.size.width + 0.01f,
+                        "run ink bounds fit inside the line's");
+                }
                 free(runGlyphs);
                 free(runAdvances);
             }

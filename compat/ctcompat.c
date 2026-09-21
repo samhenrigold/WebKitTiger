@@ -1798,6 +1798,47 @@ void TigerCTLineDraw(CTLineRef line, CGContextRef context)
         CTLineDraw(line, context, CFRangeMake(0, 0));
 }
 
+/* Ink bounds of one run's glyphs, in run-relative coordinates, and the advance
+ * the run consumes. Shared by the run and line adapters below, both of which
+ * exist because Tiger's CTRunGetImageBounds and CTLineGetImageBounds never look
+ * at their arguments: each copies a fixed global into its struct return. */
+static CGRect runInkBounds(CTRunRef run, CFRange range, CGFloat* outAdvance)
+{
+    CTFontRef font = run ? runFont(run) : NULL;
+    const CGGlyph* glyphs = run ? CTRunGetGlyphsPtr(run) : NULL;
+    const CGSize* advances = run ? CTRunGetAdvancesPtr(run) : NULL;
+    CFIndex count = run ? runRangeCount(run, range) : 0;
+    CGRect bounds = CGRectNull;
+    CGRect* rects;
+    CGFloat pen = 0;
+    CFIndex i;
+
+    if (outAdvance)
+        *outAdvance = 0;
+    if (!font || !glyphs || !advances || count <= 0)
+        return CGRectNull;
+
+    rects = (CGRect*)calloc((size_t)count, sizeof(CGRect));
+    if (!rects)
+        return CGRectNull;
+    CTFontGetBoundingRectsForGlyphs(font, glyphs + range.location, rects, count);
+    for (i = 0; i < count; ++i) {
+        if (!CGRectIsEmpty(rects[i]) && !CGRectIsNull(rects[i]))
+            bounds = CGRectUnion(bounds, CGRectOffset(rects[i], pen, 0));
+        pen += advances[range.location + i].width;
+    }
+    free(rects);
+    if (outAdvance)
+        *outAdvance = pen;
+    return bounds;
+}
+
+CGRect TigerCTRunGetImageBounds(CTRunRef run, CGContextRef context, CFRange range)
+{
+    (void)context; /* Tiger has no context-dependent hinting to account for. */
+    return runInkBounds(run, range, NULL);
+}
+
 CGRect TigerCTLineGetImageBounds(CTLineRef line, CGContextRef context)
 {
     CFArrayRef runs;
@@ -1806,14 +1847,14 @@ CGRect TigerCTLineGetImageBounds(CTLineRef line, CGContextRef context)
     CFIndex runIndex, runCount;
 
     /* Tiger's CTLineGetImageBounds never looks at its line: it copies a fixed
-     * global rect into the struct return. Union the runs' glyph bounding rects
-     * instead, walking the pen across the line.
+     * global rect into the struct return. Union the runs' ink bounds instead,
+     * walking the pen across the line.
      *
      * The pen accumulates across runs, which assumes visual left-to-right
      * layout and no per-run origin. Correct for an LTR line; a line containing
      * an RTL run will place that run's ink wrongly. The only caller in tree is
      * CTLineGetBoundsWithOptions above, for the ink-bounds options. */
-    (void)context; /* Tiger has no context-dependent hinting to account for. */
+    (void)context;
     if (!line)
         return CGRectNull;
     runs = CTLineGetGlyphRuns(line);
@@ -1821,25 +1862,12 @@ CGRect TigerCTLineGetImageBounds(CTLineRef line, CGContextRef context)
 
     for (runIndex = 0; runIndex < runCount; ++runIndex) {
         CTRunRef run = (CTRunRef)CFArrayGetValueAtIndex(runs, runIndex);
-        CTFontRef font = runFont(run);
-        const CGGlyph* glyphs = CTRunGetGlyphsPtr(run);
-        const CGSize* advances = CTRunGetAdvancesPtr(run);
-        CFIndex count = CTRunGetGlyphCount(run);
-        CGRect* rects;
-        CFIndex i;
+        CGFloat advance = 0;
+        CGRect ink = runInkBounds(run, CFRangeMake(0, 0), &advance);
 
-        if (!font || !glyphs || !advances || count <= 0)
-            continue;
-        rects = (CGRect*)calloc((size_t)count, sizeof(CGRect));
-        if (!rects)
-            continue;
-        CTFontGetBoundingRectsForGlyphs(font, glyphs, rects, count);
-        for (i = 0; i < count; ++i) {
-            if (!CGRectIsEmpty(rects[i]))
-                bounds = CGRectUnion(bounds, CGRectOffset(rects[i], penX, 0));
-            penX += advances[i].width;
-        }
-        free(rects);
+        if (!CGRectIsNull(ink))
+            bounds = CGRectUnion(bounds, CGRectOffset(ink, penX, 0));
+        penX += advance;
     }
     return bounds;
 }

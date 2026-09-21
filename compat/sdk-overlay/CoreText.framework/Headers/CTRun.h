@@ -26,7 +26,6 @@ CT_EXTERN const CGGlyph* CTRunGetGlyphsPtr(CTRunRef);
 CT_EXTERN const CGSize* CTRunGetAdvancesPtr(CTRunRef);
 CT_EXTERN const CFIndex* CTRunGetStringIndicesPtr(CTRunRef);
 CT_EXTERN double CTRunGetTypographicBounds(CTRunRef, CFRange, CGFloat* ascent, CGFloat* descent, CGFloat* leading);
-CT_EXTERN CGRect CTRunGetImageBounds(CTRunRef, CGContextRef, CFRange);
 
 /* --- case 3a: Tiger exports these but their bodies are `xor eax, eax; ret`
  * Only the Ptr variants above return data, so the adapters copy out of those. */
@@ -38,6 +37,10 @@ CT_EXTERN void CTRunGetStringIndices(CTRunRef, CFRange, CFIndex buffer[])
     CT_TIGER_ADAPTER(TigerCTRunGetStringIndices);
 CT_EXTERN void CTRunDraw(CTRunRef, CGContextRef, CFRange)
     CT_TIGER_ADAPTER(TigerCTRunDraw);
+/* Tiger's copies a fixed global into its struct return and never reads the run,
+ * exactly like its CTLineGetImageBounds. */
+CT_EXTERN CGRect CTRunGetImageBounds(CTRunRef, CGContextRef, CFRange)
+    CT_TIGER_ADAPTER(TigerCTRunGetImageBounds);
 
 /* --- case 3b ------------------------------------------------------------- */
 CT_EXTERN CGSize CTRunGetInitialAdvance(CTRunRef);
