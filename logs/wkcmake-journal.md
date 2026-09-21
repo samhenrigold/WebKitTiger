@@ -1243,3 +1243,91 @@ pass and its error list.
 The lesson for this repo: never interpolate a shell variable into an `rm -rf`
 path without first checking it is non-empty. The corrected loop validates all
 three fields and skips the iteration if any is empty.
+
+## Round 4 update: three configurations, and the in-process rendering seam
+
+The render process is gone, per the architecture decision. `TIGER_PROCESS` is now
+UI, WEB or NETWORK. The UI configuration absorbs what RENDER was: CoreGraphics and
+CoreText WebCore graphics, the replay side, the CoreAnimation host and the Aqua
+control drawing, alongside the WebKit2 UI process.
+
+Video and media source are now **on in all three configurations**. They appear in
+serialization conditions, so the ffmpeg backend is not a web-process-only choice;
+the decision belongs to the whole port and is recorded in the shared list rather
+than a per-process section. The neutral graphics encoding switch now defaults on.
+
+All three configure. The check target says the three trees agree.
+
+| Process | Toolchain | Arch | Result |
+|---|---|---|---|
+| UI | tiger.cmake | i386 | configures |
+| WEB | tiger64.cmake | x86_64 | configures |
+| NETWORK | tiger64.cmake | x86_64 | configures |
+
+### The in-process rendering seam
+
+Team-lead asked what running the GPU-process-side remoting inside the UI process
+requires. I traced it. The answer is better than expected on structure and worse
+than expected on two specific risks.
+
+**The seam is seven lines.** `UIProcess/WebProcessPool.cpp:581-587`,
+`createGPUProcessConnection`. Today it calls `ensureGPUProcess()` and forwards a
+message; replacing that with a direct local `GPUConnectionToWebProcess::create(...)`
+call, keeping the handle, is the whole redirect, plus about twenty lines of map to
+hold the references. **The web process needs no changes at all.** It already mints
+the connection pair itself and hands over a real handle; it never learns which
+process the other end lives in.
+
+The ownership chain is `GPUProcess` owning a per-web-process
+`GPUConnectionToWebProcess` owning a map of `RemoteRenderingBackend`. What the
+rendering backend actually needs from its connection object is five accessors: the
+shared resource cache, the shared preferences, the web process identifier, the
+terminate hook, and, only under Cocoa with video on, the video frame heap. It
+reaches the `GPUProcess` singleton exactly once in the whole 2D path, at
+`RemoteRenderingBackend.cpp:226`, for the snapshot API, and that line carries an
+upstream FIXME saying the pattern is wrong anyway.
+
+Nothing in the transport is process-bound. `StreamServerConnection::tryCreate` is a
+plain object built from a handle with no singleton and no XPC assumption, and the
+work queue is a per-backend WTF thread with its own semaphore loop, not a dispatch
+queue and not a global. Process-global graphics state is also clear: the capability
+flags are set only by the web process, never by the GPU or UI process, so merging
+those two changes nothing.
+
+**Three obstacles, and the second is the one that worries me.**
+
+1. *The build graph, not the code.* `GPUConnectionToWebProcess` is 1,901 lines with
+   188 conditional blocks, and its constructor unconditionally builds four media
+   proxies and calls three codec-availability probes. All of it sits behind flags a
+   Tiger port turns off, so this is grinding rather than hard, but 188 blocks is 188
+   chances for one not to hold.
+2. *CoreGraphics on a non-main thread.* Every rendering member is annotated as
+   guarded by the work queue, so replay runs on a graphics thread. In a separate GPU
+   process that thread owns the address space. In our UI process it would coexist
+   with AppKit drawing on the main thread, and Tiger's CoreGraphics font and colour
+   space caches were never audited for that. This is the likely source of
+   intermittent crashes. The mitigation is a variant work queue that drains on the
+   main run loop, roughly sixty lines, trading latency for safety.
+3. *The trust model inverts.* Every message check and release assertion in the 2D
+   path currently kills a sacrificial process. In the UI process each one becomes a
+   browser crash, and an image-buffer overflow becomes a UI-process memory-safety
+   bug. For this port that is an acceptable trade, but it should be written down as
+   a trade rather than discovered later. It is written down here.
+
+**A smaller first move exists.** Tiger cannot share a window, but it shares memory
+fine. Keeping the GPU process as a separate i386 executable that paints into a
+shareable bitmap and sends the handle to the UI process, which blits it in the
+view, changes one destination for an existing message instead of relocating six
+thousand lines and inverting the threading and trust model. It costs one extra copy
+per frame. The allocator for exactly this already exists. Since the seam above is
+narrow and will still be there later, deferring it burns no bridge. My
+recommendation is to measure the copy before paying for the merge.
+
+### Authoritative shared-flag list
+
+`logs/tiger-ipc-shared-flags.txt` is the generated record from the UI
+configuration: every name that appears in a serialization condition, with its final
+value. It is produced by the configure itself, so it cannot drift from the tree.
+Fifty-five of those names are compile-time macros rather than CMake options,
+including the CoreGraphics and CoreText ones, and those have to be made to agree in
+the port's platform header instead.
