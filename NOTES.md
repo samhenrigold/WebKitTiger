@@ -1073,3 +1073,9 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   TransformProcessType or every live control draws inactive; backdrop must be the captured pattern background; live
   control sized to the PAINTED bounds (new TigerControlDrawingBounds), not the border box. Remaining: focus rings,
   a constant checkbox/radio delta, and decomposing slider/progress/scrollbar into the parts WebCore asks for.
+- Fresh-clone audit (ld64fix): HEAD did not build compat for x86_64 because 2c6d1db swept in the cfcompat.c
+  source-list line while the matching LP64 guards in cfcompat.c/getsect.h (jsc64's) stayed uncommitted; lead committed
+  them. GIT RULE refined: `commit -o <file>` commits the file's whole working-tree content, including other agents'
+  in-flight hunks in that file; run `git diff -- <file>` and confirm every hunk is yours before every commit -o.
+- Re-mirror (remirror 34add82, logs/box-update-2026-09-20.md): sysroot-new/ is a complete verified post-update mirror;
+  sysroot/ is still pre-update; export diff and swap not done (stopped on budget cut; steps listed in that file).
