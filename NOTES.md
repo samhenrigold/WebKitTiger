@@ -1109,3 +1109,14 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   wtf/PlatformTigerWire.h; unix domain sockets forced on both sides. Ordering trap: the flag record must be written at
   the END of the options file or it reports everything unset (looks like agreement). UI (and GPU) trees still on the
   Cocoa port for ObjC/ARC/overlay paths, so the check reports two port-specific options divergent until they migrate.
+- ***** N0 GATE PASSED 2026-09-21 03:11 (jsc64 4c3677e, WebKit branch tiger-jsc64 45f51600, logs/jsc64-spike.md) *****
+  Today's JavaScriptCore runs on the 10.4.11 box as x86_64 with the full JIT: 2M loop 51 ms (i386 C-loop 2240 ms, 44x;
+  Safari 4.1.3's i386 JIT 59 ms); fib(30) 55 ms; baseline-only 122; --useJIT=false 511. Smoke suite matches the host.
+  Fixes: MacroAssemblerX86_64 hardcodes AVX on Darwin (SIGILL on vmovq in DFG code; symbolicated from crash-log rip vs
+  --dumpDisassembly); bmalloc passes VM_MAKE_TAG as mmap fd (10.5+ convention, EINVAL on 10.4); InlineCacheCompiler.h
+  incomplete type. TIGER TRAP: pthread_get_stackaddr_np LIES for the main thread in a 64-bit process on 10.4
+  (reports 0xc0000000/512 KB; real stack near 0x7fff5fc00000); StackBounds now uses mach_vm_region. Assume this class
+  of bug wherever 64-bit code asks 10.4's libSystem about itself. No MAP_JIT, no W^X: plain RWX mmap executes.
+  Untested load-bearing pieces: thread_get_state(x86_THREAD_STATE64) for conservative GC scanning, and POSIX signal
+  delivery into JIT code (HAVE(MACH_EXCEPTIONS) off; mach_exc.defs is 10.5+). ICU data step silently installs a stub
+  for the x86_64 configure (workaround recorded). dispatch x86_64 install bug already fixed ($(LIB)).
