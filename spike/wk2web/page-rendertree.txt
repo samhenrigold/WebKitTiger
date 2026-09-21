@@ -30,11 +30,3 @@ layer at (197,287) size 70x26
     RenderText {#text} at (5,5) size 24x16
       text run at (5,5) width 24: "first"
 
-InitializeWebProcess: ok, 104 ms after fork
-CreateWebPage 3, 800x600
-LoadRequest http://127.0.0.1:8391/page.html
-web process asked for its network connection
-DidChangeContentSize 800x600 at 86 ms
-DecidePolicyForNavigationActionAsync -> Use
-DidChangeContentSize 0x0 at 107 ms
-web process asked for a GPU connection; standing in for one

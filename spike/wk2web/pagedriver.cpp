@@ -378,6 +378,7 @@ private:
     bool m_loadFinished { false };
     bool m_finished { false };
     bool m_sawUpdateWithTile { false };
+    bool m_renderedCorrectly { false };
     unsigned m_updateCount { 0 };
     unsigned m_updatesBeforeForce { 0 };
     bool m_verbose { !!getenv("PAGEDRIVER_VERBOSE") };
@@ -410,6 +411,41 @@ void PageDriver::dumpBitmap(WebCore::ShareableBitmap& bitmap, const char* source
         }
     }
     printf("  %zu non-transparent pixels, %zu of them not near-white\n", opaque, nonWhite);
+
+    // The assertion that makes this a test rather than a demo. Coordinates come
+    // straight out of the render tree: body is at (20,20), the coloured div is
+    // "RenderBlock {DIV} at (0,103) size 344x145 [bgcolor=#C83232]" inside it, so
+    // absolute (20,123)-(364,268). Below the document (334 tall) is page white.
+    if (size.width() >= 800 && size.height() >= 600) {
+        auto pixelAt = [&](int x, int y, uint8_t& r, uint8_t& g, uint8_t& b, uint8_t& a) {
+            auto row = pixels.subspan(static_cast<size_t>(y) * bitmap.bytesPerRow());
+            b = row[x * 4 + 0]; g = row[x * 4 + 1]; r = row[x * 4 + 2]; a = row[x * 4 + 3];
+        };
+        uint8_t r = 0, g = 0, b = 0, a = 0;
+        pixelAt(100, 180, r, g, b, a);
+        bool divIsRed = r == 0xC8 && g == 0x32 && b == 0x32 && a == 0xFF;
+        printf("  assert div    (100,180) = #%02X%02X%02X alpha %02X  %s (want #C83232 FF)\n",
+            r, g, b, a, divIsRed ? "PASS" : "FAIL");
+
+        pixelAt(600, 450, r, g, b, a);
+        bool backgroundIsWhite = r == 0xFF && g == 0xFF && b == 0xFF && a == 0xFF;
+        printf("  assert page   (600,450) = #%02X%02X%02X alpha %02X  %s (want #FFFFFF FF)\n",
+            r, g, b, a, backgroundIsWhite ? "PASS" : "FAIL");
+
+        // The H1 is #103A70 on white: somewhere in its box there must be dark ink.
+        size_t headingInk = 0;
+        for (int y = 20; y < 54; y++) {
+            auto row = pixels.subspan(static_cast<size_t>(y) * bitmap.bytesPerRow());
+            for (int x = 20; x < 240; x++) {
+                if (row[x * 4 + 2] < 0x80 && row[x * 4 + 1] < 0x80)
+                    headingInk++;
+            }
+        }
+        printf("  assert H1 ink in (20,20)-(240,54): %zu dark pixels  %s\n",
+            headingInk, headingInk > 200 ? "PASS" : "FAIL");
+
+        m_renderedCorrectly = divIsRed && backgroundIsWhite && headingInk > 200;
+    }
 
     if (!m_pngPath)
         return;
@@ -569,6 +605,16 @@ int PageDriver::run()
         .drawingAreaIdentifier = m_drawingAreaIdentifier,
         .webPageProxyIdentifier = WebKit::WebPageProxyIdentifier::generate(),
         .pageGroupData = WebKit::WebPageGroupData { "TigerPageDriver"_s, WebKit::PageGroupIdentifier::generate() },
+        // These three default to ZERO in WebPageCreationParameters, because a real
+        // UI process always sets them and upstream never has to care. Leaving
+        // viewScaleFactor at 0 gives the RenderView a degenerate scale transform:
+        // RenderView::documentRect() maps to an empty rect, so adjustViewSize sets
+        // the frame view's contents size to 0x0, and every draw inside the layer
+        // paint is scaled to nothing -- a page that loads, styles and lays out
+        // perfectly and renders a blank bitmap.
+        .deviceScaleFactor = 1,
+        .intrinsicDeviceScaleFactor = 1,
+        .viewScaleFactor = 1,
         .visitedLinkTableID = WebKit::VisitedLinkTableIdentifier::generate(),
         .userContentControllerParameters = { .identifier = WebKit::UserContentControllerIdentifier::generate() },
         .mainFrameIdentifier = WebCore::FrameIdentifier::generate(),
@@ -636,7 +682,8 @@ int PageDriver::run()
     waitpid(m_webProcess, &status, 0);
     waitpid(m_networkProcess, &status, 0);
 
-    return m_loadFinished && m_sawUpdateWithTile ? 0 : 1;
+    printf("page rendered correctly:        %s\n", m_renderedCorrectly ? "YES" : "NO");
+    return m_loadFinished && m_sawUpdateWithTile && m_renderedCorrectly ? 0 : 1;
 }
 
 } // namespace

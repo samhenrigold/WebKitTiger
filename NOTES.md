@@ -2080,3 +2080,45 @@ moment the archive lands.
   sides and wants one coordinated change, not a whitelist entry.
   (`LOGFONT`/`CoreIPCLOGFONT` also appears, under `USE(CAIRO) && PLATFORM(WIN)` — dead text on both
   sides, no wire effect, but a reminder that the cairo arm is written for WinCairo.)
+
+### 2026-09-21 — the page renders (wk2web)
+
+- ***** GATE PASSED. spike/wk2web/tiger-page.png is a real web page, drawn by WebCore and cairo in a
+  64-bit process on the 10.4.11 box: *****  the blue H1, the paragraph, the #C83232 div with white
+  text in it, an `<input type=text>` with its inset border and the text "an input", and a `<select>`
+  showing "first" with a dropdown arrow. 480,000 opaque pixels, 56,469 of them not white.
+- **ROOT CAUSE of the blank paint, and it was mine, in the harness — not WebCore, not the port.**
+  `WebPageCreationParameters` declares `deviceScaleFactor { 0 }`, `intrinsicDeviceScaleFactor { 0 }`
+  and `viewScaleFactor { 0 }`. Those default member initialisers really are zero upstream, because a
+  real UI process always sets them and nobody has ever constructed the struct without one.
+  pagedriver used designated initialisers and left them alone, so the page got a **view scale of 0**:
+  `RenderView::documentRect()` maps the document rect through the RenderView's transform, a zero
+  scale maps it to empty, `adjustViewSize` therefore set the frame view's contents size to 0x0, and
+  every draw inside `RenderLayer::paintLayer` was scaled to nothing. One cause, both symptoms —
+  which was the bet.
+  Worth keeping: it presented as "layout is perfect and nothing paints", the most misleading shape a
+  graphics bug can have. What settled it was a probe in `LocalFrameView::adjustViewSize` printing
+  `documentRect` — `documentRect=0x0` next to a render tree laid out to 800x334 can only be a
+  degenerate transform.
+- How it was cornered, in order, each step ruling out a layer (all on the box):
+  a `fillRect` from the drawing area lands, so the context and the ShareableBitmap are the same
+  memory the driver maps → a `fillRect` *inside a clip* lands, so it is not `WebPage::drawRect`'s
+  clip → `ScrollView::paint` runs with an 800x600 dirty rect → `LocalFrameView::paintContents` runs
+  with `inPaintableState=1 needsLayout=0 transparent=0 baseBg=#FFFFFF` → so `rootLayer->paint()` was
+  being called with everything right → `adjustViewSize` says `documentRect=0x0`.
+- **pagedriver now asserts pixels**, so this is a test and not a demo. Coordinates come out of the
+  render tree (body at (20,20), the div at (0,103) size 344x145 inside it):
+
+      assert div    (100,180) = #C83232 alpha FF  PASS
+      assert page   (600,450) = #FFFFFF alpha FF  PASS
+      assert H1 ink in (20,20)-(240,54): 1426 dark pixels  PASS
+      page rendered correctly: YES     (exit status 0 only if all three hold)
+
+- **Timings, three runs:** fork -> InitializeWebProcess reply 74-117 ms; LoadRequest ->
+  DidFinishLoadForFrame **238-284 ms**; -> the painted update **246-293 ms**. Web process RSS after
+  the load **40.7 MB**, network process 21.6 MB. Clean `status 0` exit on both paths.
+- No WebCore change was needed. The two probes in DrawingAreaWC (TIGER_PAINT_PROBE, TIGER_RENDER_TREE)
+  stay; the throwaway ones in LocalFrameView.cpp, LocalFrameViewLayoutContext.cpp and ScrollView.cpp
+  were reverted.
+- Note for the real UI process: **set all three scale factors**. A zero there is not a crash and not
+  a warning, it is a blank window.
