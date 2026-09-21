@@ -34,6 +34,9 @@ MAPPING = {
     "USE(CG)": "TIGER_WIRE_CG",
     "USE(APPKIT)": "TIGER_WIRE_APPKIT",
     "USE(CORE_TEXT)": "TIGER_WIRE_CORE_TEXT",
+    # Seventh flag, and the only one defined 0 rather than 1: the web process records display lists
+    # and never rasterises, so the Cairo-shaped fields are absent from the wire on both sides.
+    "USE(CAIRO)": "TIGER_WIRE_CAIRO",
 }
 
 CONDITIONAL = re.compile(r"^\s*#\s*(if|elif)\b")
@@ -75,6 +78,10 @@ def main():
     ap.add_argument("--root", default="WebKit-ipc", help="worktree the paths are relative to")
     ap.add_argument("--apply", action="store_true", help="rewrite in place")
     ap.add_argument("--verify", action="store_true", help="report flags left outside conditionals")
+    ap.add_argument("--only", action="append", metavar="MACRO",
+                    help="remap just this macro, repeatable. The probe reports which flags actually "
+                         "disagree; without this every macro in the table is rewritten in every "
+                         "listed file, including ones that agree and need no divergence.")
     ap.add_argument("--mac-maps-to", choices=sorted(set(MAPPING.values())),
                     help="override what PLATFORM(MAC) becomes; the default is TIGER_WIRE_MAC")
     args = ap.parse_args()
@@ -82,6 +89,12 @@ def main():
     mapping = dict(MAPPING)
     if args.mac_maps_to:
         mapping["PLATFORM(MAC)"] = args.mac_maps_to
+    if args.only:
+        unknown = [m for m in args.only if m not in mapping]
+        if unknown:
+            print(f"error: not in the mapping table: {', '.join(unknown)}", file=sys.stderr)
+            return 1
+        mapping = {m: mapping[m] for m in args.only}
 
     root = Path(args.root)
     paths = [root / line.strip() for line in Path(args.list).read_text().splitlines()
@@ -117,7 +130,7 @@ def main():
 
     verb = "rewrote" if args.apply else "would rewrite"
     print(f"\n{verb} {totalLines} conditionals across {totalFiles} files"
-          f" (PLATFORM(MAC) -> {mapping['PLATFORM(MAC)']})")
+          f" ({', '.join(f'{k} -> {v}' for k, v in sorted(mapping.items()))})")
     return 0
 
 

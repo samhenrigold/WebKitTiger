@@ -1,0 +1,56 @@
+From b649afd621b5e3026432da475aed318c51fd7436 Mon Sep 17 00:00:00 2001
+From: samhenrigold <49251320+samhenrigold@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 23:18:37 -0400
+Subject: [PATCH] TIGER: remap USE(CAIRO) to TIGER_WIRE_CAIRO in the two font
+ generator inputs
+
+A conditional in a generator input answers "is this field on the wire?", while
+the same macro in a .cpp answers "do I have this framework?". The wire question
+must have the same answer in the 32-bit UI process and the 64-bit content
+process. TIGER_WIRE_CAIRO is defined 0 on every side: the content process
+records display lists and never rasterises, so the Cairo-shaped font fields are
+absent from the wire in both directions.
+
+Scope is exactly what tools/check-wire-flags.py reported: two conditionals in
+two files. The other flags in those files agree between the two builds and are
+left alone, so this does not diverge from upstream any further than measured.
+
+Note that the probe's own output argues this should be fixed in configuration
+instead, by not giving the content process Cairo at all. If that lands, this
+commit should be dropped rather than kept.
+
+Claude-Session: https://claude.ai/code/session_01RHwCbDKQLvzXACuucjKev6
+---
+ Source/WebKit/Shared/WebCoreFont.serialization.in            | 2 +-
+ Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Source/WebKit/Shared/WebCoreFont.serialization.in b/Source/WebKit/Shared/WebCoreFont.serialization.in
+index 43b2a51c..165a0a9e 100644
+--- a/Source/WebKit/Shared/WebCoreFont.serialization.in
++++ b/Source/WebKit/Shared/WebCoreFont.serialization.in
+@@ -85,7 +85,7 @@ using WebCore::FontPlatformData::IPCData = Variant<WebCore::FontPlatformSerializ
+ header: <WebCore/FontPlatformData.h>
+ [CustomHeader] struct WebCore::FontPlatformDataAttributes {
+     WebCore::FontMetadata m_metadata;
+-#if PLATFORM(WIN) && USE(CAIRO)
++#if PLATFORM(WIN) && TIGER_WIRE_CAIRO
+     LOGFONT m_font;
+ #endif
+ #if USE(CORE_TEXT)
+diff --git a/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in b/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in
+index eb413846..c1ee6ae5 100644
+--- a/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in
++++ b/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in
+@@ -20,7 +20,7 @@
+ # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+-#if USE(CAIRO)
++#if TIGER_WIRE_CAIRO
+ 
+ #if PLATFORM(WIN)
+ headers: "CoreIPCLOGFONT.h"
+-- 
+2.55.0
+
