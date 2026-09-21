@@ -1235,3 +1235,57 @@ Next step when work resumes: wkcmake's item first (it gates everything), then js
   is written against the current signatures in FontCacheFreeType.cpp and will need a first-error pass. Also open:
   `@font-face` (FontCustomPlatformDataFreeType is in the build but untried), astral-plane coverage (manifest is BMP only,
   `covers()` returns false above U+FFFF), vertical text, and the RTL arm of the kern rule (written by symmetry, not measured).
+
+## 2026-09-20 — jsc64: the three open items closed (branch tiger-jsc64 @46273728, logs/jsc64-spike.md)
+
+- **thread_get_state(x86_THREAD_STATE64) does NOT lie on 10.4's 32-bit kernel.** spike/jsc64/tgstate64.c parks a victim
+  thread with sentinels in rbx/r12-r15 and checks every one comes back verbatim, rsp lands inside that thread's stack
+  (not a 32-bit-looking address), and rip is right — including when the thread is executing from a plain RWX mapping,
+  i.e. a JIT rip. 2000 suspend/get_state/resume rounds, 0 bad. This is the opposite result from
+  pthread_get_stackaddr_np; the lie class is real but not universal, and the only way to know is to check each API.
+- **Conservative GC across threads works.** spike/jsc64/gcthreads.js: 4 JS threads (main + 3 $.agent workers) each hold
+  4,000 objects whose only reference is a local in a JIT-compiled function, call gc() 160 times, under
+  --collectContinuously. 640 explicit GCs, 21,527 collections logged, every round's checksum re-derived and verified —
+  a missed root shows as wrong data, not just a crash. Re-run with --sample: 2,465 profiler samples (each a suspend +
+  thread_get_state + JIT-frame walk of a running mutator) concurrent with all of that. Clean.
+- ***** BUG, fatal, fixed (7d65712c): VMTraps' `hlt` arrives as SIGILL on 10.4, not SIGSEGV. *****
+  installVMTrapBreakpoints() patches `hlt` over the DFG's invalidation points; `hlt` in user mode is a #GP, and
+  xnu-792 reports a #GP in a 64-bit task as EXC_BAD_INSTRUCTION code 0xd (EXC_I386_GPFLT) -> SIGILL. VMTraps registers
+  its handler only for Signal::AccessFault (SIGSEGV/SIGBUS), so the trap reached the default handler and killed the
+  process. `jsc --watchdog=1500` on a JIT'd loop died with signal 4 the moment the code tiered up to DFG; LLInt and
+  baseline were fine because they have no invalidation points to patch. Fix: register the same handler for
+  Signal::IllegalInstruction too, scoped to CPU(X86_64) && !HAVE(MACH_EXCEPTIONS). This gated the watchdog, Heap's
+  stop-the-world handshake, termination, and every asynchronous interruption of optimised code.
+- **Signal delivery into JIT code otherwise works, with a signal map worth memorising** (spike/jsc64/sigjit64.c, all
+  faults raised from an RWX mapping): `hlt` -> SIGILL(3); `ud2` -> SIGILL(1); `int3` -> SIGTRAP, rip already past it;
+  PROT_NONE load/store -> **SIGBUS**, not SIGSEGV; null load -> SIGSEGV. Critically, **rewriting rip and the GPRs in the
+  ucontext takes effect on return** — that is how every JSC handler recovers, and MachineContext.h's unprefixed-register
+  branch reads/writes the right fields.
+- **Wasm traps go through the signal handler and work.** spike/jsc64/wasmtrap.js: OOB load/store, unreachable, div-by-zero
+  and div overflow all surface as the right RuntimeError. --crashIfWasmCantFastMemory=true does not crash, so the 4 GB
+  fast reservation succeeds and the memory is MemoryMode::Signaling, in which the JIT emits no bounds check — the access
+  itself faults. 20,000 consecutive traps, all recovered, VM healthy after. Cost of a full SIGBUS round trip: 47 us.
+- **FTL was already on** in build-jsc64-core2 (the 51 ms came from build/jsc64, whose cache has ENABLE_FTL_JIT=OFF).
+  build-jsc64-ftl is therefore a duplicate of build-jsc64-core2 minus -march=core2 and can be deleted.
+  2M loop (the identical loop from testpages/script.html): **13 ms with FTL**, 46 ms DFG, 46 ms baseline, 136 ms LLInt.
+  fib(30): 32 / 47 / 103 / 362. Eight-benchmark total: 718 / 885 / 1893 / 3355 ms. So FTL is 3.5x on the tight loop,
+  1.23x across the set, for 185 ms of extra compile time. Versus the recorded baselines on the same machine: Safari
+  4.1.3's own JIT 59 ms, our shipping i386 C-loop jsc 2240 ms, Tiger's 2007 WebKit 5300 ms.
+- **RSS and JIT memory.** 92 MB full JIT / 101 MB no-FTL / 127 MB baseline-only / 70 MB LLInt. (FTL uses *less* than
+  DFG-only: it replaces DFG code and drops the profiling data.) The executable pool reserves 1 GB of address space but
+  the high-water mark of allocated executable memory across the whole benchmark set is **53 KB**, committed 4 KB at a time.
+- ***** BUG, quiet, fixed (46273728): jsc --footprint printed 0 on every run. ***** ProcessMemoryFootprint::now()
+  selects its implementation with __has_include(<libproc.h>) and is written entirely against proc_pid_rusage(); libproc
+  is 10.5+, so it fell through to `return { 0, 0 }` with no diagnostic. Now uses WTF::memoryFootprint()'s existing Tiger
+  path. Verified with spike/jsc64/rss64.c: touch 200 MB, TASK_BASIC_INFO's resident_size moves by 200 MB — truthful on
+  the 32-bit kernel. Also recorded there: **getrusage()'s ru_maxrss is in the struct but never populated on 10.4**, so
+  10.4 has no lifetime-peak memory counter at all.
+- Noticed, not fixed, not Tiger-specific: Thread::getRegisters() returns userCount * sizeof(uintptr_t) as a byte length,
+  but userCount is in natural_t (4-byte) units — 336 bytes reported for a 168-byte x86_thread_state64_t — so the
+  conservative scan copies 168 bytes of the caller's frame along with the registers. Over-approximation is safe for a
+  conservative collector and ARM64 has the same 2x, so it is left alone. Do not read it as a real root.
+- build/jsc64 moved out of the shared build/ sweep path to build-jsc64-spike-orig (kept, not deleted: it is the FTL-off
+  tree behind the original 51 ms). .gitignore widened from /build-jsc64/ to /build-jsc64*/.
+- OPEN for this track: StackBounds' main-thread fix is still only shallowly exercised (a deep-recursion test expecting a
+  RangeError at a sane depth would close it); no JSC path was driven through int3/SIGTRAP; GC stress was not run under
+  memory pressure.

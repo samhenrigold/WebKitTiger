@@ -250,3 +250,282 @@ Reported to the dispatch track.
 under this spike mid-session by another track's cleanup, which cost a full
 rebuild. Worth either namespacing build directories or agreeing not to `rm -rf`
 siblings.
+
+---
+
+# 2026-09-20 (later), agent `jsc64`: the three untested pieces, tested
+
+Picking up the three things the spike above left open — conservative GC across
+threads, POSIX signal delivery into JIT code, and FTL — plus RSS and JIT memory
+numbers. Worktree `WebKit-jsc64`, branch `tiger-jsc64`, now at `46273728`;
+binary from `build-jsc64-core2` (Release, `-march=core2`, FTL on).
+
+Two real bugs fell out, one of them fatal to anything that ever interrupts
+optimised JavaScript.
+
+## Verdict, short
+
+| Question | Answer |
+|---|---|
+| `thread_get_state(x86_THREAD_STATE64)` on 10.4's 32-bit kernel | **Truthful**, including a JIT rip |
+| Conservative GC with several JS threads under the JIT | **Works**, 21,527 collections, no corruption |
+| POSIX signals delivered into JIT memory | **Works**, but `hlt` arrives as SIGILL — bug, fixed |
+| Wasm traps via the fault handler | **Works**, signaling memory, 20,000 traps clean |
+| FTL | Was already enabled and tiering up; **3.5x on the 2M loop** |
+| `jsc --footprint` | Returned 0 on every run — bug, fixed |
+
+## 1. Conservative GC across threads
+
+`thread_get_state` is the one call the whole conservative collector rests on, so
+it gets a lie detector, not a smoke test: **`spike/jsc64/tgstate64.c`**. A victim
+thread parks with five sentinels in the callee-saved registers, the main thread
+suspends it and reads its state:
+
+```
+tgstate64: pointer size 8, x86_THREAD_STATE64_COUNT 42, sizeof(x86_thread_state64_t) 168
+PASS  count returned 42 (want 42)
+PASS  r12 = 0x1234deadbeef0012   ... r13, r14, r15, rbx all verbatim
+PASS  rsp 0x100485f00 is a 64-bit address (not a 32-bit-looking one)
+PASS  rsp 0x100485f00 inside the victim stack [0x100406000,0x100486000)
+PASS  rip 0x10000162e is inside park() at 0x100001740 (delta 274)
+PASS  victim local 0x100485f04 is within [rsp, stack top)
+PASS  rip 0x1001e2008 is inside the RWX mapping at 0x1001e2000 (JIT-code rip is reported)
+PASS  2000 suspend/get_state/resume rounds, 0 bad
+ALL PASS
+```
+
+So, unlike `pthread_get_stackaddr_np`, this one does **not** lie to a 64-bit
+process. Registers, stack pointer and instruction pointer are all right, and the
+rip is right even when the thread is executing from a plain RWX mapping, which is
+what JSC's executable allocator hands the JIT here.
+
+At the JSC level, **`spike/jsc64/gcthreads.js`**: four JS threads (main plus three
+`$.agent` workers), each building 4,000 live objects whose only reference is a
+local inside a hot, JIT-compiled function, calling `gc()` 160 times each, with
+`--collectContinuously=true` so the collector is also firing on its own. Each
+round re-derives the expected sum and compares — a missed root shows up as wrong
+data, not just as a crash.
+
+```
+worker seed=1000 gcs=160 ... worker seed=2000 ... worker seed=3000 ...
+threads=4 explicit_gcs=640
+PASS gcthreads
+```
+
+`--logGC=1` on the same run: **21,527 collections**, 19.7 s wall. Every VM's
+collector runs on its own thread, so each of those collections suspended a
+*different* thread and read its registers through the call above.
+
+Run again with `--sample` (sampling profiler on top): 2,465 profiler samples —
+each one a suspend + `thread_get_state` + JIT-frame stack walk of a running
+mutator — concurrent with the 640 explicit GCs. Clean.
+
+The sampling profiler is also the tidiest end-to-end proof that the register read
+lands in JIT code and is interpreted correctly:
+
+```
+Total samples: 95 -- 92 in 'fib', FTL: 91 (95.8%), Baseline: 1, C/C++: 3
+Hottest bytecodes:  23  'fib#CntvZP:FTL:bc#61 <-- fib#CntvZP:FTL:bc#32'
+```
+
+Attributing a sample to an inlined FTL bytecode index requires the rip *and* the
+frame pointer out of a suspended thread to both be right.
+
+**One upstream thing noticed, not fixed.** `Thread::getRegisters()` returns
+`metadata.userCount * sizeof(uintptr_t)` as the byte length of the register
+block, but `userCount` is in `natural_t` (4-byte) units: 42 * 8 = 336 bytes for a
+168-byte `x86_thread_state64_t`. `MachineThreads::tryCopyOtherThreadStack` then
+copies 336 bytes out of a 168-byte stack local, so the conservative scan includes
+168 bytes of the caller's frame. It is an over-approximation, which is safe for a
+conservative collector, and it is not Tiger-specific (ARM64 has the same 2x), so
+it is left alone. Worth knowing before anyone reads it as a real root.
+
+## 2. Signal delivery into JIT code — one fatal bug
+
+`HAVE(MACH_EXCEPTIONS)` is off (`mach_exc.defs` is 10.5+), so every trap arrives
+as a POSIX signal. **`spike/jsc64/sigjit64.c`** executes each trap instruction out
+of an RWX mapping and reports which signal it produces, where rip lands, and
+whether the handler can steer execution:
+
+```
+sigjit64: RWX arena at 0x1001e2000, guard page at 0x1001e3000
+PASS  hlt (VMTraps halt)     -> SIGILL  (si_code 3), rip == stub+0 in RWX memory
+PASS  ud2                    -> SIGILL  (si_code 1), rip == stub+0
+PASS  int3 (breakpoint)      -> SIGTRAP (si_code 1), rip == stub+1   (trap, not fault)
+PASS  load from PROT_NONE    -> SIGBUS  (si_code 2), rip == stub+0
+PASS  store to PROT_NONE     -> SIGBUS  (si_code 2), rip == stub+0
+PASS  load from null         -> SIGSEGV (si_code 1), rip == stub+0
+PASS  rip rewritten in the ucontext took effect on return (recoverStub ran)
+PASS  rax written in the ucontext took effect (saw 0xc0ffee0badf00d)
+ALL PASS
+```
+
+The last two lines matter as much as the first six: every JSC handler recovers by
+rewriting rip in the `ucontext` to point at a thunk, and on 10.4 that write does
+take effect for a 64-bit process. `MachineContext.h`'s unprefixed-register branch
+is reading and writing the right fields.
+
+**The bug.** Line one: `hlt` is what `CodeBlock::installVMTrapBreakpoints()`
+patches over the DFG's invalidation points, and `hlt` from user mode is a **#GP**
+fault. Which signal a #GP becomes is the kernel's choice. `VMTraps::SignalSender`
+registers its handler only for `Signal::AccessFault` (SIGSEGV/SIGBUS), but
+xnu-792 reports a #GP in a 64-bit task as `EXC_BAD_INSTRUCTION` with code `0xd`
+(`EXC_I386_GPFLT`) — so it is delivered as **SIGILL**, misses the handler, hits
+the default action and kills the process.
+
+Symptom before the fix, `jsc --watchdog=1500` on a JIT-compiled infinite loop:
+
+| tier | before | after |
+|---|---|---|
+| `--useJIT=false` (LLInt) | terminated cleanly, exit 3 | same |
+| `--useDFGJIT=false` (baseline) | terminated cleanly, exit 3 | same |
+| `--useFTLJIT=false` (DFG) | **killed, signal 4, exit 132** | terminated cleanly, exit 3 |
+| full JIT | **killed, signal 4, exit 132** | terminated cleanly, exit 3 |
+
+LLInt and baseline survived because they have no invalidation points to patch;
+only optimised code gets `hlt` written into it. The crash log was
+`EXC_BAD_INSTRUCTION (0x0002) / Code[0]: 0x0000000d` with rip in the JIT arena
+and `Unable to generate backtrace for 64 bit task` — which is why this needed the
+probe rather than a debugger.
+
+Fixed in **`7d65712c`**: register the same handler for
+`Signal::IllegalInstruction` as well, scoped to
+`CPU(X86_64) && !HAVE(MACH_EXCEPTIONS)`. It is safe because the handler returns
+`SignalAction::NotHandled` for any pc that is not a JIT pc with an installed trap
+breakpoint, and WTF then chains to the previous handler or restores the default.
+
+This was load-bearing for far more than `--watchdog`: VMTraps is how the watchdog,
+`Heap`'s stop-the-world handshake for an unresponsive mutator, termination
+requests, and any asynchronous interruption of optimised code all reach running
+JavaScript. Every one of them would have killed the process.
+
+**Wasm traps.** **`spike/jsc64/wasmtrap.js`** hand-assembles a module (sections
+built programmatically — hand-counted LEB sizes were wrong three times) exporting
+loads, stores, `unreachable` and `i32.div_s`:
+
+```
+memory bytes: 65536
+PASS  in-bounds load / in-bounds store
+PASS  load past the end:       RuntimeError: Out of bounds memory access
+PASS  store past the end:      RuntimeError: Out of bounds memory access
+PASS  load just past the end:  RuntimeError: Out of bounds memory access
+PASS  unreachable:             RuntimeError: Unreachable code should not be executed
+PASS  i32.div_s by zero:       RuntimeError: Division by zero
+PASS  i32.div_s overflow:      RuntimeError: Integer overflow
+trap storm: 20000/20000 traps in 946 ms
+PASS  usable after the storm
+PASS wasmtrap
+```
+
+That the out-of-bounds cases really go through the signal handler rather than an
+emitted bounds check: `--crashIfWasmCantFastMemory=true` does **not** crash, so
+the memory is `MemoryMode::Signaling` (the 4 GB fast reservation succeeds on
+10.4), and in Signaling mode `WasmOMGIRGenerator`/`WasmBBQJIT64` emit no bounds
+check — the access itself faults. Per-trap cost of the full SIGBUS round trip on
+this machine: **47 µs**. `--useWasmFastMemory=false` and
+`--useWasmFaultSignalHandler=false` are the controls; both give identical results
+through the software path.
+
+## 3. FTL
+
+FTL was **already enabled** in `build-jsc64-core2` (`ENABLE_FTL_JIT:BOOL=ON`) and
+already tiering up — the sampling profiler above puts 95.8% of `fib` samples in
+FTL code. It was *not* on for the 51 ms number in the section above: that came
+from `build/jsc64`, whose cache has `ENABLE_FTL_JIT:BOOL=OFF`. So `build-jsc64-ftl`
+is a duplicate of `build-jsc64-core2` minus `-march=core2`; it can go.
+
+`spike/jsc64/bench.js`, best of three after a warm-up, on the box. Every case
+self-checks its result. The 2M loop is the identical loop from
+`spike/TigerBrowser/testpages/script.html`, so it is directly comparable with the
+51 ms recorded above.
+
+| | full JIT (FTL) | no FTL (DFG) | baseline only | LLInt |
+|---|---|---|---|---|
+| 2M loop (`x += i % 7`) | **13 ms** | 46 ms | 46 ms | 136 ms |
+| fib(30) | **32 ms** | 47 ms | 103 ms | 362 ms |
+| strings (200k concat + join) | 56 | 60 | 155 | 181 |
+| objects (300k allocs + walk) | 105 | 108 | 359 | 647 |
+| sort 200k numbers | 204 | 247 | 284 | 403 |
+| regexp (20k matches) | 25 | 24 | 34 | 81 |
+| float math (1.5M sqrt/sin) | 243 | 290 | 423 | 631 |
+| bitops (3M) | 40 | 63 | 489 | 914 |
+| **total** | **718 ms** | 885 ms | 1893 ms | 3355 ms |
+| RSS (current = peak) | 92 MB | 101 MB | 127 MB | 70 MB |
+| peak JIT bytes allocated | 53,088 | 46,336 | 32,736 | — |
+| total compile time | 207 ms (FTL 185, DFG 19, baseline 2.6) | 24 ms | — | — |
+
+Against the recorded baselines for the same 2M loop on the same machine:
+
+| | 2M loop |
+|---|---|
+| jsc64, FTL | **13 ms** |
+| jsc64, DFG (the 51 ms from the first spike; 46 here with `-march=core2`) | 46–51 ms |
+| Safari 4.1.3, i386, 2010 JIT | 59 ms |
+| our shipping i386 jsc, C loop | 2240 ms |
+| Tiger's own 2007 WebKit | 5300 ms |
+
+FTL is worth **3.5x on the tightest loop** and 1.23x across the set, for 185 ms of
+extra compile time and, interestingly, *less* RSS than the DFG-only run (92 vs
+101 MB) — FTL replaces DFG code and lets the profiling data go.
+
+JIT memory is tiny in absolute terms: the executable pool reserves **1 GB of
+address space** (`fixedExecutableMemoryPoolSize`) but the high-water mark of
+actually-allocated executable memory across the whole benchmark set is **53 KB**,
+committed 4 KB at a time. A 1 GB reservation is fine here — `vmprobe` had already
+shown a 64-bit process on 10.4 reserving 4 GB in one call — but it is worth
+remembering that the kernel is 32-bit and this is one reservation per process.
+
+## 4. `jsc --footprint` reported 0 — second bug
+
+`ProcessMemoryFootprint::now()` selects its implementation with
+`__has_include(<libproc.h>)` and is written entirely against `proc_pid_rusage()`.
+libproc is 10.5+, so on this target the probe finds nothing, falls through to the
+final `#else`, and returns `{ 0, 0 }` silently. Every RSS number printed by the
+shell was zero, which is the quiet kind of wrong.
+
+`WTF::memoryFootprint()` already had a Tiger path (`TASK_BASIC_INFO`'s
+`resident_size`), so the fix reuses it. Checked rather than assumed, given the
+`pthread_get_stackaddr_np` precedent: **`spike/jsc64/rss64.c`** touches 200 MB and
+watches the counter:
+
+```
+before: TASK_BASIC_INFO(64) resident 741376 (0 MB), virtual 48 MB
+after:  TASK_BASIC_INFO(64) resident 210509824 (200 MB), virtual 248 MB
+PASS  resident size grew by 200 MB after touching 200 MB
+PASS  virtual size grew by 200 MB
+      getrusage ru_maxrss went 0 -> 0 (NOT populated on 10.4)
+```
+
+`TASK_BASIC_INFO` (which is `TASK_BASIC_INFO_64` under LP64) is truthful on the
+32-bit kernel. Recorded alongside it: **`getrusage()`'s `ru_maxrss` exists in the
+struct but is never populated on 10.4**, so there is no lifetime-peak counter to
+report at all; `peak` is now the high-water mark over the samples the process has
+taken. Fixed in **`46273728`**.
+
+## Files
+
+| Path | What |
+|---|---|
+| `spike/jsc64/tgstate64.c` | `thread_get_state(x86_THREAD_STATE64)` lie detector |
+| `spike/jsc64/sigjit64.c` | which signal each trap instruction produces from RWX memory; ucontext write-back |
+| `spike/jsc64/rss64.c` | whether 10.4 will tell a 64-bit process its own RSS |
+| `spike/jsc64/gcthreads.js` | four JS threads allocating under the JIT across hundreds of GCs |
+| `spike/jsc64/wasmtrap.js` | wasm traps through the fault signal handler, plus a 20k trap storm |
+| `spike/jsc64/bench.js` | the timing set (self-checking) |
+
+Run on the box from `~/jsc64`: `./tgstate64`, `./sigjit64`, `./rss64`,
+`./jsc wasmtrap.js`, `./jsc --collectContinuously=true gcthreads.js`,
+`./jsc --footprint bench.js`, `./jsc --watchdog=1500 /tmp/spin.js`.
+
+## What is still untested here
+
+- `Thread::suspend`/`getRegisters` under *memory pressure*: the GC stress ran with
+  a healthy heap. Nothing suggests a problem, it simply was not tried.
+- The main thread's `StackBounds` fix from the first spike is still only exercised
+  shallowly — a bad day there looks like a stack-overflow check that never fires.
+  A deep-recursion test that expects a `RangeError` at a sane depth would close it.
+- `int3`/`SIGTRAP` is proven at the OS level but JSC only emits it for debugging
+  options, so no JSC path was driven through it.
+- `build/jsc64` was moved to `build-jsc64-spike-orig` (out of the shared `build/`
+  sweep path) rather than deleted; it is the FTL-off tree that produced the
+  original 51 ms and can be removed whenever.
