@@ -495,6 +495,67 @@ and `CTFontCollectionCreateWithFilterCallback` have no WebCore call site and are
 declared in the overlay; and `CTFontDescriptorCreateForUIType` does not exist on Tiger
 at all, so it is implemented here rather than adapted.
 
+## Tiger's metrics are quantised: cap height and x-height
+
+The static screens say a function links and takes the right arguments; the oracle says it
+returns the same values. A third question is whether a function that passes both is still
+*accurate*, and `spike/ctprobe.c` answers it by running the same font bytes through Tiger
+and through modern CoreText and diffing.
+
+Across the 47 functions WebCore uses directly, ascent, descent, leading, underline
+position and underline thickness agree to six decimal places at every size. **Cap height
+and x-height do not.** Tiger quantises both to a half-point step: at 9pt it answers 7.0
+for a cap height whose real value is 6.618, and at 12pt it answers 7.0 for an x-height
+whose real value is 6.639. Worst case 5.8% out. It is not a rounding of the linear value
+either, since the nearest half-point to 6.618 is 6.5; the shape is consistent with
+measuring a grid-fitted outline at each pixel size. Both feed `FontMetrics`, so this was
+the CSS `ex` unit and `vertical-align: middle` carrying a silent five percent error.
+
+Both are now adapters. OS/2 version 2 and later carry `sCapHeight` and `sxHeight` for
+exactly this purpose, so those get scaled by size over units per em. Older fonts have no
+such fields, so the fallback measures glyphs.
+
+**Which glyphs, and how, is the interesting part.** Measuring the flat `H` and flat `x`
+alone, the conventional definition, leaves a constant 0.86% and 1.15% under modern at
+every size. That constant is the tell: modern averages the flat and round extremes rather
+than discarding the round ones' overshoot. On DejaVu the flat capitals measure 1493 units
+and the round 1520, and modern reports 1506, their midpoint to the unit; x-height is 1120
+flat and 1147 round, and modern reports 1133. Averaging `H` with `O`, and `x` with `o`,
+reproduces modern's numbers **exactly at nine of ten probe sizes**, the tenth being 100pt
+where it is 0.03% out. From 5.8% to 0.03%.
+
+That is one font's worth of evidence for the mechanism, but it is ten independent sizes
+agreeing to within a 64th of a point, and the definition it implies, that half the
+overshoot counts, is a sensible one rather than a curve fit. A font whose round glyphs do
+not overshoot gets the same answer either way, so the change cannot make one worse.
+
+### Three smaller behavioural divergences
+
+- `CTFontCopyAttribute` with `kCTFontSizeAttribute` answered NULL on Tiger at every size,
+  where `CTFontGetSize` is correct on both. Now an adapter that fills it in.
+- `CTFontDescriptorCopyAttribute` answered NULL for family, style and traits, which
+  WebCore reads in four places. Now an adapter that realises the descriptor and asks the
+  font. It deliberately does not change how descriptors *resolve*, because the web-font
+  path depends on Tiger matching them by name.
+- `CTFontGetSymbolicTraits` returns `0x80000000` where modern returns `0x0`. That is the
+  class field at bits 28 to 31, which Tiger fills from the OS/2 family class and modern
+  leaves empty. Harmless here: every WebCore use masks for a specific bit, and a check
+  confirmed there is no whole-word comparison or `traits == 0` test anywhere.
+- `CTLineCreateTruncatedLine` returns NULL on Tiger for every width when the truncation
+  token is NULL, where modern returns a line whenever the text fits. With a real ellipsis
+  token the two agree exactly. The one call site is behind `ENABLE(ATTACHMENT_ELEMENT)`,
+  which is off.
+
+### The Ptr accessors invert between platforms
+
+Modern CoreText returns NULL from `CTRunGetGlyphsPtr`, `CTRunGetAdvancesPtr` and
+`CTRunGetStringIndicesPtr` for ordinary runs; Tiger returns real pointers. So
+`ComplexTextControllerCoreText.mm` always takes its copying fallback on modern and always
+takes the pointer path on Tiger. **Whichever machine WebKit gets tested on, the other path
+is the untested one**, and on Tiger the copying variants are the adapters over Tiger's
+empty stubs. `spike/cttest.c` exercises the copying adapters explicitly, including the
+poisoned-buffer check, precisely because normal Tiger use will never reach them.
+
 ## Do not trust the count files
 
 `logs/api/used-CT.txt` and `used-kCT.txt` count **identifier occurrences, not calls**, and

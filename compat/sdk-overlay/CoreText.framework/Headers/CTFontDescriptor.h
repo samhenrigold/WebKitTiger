@@ -86,7 +86,10 @@ CT_EXTERN const CFStringRef kCTFontVariationAxisNameKey;
 
 /* --- case 1: Tiger's ABI already matches -------------------------------- */
 CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateWithAttributes(CFDictionaryRef attributes);
-CT_EXTERN CFTypeRef CTFontDescriptorCopyAttribute(CTFontDescriptorRef, CFStringRef attribute);
+/* Tiger descriptors answer NULL for family, style and traits; the adapter
+ * realises the descriptor and asks the font. */
+CT_EXTERN CFTypeRef CTFontDescriptorCopyAttribute(CTFontDescriptorRef, CFStringRef attribute)
+    CT_TIGER_ADAPTER(TigerCTFontDescriptorCopyAttribute);
 CT_EXTERN CFDictionaryRef CTFontDescriptorCopyAttributes(CTFontDescriptorRef);
 CT_EXTERN CFTypeRef CTFontDescriptorCopyLocalizedAttribute(CTFontDescriptorRef, CFStringRef attribute, CFStringRef* language);
 

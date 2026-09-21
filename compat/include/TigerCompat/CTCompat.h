@@ -483,6 +483,13 @@ void TigerCTRunDraw(CTRunRef, CGContextRef, CFRange);
 CGRect TigerCTLineGetImageBounds(CTLineRef, CGContextRef);
 void TigerCTFontGetSideBearingsForGlyphs(CTFontRef, CTFontOrientation, const CGGlyph[], CGFloat[], CFIndex);
 CGRect TigerCTRunGetImageBounds(CTRunRef, CGContextRef, CFRange);
+CGFloat TigerCTFontGetCapHeight(CTFontRef);
+CGFloat TigerCTFontGetXHeight(CTFontRef);
+CFTypeRef TigerCTFontCopyAttribute(CTFontRef, CFStringRef);
+CFTypeRef TigerCTFontDescriptorCopyAttribute(CTFontDescriptorRef, CFStringRef);
+CFDictionaryRef CTFontCopyTraits(CTFontRef);
+extern const CFStringRef kCTFontStyleNameAttribute;
+extern const CFStringRef kCTSubFamilyNameKey;
 void TigerCTLineDraw(CTLineRef, CGContextRef);
 CTFontRef TigerCTFontCreateUIFontForLocale(CTFontUIFontType, CGFloat size, CFStringRef locale);
 

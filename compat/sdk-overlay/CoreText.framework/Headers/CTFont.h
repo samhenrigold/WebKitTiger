@@ -99,7 +99,6 @@ CT_EXTERN CTFontRef CTFontCreateWithPlatformFont(uint32_t atsFont, double size, 
  * whether the callee computed a float or a double. Only parameters matter. */
 CT_EXTERN CTFontRef CTFontCreateForString(CTFontRef, CFStringRef, CFRange);
 CT_EXTERN CTFontDescriptorRef CTFontCopyFontDescriptor(CTFontRef);
-CT_EXTERN CFTypeRef CTFontCopyAttribute(CTFontRef, CFStringRef attribute);
 CT_EXTERN CFStringRef CTFontCopyPostScriptName(CTFontRef);
 CT_EXTERN CFStringRef CTFontCopyFamilyName(CTFontRef);
 CT_EXTERN CFStringRef CTFontCopyDisplayName(CTFontRef);
@@ -122,8 +121,6 @@ CT_EXTERN CGAffineTransform CTFontGetMatrix(CTFontRef);
 CT_EXTERN CGFloat CTFontGetAscent(CTFontRef);
 CT_EXTERN CGFloat CTFontGetDescent(CTFontRef);
 CT_EXTERN CGFloat CTFontGetLeading(CTFontRef);
-CT_EXTERN CGFloat CTFontGetCapHeight(CTFontRef);
-CT_EXTERN CGFloat CTFontGetXHeight(CTFontRef);
 CT_EXTERN CGFloat CTFontGetUnderlinePosition(CTFontRef);
 CT_EXTERN CGFloat CTFontGetUnderlineThickness(CTFontRef);
 CT_EXTERN CGFloat CTFontGetSlantAngle(CTFontRef);
@@ -133,7 +130,6 @@ CT_EXTERN unsigned CTFontGetUnitsPerEm(CTFontRef);
 CT_EXTERN CFIndex CTFontGetNumberOfGlyphs(CTFontRef);
 CT_EXTERN CGGlyph CTFontGetGlyphWithName(CTFontRef, CFStringRef glyphName);
 CT_EXTERN bool CTFontGetGlyphsForCharacters(CTFontRef, const UniChar characters[], CGGlyph glyphs[], CFIndex count);
-CT_EXTERN void CTFontGetSideBearingsForGlyphs(CTFontRef, CTFontOrientation, const CGGlyph[], CGFloat[], CFIndex);
 CT_EXTERN void CTFontApplyToContext(CTFontRef, CGContextRef);
 
 /* --- case 3a: Tiger's takes different arguments -------------------------- */
@@ -145,6 +141,19 @@ CT_EXTERN CGRect CTFontGetBoundingRectsForGlyphs(CTFontRef, CTFontOrientation, c
     CT_TIGER_ADAPTER(TigerCTFontGetBoundingRectsForGlyphs);
 CT_EXTERN CTFontRef CTFontCreateUIFontForLocale(CTFontUIFontType, CGFloat size, CFStringRef locale)
     CT_TIGER_ADAPTER(TigerCTFontCreateUIFontForLocale);
+/* Tiger takes no orientation here either; Apple's 9A241 TRANSITIONAL export
+ * list flags it alongside the advances and bounding-rects calls. */
+CT_EXTERN void CTFontGetSideBearingsForGlyphs(CTFontRef, CTFontOrientation, const CGGlyph[], CGFloat[], CFIndex)
+    CT_TIGER_ADAPTER(TigerCTFontGetSideBearingsForGlyphs);
+/* Tiger quantises both of these to a half-point step, up to 5.8% out at web
+ * text sizes; the adapters read OS/2 or the glyph box instead. */
+CT_EXTERN CGFloat CTFontGetCapHeight(CTFontRef)
+    CT_TIGER_ADAPTER(TigerCTFontGetCapHeight);
+CT_EXTERN CGFloat CTFontGetXHeight(CTFontRef)
+    CT_TIGER_ADAPTER(TigerCTFontGetXHeight);
+/* Tiger answers NULL for kCTFontSizeAttribute; the adapter fills it in. */
+CT_EXTERN CFTypeRef CTFontCopyAttribute(CTFontRef, CFStringRef attribute)
+    CT_TIGER_ADAPTER(TigerCTFontCopyAttribute);
 
 /* --- case 3b: Tiger has no such function -------------------------------- */
 CT_EXTERN CFIndex CTFontGetGlyphCount(CTFontRef);

@@ -301,17 +301,12 @@ static CFStringRef descriptorFamilyName(CTFontDescriptorRef descriptor)
 
     if (!descriptor)
         return NULL;
-    family = (CFStringRef)CTFontDescriptorCopyAttribute(descriptor, kCTFontFamilyNameAttribute);
-    if (family) {
-        if (CFGetTypeID(family) == CFStringGetTypeID())
-            return family;
+    (void)font;
+    family = (CFStringRef)TigerCTFontDescriptorCopyAttribute(descriptor, kCTFontFamilyNameAttribute);
+    if (family && CFGetTypeID(family) != CFStringGetTypeID()) {
         CFRelease(family);
-    }
-    font = CTFontCreateWithFontDescriptor(descriptor, 12.0, NULL);
-    if (!font)
         return NULL;
-    family = CTFontCopyFamilyName(font);
-    CFRelease(font);
+    }
     return family;
 }
 
@@ -1575,6 +1570,178 @@ const CGFloat kCTFontWidthExtraExpanded = 0.3f;
 /* label, so WebCore's own call sites need no change. Details and the        */
 /* disassembly they came from are in CT-SURVEY.md.                           */
 /* ======================================================================== */
+
+/* Cap height and x-height: Tiger quantises both to a half-point step, which is
+ * up to 5.8% wrong at web text sizes. Measured against modern CoreText with the
+ * same font bytes (DejaVu Sans), Tiger answers 7.0 for a 9pt cap height whose
+ * real value is 6.618, and 7.0 for a 12pt x-height whose real value is 6.639.
+ * It is not a rounding of the linear value either: the nearest half-point to
+ * 6.618 is 6.5. The shape is consistent with measuring a grid-fitted outline at
+ * each pixel size. Both feed FontMetrics, so this is the CSS `ex` unit and
+ * vertical-align: middle carrying a silent five percent error.
+ *
+ * Two-step replacement. OS/2 version 2 and later carry sCapHeight and sxHeight
+ * for exactly this purpose, so scale those by size over units per em. Older
+ * fonts have no such fields -- DejaVu's OS/2 is version 1 and only 86 bytes --
+ * so fall back to measuring glyphs.
+ *
+ * Which glyphs, and how, is worth stating because the obvious answer is a
+ * little wrong. Taking the flat capital 'H' and the flat 'x' alone, the
+ * conventional definition, leaves a constant 0.86% and 1.15% under modern
+ * CoreText at every size. That constant is the tell: modern averages the flat
+ * and round extremes rather than ignoring the round ones' overshoot. On DejaVu
+ * the flat capitals measure 1493 units and the round 1520, and modern reports
+ * 1506, their midpoint to the unit; x-height is 1120 flat, 1147 round, and
+ * modern reports 1133. Averaging 'H' with 'O', and 'x' with 'o', reproduces
+ * modern's numbers exactly at all ten probe sizes.
+ *
+ * That is one font's worth of evidence for the mechanism, but it is ten
+ * independent sizes agreeing to within a 64th of a point, and the definition it
+ * implies -- half the overshoot counts -- is a sensible one rather than a curve
+ * fit. A font whose round glyphs do not overshoot gets the same answer as the
+ * flat-only measurement, so the change cannot make such a font worse. */
+enum { kOS2SxHeightOffset = 86, kOS2SCapHeightOffset = 88 };
+
+static CGFloat metricFromOS2(CTFontRef font, unsigned offset)
+{
+    CFStringRef name = createTableName(kCTFontTableOS2);
+    CFDataRef table = NULL;
+    const unsigned char* bytes;
+    CFIndex length;
+    unsigned version;
+    short value;
+    CGFloat unitsPerEm;
+
+    if (name) {
+        table = CTFontCopyTable(font, name);
+        CFRelease(name);
+    }
+    if (!table)
+        return 0;
+    bytes = CFDataGetBytePtr(table);
+    length = CFDataGetLength(table);
+    version = (unsigned)CFSwapInt16BigToHost(*(const UInt16*)bytes);
+    if (length < (CFIndex)offset + 2 || version < 2) {
+        CFRelease(table);
+        return 0;
+    }
+    value = (short)CFSwapInt16BigToHost(*(const UInt16*)(bytes + offset));
+    CFRelease(table);
+    if (value <= 0)
+        return 0;
+    unitsPerEm = (CGFloat)CTFontGetUnitsPerEm(font);
+    if (!(unitsPerEm > 0))
+        return 0;
+    return value * (CGFloat)CTFontGetSize(font) / unitsPerEm;
+}
+
+/* The top of one glyph's ink, in text space. */
+static CGFloat metricFromGlyphBox(CTFontRef font, UniChar character)
+{
+    CGGlyph glyph = 0;
+    CGRect rect;
+
+    if (!CTFontGetGlyphsForCharacters(font, &character, &glyph, 1) || !glyph)
+        return 0;
+    CTFontGetBoundingRectsForGlyphs(font, &glyph, &rect, 1);
+    if (CGRectIsNull(rect) || CGRectIsEmpty(rect))
+        return 0;
+    return CGRectGetMaxY(rect);
+}
+
+/* The mean of a flat glyph's ink top and a round one's, or whichever of the two
+ * the font actually has. */
+static CGFloat metricFromGlyphPair(CTFontRef font, UniChar flat, UniChar round_)
+{
+    CGFloat a = metricFromGlyphBox(font, flat);
+    CGFloat b = metricFromGlyphBox(font, round_);
+
+    if (a > 0 && b > 0)
+        return (a + b) / 2;
+    return a > 0 ? a : b;
+}
+
+CGFloat TigerCTFontGetCapHeight(CTFontRef font)
+{
+    CGFloat value;
+
+    if (!font)
+        return 0;
+    value = metricFromOS2(font, kOS2SCapHeightOffset);
+    if (value > 0)
+        return value;
+    value = metricFromGlyphPair(font, 'H', 'O');
+    if (value > 0)
+        return value;
+    return (CGFloat)CTFontGetCapHeight(font);
+}
+
+CGFloat TigerCTFontGetXHeight(CTFontRef font)
+{
+    CGFloat value;
+
+    if (!font)
+        return 0;
+    value = metricFromOS2(font, kOS2SxHeightOffset);
+    if (value > 0)
+        return value;
+    value = metricFromGlyphPair(font, 'x', 'o');
+    if (value > 0)
+        return value;
+    return (CGFloat)CTFontGetXHeight(font);
+}
+
+/* Tiger answers NULL for kCTFontSizeAttribute at every size, where modern
+ * CoreText returns a CFNumber. CTFontGetSize itself is correct on both, so only
+ * the attribute lookup is missing. UnrealizedCoreTextFont.cpp reads it. */
+CFTypeRef TigerCTFontCopyAttribute(CTFontRef font, CFStringRef attribute)
+{
+    CFTypeRef value;
+
+    if (!font || !attribute)
+        return NULL;
+    value = CTFontCopyAttribute(font, attribute);
+    if (!value && CFStringCompare(attribute, kCTFontSizeAttribute, 0) == kCFCompareEqualTo) {
+        double size = CTFontGetSize(font);
+        return CFNumberCreate(NULL, kCFNumberDoubleType, &size);
+    }
+    return value;
+}
+
+/* Tiger descriptors carry only name, size and traits, and a descriptor built
+ * from font data carries only the name, so CTFontDescriptorCopyAttribute
+ * answers NULL where modern CoreText returns the family, the style, or the
+ * traits dictionary. WebCore reads all three: FontCacheCoreText.cpp:410 and
+ * :522, SystemFontDatabaseCoreText.cpp:327 and :374.
+ *
+ * Realising the descriptor and asking the font fills them in without touching
+ * how descriptors resolve, which is the part that must not change: the web-font
+ * path depends on Tiger matching these by name. */
+CFTypeRef TigerCTFontDescriptorCopyAttribute(CTFontDescriptorRef descriptor, CFStringRef attribute)
+{
+    CFTypeRef value;
+    CTFontRef font;
+
+    if (!descriptor || !attribute)
+        return NULL;
+    value = CTFontDescriptorCopyAttribute(descriptor, attribute);
+    if (value)
+        return value;
+
+    font = CTFontCreateWithFontDescriptor(descriptor, 12.0, NULL);
+    if (!font)
+        return NULL;
+    if (CFStringCompare(attribute, kCTFontFamilyNameAttribute, 0) == kCFCompareEqualTo)
+        value = CTFontCopyFamilyName(font);
+    else if (CFStringCompare(attribute, kCTFontStyleNameAttribute, 0) == kCFCompareEqualTo)
+        value = CTFontCopyName(font, kCTSubFamilyNameKey);
+    else if (CFStringCompare(attribute, kCTFontTraitsAttribute, 0) == kCFCompareEqualTo)
+        value = CTFontCopyTraits(font);
+    else if (CFStringCompare(attribute, kCTFontNameAttribute, 0) == kCFCompareEqualTo)
+        value = CTFontCopyPostScriptName(font);
+    CFRelease(font);
+    return value;
+}
 
 /* Twelfth adapter. Tiger takes no orientation here either, which Apple's own
  * TRANSITIONAL export list in 9A241 flags: CTFontGetSideBearingsForGlyphs is on
