@@ -14,6 +14,14 @@
 #import <TigerCompat/FoundationCompat.h>
 #import <AppKit/AppKit.h>
 
+// The overlay owns <Availability.h>, which the 10.4u SDK never had. Tiger's own
+// AvailabilityMacros.h does not pull it in, so a translation unit that wants
+// __MAC_OS_X_VERSION_MIN_REQUIRED has to ask for it by name. Anything that only
+// tests it with #if gets 0 without this, which happens to give the same answer
+// for every ">= some modern version" gate, but is not the same thing as the
+// header working.
+#include <Availability.h>
+
 #include <cstdio>
 
 static int failures;
@@ -143,6 +151,12 @@ int main(int, char **)
     expect("__MAC_OS_X_VERSION_MIN_REQUIRED == 1040", true);
 #else
     expect("__MAC_OS_X_VERSION_MIN_REQUIRED == 1040", false);
+#endif
+    /* The gates PlatformHave.h keys on have to come out false. */
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 101500
+    expect("modern version gates are false", false);
+#else
+    expect("modern version gates are false", true);
 #endif
 
     // ---- CGFloat and CFErrorRef from the overlay, not TigerCompat ----

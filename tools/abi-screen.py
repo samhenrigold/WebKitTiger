@@ -264,6 +264,77 @@ def tiger_lowering(names, workdir):
     return out
 
 
+SPI_DIRS = ["WebKit/Source/WebCore/PAL/pal/spi", "WebKit/Source/WTF/wtf/spi"]
+
+def spi_declarations(names):
+    """Pull C prototypes for `names` out of WebKit's own SPI headers.
+
+    These headers are what WebKit actually compiles against for API the current
+    SDK no longer declares, so they are the right prototype of record there. They
+    cannot be included directly -- they pull in wtf/Platform.h and WTFString.h --
+    so the declarations are lifted out textually instead."""
+    want, found = set(names), {}
+    decl = re.compile(
+        r'(?m)^([A-Za-z_][A-Za-z0-9_ *&:<>,]*?[ *&])(' + "|".join(map(re.escape, sorted(want)))
+        + r')\s*\(([^;{]*?)\)\s*(?:WTF_[A-Z_]+\s*)?;')
+    for d in SPI_DIRS:
+        base = os.path.join(ROOT, d)
+        for dirpath, _, files in os.walk(base):
+            for f in files:
+                if not f.endswith(".h"): continue
+                try: text = open(os.path.join(dirpath, f), errors="ignore").read()
+                except OSError: continue
+                text = text.replace("\\\n", " ")
+                for m in decl.finditer(text):
+                    ret, name, args = m.group(1).strip(), m.group(2), m.group(3)
+                    if name in found: continue
+                    if "template" in ret or "class " in ret: continue
+                    found[name] = "%s %s(%s);" % (ret, name, args.strip() or "void")
+    return found
+
+
+def spi_lowering(names, workdir):
+    """Lower WebKit's own SPI prototypes for i386, synthesising missing types.
+
+    Unknown type names are healed iteratively: `FooRef` becomes an opaque pointer,
+    anything else an int. Every SPI type these declarations use is an opaque handle
+    or an enum, both of which are 4 bytes on i386, so the totals stay exact."""
+    decls = spi_declarations(names)
+    if not decls: return {}, {}
+    hdr = ("#include <CoreFoundation/CoreFoundation.h>\n"
+           "#include <CoreGraphics/CoreGraphics.h>\n"
+           "#include <CoreText/CoreText.h>\n"
+           "#include <ApplicationServices/ApplicationServices.h>\n")
+    cur, synth, src = dict(decls), {}, os.path.join(workdir, "sdecls.c")
+    ir = os.path.join(workdir, "sir.ll")
+    for _ in range(40):
+        body = hdr + "".join("typedef %s;\n" % t for t in synth.values())
+        body += "".join(d + "\n" for d in cur.values())
+        body += "".join("void* v_%d=(void*)&%s;\n" % (i, n) for i, n in enumerate(cur))
+        open(src, "w").write(body)
+        r = subprocess.run(["clang", "-target", "i386-apple-macosx10.13", "-isysroot", SDK,
+                            "-Wno-everything", "-S", "-emit-llvm", "-o", ir, src],
+                           capture_output=True, text=True)
+        if r.returncode == 0: break
+        unknown = set(re.findall(r"unknown type name '([A-Za-z_][A-Za-z0-9_]*)'", r.stderr))
+        unknown |= set(re.findall(r"use of undeclared identifier '([A-Za-z_][A-Za-z0-9_]*)'",
+                                  r.stderr))
+        new = {u for u in unknown if u not in synth}
+        if new:
+            for u in new:
+                synth[u] = ("struct %s_s *%s" % (u, u)) if u.endswith("Ref") else ("int %s" % u)
+            continue
+        bad = set(re.findall(r"conflicting types for '([A-Za-z0-9_]+)'", r.stderr))
+        bad |= set(re.findall(r"redefinition of '([A-Za-z0-9_]+)'", r.stderr))
+        if not bad: return {}, synth
+        for b in bad: cur.pop(b, None)
+    out = {}
+    for line in open(ir):
+        m = DECL.match(line.rstrip())
+        if m: out[m.group(1)] = m.group(2)
+    return out, synth
+
+
 def modern_lowering(names, workdir):
     """Ask clang to lower each name for i386 and read the resulting `declare`."""
     hdr = "".join("#include <%s>\n" % h for h in UMBRELLAS)

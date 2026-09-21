@@ -14,19 +14,24 @@ APPLICATIONSERVICES_FRAMEWORKS := $(WKT)/sdk/MacOSX10.4u.sdk/System/Library/Fram
 CFLAGS := -O2 -g -I BlocksRuntime -I include -I $(WKT)/toolchain/sysroot-i386/usr/include -I include -isystem sdk-overlay/usr/include -isystem include/sdk-fill -isystem include -Fsdk-overlay -F$(APPLICATIONSERVICES_FRAMEWORKS)
 SRCS := $(wildcard *.c) $(filter-out archeadercheck.m,$(wildcard *.m)) $(wildcard *.mm) BlocksRuntime/runtime.c
 OBJS := $(addprefix obj/,$(addsuffix .o,$(notdir $(SRCS))))
+# TIGER: without these, editing a header under include/ leaves every object stale
+# and the build silently keeps the old code. That is hard to spot, because the
+# link succeeds and only the behaviour is wrong.
+DEPS := $(OBJS:.o=.d)
+DEPFLAGS = -MMD -MP -MF $(@:.o=.d)
 PREFIX := $(WKT)/toolchain/sysroot-i386/usr
 
 all: libtigercompat.a
 libtigercompat.a: $(OBJS)
 	rm -f $@ && $(AR) rcs $@ $^
 obj/%.c.o: %.c | obj install-headers
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 obj/%.c.o: BlocksRuntime/%.c | obj install-headers
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 obj/%.m.o: %.m | obj install-headers
-	$(CC) $(CFLAGS) $(OBJCFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OBJCFLAGS) $(DEPFLAGS) -c $< -o $@
 obj/%.mm.o: %.mm | obj install-headers
-	$(CC) $(CFLAGS) $(OBJCFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OBJCFLAGS) $(DEPFLAGS) -c $< -o $@
 obj:
 	mkdir -p obj
 # TIGER: the compiler wrappers pass -I$(PREFIX)/include, which comes before this
@@ -47,4 +52,5 @@ install: libtigercompat.a
 	@$(MAKE) --no-print-directory check
 clean:
 	rm -rf obj libtigercompat.a
+-include $(DEPS)
 .PHONY: all install install-headers clean check

@@ -349,10 +349,20 @@ enum {
  * -objectForKey: / -setObject:forKey: because the values it stores are raw
  * integers, which the object-typed methods would try to retain. Tiger's own
  * C entry points are still available from <Foundation/NSMapTable.h> under
- * their CStruct spellings. */
-TIGER_NS_EXTERN void *NSMapGet(NSMapTable *table, const void *key);
-TIGER_NS_EXTERN void NSMapInsert(NSMapTable *table, const void *key, const void *value);
-TIGER_NS_EXTERN void NSMapRemove(NSMapTable *table, const void *key);
+ * their CStruct spellings.
+ *
+ * The asm labels matter. Tiger's Foundation already exports _NSMapGet,
+ * _NSMapInsert and _NSMapRemove taking the C struct. Defining our own functions
+ * under those symbol names does not override the dylib: the call site binds to
+ * Foundation's, which then reads our Objective-C object as a C hash table and
+ * fails in an unrecognisable way. Giving ours private symbol names means a call
+ * written as NSMapGet compiles to a call to ours, with no collision at all. */
+TIGER_NS_EXTERN void *NSMapGet(NSMapTable *table, const void *key)
+    __asm("_TigerNSMapTableGet");
+TIGER_NS_EXTERN void NSMapInsert(NSMapTable *table, const void *key, const void *value)
+    __asm("_TigerNSMapTableInsert");
+TIGER_NS_EXTERN void NSMapRemove(NSMapTable *table, const void *key)
+    __asm("_TigerNSMapTableRemove");
 #endif /* TIGER_NSMAPTABLE_TYPEDEF_RENAMED */
 
 /* -------------------------------------------------------------------------

@@ -74,7 +74,6 @@ declare the class. The class itself lives in `compat/nscompat-maptable.m`.
 |---|---|
 | `NSEvent.h` | The 10.12 `NSEventType*` / `NSEventMask*` / `NSEventModifierFlag*` renames, plus `NSEventModifierFlags` and the `NSEventPhase` type |
 | `NSWindow.h` | The 10.12 `NSWindowStyleMask*` renames |
-| `NSApplication.h` | `__unsafe_unretained` on an `id *` instance variable |
 
 **The renames.** In 10.12 Apple respelled every event type, event mask and
 modifier flag without changing a single value. WebKit uses the new spelling at
@@ -93,9 +92,13 @@ accessors that return one live in `<TigerCompat/AppKitCompat.h>` with the rest
 of the 10.7+ NSEvent methods, which need implementations rather than header
 surgery.
 
-**NSApplication.h.** `id *_hiddenList;` is the same ARC error as
-`NSNetServices.h` below. Those two are the only `id *` instance variables in the
-whole 10.4 AppKit and Foundation header set.
+**NSApplication.h is deliberately not overlaid.** `id *_hiddenList;` in it is
+the same shape as the `NSNetServices.h` ivar below, and it did fail to parse
+under ARC at one point, but it no longer does with the patched clang, in any
+combination of `-fobjc-arc`, `-Xclang -fobjc-arc`, `-Wall`, ObjC and ObjC++ that
+was tried. So there is nothing to fix. Those two are the only `id *` instance
+variables in the whole 10.4 AppKit and Foundation header set, so if the
+diagnostic ever comes back, that pair is the complete list.
 
 ## CoreFoundation.framework/Headers
 
@@ -266,7 +269,7 @@ small test program does not, and that is where it bites.
 
 ## Verifying the overlay
 
-`spike/overlaytest.mm` is the check: 36 assertions covering the generic
+`spike/overlaytest.mm` is the check: 37 assertions covering the generic
 collections, `NSInteger`, `NS_ENUM` / `NS_OPTIONS`, the annotation macros,
 nullability, the NSEvent and NSWindow renames, `@available` being false for
 10.12 and true for 10.4, `CGFloat`, `CFErrorRef`, and `NSMapTable` as both the

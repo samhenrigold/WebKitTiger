@@ -218,3 +218,6 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - Tiger ImageIO (logs/imageio-probe.md): decodes PNG/JPEG/GIF(anim)/BMP/TIFF correctly; CGImageSourceGetStatusAtIndex always
   UnknownType (WebCore workaround must cover all frames); no partial decode until the whole file arrives; PNG-compressed ICO
   fails; CMYK JPEG near-black; sRGB-profile PNGs off by up to ~23/255.
+- Tiger CG: private CGFontSetShouldAntialias/CGFontShouldAntialias (per-font flag) is the faithful target for
+  CGContextSetShouldAntialiasFonts (kept no-op: WebCore only passes true; flag mutates a shared cached CGFont). Interpolation
+  quality is binary on Tiger (None vs everything else = High); reading state back can't detect it.

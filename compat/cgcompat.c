@@ -1075,36 +1075,46 @@ void CGContextSetShouldSubpixelQuantizeFonts(CGContextRef c, bool v) { (void)c; 
 
 void CGContextSetShouldAntialiasFonts(CGContextRef context, bool shouldAntialias)
 {
-    /* A deliberate no-op, after two measurements.
+    /* A deliberate no-op, and the reason is not that Tiger lacks the knob.
 
-       CGContextSetShouldSmoothFonts, which this used to forward to, does
-       nothing on Tiger: on and off give byte-identical pixels in a bitmap
-       context, and no rendering ever produces a colour fringe
-       (spike/fontsmoothtest.c, audit track). So the old mapping only looked
-       like it did something.
+       CGContextSetShouldSmoothFonts, which this used to forward to, is inert:
+       on and off give byte-identical pixels and no rendering ever produces a
+       colour fringe (spike/fontsmoothtest.c, audit track). So the old mapping
+       only looked like it did something.
 
-       The knob that does work is CGContextSetShouldAntialias, and forwarding
-       there would be wrong in both directions. It is context-wide, so it would
-       alias or smooth every shape, not just glyphs. And WebCore's only call
-       site, setCGFontRenderingMode in FontCascadeCoreText.cpp, passes true
-       unconditionally and does not bracket it with a save and restore, so
-       forwarding would quietly re-enable antialiasing for a context that had
-       deliberately turned it off for shapes.
+       There IS a working equivalent with the right semantics.
+       CGFontSetShouldAntialias is private but exported, and it is per-font
+       rather than context-wide: clearing it takes a glyph run fully aliased
+       while shapes in the same context stay smooth. The flag is bit 0 of a byte
+       at font+0x3c, with CGFontShouldAntialias reading it back, and
+       CGContextGetFont can reach the context's current font.
 
-       Since the one request WebCore makes is "antialias glyphs", which is
-       Tiger's default, ignoring it costs nothing. */
+       It is not wired up because doing so would cost something and buy nothing.
+       WebCore's only call site, setCGFontRenderingMode in
+       FontCascadeCoreText.cpp:294, passes true unconditionally, and antialiased
+       glyphs are already Tiger's default. Against that, the flag mutates the
+       CGFont object itself, which is shared and cached, so it would leak into
+       every other context using the same font; and WebCore usually sets the
+       font after configuring state, so at the moment this is called the context
+       may not have the font yet.
+
+       If a caller ever passes false, for instance to support
+       -webkit-font-smoothing: none, that is the route to implement: take
+       CGContextGetFont, clear the flag, and restore it afterwards. */
     (void)context;
     (void)shouldAntialias;
 }
 
-/* Inert for the same measured reason as CGContextSetShouldAntialiasFonts above:
-   the antialiasing style selects between filtered and unfiltered subpixel
-   smoothing, and Tiger has no working subpixel smoothing to select between.
-   CGContextSetShouldSmoothFonts and CGContextSetAllowsFontSmoothing produce
-   byte-identical pixels on and off, and no rendering ever yields a colour
-   fringe (spike/fontsmoothtest.c, audit track; compat/CG-PROBE.md).
+/* Inert because Tiger has nothing to map it to, which was checked rather than
+   assumed. Its complete set of smoothing and antialias exports is the context
+   Should/Allows pairs and their GState backings, the per-font
+   CGFontSetShouldAntialias above, a CGFontAllowsFontSmoothing that takes no
+   arguments and reads a process-wide global, and a __CGFontSmoothingMode data
+   symbol. There is no CGContextSetFontRenderingStyle and nothing else
+   style-shaped, and subpixel smoothing does not work anyway
+   (spike/fontsmoothtest.c, audit track; compat/CG-PROBE.md).
 
-   The getter therefore reports Unfiltered, which is what Tiger actually does,
+   The getter reports Unfiltered because that is what Tiger actually does,
    rather than echoing back whatever was last set. */
 void CGContextSetFontAntialiasingStyle(CGContextRef c, CGFontAntialiasingStyle s) { (void)c; (void)s; }
 CGFontAntialiasingStyle CGContextGetFontAntialiasingStyle(CGContextRef c)
