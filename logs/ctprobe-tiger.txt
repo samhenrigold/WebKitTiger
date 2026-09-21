@@ -7,10 +7,10 @@ font.descriptorFromData                              true
 
 ## 02 CTFontDescriptorCopyAttribute / CopyAttributes
 desc.CTFontDescriptorCopyAttribute.Name              "DejaVuSans"
-desc.CTFontDescriptorCopyAttribute.Family            (null)
-desc.CTFontDescriptorCopyAttribute.Style             (null)
+desc.CTFontDescriptorCopyAttribute.Family            "DejaVu Sans"
+desc.CTFontDescriptorCopyAttribute.Style             "Book"
 desc.CTFontDescriptorCopyAttribute.Size              (null)
-desc.CTFontDescriptorCopyAttribute.Traits            (null)
+desc.CTFontDescriptorCopyAttribute.Traits            dict[4]
 desc.CTFontDescriptorCopyAttributes                  [1] NSFontNameAttribute
 
 ## 03 font at size 12
@@ -19,8 +19,8 @@ size12.CTFontGetSize                                 12.000000
 size12.CTFontGetAscent                               11.138672
 size12.CTFontGetDescent                              2.830078
 size12.CTFontGetLeading                              0.000000
-size12.CTFontGetCapHeight                            9.000000
-size12.CTFontGetXHeight                              7.000000
+size12.CTFontGetCapHeight                            8.827148
+size12.CTFontGetXHeight                              6.641602
 size12.CTFontGetUnderlinePosition                    -0.761719
 size12.CTFontGetUnderlineThickness                   0.527344
 size12.CTFontGetUnitsPerEm                           2048
@@ -29,7 +29,7 @@ size12.CTFontGetMatrix                               [1.000000 0.000000 0.000000
 size12.CTFontCopyFamilyName                          "DejaVu Sans"
 size12.CTFontCopyPostScriptName                      "DejaVuSans"
 size12.CTFontCopyAttribute.Family                    "DejaVu Sans"
-size12.CTFontCopyAttribute.Size                      (null)
+size12.CTFontCopyAttribute.Size                      12.000000
 size12.glyphs.latin.allMapped                        true
 size12.glyphs.latin.ids                              36 57 36 3 73 76 3 58 68 89 72
 size12.glyphs.arabic.allMapped                       true
@@ -46,8 +46,8 @@ size16.CTFontGetSize                                 16.000000
 size16.CTFontGetAscent                               14.851562
 size16.CTFontGetDescent                              3.773438
 size16.CTFontGetLeading                              0.000000
-size16.CTFontGetCapHeight                            12.000000
-size16.CTFontGetXHeight                              9.000000
+size16.CTFontGetCapHeight                            11.769531
+size16.CTFontGetXHeight                              8.855469
 size16.CTFontGetUnderlinePosition                    -1.015625
 size16.CTFontGetUnderlineThickness                   0.703125
 size16.CTFontGetUnitsPerEm                           2048
@@ -56,7 +56,7 @@ size16.CTFontGetMatrix                               [1.000000 0.000000 0.000000
 size16.CTFontCopyFamilyName                          "DejaVu Sans"
 size16.CTFontCopyPostScriptName                      "DejaVuSans"
 size16.CTFontCopyAttribute.Family                    "DejaVu Sans"
-size16.CTFontCopyAttribute.Size                      (null)
+size16.CTFontCopyAttribute.Size                      16.000000
 size16.glyphs.latin.allMapped                        true
 size16.glyphs.latin.ids                              36 57 36 3 73 76 3 58 68 89 72
 size16.glyphs.arabic.allMapped                       true
@@ -73,8 +73,8 @@ size24.CTFontGetSize                                 24.000000
 size24.CTFontGetAscent                               22.277344
 size24.CTFontGetDescent                              5.660156
 size24.CTFontGetLeading                              0.000000
-size24.CTFontGetCapHeight                            18.000000
-size24.CTFontGetXHeight                              13.000000
+size24.CTFontGetCapHeight                            17.654297
+size24.CTFontGetXHeight                              13.283203
 size24.CTFontGetUnderlinePosition                    -1.523438
 size24.CTFontGetUnderlineThickness                   1.054688
 size24.CTFontGetUnitsPerEm                           2048
@@ -83,7 +83,7 @@ size24.CTFontGetMatrix                               [1.000000 0.000000 0.000000
 size24.CTFontCopyFamilyName                          "DejaVu Sans"
 size24.CTFontCopyPostScriptName                      "DejaVuSans"
 size24.CTFontCopyAttribute.Family                    "DejaVu Sans"
-size24.CTFontCopyAttribute.Size                      (null)
+size24.CTFontCopyAttribute.Size                      24.000000
 size24.glyphs.latin.allMapped                        true
 size24.glyphs.latin.ids                              36 57 36 3 73 76 3 58 68 89 72
 size24.glyphs.arabic.allMapped                       true
@@ -97,43 +97,43 @@ size24.CTFontCopyCharacterSet                        U+0041=y U+007A=y U+00E9=y 
 ## 06 metric scaling sweep
 sweep9.ascent                                        8.354004
 sweep9.descent                                       2.122559
-sweep9.capHeight                                     7.000000
-sweep9.xHeight                                       5.000000
+sweep9.capHeight                                     6.620361
+sweep9.xHeight                                       4.981201
 sweep10.ascent                                       9.282227
 sweep10.descent                                      2.358398
-sweep10.capHeight                                    7.000000
-sweep10.xHeight                                      5.500000
+sweep10.capHeight                                    7.355957
+sweep10.xHeight                                      5.534668
 sweep11.ascent                                       10.210449
 sweep11.descent                                      2.594238
-sweep11.capHeight                                    8.000000
-sweep11.xHeight                                      6.000000
+sweep11.capHeight                                    8.091553
+sweep11.xHeight                                      6.088135
 sweep13.ascent                                       12.066895
 sweep13.descent                                      3.065918
-sweep13.capHeight                                    9.500000
-sweep13.xHeight                                      7.000000
+sweep13.capHeight                                    9.562744
+sweep13.xHeight                                      7.195068
 sweep17.ascent                                       15.779785
 sweep17.descent                                      4.009277
-sweep17.capHeight                                    12.500000
-sweep17.xHeight                                      9.500000
+sweep17.capHeight                                    12.505127
+sweep17.xHeight                                      9.408936
 sweep19.ascent                                       17.636230
 sweep19.descent                                      4.480957
-sweep19.capHeight                                    14.000000
-sweep19.xHeight                                      10.500000
+sweep19.capHeight                                    13.976318
+sweep19.xHeight                                      10.515869
 sweep31.ascent                                       28.774902
 sweep31.descent                                      7.311035
-sweep31.capHeight                                    23.000000
-sweep31.xHeight                                      17.000000
+sweep31.capHeight                                    22.803467
+sweep31.xHeight                                      17.157471
 sweep100.ascent                                      92.822266
 sweep100.descent                                     23.583984
-sweep100.capHeight                                   73.500000
-sweep100.xHeight                                     55.500000
+sweep100.capHeight                                   73.559570
+sweep100.xHeight                                     55.346680
 
 ## 07 descriptor round trips
 CTFontCopyFontDescriptor                             true
 CTFontCopyFontDescriptor.attributes                  [3] NSCTFontTraitsAttribute NSFontNameAttribute NSFontSizeAttribute
 CTFontCopyFontDescriptor.Name                        "DejaVuSans"
-CTFontCopyFontDescriptor.Family                      (null)
-CTFontCopyFontDescriptor.Style                       (null)
+CTFontCopyFontDescriptor.Family                      "DejaVu Sans"
+CTFontCopyFontDescriptor.Style                       "Book"
 CTFontCopyFontDescriptor.Size                        16.000000
 CTFontCopyFontDescriptor.Traits                      dict[4]
 CTFontDescriptorCreateWithNameAndSize                true

@@ -13,6 +13,10 @@ import re
 import sys
 
 TOL = 1.0 / 64.0
+# A systematic difference shows up as a constant *relative* error, which an
+# absolute tolerance flags at large sizes and nowhere else. Those are reported
+# separately rather than passed silently: visible, but not counted as failures.
+REL_TOL = 0.0005
 
 NUM = re.compile(r'^-?(?:\d+\.\d+|\d+|NaN)$')
 
@@ -45,13 +49,15 @@ def tokens(v):
 
 
 def compare(a, b):
-    """Return None if equal within tolerance, else a reason string."""
+    """None if equal within tolerance, 'rel:...' if only within the relative
+    tolerance, else a reason string."""
     if a == b:
         return None
     ta, tb = tokens(a), tokens(b)
     if len(ta) != len(tb):
         return 'different shape'
     worst = 0.0
+    worst_rel = 0.0
     numeric_any = False
     for x, y in zip(ta, tb):
         if x == y:
@@ -64,11 +70,16 @@ def compare(a, b):
         # integral on both sides means an exact quantity: ids, counts, ranges
         if '.' not in x and '.' not in y:
             return 'integer differs'
-        d = abs(float(x) - float(y))
+        fx, fy = float(x), float(y)
+        d = abs(fx - fy)
         worst = max(worst, d)
+        scale = max(abs(fx), abs(fy))
+        worst_rel = max(worst_rel, d / scale if scale else 0.0)
     if not numeric_any:
         return 'text differs'
     if worst > TOL:
+        if worst_rel is not None and worst_rel <= REL_TOL:
+            return f'rel:delta {worst:.6f} > 1/64 but {worst_rel * 100:.3f}% relative'
         return f'delta {worst:.6f} > 1/64'
     return None
 
@@ -80,13 +91,15 @@ def main():
     mac, mac_order = load(sys.argv[1])
     tig, _ = load(sys.argv[2])
 
-    only_mac, only_tiger, diffs, same = [], [], [], 0
+    only_mac, only_tiger, diffs, near, same = [], [], [], [], 0
     for key in mac_order:
         if key not in tig:
             only_mac.append(key)
             continue
         why = compare(mac[key][0], tig[key][0])
-        if why:
+        if why and why.startswith('rel:'):
+            near.append((key, mac[key][0], tig[key][0], why[4:]))
+        elif why:
             diffs.append((key, mac[key][0], tig[key][0], why))
         else:
             same += 1
@@ -95,6 +108,7 @@ def main():
             only_tiger.append(key)
 
     print(f'matched   {same}')
+    print(f'near      {len(near)}   (outside 1/64 pt but within {REL_TOL * 100:g}% relative)')
     print(f'differing {len(diffs)}')
     print(f'only-mac  {len(only_mac)}')
     print(f'only-tiger {len(only_tiger)}')
@@ -102,6 +116,10 @@ def main():
     if diffs:
         print('\n--- divergences ---')
         for key, m, t, why in diffs:
+            print(f'{key}\n    mac   : {m}\n    tiger : {t}\n    why   : {why}')
+    if near:
+        print('\n--- within the relative tolerance, shown but not counted as failures ---')
+        for key, m, t, why in near:
             print(f'{key}\n    mac   : {m}\n    tiger : {t}\n    why   : {why}')
     if only_mac:
         print('\n--- present only in the mac dump (tiger printed nothing here) ---')

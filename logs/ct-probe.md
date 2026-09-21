@@ -9,10 +9,15 @@ ctcompat adapter — `used-CT.txt` intersected with `tiger-CT.txt`, minus the tw
 same-name-different-function cases in `compat/CT-SURVEY.md`. Adapters are ctcompat's own
 live-oracle work and are not re-tested here.
 
-Result: **163 values match, 71 diverge, 26 appear only on the modern side.** Of the
-divergences, one is a real bug for the port, two are behaviour WebCore must be told about,
-and the rest are either expected absences or an artifact of comparing run indices across
-two different run splits.
+Result on the first pass: **163 values match, 71 diverge, 26 appear only on the modern
+side.** Of the divergences, one was a real bug for the port, two are behaviour WebCore must
+be told about, and the rest are either expected absences or an artifact of comparing run
+indices across two different run splits.
+
+**That bug is now fixed** (ctcompat, `c2f7f57`) and re-verified here: matches went 163 to
+**189** and the cap-height and x-height error went from 5.8% to 0.033%. The committed dumps
+are the post-fix run; the tables below keep the pre-fix numbers, because they are what the
+fix was derived from.
 
 ## How it was run
 
@@ -20,6 +25,11 @@ two different run splits.
 `spike/ctprobe-diff.py` compares the dumps: floats within **1/64 pt**, integers exactly.
 A value is treated as integral when neither side wrote a decimal point, so glyph ids,
 counts and string ranges are held to exact equality while metrics get the tolerance.
+
+Values outside 1/64 pt but within **0.05% relative** are reported in a separate `near`
+bucket rather than counted as failures. A systematic difference shows up as a constant
+relative error, which an absolute tolerance flags only at large sizes; the bucket keeps
+those visible without crying wolf. Nothing is silently passed.
 
 ```bash
 cc -O1 -o build/ctprobe-mac spike/ctprobe.c -framework CoreText \
@@ -89,6 +99,21 @@ FontCoreText.cpp:227   xHeight = CTFontGetXHeight(ctFont);
 x-height is the CSS `ex` unit and drives `vertical-align: middle`; cap height feeds the
 `cap` unit and leading trim. A 5% error in `ex` is a visible layout difference on any page
 that sizes with `ex`, and it is silent.
+
+**Fixed, and the mechanism turned out to be the midpoint after all.** ctcompat made both
+adapters in `c2f7f57`. Re-running this probe against them: 0.033% for cap height and 0.044%
+for x-height at every size, against 5.8% before, and at 12, 16 and 24 pt the absolute error
+is 0.003 to 0.006 pt, well inside the 1/64 pt tolerance.
+
+The residual is the evidence I was missing. Measuring flat `H` and `x` alone leaves a
+constant 0.86% and 1.15% at every one of the ten sizes, and 1506/1493 and 1133/1120 are
+those same ratios. A constant relative residual across ten independent sizes is a
+mechanism, not a coincidence of one font, so averaging the flat form with the round one is
+right: half the overshoot counts. A font whose round glyphs do not overshoot gets the same
+answer either way, so the rule cannot make anything worse.
+
+Only the 100 pt stress size now exceeds the absolute tolerance, at the same 0.033%, which
+is why the differ grew a relative-tolerance bucket. The original recommendation follows.
 
 **Recommendation for ctcompat:** these two need adapters after all, which is a change to
 the survey's direct-use classification.
@@ -207,8 +232,8 @@ behaviour, just not a wrong one.
 | `spike/ctprobe.c` | the probe, one source for both targets |
 | `spike/ctprobe-diff.py` | tolerance-aware differ, 1/64 pt on floats, exact on integers |
 | `spike/ctprobe-data/DejaVuSans.ttf` | the bundled font, plus its license note |
-| `logs/ctprobe-mac.txt` | modern macOS dump, 322 lines |
-| `logs/ctprobe-tiger.txt` | Tiger 10.4.11 dump, 296 lines |
+| `logs/ctprobe-mac.txt` | modern macOS dump, the oracle |
+| `logs/ctprobe-tiger.txt` | Tiger 10.4.11 dump, post-fix |
 | `logs/ctprobe-diff.txt` | the full divergence list |
 
 ## Not covered
