@@ -215,3 +215,6 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
 - jsc timing on the box (C loop, 2.2 GHz C2D): ~1.7 M loop iterations/s; fib(25) 135 ms. ~4x Tiger's 2007 JSC.
 - Tiger CG: CGContextSetShouldSmoothFonts / SetAllowsFontSmoothing are no-ops in bitmap contexts; SetShouldAntialias is the only
   (context-wide) knob. No subpixel font smoothing on this port for bitmap contexts. Shims stay inert by decision.
+- Tiger ImageIO (logs/imageio-probe.md): decodes PNG/JPEG/GIF(anim)/BMP/TIFF correctly; CGImageSourceGetStatusAtIndex always
+  UnknownType (WebCore workaround must cover all frames); no partial decode until the whole file arrives; PNG-compressed ICO
+  fails; CMYK JPEG near-black; sRGB-profile PNGs off by up to ~23/255.
