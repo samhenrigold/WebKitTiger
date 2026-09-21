@@ -10,17 +10,32 @@
 #ifndef TIGERCOMPAT_CGCOMPAT_H
 #define TIGERCOMPAT_CGCOMPAT_H
 
-/* Deliberately NOT <ApplicationServices/ApplicationServices.h>: the SDK overlay
-   appends this header to <CoreGraphics/CoreGraphics.h>, and pulling all of
-   ApplicationServices in from there would drag QuickDraw's Rect and Point
-   macros into every WebCore translation unit.
+/* These includes are deliberately narrow, and this list is a constraint, not a
+   convenience. The SDK overlay appends this header to <CoreGraphics/CGColor.h>
+   and the other sub-headers WebCore names, so anything included here is
+   inflicted on every translation unit that includes any CoreGraphics header.
 
-   <ImageIO/CGImageSource.h> typedefs CGImageSourceRef on line 10, before its
-   own include of CoreGraphics.h, so this resolves correctly in both include
-   orders: reached through CoreGraphics.h, or through ImageIO.h first. */
+   Not <CoreGraphics/CoreGraphics.h>: the umbrella drags in CGRemoteOperation,
+   CGSession, CGPSConverter and CGEvent, and through them the whole
+   <CoreServices/CoreServices.h> tree. That is how CarbonCore's AssertMacros
+   `check` and Finder's `Marker` ended up colliding with JavaScriptCore.
+
+   Not <ApplicationServices/ApplicationServices.h> either, which adds QuickDraw
+   on top of that.
+
+   Not <ImageIO/CGImageSource.h>, which includes the CoreGraphics umbrella
+   itself; CGImageSourceRef is forward-declared below instead. */
 #include <CoreFoundation/CoreFoundation.h>
-#include <CoreGraphics/CoreGraphics.h>
-#include <ImageIO/CGImageSource.h>
+#include <CoreGraphics/CGBase.h>
+#include <CoreGraphics/CGGeometry.h>
+#include <CoreGraphics/CGAffineTransform.h>
+#include <CoreGraphics/CGColorSpace.h>
+#include <CoreGraphics/CGColor.h>
+#include <CoreGraphics/CGContext.h>
+#include <CoreGraphics/CGPath.h>
+#include <CoreGraphics/CGImage.h>
+#include <CoreGraphics/CGFont.h>
+#include <CoreGraphics/CGDataProvider.h>
 
 /* CGFloat's owner is the SDK overlay's CGBase.h, which every CoreGraphics header
    includes. This guarded copy is the fallback for builds that do not put the
@@ -210,6 +225,12 @@ bool CGFontRenderingGetFontSmoothingDisabled(void);
 /* Tiger's CoreGraphics exports these three, but the 10.4u SDK's CGFont.h
    declares none of them. Found by disassembling the box on the CoreText track
    and confirmed working there; no shim needed, only a declaration. */
+/* Exported and linkable, but NON-FUNCTIONAL on Tiger: it returns NULL for .ttf
+   and .dfont alike, as does CGFontCreateWithName, so there is no route from
+   font bytes to a CGFontRef through CoreGraphics on this OS. Use
+   ATSFontActivateFromMemory plus CGFontCreateWithPlatformFont, which is what
+   the CoreText track's web font path does. Declared only so existing callers
+   link; nothing here depends on it. */
 CGFontRef CGFontCreateWithDataProvider(CGDataProviderRef);
 CGPathRef CGFontGetGlyphPath(CGFontRef, const CGAffineTransform*, int unused, CGGlyph);
 int CGFontGetUnitsPerEm(CGFontRef);
@@ -220,7 +241,17 @@ int CGFontGetUnitsPerEm(CGFontRef);
 /* ------------------------------------------------------------------ ImageIO */
 
 /* Tiger's ImageIO has the whole 10.4 CGImageSource/CGImageDestination surface.
-   These are the later additions WebCore reaches for. */
+   These are the later additions WebCore reaches for.
+
+   CGImageSourceRef is forward-declared rather than pulled from
+   <ImageIO/CGImageSource.h>, which would include the CoreGraphics umbrella and
+   with it all of CoreServices. The spelling is the SDK's exactly, and the guard
+   is the SDK header's own, so including that header before or after this one is
+   equally fine. */
+#ifndef CGIMAGESOURCE_H_
+typedef struct CGImageSource *CGImageSourceRef;
+#endif
+
 size_t CGImageSourceGetPrimaryImageIndex(CGImageSourceRef);
 CFDictionaryRef CGImageSourceCopyAuxiliaryDataInfoAtIndexWithOptions(CGImageSourceRef, size_t index,
     CFStringRef auxiliaryImageDataType, CFDictionaryRef options);
