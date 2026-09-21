@@ -2199,11 +2199,31 @@ will need**; they are the first two to bring back with real Tiger implementation
 for the first -- `UTIUtilitiesTiger.mm` already has the machinery -- and the Tiger NSScroller path
 in `compat/aquacontrols.m` for the second).
 
-**The on-screen half does not work yet.** A window opened by a process launched over ssh never comes
-up: every step to `setContentView:` prints, and `makeKeyAndOrderFront:` blocks. Launching through
-`open` (the documented escape hatch, with a marker file because Tiger's `open` has no `--args`)
-produced no window either. `spike/gpureplay/gpureplay.png` is therefore the desktop, not the tile.
-The headless number is measured; the compositing half is not.
+**The on-screen half works too** (root 5b80015): the replayed tile is composited onto a real CALayer
+through `tigerca::Scene` and a CARenderer in an NSOpenGLView, and `spike/gpureplay/gpureplay.png`
+shows it -- white background, blue fill, orange clipped fill, green stroke, exactly the display list.
+
+It took three lines of spike/CAHost's recipe, and the first is the one to remember:
+
+> **Never call `-[NSOpenGLContext makeCurrentContext]` on Tiger.** It goes back through the view,
+> which calls `-openGLContext`, which calls `-prepareOpenGL`, which called it again. The recursion
+> eats the main thread's whole 8 MB stack and dies inside `CGLSetCurrentContext` with `esp` exactly
+> at `0xbf800000` -- the stack's bottom page -- which reads as a random EXC_BAD_ACCESS until you
+> notice the address. `CGLSetCurrentContext((CGLContextObj)[[self openGLContext] CGLContextObj])`
+> is what CAHost uses everywhere, and is the recipe.
+
+The other two, each of which alone leaves a window that is up and empty:
+`-[CALayer setGeometryFlipped:YES]` on the root, and `[self reshape]` at the end of
+`-prepareOpenGL`, because the CARenderer has no bounds until then and the first frame otherwise
+renders into a zero rect. Plus `[CATransaction flush]` before the frame, and the menu bar /
+`orderFrontRegardless` / `activateIgnoringOtherApps:` that bring the window to the front of the
+console session. Launch, sleep and screencapture in one ssh invocation, as this file already says --
+that part was never the problem, and my first reading of it ("makeKeyAndOrderFront blocks") was
+wrong: the process was crashing, not hanging.
+
+Two debugging notes that cost time. `ps -ax | grep <AppName>` matches the **ssh wrapper**, not the
+app, so "still running" was an illusion -- grep for `MacOS/<name>`. And `sample <pid> 2 -file ...`
+works on the box and is the fastest way to tell a hang from a crash.
 
 ### The i386 WebKit2 arm, and the condition upstream never had to separate
 
