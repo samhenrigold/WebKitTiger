@@ -177,3 +177,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   C-loop jsc against that. HTTPS fails through Tiger's CFNetwork/SSL as expected (no SNI/TLS 1.2); curl backend fixes it.
 - GUI processes launched over ssh die when that ssh session closes (nohup doesn't detach on Tiger). Do launch + sleep +
   screencapture in ONE ssh invocation, or launch via `open` and let the app outlive the session.
+- ABI screen for same-name functions (from the audit): for each Tiger export WebCore calls, compare the highest stack argument the
+  prologue reads (tiger-otool -tV) with the modern prototype's i386 cdecl argument size; hand-check candidates. Found CTLineDraw's
+  extra CFRange. Run it on any framework we call by name. Tiger's malloc zone ABI is version 3 (no memalign field), so
+  malloc_zone_memalign cannot be offered; posix_memalign's mmap path matches Snow Leopard's Libc step for step.

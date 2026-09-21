@@ -456,7 +456,36 @@ static void testDrawing(CTFontRef font)
         }
     }
     expect(inked != 0, "CTFontDrawGlyphs puts ink on the context");
-    CGContextRelease(context);
+
+    /* The eleventh adapter: a modern two-argument CTLineDraw must actually draw.
+       Tiger's takes a CFRange, so an unadapted call passes stack junk and draws
+       nothing whenever location + length exceeds the glyph count. */
+    {
+        CFStringRef text = CFStringCreateWithCharacters(NULL, latin, 5);
+        CFAttributedStringRef attributed = makeAttributedString(text, font);
+        CTLineRef line = CTLineCreateWithAttributedString(attributed);
+        int lineInked = 0, j;
+
+        memset(pixels, 0, sizeof(pixels));
+        space = CGColorSpaceCreateDeviceRGB();
+        context = CGBitmapContextCreate(pixels, 64, 64, 8, 64 * 4, space, kCGImageAlphaPremultipliedLast);
+        CGColorSpaceRelease(space);
+        if (context && line) {
+            CGContextSetRGBFillColor(context, 1, 1, 1, 1);
+            CGContextSetTextPosition(context, 2, 20);
+            CTLineDraw(line, context);
+            for (j = 0; j < 64 * 64 * 4; ++j) {
+                if (pixels[j]) { lineInked = 1; break; }
+            }
+        }
+        expect(lineInked, "CTLineDraw adapter draws the whole line");
+        if (line)
+            CFRelease(line);
+        if (context)
+            CGContextRelease(context);
+        CFRelease(attributed);
+        CFRelease(text);
+    }
 }
 
 /* ---- lines, runs, frames ----------------------------------------------- */
@@ -561,6 +590,24 @@ static void testLines(CTFontRef font)
                     "CTRunGetGlyphs adapter returns data where Tiger returns nothing");
                 expect(runAdvances[0].width == baseAdvances[0].width,
                     "CTRunGetAdvances adapter returns data where Tiger returns nothing");
+                {
+                    /* The copying index getter must write every element, even
+                       when Tiger's pointer variant returns NULL: WebCore only
+                       calls it in that case, over a Vector::grow that does not
+                       zero. Poison the buffer first and require it overwritten. */
+                    CFIndex* runIndices = (CFIndex*)malloc((size_t)count * sizeof(CFIndex));
+                    CFIndex k;
+                    int poisoned = 0;
+                    for (k = 0; k < count; ++k)
+                        runIndices[k] = (CFIndex)0xDEADBEEF;
+                    CTRunGetStringIndices(run, CFRangeMake(0, 0), runIndices);
+                    for (k = 0; k < count; ++k) {
+                        if (runIndices[k] == (CFIndex)0xDEADBEEF)
+                            poisoned = 1;
+                    }
+                    expect(!poisoned, "CTRunGetStringIndices writes every element it promises");
+                    free(runIndices);
+                }
                 free(runGlyphs);
                 free(runAdvances);
             }

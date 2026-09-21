@@ -465,8 +465,61 @@ Flagged under criterion 3, each with the reason it was not closed.
 - `CTFontDescriptorCreateWithTextStyle` differs harmlessly. Headline/ShortHeadline use weight 0.4
   (bold) where macOS documents 0.3 (semibold); `lineSpacing = size * 1.2` is invented. No caller
   reads either.
-- Survey correction: 10.5 **does** export `CTLineGetTrailingWhitespaceWidth`, so prior art exists
-  for the stub at `ctcompat.c:903` if measured-width error ever matters.
+- Survey correction: 10.5 **does** export `CTLineGetTrailingWhitespaceWidth`. (My first note said
+  the shim returns 0 there; that was read from a stale copy. It already sums the advances of
+  trailing space glyphs, and the ctcompat track has corrected the survey.)
+
+**Second round, after the UI font table was fixed.** Audited the ten Tiger-ABI adapters at the
+bottom of `ctcompat.c` on request, against Tiger's own CoreText binary.
+
+- **`CTLineDraw` needs an eleventh adapter — the one confirmed signature mismatch left.** Tiger's
+  is `CTLineDraw(CTLineRef, CGContextRef, CFRange)`. `_CTLineDraw` at `901cfa84` reads four stack
+  words and at `901cfabe` does `leal (%esi,%ecx),%eax` then compares against a count, bailing out
+  and drawing nothing when `location + length` exceeds it; `{0, 0}` and `{0, count}` both route to
+  `TLine::DrawGlyphs(ctx)` for the whole line. WebCore calls the two-argument form at five sites
+  (`ResourceUsageOverlayCocoa.mm:286`, `LegacyTileCache.mm:596`, `PlatformCALayer.mm:169`,
+  `DrawGlyphsRecorder.cpp:525`, `WebViewVisualIdentificationOverlay.mm:159` and `:163`), so the
+  range is stack junk and the line usually does not draw at all. One-line adapter.
+- **The three `CTRunGet*` copying adapters leave the caller's buffer untouched when the `…Ptr`
+  variant returns NULL**, which is the only case WebCore calls them
+  (`ComplexTextControllerCoreText.mm:74-107` calls the copying variant exactly in the `!ptr`
+  branch, after a `Vector::grow()` that does not zero POD). The caller then reads uninitialized
+  memory; for `m_coreTextIndices` those values index into the character buffer. Disassembling the
+  three accessors: `TStorageRange::GetGlyphs` (`901f8fb8`) and `GetAdvances` (`901f984c`) are
+  unconditional pointer arithmetic and effectively never return NULL, but `GetStringIndices`
+  (`901f9782`) dispatches through a virtual and genuinely can. Zero-fill at minimum;
+  `CTRunGetStringRange` is real on Tiger (`901d1fc6`) and can reconstruct indices for a monotonic
+  run.
+- `TigerCTFontGetBoundingRectsForGlyphs` returns `CGRectZero` on failure where real CT returns
+  `CGRectNull`, and callers tell them apart with `CGRectIsNull`.
+- `TigerCTRunDraw` uses a different placement model from real CTRunDraw, which fetches
+  `TRun::GetPositions()` and never reads the context's text position (10.5 `CTRunDraw` at
+  `0x30474`). Rule 1 offers nothing better: Tiger exports neither `CTRunGetPositions` nor
+  `…Ptr`, and `TRun::GetPositions` is a local symbol, so accumulating advances is the right call.
+  It does mean the adapter requires a per-run text position, and it ignores `CTRunGetTextMatrix`.
+  No WebCore caller today. `TigerCTLineGetImageBounds` shares the approximation and is likewise
+  uncalled outside `ctcompat.c` itself.
+- Verified correct: `TigerCTFontCopyTable`, `TigerCTLineGetTypographicBounds`, `runRangeCount`,
+  `TigerCTFontGetAdvancesForGlyphs`, `TigerCTFontCreateUIFontForLocale`. Also re-verified the
+  premises the adapters rest on: Tiger's `CTRunGetGlyphs` (`901e2212`), `CTRunGetAdvances`
+  (`901e2218`), `CTRunGetStringIndices` (`901e221e`) and `CTRunDraw` (`901e21ae`) are each
+  `push ebp; mov ebp,esp; pop ebp; ret`, and `CTLineGetImageBounds` (`901e0c24`) copies 16 bytes
+  from a fixed global into the struct return without touching the line.
+- Useful side fact: Tiger's `CTRunGetStatus` (`901d6076`) sets bit 0 for right-to-left and bit 1
+  for non-monotonic, and **never** bit 2, `kCTRunStatusHasOrigins`. So WebCore's `HasOrigins`
+  branch, which calls the absent `CTRunGetBaseAdvancesAndOrigins`, can never be taken.
+
+**Method note.** The way `CTLineDraw` surfaced generalises: for each of the 54 CoreText functions
+WebCore calls that Tiger exports, count the highest positive `%ebp` offset the prologue reads and
+compare with the modern prototype's argument count. It produces false positives on short
+functions, so the candidates need hand-checking — `CTFramesetterCreateFrame` reads exactly the
+modern five slots and `CTFontGetDescent` exactly one (and negates the result, so it returns a
+positive descent like modern CT). Beyond the ten adapters and `CTLineDraw`, nothing else in that
+set looked mismatched. The same screen is worth running against CoreGraphics.
+
+**Fixed by the ctcompat track**, including one bug this audit did not catch: `kCTFontUIFontMenuItem`
+was 10 and `kCTFontUIFontLabel` was 20, where the correct values are 12 and 10. Even a correct
+table would have returned the label font wherever WebCore asked for the menu item font.
 
 ### cgcompat.c → **cgcompat**
 

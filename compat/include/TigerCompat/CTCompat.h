@@ -218,8 +218,10 @@ CFIndex CTRunGetGlyphCount(CTRunRef);
 const CGGlyph* CTRunGetGlyphsPtr(CTRunRef);
 const CGSize* CTRunGetAdvancesPtr(CTRunRef);
 const CFIndex* CTRunGetStringIndicesPtr(CTRunRef);
-void CTLineDraw(CTLineRef, CGContextRef);
+/* Tiger takes a CFRange the modern two-argument form does not. */
+void CTLineDraw(CTLineRef, CGContextRef, CFRange);
 CTRunStatus CTRunGetStatus(CTRunRef);
+CFRange CTRunGetStringRange(CTRunRef);
 CFDictionaryRef CTRunGetAttributes(CTRunRef);
 
 CTFramesetterRef CTFramesetterCreateWithAttributedString(CFAttributedStringRef);
@@ -467,6 +469,7 @@ void TigerCTRunGetAdvances(CTRunRef, CFRange, CGSize[]);
 void TigerCTRunGetStringIndices(CTRunRef, CFRange, CFIndex[]);
 void TigerCTRunDraw(CTRunRef, CGContextRef, CFRange);
 CGRect TigerCTLineGetImageBounds(CTLineRef, CGContextRef);
+void TigerCTLineDraw(CTLineRef, CGContextRef);
 CTFontRef TigerCTFontCreateUIFontForLocale(CTFontUIFontType, CGFloat size, CFStringRef locale);
 
 /* ---- CoreGraphics font SPI whose only route on Tiger is CoreText -------

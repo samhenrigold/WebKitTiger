@@ -26,7 +26,6 @@ CT_EXTERN CTLineRef CTLineCreateWithAttributedString(CFAttributedStringRef);
 CT_EXTERN CFArrayRef CTLineGetGlyphRuns(CTLineRef);
 CT_EXTERN CFIndex CTLineGetGlyphCount(CTLineRef);
 CT_EXTERN CFRange CTLineGetStringRange(CTLineRef);
-CT_EXTERN void CTLineDraw(CTLineRef, CGContextRef);
 
 /* --- case 2: Tiger reads the width as a by-value double ------------------ */
 CT_EXTERN CTLineRef CTLineCreateTruncatedLine(CTLineRef, double width, CTLineTruncationType, CTLineRef truncationToken);
@@ -41,6 +40,10 @@ CT_EXTERN double CTLineGetTypographicBounds(CTLineRef, CGFloat* ascent, CGFloat*
     CT_TIGER_ADAPTER(TigerCTLineGetTypographicBounds);
 CT_EXTERN CGRect CTLineGetImageBounds(CTLineRef, CGContextRef)
     CT_TIGER_ADAPTER(TigerCTLineGetImageBounds);
+/* Tiger's CTLineDraw takes a CFRange; the modern two-argument call would pass
+ * stack junk as the range and draw nothing whenever it exceeds the glyph count. */
+CT_EXTERN void CTLineDraw(CTLineRef, CGContextRef)
+    CT_TIGER_ADAPTER(TigerCTLineDraw);
 
 /* --- case 3b ------------------------------------------------------------- */
 CT_EXTERN CGRect CTLineGetBoundsWithOptions(CTLineRef, CTLineBoundsOptions);

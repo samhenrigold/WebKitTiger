@@ -1541,8 +1541,11 @@ CGRect TigerCTFontGetBoundingRectsForGlyphs(CTFontRef font, CTFontOrientation or
     const CGGlyph glyphs[], CGRect rects[], CFIndex count)
 {
     (void)orientation;
+    /* CGRectNull, not CGRectZero: real CoreText signals failure with a null
+     * rect and callers tell them apart with CGRectIsNull. CGRectZero is a
+     * perfectly valid empty rect sitting at the origin. */
     if (!font || count <= 0)
-        return CGRectZero;
+        return CGRectNull;
     return CTFontGetBoundingRectsForGlyphs(font, glyphs, rects, count);
 }
 
@@ -1571,6 +1574,12 @@ static CFIndex runRangeCount(CTRunRef run, CFRange range)
     return count > 0 ? count : 0;
 }
 
+/* The one case WebCore calls these in is the one where the Ptr variant returned
+ * NULL: ComplexTextControllerCoreText.mm takes the span, and only if its data is
+ * null does it grow a Vector and call the copying form. WTF's Vector::grow does
+ * not zero POD elements, so leaving the buffer untouched hands back whatever was
+ * on the heap. For string indices that is uninitialized values used to index
+ * into the character buffer, so every path below writes the whole buffer. */
 void TigerCTRunGetGlyphs(CTRunRef run, CFRange range, CGGlyph buffer[])
 {
     const CGGlyph* glyphs;
@@ -1579,9 +1588,13 @@ void TigerCTRunGetGlyphs(CTRunRef run, CFRange range, CGGlyph buffer[])
     if (!run || !buffer)
         return;
     count = runRangeCount(run, range);
+    if (count <= 0)
+        return;
     glyphs = CTRunGetGlyphsPtr(run);
-    if (count && glyphs)
+    if (glyphs)
         memcpy(buffer, glyphs + range.location, (size_t)count * sizeof(CGGlyph));
+    else
+        memset(buffer, 0, (size_t)count * sizeof(CGGlyph));
 }
 
 void TigerCTRunGetAdvances(CTRunRef run, CFRange range, CGSize buffer[])
@@ -1592,22 +1605,57 @@ void TigerCTRunGetAdvances(CTRunRef run, CFRange range, CGSize buffer[])
     if (!run || !buffer)
         return;
     count = runRangeCount(run, range);
+    if (count <= 0)
+        return;
     advances = CTRunGetAdvancesPtr(run);
-    if (count && advances)
+    if (advances)
         memcpy(buffer, advances + range.location, (size_t)count * sizeof(CGSize));
+    else
+        memset(buffer, 0, (size_t)count * sizeof(CGSize));
 }
 
 void TigerCTRunGetStringIndices(CTRunRef run, CFRange range, CFIndex buffer[])
 {
     const CFIndex* indices;
     CFIndex count;
+    CFIndex i;
 
     if (!run || !buffer)
         return;
     count = runRangeCount(run, range);
+    if (count <= 0)
+        return;
+
     indices = CTRunGetStringIndicesPtr(run);
-    if (count && indices)
+    if (indices) {
         memcpy(buffer, indices + range.location, (size_t)count * sizeof(CFIndex));
+        return;
+    }
+
+    /* This is the one of the three that really can come back NULL: Tiger's
+     * TStorageRange::GetStringIndices dispatches through a virtual, where the
+     * glyph and advance accessors are plain pointer arithmetic. Rebuild the
+     * indices from the run's string range, which is real on Tiger, ascending
+     * for LTR and descending for RTL. Only safe when the run is monotonic,
+     * which Tiger does report: CTRunGetStatus sets bit 1 when it is not. */
+    {
+        CTRunStatus status = CTRunGetStatus(run);
+        CFRange stringRange = CTRunGetStringRange(run);
+
+        if (!(status & 2) && stringRange.length >= count) {
+            if (status & kCTRunStatusRightToLeft) {
+                for (i = 0; i < count; ++i)
+                    buffer[i] = stringRange.location + stringRange.length - 1 - (range.location + i);
+            } else {
+                for (i = 0; i < count; ++i)
+                    buffer[i] = stringRange.location + range.location + i;
+            }
+            return;
+        }
+        /* Non-monotonic, or no usable range: deterministic beats garbage. */
+        for (i = 0; i < count; ++i)
+            buffer[i] = stringRange.location;
+    }
 }
 
 /* The font a run is drawn with, borrowed, or NULL. */
@@ -1627,7 +1675,18 @@ void TigerCTRunDraw(CTRunRef run, CGContextRef context, CFRange range)
     CFIndex count, i;
 
     /* Tiger's CTRunDraw is empty. Lay the run out from the context's text
-     * position and hand it to CTFontDrawGlyphs. */
+     * position and hand it to CTFontDrawGlyphs.
+     *
+     * This is a different placement model from real CTRunDraw, which fetches
+     * the run's own positions, offsets them by range.location and never reads
+     * the context's text position. Tiger exports neither CTRunGetPositions nor
+     * CTRunGetPositionsPtr and its TRun::GetPositions is a local symbol, so
+     * accumulation is the only option. The consequence: **this adapter needs
+     * the text position set per run.** A caller that sets it once per line and
+     * then draws runs in sequence, which is what CTLineDraw does internally,
+     * would stack every run at the line origin. It also ignores the run's text
+     * matrix, which real CTRunDraw honours. Nothing in WebCore calls CTRunDraw
+     * today, so both are latent. */
     if (!run || !context)
         return;
     font = runFont(run);
@@ -1650,6 +1709,19 @@ void TigerCTRunDraw(CTRunRef run, CGContextRef context, CFRange range)
     free(positions);
 }
 
+/* The eleventh adapter. Tiger's CTLineDraw takes a CFRange the modern
+ * two-argument form does not: at _CTLineDraw it reads four stack words and
+ * compares location + length against the line's glyph count with an integer
+ * cmpl, drawing nothing when the sum is larger. So a modern two-argument call
+ * passes stack junk as the range and draws the line only when that junk happens
+ * to be {0, 0} or {0, count}. Tiger routes {0, 0} straight to the whole-line
+ * draw, which is the convention its CTLineGetTypographicBounds uses too. */
+void TigerCTLineDraw(CTLineRef line, CGContextRef context)
+{
+    if (line && context)
+        CTLineDraw(line, context, CFRangeMake(0, 0));
+}
+
 CGRect TigerCTLineGetImageBounds(CTLineRef line, CGContextRef context)
 {
     CFArrayRef runs;
@@ -1659,7 +1731,12 @@ CGRect TigerCTLineGetImageBounds(CTLineRef line, CGContextRef context)
 
     /* Tiger's CTLineGetImageBounds never looks at its line: it copies a fixed
      * global rect into the struct return. Union the runs' glyph bounding rects
-     * instead, walking the pen across the line. */
+     * instead, walking the pen across the line.
+     *
+     * The pen accumulates across runs, which assumes visual left-to-right
+     * layout and no per-run origin. Correct for an LTR line; a line containing
+     * an RTL run will place that run's ink wrongly. The only caller in tree is
+     * CTLineGetBoundsWithOptions above, for the ink-bounds options. */
     (void)context; /* Tiger has no context-dependent hinting to account for. */
     if (!line)
         return CGRectNull;
