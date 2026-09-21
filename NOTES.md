@@ -625,3 +625,21 @@ ON` set explicitly in CMake toolchain files -- all three now standard in
 deps/build-deps-x86_64.sh. If a configure script's *own* runtime probe (not just the
 generic cross_compiling boilerplate) ignores all of the above, as ICU's did, patch that copy
 of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than fighting it.
+- IPC/shared memory proven (spike/ipc32x64, 6c45186/f88e046): fork+exec (no posix_spawn on Tiger); bootstrap_register works;
+  Mach round trip 11 us; 64 KB inline 241 MB/s; shared frame memcpy ~900 MB/s; double-buffered pipeline ~176 fps; GL upload of
+  a 1440x900 BGRA frame from the mapping ~8 ms (no copy; client storage is SLOWER for changing textures); exception ports give
+  crash isolation without task_for_pid. Prefer mach_make_memory_entry_64 over shm_open (crash-safe lifetime). Static-assert
+  struct layouts from both compilers. A CGL pbuffer over ssh is GPU-accelerated.
+- CONTROLS DECISION (survey a375b4c): no live NSViews, no offscreen-view capture. WebKit already serializes ControlPart/
+  ControlStyle and remotes control drawing (GPU process); route it to the 32-bit process and draw with real NSCells/HITheme
+  (~275 LOC + 250 for scrollbars): same pixels as Safari, WebCore behaviors, real NSMenu popups. compat/aquacontrols.m (nscompat)
+  is the drawing implementation. cahost phase 4 (offscreen views) cancelled.
+- MEDIA DECISION (plan 7b4bbb3): ffmpeg-direct MediaPlayerPrivate + MSE (clone platform/mock/mediasource), NOT GStreamer;
+  frames via paint() over the existing shared-memory path; codec policy refuses VP9/AV1/Opus so YouTube serves H.264; target
+  360p smooth / 480p likely. NetworkProcess/curl is live upstream (WK1 ResourceHandleCurl restoration is dead work).
+- TEXT INPUT (survey addendum): write a lean Tiger NSTextInput view (~1000 LOC) on the C API; 5 query messages need synchronous
+  variants; port the IME staging logic (Korean/Vietnamese); clamp NSNotFound (32-bit) vs 64-bit replies.
+- ACCESSIBILITY: remote AX is closed on Tiger (10.7 private class + ObjC in the content process); v1 must DECLARE absence
+  (web view reports a group role with no children, ~15 LOC). Tiger shipped VoiceOver, so this is a known regression.
+- BUILD: OptionsCocoa.cmake's TIGER block (lines ~165-199) is architecture-blind (forces C_LOOP, hardcodes the i386 sysroot);
+  must be split per process before either 64-bit build can be configured.
