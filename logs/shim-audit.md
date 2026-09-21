@@ -45,7 +45,8 @@ and are correctly not shimmed.
 | macports-legacy-support (git HEAD) | `refs/mlegacy/src/` |
 | Libc-583 (Snow Leopard, the first `posix_memalign`) | `refs/Libc-583-malloc.c`, `-magazine_malloc.c` |
 | Mac OS X 10.5.8 i386 frameworks | `refs/leopard/{CoreText,CoreGraphics,Foundation,CoreFoundation,libSystem.B.dylib,libobjc.A.dylib}.i386` |
-| Full install trees (10.5.0 GM, WWDC 2006 preview, 10.6.3) | `refs/leopard-9a581/root`, `refs/leopard-9a241/root`, `refs/snowleopard-10.6.3/root` |
+| Full install trees (10.5.0 GM, WWDC 2006 preview, 10.6.3 build 10D575) | `refs/leopard-9a581/root`, `refs/leopard-9a241/root`, `refs/snowleopard-10.6.3/root` |
+| libdispatch-84.5.1 `once.c`, objc4-267.1 `Protocol.m` | `refs/libdispatch-84-once.c`, `refs/objc4-267.1-Protocol.m` |
 | Tiger's own CoreText, for the adapter audit | `sysroot/.../CoreText.framework/Versions/A/CoreText` |
 
 The 10.5.8 combo `.dmg` is gone from every Apple host. Apple's legacy Software Update catalog
@@ -389,6 +390,7 @@ Reference: libdispatch-84.5.1 `src/semaphore.c`, plus the documented contracts.
 | `dispatch_group_*` | matches |
 | `dispatch_semaphore_wait` | matches |
 | `dispatch_semaphore_signal` | **divergence, fixed** |
+| `dispatch_once` locking | **hazard, fixed** — see the second pass below |
 | `dispatch_after` / timers | matches |
 | main-queue drain over CFRunLoop | matches given Tiger's CF |
 | `dispatch_sync` / `dispatch_barrier_sync` | matches |
@@ -400,12 +402,10 @@ caller in the WebKit checkout reads the return value (only two call sites, both 
 `JavaScriptCore/API/tests/Regress141275.mm`, both discarding it), so this was left alone rather
 than adding a waiter counter.
 
-**`dispatch_once` — matches, with a hazard.** The fast path is a plain load plus a barrier, which
-is correct on x86 TSO, and the slow path is guarded. But one recursive mutex serialises every
-`dispatch_once` in the process, so a `once` block on thread A that blocks waiting for thread B to
-finish a *different* `once` deadlocks, where real libdispatch would not. The existing `ponytail:`
-comment calls this contention; it is stronger than that. Recorded here rather than fixed — a
-per-predicate scheme is a restructure, and nothing in the current test set hits it.
+**`dispatch_once` — hazard, fixed in the second pass.** The fast path was a plain load plus a
+barrier, correct on x86 TSO, but one recursive mutex serialised every `dispatch_once` in the
+process, so a `once` block on thread A that blocked waiting for thread B to finish a *different*
+`once` deadlocked. Replaced with libdispatch's per-predicate compare-and-swap; details below.
 
 **Group notify and `dispatch_after` — matches.** `td_item_new` copies the block and `td_item_run`
 releases it, so `td_group_notify`'s own copy/release round-trip is balanced (one redundant copy,
@@ -431,12 +431,14 @@ Flagged under criterion 3, each with the reason it was not closed.
 | `libcompat.c` `fdopendir` | leaks one fd per nesting level of a `remove_all()` | real `fdopendir` keeps the caller's fd, which is impossible without kernel `*at()` support |
 | `objc2compat.m` `method_setImplementation`, `method_exchangeImplementations` | flushes all method caches; objc4-437 does not flush at all | the flush is unnecessary, not wrong — old-runtime cache buckets are `Method` pointers — and both are cold paths, so a working path was left alone |
 | `blockclasses.m` | the placeholder class structs share a `cache` pointer with the real classes | unreachable: no instance ever has the original class as its `isa` |
-| `dispatch.c` `dispatch_once` | one recursive mutex serialises every `dispatch_once` in the process | a `once` block blocking on a *different* `once` on another thread deadlocks where real libdispatch would not; a per-predicate scheme is a restructure |
 | `dispatch.c` `dispatch_apply` | runs iterations serially on the calling thread | farming them out to the fixed pool risks self-deadlock when the caller is itself a pool thread |
 | `dispatch.c` `dispatch_group_notify` | does not retain the target queue, where `dispatch_after` does | asymmetry with no current consequence |
 | `os.c` `os_unfair_lock` | hand-rolled CAS spin with `pause`/`sched_yield` rather than Tiger's `OSSpinLock` | `OSSpinLock` is a bare word and cannot carry the owner id that `os_unfair_lock_assert_owner` needs |
 | `nscompat-operation.m` `-setSuspended:` | a no-op on `+mainQueue` and on queues with `maxConcurrentOperationCount != 1` | those run on queues we do not own; real suspend there needs a holding array |
 | `nscompat.m` `TIGER_FAST_ENUM_FROM` | enumerator not retained | reported to the nscompat track with the fix pattern |
+| `nscompat-operation.m` `-waitUntilFinished` | 1 ms poll, not a condition variable | real Foundation uses mutex + condvar; upgrade path now recorded in the source with the reference address |
+| `nscompat-operation.m` `-cancelAllOperations` | no-op | real Foundation sends `-cancel` to every operation; needs a live-operation list, and nothing in WebKit calls it |
+| `objc2compat.m` protocol optional methods and properties | return empty | the ext record is destroyed at image load; recoverable only through the local symbol table, see below |
 
 ## Findings sent to other owners (not edited here)
 
@@ -527,8 +529,10 @@ table would have returned the label font wherever WebCore asked for the menu ite
   `CGGradientCreateWithColorComponentsAndOptions` discards the options dictionary and
   `evaluateGradient` interpolates unpremultiplied. `GradientRendererCG.cpp:85-96` passes that
   option whenever `alphaPremultiplication == Premultiplied`, which is the CSS default for legacy
-  sRGB gradients, so `linear-gradient(red, transparent)` darkens through the middle. ~6 lines in
-  `evaluateGradient`.
+  sRGB gradients, so `linear-gradient(red, transparent)` darkens through the middle. (My first
+  description of the repro was wrong: red to transparent *red* shows no difference, because the
+  colour is constant. The artifact needs CSS `transparent`, which is transparent *black*, and it
+  is black that the midpoint is dragged toward. The cgcompat track caught this.)
 - **`CGColorSpaceGetName` identity-cache defect.** Matching by pointer identity against
   `sNamedSpaces[].cs` is unsound because Tiger's `CGColorSpaceCreateWithName` caches and returns
   the same object for `GenericRGB`, `GenericRGBLinear` and `GenericXYZ`; whichever name was asked

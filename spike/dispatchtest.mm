@@ -364,6 +364,38 @@ int main()
         dispatch_release(sem);
     }
 
+    {
+        // dispatch_once is per-predicate and lock-free, matching libdispatch-84's once.c.
+        // The case that used to deadlock: a once block that blocks waiting for another
+        // thread to finish a DIFFERENT once.
+        static dispatch_once_t outer, inner;
+        __block int innerRuns = 0, outerRuns = 0;
+        dispatch_semaphore_t innerDone = dispatch_semaphore_create(0);
+        dispatch_once(&outer, ^{
+            ++outerRuns;
+            dispatch_async(dispatch_get_global_queue(0, 0), ^{
+                dispatch_once(&inner, ^{ ++innerRuns; });
+                dispatch_semaphore_signal(innerDone);
+            });
+            // Blocks until the other thread completes an unrelated once.
+            dispatch_semaphore_wait(innerDone, DISPATCH_TIME_FOREVER);
+        });
+        check(outerRuns == 1 && innerRuns == 1, "nested once on another thread does not deadlock");
+        dispatch_release(innerDone);
+
+        // Many threads racing one predicate must run the block exactly once.
+        static dispatch_once_t shared;
+        __block int sharedRuns = 0;
+        dispatch_group_t g = dispatch_group_create();
+        for (int i = 0; i < 8; ++i)
+            dispatch_group_async(g, dispatch_get_global_queue(0, 0), ^{
+                dispatch_once(&shared, ^{ usleep(20000); ++sharedRuns; });
+            });
+        dispatch_group_wait(g, DISPATCH_TIME_FOREVER);
+        check(sharedRuns == 1, "8 threads racing one once predicate run it exactly once");
+        dispatch_release(g);
+    }
+
     printf("%s (%d failures)\n", g_failures ? "FAILED" : "ALL PASS", g_failures);
     return g_failures ? 1 : 0;
 }

@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sched.h>
 #include <unistd.h>
 
 #include <dispatch/dispatch.h>
@@ -723,37 +724,45 @@ dispatch_block_t dispatch_block_create_with_qos_class(dispatch_block_flags_t fla
 
 /* -------------------------------------------------------------------- once --- */
 
-/* ponytail: one recursive mutex guards every dispatch_once in the process.
- * Nested onces on different predicates work; contention is irrelevant because
- * the fast path never takes the lock. */
-static pthread_mutex_t g_once_lock;
-static pthread_once_t g_once_lock_once = PTHREAD_ONCE_INIT;
-
-static void g_once_lock_init(void)
-{
-    pthread_mutexattr_t a;
-    pthread_mutexattr_init(&a);
-    pthread_mutexattr_settype(&a, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&g_once_lock, &a);
-    pthread_mutexattr_destroy(&a);
-}
-
+/* Per-predicate, lock-free, the way libdispatch-84's src/once.c does it: the winner of a
+ * compare-and-swap from 0 to 1 runs the function and then stores ~0; everyone else waits for
+ * ~0 to appear. That matters for more than speed. The previous version serialised every
+ * dispatch_once in the process behind one recursive mutex, so a once block on thread A that
+ * blocked waiting for thread B to finish an unrelated once deadlocked, where real libdispatch
+ * would not.
+ *
+ * ponytail: libdispatch spins the losers with nothing but a pause instruction. On a two-core
+ * Tiger box that burns a whole core against a slow initialiser, so this yields after a bounded
+ * spin. Upgrade: a futex-like wait, which Tiger has no primitive for.
+ *
+ * Recursive use on the SAME predicate hangs here, as it does in libdispatch. The old recursive
+ * mutex silently ran the function twice instead, which is worse.
+ */
 #define TD_ONCE_DONE (~(intptr_t)0)
 
 void dispatch_once_f(dispatch_once_t *pred, void *ctx, dispatch_function_t fn)
 {
-    if (*(volatile dispatch_once_t *)pred == TD_ONCE_DONE) {
+    volatile dispatch_once_t *v = (volatile dispatch_once_t *)pred;
+    unsigned spins = 0;
+
+    if (*v == TD_ONCE_DONE) {
         __sync_synchronize();
         return;
     }
-    pthread_once(&g_once_lock_once, g_once_lock_init);
-    pthread_mutex_lock(&g_once_lock);
-    if (*pred != TD_ONCE_DONE) {
+    if (__sync_bool_compare_and_swap(pred, (dispatch_once_t)0, (dispatch_once_t)1)) {
         fn(ctx);
+        /* The store of ~0 must not be visible before anything fn() wrote. */
         __sync_synchronize();
-        *pred = TD_ONCE_DONE;
+        *v = TD_ONCE_DONE;
+        return;
     }
-    pthread_mutex_unlock(&g_once_lock);
+    while (*v != TD_ONCE_DONE) {
+        if (++spins < 1024)
+            __asm__ __volatile__("pause" ::: "memory");
+        else
+            sched_yield();
+    }
+    __sync_synchronize();
 }
 
 static void td_call_block(void *ctx) { ((dispatch_block_t)ctx)(); }

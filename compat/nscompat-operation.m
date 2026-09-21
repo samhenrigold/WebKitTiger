@@ -42,9 +42,12 @@
 - (BOOL)isExecuting { return _executing; }
 
 /* WebCoreNSURLSession.mm adds an operation to the delegate queue and then blocks on it.
- * ponytail: poll the flag rather than add a condition variable and an ivar to the fragile-ABI
- * class layout. Ceiling: up to 1 ms of latency past completion and a wakeup every 1 ms while
- * waiting. Upgrade: an NSConditionLock ivar signalled from -start, if anything ever waits hot. */
+ * ponytail: poll the flag rather than add ivars to the fragile-ABI class layout. Ceiling: up to
+ * 1 ms of latency past completion and a wakeup every 1 ms while waiting. Upgrade, and this is
+ * exactly what real Foundation does -- -[__NSOperationInternal waitUntilFinished] in 10.6.3
+ * Foundation (i386, 0x5ab54) is pthread_mutex_lock, then pthread_cond_wait in a loop until an
+ * isFinished predicate returns true: add a pthread_mutex_t and pthread_cond_t pair of ivars and
+ * broadcast from -start. Worth doing only if something ever waits on this hot. */
 - (void)waitUntilFinished
 {
     while (!*(volatile BOOL *)&_finished)
@@ -226,6 +229,9 @@ static NSOperationQueue *tigerMainOperationQueue;
 }
 - (BOOL)isSuspended { return _suspended; }
 
+/* Real Foundation's is not a no-op: -[NSOperationQueue cancelAllOperations] in 10.6.3 Foundation
+ * (i386, 0x49890) fetches the operations array and sends -cancel to each. Doing that here needs a
+ * list of live operations rather than just the count below, and nothing in WebKit calls it. */
 - (void)cancelAllOperations { }
 
 - (void)waitUntilAllOperationsAreFinished
@@ -233,8 +239,10 @@ static NSOperationQueue *tigerMainOperationQueue;
     dispatch_group_wait((dispatch_group_t)_group, DISPATCH_TIME_FOREVER);
 }
 
-/* Real Foundation counts operations that are queued or executing. Returning a flat 0 was an
- * affirmative wrong answer a caller could act on, unlike an unimplemented selector. */
+/* Real Foundation counts the operations actually in the queue: -[NSOperationQueue
+ * operationCount] in 10.6.3 Foundation (i386, 0x8f207) tail-calls __NSOperationQueueGetOperations
+ * and returns its count. Returning a flat 0 was an affirmative wrong answer a caller could act
+ * on, unlike an unimplemented selector. */
 - (NSUInteger)operationCount
 {
     int32_t n = __sync_fetch_and_add(&_operationCount, 0);
