@@ -1045,3 +1045,81 @@ everything away for any mask that is not a DeviceGray non-alpha image — measur
 FIXME already there is pointing at exactly this. The symptom is blank regions
 where CSS masking, clip paths or a masked canvas composite should be, with no
 crash and no error, so it is worth checking first if that appears.
+
+## Fifth WebCore compile pass — final (round 3 close-out)
+
+`ninja -C build/tiger-wc WebCore -k 100000` reached **478/480, 49 failing
+translation units, 240 errors**. Progression across passes:
+
+| pass | failing TUs |
+|---|---|
+| 1 | 97 |
+| 2 | 60 |
+| 3 | 60 |
+| 4 | 51 |
+| 5 | 49 |
+
+Fixed since pass 4: the NSURLSession class extensions in `CFNetworkSPI.h`
+(three `#if defined(__OBJC__)` gates), `CF_FORMAT_FUNCTION` in the overlay's
+`CFBase.h` (`LocalizedStrings.h` + `CodecUtilities.cpp`), and the exclusion
+lists now applied to `WebCore_SOURCES` as well as the unified-source excludes.
+
+Per team-lead's direction change (64-bit content process), this pass is **not
+pushed to link**. Residual clusters, in the order they should be attacked on
+whichever 64-bit rendering branch wins:
+
+1. **Frameworks that simply do not exist in the 10.4 SDK** (~60 errors, 12 TUs)
+   — Vision (`BarcodeDetectorImplementation.mm`, 19), Accelerate vImage
+   (`PixelBufferConversion.cpp`, 17), CoreMedia/VideoToolbox (`TrackInfo.cpp`,
+   `CMUtilities.h`, `WebCoreDecompressionSession.h`, `MediaSampleConverter.cpp`,
+   `VP9UtilitiesCocoa.mm`, `VideoToolboxSoftLink.h`), MediaAccessibility,
+   WebGPU (`WebGPUPtr.h`). All are more source exclusions, no shim work.
+
+2. **CFNetwork SPI + NSHTTPCookie vintage** (41 errors) —
+   `CFHTTPCookieStorageAcceptPolicy*`, `NSHTTPCookieStringPolicy`,
+   `NSHTTPCookieAcceptPolicy` used as a nullable type. Moot once networking is
+   curl; exclude `CookieCocoa.mm` and gate the cookie half of `CFNetworkSPI.h`.
+
+3. **Modern CoreGraphics/ImageIO private API** (~30 errors) —
+   `NativeImageCG.cpp` wants `CGImageBlockRef`, `CGImageBlockSetRef`,
+   `CGImageProviderCallbacksVersion1/2`, CVPixelBuffer lock flags;
+   `CGWindowUtilities`, `ShareableBitmapCG`, `ImageUtilitiesCG`, `UTIRegistry`,
+   `ImageIOSPI.h`, `GraphicsChecksMac.cpp`. cgcompat territory.
+
+4. **AppKit 10.10+ API** (~35 errors) — `NSVisualEffectView`
+   (`WebCoreFullScreenPlaceholderView.mm`, 14), `NSScrollView` content insets
+   (`ScrollViewMac.mm`, 10), `NSAppearance` (`NSAppearanceSPI.h`,
+   `LocalDefaultSystemAppearance.mm`), `ValidationBubbleMac.mm`,
+   `AppKitControlSystemImage.mm`, `CursorMac`, `IconMac`, `ColorMac`,
+   `NSSharingServicePickerSPI.h`. Mostly excludable; the rest is nscompat.
+
+5. **Security framework vintage** (12 errors) — `CertificateInfoCFNet.cpp`
+   wants `SecTrustCopyCertificateChain`, `SecCertificateCopyValues`,
+   `kSecOIDX509V1ValidityNotBefore/After`. Tiger has the CSSM spellings
+   (`CSSMOID_X509V1ValidityNotBefore`), so a real adapter is possible.
+
+6. **Fallout from my own gating** (~15 errors) — `ScrollAnimatorMac.mm` (9)
+   lost `PlatformWheelEventPhase::Began/Ended/Cancelled/MayBegin` and
+   `PlatformWheelEvent::isGestureStart/isEndOfMomentumScroll` when the wheel
+   phase HAVE was turned off. Also `GraphicsLayer.cpp`, `HIDElement.h`,
+   `objc_utility.mm`, `TypeCastsCF.h`. These are mine to re-balance.
+
+7. **Genuine toolchain/runtime items** (12 errors):
+   - `JSValue.mm` needs `method_copyReturnType`, `method_copyArgumentType`,
+     `method_getReturnType` — ObjC2 introspection Tiger's runtime lacks.
+     **Routed to objcrt.** Blocks the JSC ObjC API in ObjC++ TUs.
+   - `JSString.h:1168` `stringImpl[0]` is ambiguous **because of the fragile
+     runtime**, not 32-bit: `NSString` is a complete struct under the fragile
+     ABI, so the built-in `operator[](NSString*, int)` becomes a candidate
+     against `StringImpl::operator[](unsigned)` via
+     `StringImpl::operator NSString*()`. One-character fix (`[0U]`), and it
+     will *not* reproduce on a non-fragile 64-bit branch.
+   - `CornerShapeUtilities.cpp`: "thread-local storage is not supported for the
+     current target" — the known `-target i386-apple-macosx10.4` limitation.
+
+8. **Crypto** (5 errors) — `SerializedCryptoKeyWrapCocoa.mm`,
+   `CryptoUtilitiesCocoa.h`, `CryptoAlgorithmAESCBCCocoa.cpp`,
+   `PushCryptoCocoa.cpp`. LibreSSL replacements exist; not attempted.
+
+Stopping here per instruction. No WebKitLegacy work, no curl `ResourceHandle`
+restoration, no link attempt.
