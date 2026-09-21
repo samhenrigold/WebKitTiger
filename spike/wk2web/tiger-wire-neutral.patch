@@ -1,0 +1,226 @@
+--- a/Source/WTF/wtf/PlatformUse.h
++++ b/Source/WTF/wtf/PlatformUse.h
+@@ -438,3 +438,34 @@
+ #if PLATFORM(IOS) || PLATFORM(VISION)
+ #define USE_ITP_TCC_CHECK 1
+ #endif
++
++// TIGER: wire-flag neutralisation for the i386 side of the 10.4 split port.
++//
++// Every macro below is derived from PLATFORM(MAC)/PLATFORM(COCOA)/OS(DARWIN),
++// which are true on this port's i386 process and false on its x86_64 one, AND
++// appears in a *.serialization.in or *.messages.in condition. Left alone, the
++// two processes compile different serializer sets out of byte-identical
++// generated text -- a silent wire corruption that tiger-check-ipc cannot see,
++// because the generated sources match and these are not CMake variables.
++//
++// All of them are off rather than remapped: none carries anything the 64-bit
++// side can produce (no CoreGraphics, no AppKit, no PassKit, no Mach bootstrap,
++// no CoreText font registry), so the neutral value is simply the value the
++// x86_64 side already has. The four that ARE remapped rather than disabled --
++// USE_CG, USE_CF, USE_APPKIT, USE_CORE_TEXT -- are the architecture and are
++// handled by TIGER_WIRE_* in wtf/PlatformTigerWire.h; do not touch them here.
++//
++// Written as one appended block rather than 26 edits to the conditions above
++// on purpose: several of those conditions are multi-line, and a block that
++// simply states the final value is both easier to review and impossible to get
++// subtly wrong. Measured, not reasoned: see the NOTES table.
++#if PLATFORM(TIGER)
++#undef USE_AUDIO_SESSION
++#define USE_AUDIO_SESSION 0
++#undef USE_AUTOMATIC_TEXT_REPLACEMENT
++#define USE_AUTOMATIC_TEXT_REPLACEMENT 0
++#undef USE_DICTATION_ALTERNATIVES
++#define USE_DICTATION_ALTERNATIVES 0
++#undef USE_UNIFIED_TEXT_CHECKING
++#define USE_UNIFIED_TEXT_CHECKING 0
++#endif // PLATFORM(TIGER)
+--- a/Source/WTF/wtf/PlatformHave.h
++++ b/Source/WTF/wtf/PlatformHave.h
+@@ -2096,3 +2096,68 @@
+ #undef HAVE_TASK_IDENTITY_TOKEN
+ 
+ #endif // PLATFORM(TIGER) || PLATFORM(TIGER64)
++
++// TIGER: wire-flag neutralisation for the i386 side of the 10.4 split port.
++//
++// Every macro below is derived from PLATFORM(MAC)/PLATFORM(COCOA)/OS(DARWIN),
++// which are true on this port's i386 process and false on its x86_64 one, AND
++// appears in a *.serialization.in or *.messages.in condition. Left alone, the
++// two processes compile different serializer sets out of byte-identical
++// generated text -- a silent wire corruption that tiger-check-ipc cannot see,
++// because the generated sources match and these are not CMake variables.
++//
++// All of them are off rather than remapped: none carries anything the 64-bit
++// side can produce (no CoreGraphics, no AppKit, no PassKit, no Mach bootstrap,
++// no CoreText font registry), so the neutral value is simply the value the
++// x86_64 side already has. The four that ARE remapped rather than disabled --
++// USE_CG, USE_CF, USE_APPKIT, USE_CORE_TEXT -- are the architecture and are
++// handled by TIGER_WIRE_* in wtf/PlatformTigerWire.h; do not touch them here.
++//
++// Written as one appended block rather than 26 edits to the conditions above
++// on purpose: several of those conditions are multi-line, and a block that
++// simply states the final value is both easier to review and impossible to get
++// subtly wrong. Measured, not reasoned: see the NOTES table.
++#if PLATFORM(TIGER)
++#undef HAVE_APP_ACCENT_COLORS
++#define HAVE_APP_ACCENT_COLORS 0
++#undef HAVE_AUDIO_OUTPUT_DEVICE_UNIQUE_ID
++#define HAVE_AUDIO_OUTPUT_DEVICE_UNIQUE_ID 0
++#undef HAVE_AVASSETREADER
++#define HAVE_AVASSETREADER 0
++#undef HAVE_COOKIE_CHANGE_LISTENER_API
++#define HAVE_COOKIE_CHANGE_LISTENER_API 0
++#undef HAVE_CORE_MATERIAL
++#define HAVE_CORE_MATERIAL 0
++#undef HAVE_DISPLAY_LINK
++#define HAVE_DISPLAY_LINK 0
++#undef HAVE_MACH_BOOTSTRAP_EXTENSION
++#define HAVE_MACH_BOOTSTRAP_EXTENSION 0
++#undef HAVE_MEDIA_ACCESSIBILITY_FRAMEWORK
++#define HAVE_MEDIA_ACCESSIBILITY_FRAMEWORK 0
++#undef HAVE_PASSKIT_FRAMEWORK
++#define HAVE_PASSKIT_FRAMEWORK 0
++#undef HAVE_PASSKIT_INSTALLMENTS
++#define HAVE_PASSKIT_INSTALLMENTS 0
++#undef HAVE_POWERLOG_TASK_MODE_QUERY
++#define HAVE_POWERLOG_TASK_MODE_QUERY 0
++#undef HAVE_SCREEN_CAPTURE_KIT
++#define HAVE_SCREEN_CAPTURE_KIT 0
++#undef HAVE_SEC_KEYCHAIN
++#define HAVE_SEC_KEYCHAIN 0
++#undef HAVE_STATIC_FONT_REGISTRY
++#define HAVE_STATIC_FONT_REGISTRY 0
++#undef HAVE_TOUCH_BAR
++#define HAVE_TOUCH_BAR 0
++#undef HAVE_TRANSLATION_UI_SERVICES
++#define HAVE_TRANSLATION_UI_SERVICES 0
++#undef HAVE_VIDEO_RESTRICTED_DECODING
++#define HAVE_VIDEO_RESTRICTED_DECODING 0
++#undef HAVE_WK_SECURE_CODING_DATA_DETECTORS
++#define HAVE_WK_SECURE_CODING_DATA_DETECTORS 0
++#undef HAVE_WK_SECURE_CODING_NSURLCREDENTIAL
++#define HAVE_WK_SECURE_CODING_NSURLCREDENTIAL 0
++#undef HAVE_WK_SECURE_CODING_NSURLPROTECTIONSPACE
++#define HAVE_WK_SECURE_CODING_NSURLPROTECTIONSPACE 0
++#undef HAVE_WK_SECURE_CODING_NSURLREQUEST
++#define HAVE_WK_SECURE_CODING_NSURLREQUEST 0
++#endif // PLATFORM(TIGER)
+--- a/Source/WTF/wtf/PlatformEnable.h
++++ b/Source/WTF/wtf/PlatformEnable.h
+@@ -1126,3 +1126,28 @@
+     || (PLATFORM(APPLETV) && __TV_OS_VERSION_MAX_ALLOWED >= 270000))
+ #define ENABLE_BACK_FORWARD_LIST_SWIFT 1
+ #endif
++
++// TIGER: wire-flag neutralisation for the i386 side of the 10.4 split port.
++//
++// Every macro below is derived from PLATFORM(MAC)/PLATFORM(COCOA)/OS(DARWIN),
++// which are true on this port's i386 process and false on its x86_64 one, AND
++// appears in a *.serialization.in or *.messages.in condition. Left alone, the
++// two processes compile different serializer sets out of byte-identical
++// generated text -- a silent wire corruption that tiger-check-ipc cannot see,
++// because the generated sources match and these are not CMake variables.
++//
++// All of them are off rather than remapped: none carries anything the 64-bit
++// side can produce (no CoreGraphics, no AppKit, no PassKit, no Mach bootstrap,
++// no CoreText font registry), so the neutral value is simply the value the
++// x86_64 side already has. The four that ARE remapped rather than disabled --
++// USE_CG, USE_CF, USE_APPKIT, USE_CORE_TEXT -- are the architecture and are
++// handled by TIGER_WIRE_* in wtf/PlatformTigerWire.h; do not touch them here.
++//
++// Written as one appended block rather than 26 edits to the conditions above
++// on purpose: several of those conditions are multi-line, and a block that
++// simply states the final value is both easier to review and impossible to get
++// subtly wrong. Measured, not reasoned: see the NOTES table.
++#if PLATFORM(TIGER)
++#undef ENABLE_TILED_CA_DRAWING_AREA
++#define ENABLE_TILED_CA_DRAWING_AREA 0
++#endif // PLATFORM(TIGER)
+--- a/Source/WTF/wtf/PlatformEnableCocoa.h
++++ b/Source/WTF/wtf/PlatformEnableCocoa.h
+@@ -1282,3 +1282,28 @@
+ #define ENABLE_ADVANCED_PRIVACY_PROTECTIONS 0
+ 
+ #endif // PLATFORM(TIGER)
++
++// TIGER: wire-flag neutralisation for the i386 side of the 10.4 split port.
++//
++// Every macro below is derived from PLATFORM(MAC)/PLATFORM(COCOA)/OS(DARWIN),
++// which are true on this port's i386 process and false on its x86_64 one, AND
++// appears in a *.serialization.in or *.messages.in condition. Left alone, the
++// two processes compile different serializer sets out of byte-identical
++// generated text -- a silent wire corruption that tiger-check-ipc cannot see,
++// because the generated sources match and these are not CMake variables.
++//
++// All of them are off rather than remapped: none carries anything the 64-bit
++// side can produce (no CoreGraphics, no AppKit, no PassKit, no Mach bootstrap,
++// no CoreText font registry), so the neutral value is simply the value the
++// x86_64 side already has. The four that ARE remapped rather than disabled --
++// USE_CG, USE_CF, USE_APPKIT, USE_CORE_TEXT -- are the architecture and are
++// handled by TIGER_WIRE_* in wtf/PlatformTigerWire.h; do not touch them here.
++//
++// Written as one appended block rather than 26 edits to the conditions above
++// on purpose: several of those conditions are multi-line, and a block that
++// simply states the final value is both easier to review and impossible to get
++// subtly wrong. Measured, not reasoned: see the NOTES table.
++#if PLATFORM(TIGER)
++#undef ENABLE_MOMENTUM_EVENT_DISPATCHER
++#define ENABLE_MOMENTUM_EVENT_DISPATCHER 0
++#endif // PLATFORM(TIGER)
+--- a/Source/cmake/OptionsTigerProcesses.cmake
++++ b/Source/cmake/OptionsTigerProcesses.cmake
+@@ -160,7 +160,19 @@
+ macro(TIGER_SET_SHARED_FEATURE _name _value)
+     list(FIND _WEBKIT_AVAILABLE_OPTIONS ${_name} _tiger_idx)
+     if (_tiger_idx EQUAL -1)
++        # Not a CMake option, so it is a macro one of the PlatformEnable*.h files
++        # defines. Recording it and moving on was wrong: the header then defines it
++        # from PLATFORM(MAC)/PLATFORM(COCOA), which is true on i386 and false on
++        # x86_64, and the two processes compile different serializer sets out of
++        # the same generated text. Writing it into cmakeconfig.h instead gives both
++        # sides the same value, because every one of these headers guards its
++        # define with #if !defined(NAME).
++        #
++        # The ones that are NOT so guarded cannot be fixed from here at all and are
++        # neutralised in the headers themselves; see the PLATFORM(TIGER) block at
++        # the end of PlatformUse.h / PlatformHave.h / PlatformEnable*.h.
+         list(APPEND TIGER_NON_OPTION_FEATURES ${_name})
++        SET_AND_EXPOSE_TO_BUILD(${_name} ${_value})
+     else ()
+         WEBKIT_OPTION_DEFAULT_PORT_VALUE(${_name} PRIVATE ${_value})
+     endif ()
+@@ -200,6 +212,33 @@
+ # per-process section: all four processes must agree about it.
+ TIGER_SET_SHARED_FEATURE(ENABLE_GPU_PROCESS ON)
+ 
++# Flags that appear in a serialization or messages condition, are derived from
++# PLATFORM(MAC)/PLATFORM(COCOA)/OS(DARWIN), and were measured divergent between
++# build/tiger-gpu and build/tiger-web-port. Off on both sides: none of them
++# carries anything the 64-bit process can produce. See the NOTES table.
++set(TIGER_IPC_MAC_DERIVED_OFF
++    ENABLE_ACCESSIBILITY_ANIMATION_CONTROL
++    ENABLE_APPLE_PAY_NEW_BUTTON_TYPES
++    ENABLE_APPLE_PAY_UPDATE_SHIPPING_METHODS_WHEN_CHANGING_LINE_ITEMS
++    ENABLE_CONTEXT_MENU_QR_CODE_DETECTION
++    ENABLE_DESTINATION_COLOR_SPACE_DISPLAY_P3
++    ENABLE_OPUS
++    ENABLE_REMOTE_INSPECTOR_SERVICE_WORKER_AUTO_INSPECTION
++    ENABLE_VORBIS
++    ENABLE_VP9
++    ENABLE_WHEEL_EVENT_REGIONS
++    HAVE_AUDIO_COMPONENT_SERVER_REGISTRATIONS
++)
++foreach (_tiger_off IN LISTS TIGER_IPC_MAC_DERIVED_OFF)
++    TIGER_SET_SHARED_FEATURE(${_tiger_off} OFF)
++endforeach ()
++unset(_tiger_off)
++
++# The one that diverges the other way: 1 on x86_64, 0 on i386. Aligned up rather
++# than down, because the x86_64 value is the one the loading path has actually
++# been exercised with.
++TIGER_SET_SHARED_FEATURE(ENABLE_ALL_LEGACY_REGISTERED_SPECIAL_URL_SCHEMES ON)
++
+ if (TIGER_NON_OPTION_FEATURES)
+     list(LENGTH TIGER_NON_OPTION_FEATURES _n)
+     message(STATUS "TIGER: ${_n} of the shared features are compile-time macros, not CMake options: ${TIGER_NON_OPTION_FEATURES}")

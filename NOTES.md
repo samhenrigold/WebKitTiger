@@ -2628,3 +2628,35 @@ serializers from the i386 side; it adds nothing to either.
 Delivered as one patch across four WTF headers and `OptionsTigerProcesses.cmake`, handed to gpu32b
 rather than applied, so it lands inside their single PCH invalidation instead of causing a second
 one in the middle of the i386 census.
+
+## 2026-09-21 — the NSEvent factory, written blind
+
+`Source/WebKit/Shared/tiger/NativeWeb{Keyboard,Mouse,Wheel}EventTiger.mm`, listed in the UI block of
+`Source/WebKit/PlatformTiger.cmake`. **Not compiled** — written during gpu32b's exclusive hold on the
+machine for the i386 census, so no compiler has seen them. Expect to iterate once the tree is free.
+
+They are much thinner than `Shared/mac/WebEventFactory.mm` for a reason worth recording: WebCore's
+half of the job is already done and already ported. `platform/mac/PlatformEventFactoryMac.mm` is in
+the i386 build — WebCore's `PlatformTiger.cmake` includes `PlatformCocoa.cmake` on the non-TIGER64
+arm — and its keyCode table reads the `kVK_*` enumerators PAL's `HIToolboxSPI.h` declares for Tiger.
+Those are not new API; they are the hardware key codes the ADB and USB drivers have produced since
+1986, and Tiger's window server reports exactly them in `-[NSEvent keyCode]`. So
+`windowsKeyCodeForKeyEvent`, `textFromEvent`, `pointForEvent`, `modifiersForEvent`,
+`currentlyPressedMouseButtons` (shimmed onto `CGEventSourceButtonState`, a real query) and
+`getWheelEventDeltas` all work as written, and these three files only assemble the WebKit structs.
+`Shared/mac/WebEventFactory.mm` itself is not in the build at all — WebKit has no `PlatformMac.cmake`
+arm here — so there is no duplicate-symbol question.
+
+The wheel file is the real divergence. A 2007 MacBook Pro has no scroll phase, no momentum, no
+precise deltas, no direction inversion, no `_scrollCount` and no IOHIDEvent behind the CGEvent: every
+one of those is 10.7-or-later API on hardware that postdates the machine. The fields still *exist* in
+`WebWheelEventData`, because they are under `PLATFORM(COCOA)` and that is true on the i386 side, so
+leaving them at their initialisers is not a shortcut — it is the only honest value, and it is the
+same value the x86_64 web process reads back off the wire. WebCore then takes its non-precise
+scrolling path and `ScrollAnimator` does the smoothing, which is exactly what
+`ENABLE_KINETIC_SCROLLING` was turned on for. Force is 0 for the same kind of reason (Force Touch is
+10.10), and `menuTypeForEvent` is derived from right-button-or-control-click because
+`+[NSMenu menuTypeForEvent:]` is 10.11 — which is what that method meant on Tiger anyway.
+
+Also folded in: `UIProcess/tiger/WebContextMenuProxyTiger.mm` was written with the rest of the UI
+shell and never added to the source list. It is there now.
