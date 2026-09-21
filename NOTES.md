@@ -397,3 +397,9 @@ one triage pass before it was noticed. See the triage table at the end of
   loop). Only percent-level CLoop/compiler tuning remains (try -O3/LTO for JSC).
 - WebCore M2 first full pass: 97/557 failed; CommonCryptoSPI types + HAVE_TASK_IDENTITY_TOKEN off cleared 177 errors; media
   pipeline excluded; second pass running.
+- WebKitLegacy plan (logs/webkitlegacy-plan.md): ~430 LOC edits + 40 build config; 5 files excluded; do NOT exclude Plugins/
+  (inert already) or the inspector client files (breaks link). Must-fix: WebDelegateImplementationCaching.mm casts objc_msgSend
+  to a float-returning fn pointer -> objc_msgSend_fpret on i386 (silent garbage otherwise); curl's CA bundle path is compiled as
+  a host path -> ship cacert.pem in Resources and set it at runtime (CurlSSLHandle::setCACertPath, PlayStation pattern).
+  Re-check with the patched clang: the plan says @implementation ivars in two .m files fail; the wrapper's
+  -fobjc-fragile-extension-ivars should make them compile (WebFeature.m auto-synthesis too).
