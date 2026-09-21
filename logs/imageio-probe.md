@@ -1,5 +1,29 @@
 # ImageIO decode probe: Tiger vs modern ImageIO
 
+## Update (2026-09-20, post ImageIO.pkg / RAW Camera / Security Update 2009-005)
+
+The box got Apple's `ImageIO.pkg`, `RAWCamera.pkg`, and `SecUpd2009-005Intel.pkg` installed
+(receipts in `/Library/Receipts/`, `/var/log/install.log` timestamp 21:59) and rebooted for the
+security update. `ImageIO.framework`'s `CFBundleShortVersionString`:
+
+| | Version | Binary size | Source |
+|---|---|---|---|
+| Before | 1.5.6 | 730,836 bytes | `sysroot/.../ImageIO.framework/Versions/A/{Resources/Info.plist,ImageIO}`, this repo's pre-update mirror of the box (dated 2026-09-19, before today's update) |
+| After | 1.5.9 | 734,980 bytes | Read directly off the box just now |
+
+(The 10.4u SDK's copy under `sdk/MacOSX10.4u.sdk/` has no `Resources/Info.plist` at all — it's a
+link-only stub tree, not a real bundle, so it was never a usable "before" reference; the
+`sysroot/` mirror was.)
+
+Re-ran `spike/imageioprobe-tiger` unchanged (same binary, same 15 test images) on the
+now-updated box: **byte-for-byte identical output** to the dump this file's findings are based
+on (`diff` against the previously committed run: zero lines differ, 341/341 lines match). Every
+finding below — the `CGImageSourceGetStatusAtIndex` trap, the stuck-at-`ReadingHeader`
+progressive status for PNG/JPEG/GIF/TIFF, the PNG-compressed-ICO decode failure, the near-black
+CMYK JPEG, the sRGB-ICC-profile pixel delta, the missing GIF dictionary on a no-loop-extension
+GIF — is **unchanged** on 1.5.9. This 1.5.6 -> 1.5.9 update (RAW camera support plus a security
+fix, going by the package names) did not touch the code paths this probe exercises.
+
 WebCore's image decoding on this port goes entirely through Tiger's own ImageIO
 (`compat/CG-SURVEY.md`: ImageIO is API-complete on Tiger — incremental decoding, all the
 `CGImageSource*` entry points WebCore calls are native exports, nothing stubbed). This is a
