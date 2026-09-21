@@ -24,6 +24,12 @@ CMYK JPEG, the sRGB-ICC-profile pixel delta, the missing GIF dictionary on a no-
 GIF — is **unchanged** on 1.5.9. This 1.5.6 -> 1.5.9 update (RAW camera support plus a security
 fix, going by the package names) did not touch the code paths this probe exercises.
 
+The box rebooted a second time at 21:57 EDT after further packages (Java 9, iPhoto); software is
+now frozen. Re-ran again at 22:01 EDT, after that final reboot: still byte-for-byte identical to
+both earlier runs (the very first, pre-any-update dump and the first post-update dump). ImageIO's
+`CFBundleShortVersionString` is still 1.5.9 — Java 9/iPhoto don't touch it. Three independent runs
+across two update batches and two reboots, zero difference; this probe's findings are stable.
+
 WebCore's image decoding on this port goes entirely through Tiger's own ImageIO
 (`compat/CG-SURVEY.md`: ImageIO is API-complete on Tiger — incremental decoding, all the
 `CGImageSource*` entry points WebCore calls are native exports, nothing stubbed). This is a
