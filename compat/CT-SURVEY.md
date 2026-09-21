@@ -736,9 +736,12 @@ independently.
   on a zeroed buffer and leaves a surrogate-pair slot untouched on a poisoned one.
 - **Test more than two fonts, and pick them for coverage.** The same divergence is
   invisible in Arial and Georgia, where neither side finds a glyph and both write zero.
-- **Hand both sides identical bytes.** Comparing a metric by font *name* across two
-  machines measures the difference between two font files as much as between two
-  implementations, which is how NSFont briefly looked better than reading the OS/2 table.
+- **Supply the resource, do not name it.** A check that names a resource rather than
+  handing it over is comparing two resources as well as two implementations. Fonts are the
+  case here: comparing a metric by font *name* across two machines measures the difference
+  between two font files as much as between two CoreText versions, which is how NSFont
+  briefly looked better than reading the OS/2 table. The shape recurs wherever a check
+  cites a colour space, a profile or an image by name or path instead of providing it.
 - **Evidence that a comparison is sound must be independent of what is being compared.**
   `hhea` ascent agreeing says nothing about outlines; a matching argument list says
   nothing about what a function does with them.
