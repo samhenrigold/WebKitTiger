@@ -291,10 +291,15 @@ static inline CGRect NSRectToCGRect(NSRect r) { CGRect s; s.origin = NSPointToCG
    WebCore's PAL/pal/spi/mac/NSScrollerImpDetails.h declares it and a second one
    would be a conflict rather than a shim -- but platform/mac/ScrollTypesMac.h
    names the two constants, and nothing declares those. Tiger has only the
-   legacy scroller; the values are Apple's. */
+   legacy scroller; the values are Apple's.
+
+   The cast is to WebCore's own enum, declared `enum NSScrollerStyle : long` --
+   a fixed underlying type, so the cast is a constant expression and works as a
+   case label. These macros only expand where ScrollTypesMac.h has already seen
+   that declaration. */
 #ifndef NSScrollerStyleLegacy
-#define NSScrollerStyleLegacy  0
-#define NSScrollerStyleOverlay 1
+#define NSScrollerStyleLegacy  ((NSScrollerStyle)0)
+#define NSScrollerStyleOverlay ((NSScrollerStyle)1)
 #endif
 
 /* NSScrollerKnobStyle, 10.7, named by PAL/pal/spi/mac/NSScrollerImpSPI.h. Tiger
