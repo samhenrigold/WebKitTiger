@@ -407,3 +407,41 @@ regenerates the survey and the extraction recipe is in this file's history.
 `CTFrameDraw` and `CTRunDraw`; vertical writing; and Indic or Hebrew shaping, which the
 AAT-versus-OpenType boundary above predicts will behave like Arabic but which was not
 measured.
+
+
+---
+
+# Postscript: why the Leopard oracle passed cap height
+
+ctcompat's live oracle runs 9A241's CoreText on the box and diffs it against Tiger's. It
+passed cap height, which was 5.8% out against modern, and the stated reason was that both
+were wrong in the same direction. That is exactly right, and it is worth having measured
+rather than reasoned, because it marks the boundary of what that oracle can see.
+
+`spike/ct9metrics.c` asks all three for the same metric on the same font. DejaVu is
+activated through ctcompat's `CTFontManagerCreateFontDescriptorFromData`, which ATS-registers
+it process-wide, so 9A241's CoreText resolves it by PostScript name: the same trick the
+web-font path depends on.
+
+| size | cap (9A241) | cap (Tiger, pre-fix) | cap (modern) | x-height (9A241) | x-height (Tiger, pre-fix) | x-height (modern) |
+|---|---|---|---|---|---|---|
+| 9 | 7.000000 | 7.000000 | 6.618164 | 5.000000 | 5.000000 | 4.979004 |
+| 12 | 9.000000 | 9.000000 | 8.824219 | 7.000000 | 7.000000 | 6.638672 |
+| 16 | 12.000000 | 12.000000 | 11.765625 | 9.000000 | 9.000000 | 8.851562 |
+| 24 | 18.000000 | 18.000000 | 17.648438 | 13.000000 | 13.000000 | 13.277344 |
+| 100 | 73.500000 | 73.500000 | 55.500000 | 55.500000 | 55.500000 | 55.322266 |
+
+9A241 agrees with pre-fix Tiger to the last digit at every size, on both metrics. Ascent
+agrees with all three, so this is specific to the two quantised metrics rather than a
+general disagreement.
+
+So the two runtime checks are not interchangeable. A Leopard-era oracle inherits Leopard-era
+behaviour, which makes it excellent for questions of the form "does our shim match what
+Apple's code did" and blind to anything Apple changed after that binary shipped. Cap height
+was settled somewhere between 9A241 and now, so both implementations were on the same side
+of the change and the diff was clean. Only a comparison against a *modern* implementation
+could see it.
+
+Stated as a rule: the Leopard oracle answers "is this faithful to the era", this probe
+answers "is this right today", and a divergence that predates Leopard is invisible to the
+first and visible to the second. Both are worth running.
