@@ -431,3 +431,8 @@ one triage pass before it was noticed. See the triage table at the end of
 - USER DECISION (22:50): the 2021 pin is OFF THE TABLE, not even as a fallback. The port runs the 2026 WebKit tree, period.
   JS performance comes from the 64-bit content process with today's x86_64 JIT; if the 64-bit path failed, the answer would
   be the 2026 tree on the interpreter, never an older browser.
+- TOOLCHAIN BUG (23:00): cctools ld64-956.6 crashes linking x86_64 at -macosx_version_min 10.4 when inputs carry EH personality
+  references (libcrypto.a; any C++ with exceptions): "Assertion failed: (targetAtom != NULL), ld.hpp:914" in the x86_64 classic
+  stub pass. Agent ld64fix is fixing it (patch to toolchain/patches/) and building a stopgap that links on the box with Xcode
+  2.5's /usr/bin/ld64 (toolchain/bin/tiger-ld64-onbox.sh). Plain C with -fno-asynchronous-unwind-tables -fno-unwind-tables
+  avoids the trigger. i386 links are unaffected.
