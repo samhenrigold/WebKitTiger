@@ -643,3 +643,13 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   (web view reports a group role with no children, ~15 LOC). Tiger shipped VoiceOver, so this is a known regression.
 - BUILD: OptionsCocoa.cmake's TIGER block (lines ~165-199) is architecture-blind (forces C_LOOP, hardcodes the i386 sysroot);
   must be split per process before either 64-bit build can be configured.
+- DECODE NUMBERS on the box (spike/decodebench.c, logs/decodebench-tiger.txt, ffmpeg x86_64 -march=core2, 2 threads):
+  H.264 High 480p 255 fps / 720p 112 fps (8.9 ms) / 1080p 50 fps (20 ms); VP9 480p 154 / 720p 76 fps; AV1 480p 194 fps (dav1d);
+  AAC 261x, MP3 127x, Opus 122x realtime; swscale yuv420p->BGRA 1.4/3.1/7.0 ms at 480p/720p/1080p. => 720p30 H.264 is ~1/3 of
+  the machine; 1080p30 is all of it. ~50x QTKit. Recommendation: MediaPlayerPrivateFFmpeg (~5.3k content-side + 700 UI-side
+  LOC), MSE via libavformat custom AVIO over the port-independent SourceBufferPrivate; audio via the RemoteAudioDestination shape
+  over the proven shm ring. No CoreAudio/QuickTime/CF in x86_64 (only libSystem, libz, libstdc++ have x86_64 slices).
+- Text input plan (logs/textinput-plan.md): NativeWebKeyboardEvent's Cocoa constructor already carries KeypressCommands; PageClient
+  needs only interpretKeyEvent; a Tiger NSTextInput view is ~450-840 LOC; open design point: NSTextInput's synchronous queries
+  vs cross-process EditorState (local cache, one-round-trip staleness).
+- Rosetta trap audit: only ICU's old autoconf was affected; scripts hardened anyway (cross_compiling=yes, CMAKE_CROSSCOMPILING ON).
