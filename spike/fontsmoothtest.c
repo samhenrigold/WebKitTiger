@@ -22,6 +22,17 @@
  *     CGContextSetShouldAntialiasFonts onto it silently drops the request.
  *   - CGContextSetAllowsAntialiasing works and gates the should-flag.
  *   - CGContextSetAllowsFontSmoothing is a no-op, consistently with the above.
+ *   - CGFontSetShouldAntialias, private but exported, IS honoured by the
+ *     rasterizer, and it is per-font rather than per-context: a glyph run goes
+ *     from inked 593 / antialiased 542 to inked 235 / antialiased 0, while shapes
+ *     in the same context stay smooth. This is the faithful target for
+ *     CGContextSetShouldAntialiasFonts, which the context-wide
+ *     CGContextSetShouldAntialias cannot be without aliasing shapes too.
+ *   - All of the above holds on both text paths: CGContextSelectFont with
+ *     ShowTextAtPoint, and the CGFontRef plus ShowGlyphsWithAdvances path that
+ *     WebCore actually uses. CGFontCreateWithFontName and
+ *     CGFontCreateWithDataProvider return NULL on Tiger, so the CGFontRef comes
+ *     from ATSFontFindFromName plus CGFontCreateWithPlatformFont.
  *
  * Caveat, stated rather than hidden: this only proves it for BITMAP contexts.
  * CG generally restricts subpixel smoothing to the screen, so a window context
