@@ -1,9 +1,0 @@
-README.txt
-setup.py
-Lib/SyncServices/__init__.py
-Lib/pyobjc_framework_SyncServices.egg-info/PKG-INFO
-Lib/pyobjc_framework_SyncServices.egg-info/SOURCES.txt
-Lib/pyobjc_framework_SyncServices.egg-info/dependency_links.txt
-Lib/pyobjc_framework_SyncServices.egg-info/requires.txt
-Lib/pyobjc_framework_SyncServices.egg-info/top_level.txt
-Lib/pyobjc_framework_SyncServices.egg-info/zip-safe

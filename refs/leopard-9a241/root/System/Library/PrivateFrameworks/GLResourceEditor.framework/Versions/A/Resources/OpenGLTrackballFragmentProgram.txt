@@ -1,9 +1,0 @@
-!!ATIfs1.0
-
-StartOutputPass;
-	SampleMap r0, t0.str;
-
-	MUL r0.rgb, r0, color0.r;
-	ADD r0.rgb, r0, color0.g;
-	MOV r0.a, color0.a;
-EndPass;

@@ -1,9 +1,0 @@
-README.txt
-setup.py
-Lib/Automator/__init__.py
-Lib/pyobjc_framework_Automator.egg-info/PKG-INFO
-Lib/pyobjc_framework_Automator.egg-info/SOURCES.txt
-Lib/pyobjc_framework_Automator.egg-info/dependency_links.txt
-Lib/pyobjc_framework_Automator.egg-info/requires.txt
-Lib/pyobjc_framework_Automator.egg-info/top_level.txt
-Lib/pyobjc_framework_Automator.egg-info/zip-safe

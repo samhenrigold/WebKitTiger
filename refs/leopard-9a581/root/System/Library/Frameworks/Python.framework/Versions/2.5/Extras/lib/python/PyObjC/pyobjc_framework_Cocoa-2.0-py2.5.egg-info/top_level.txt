@@ -1,5 +1,0 @@
-Cocoa
-CoreFoundation
-AppKit
-PyObjCTools
-Foundation

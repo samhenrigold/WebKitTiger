@@ -1,0 +1,12 @@
+Tooling from the Leopard-backport investigation. See logs/leopard-backport.md.
+
+repoint-imports.py <in> <out> <symbol-list> <shim-install-name>
+    Appends an LC_LOAD_DYLIB into a classic 32-bit Mach-O's header padding and rewrites the
+    library ordinal in n_desc for every listed undefined symbol, so those imports come from the
+    shim instead of their original two-level target. Keeps MH_TWOLEVEL set, which matters:
+    clearing it makes dlsym return the already-loaded system copy instead of yours.
+    Remember to change the install name too, or dlopen returns the already-loaded image.
+
+ct-shim.c          the 39 symbols Leopard CoreText imports that Tiger lacks
+ct-test.c          exercises CTFontCreateWithName + CTLine/CTRun shaping
+ct-test-cgfont.c   same via ATSFontFindFromName -> CGFontCreateWithPlatformFont

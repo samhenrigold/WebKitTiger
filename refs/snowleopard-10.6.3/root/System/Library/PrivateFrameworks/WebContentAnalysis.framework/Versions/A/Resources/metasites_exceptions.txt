@@ -1,4 +1,0 @@
-## List of domain names to exclude from the metalist.txt
-
-mail.google.com
-kids.yahoo.com

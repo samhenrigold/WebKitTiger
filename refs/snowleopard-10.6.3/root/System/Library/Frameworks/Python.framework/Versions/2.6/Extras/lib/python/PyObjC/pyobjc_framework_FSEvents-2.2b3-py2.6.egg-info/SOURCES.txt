@@ -1,9 +1,0 @@
-setup.py
-Lib/FSEvents/__init__.py
-Lib/pyobjc_framework_FSEvents.egg-info/PKG-INFO
-Lib/pyobjc_framework_FSEvents.egg-info/SOURCES.txt
-Lib/pyobjc_framework_FSEvents.egg-info/dependency_links.txt
-Lib/pyobjc_framework_FSEvents.egg-info/requires.txt
-Lib/pyobjc_framework_FSEvents.egg-info/top_level.txt
-Lib/pyobjc_framework_FSEvents.egg-info/zip-safe
-Modules/_callbacks.m

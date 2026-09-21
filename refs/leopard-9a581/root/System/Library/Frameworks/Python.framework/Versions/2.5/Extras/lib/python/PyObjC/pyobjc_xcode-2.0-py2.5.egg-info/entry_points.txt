@@ -1,4 +1,0 @@
-[console_scripts]
-pyobjc-xcode-install = PyObjCTools.XcodeSupport._scripts:install
-pyobjc-xcode-uninstall = PyObjCTools.XcodeSupport._scripts:uninstall
-

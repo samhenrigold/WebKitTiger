@@ -1,5 +1,0 @@
-ignoring application responses
-	tell application "loginwindow"
-		«event aevtrlgo»
-	end tell
-end ignoring

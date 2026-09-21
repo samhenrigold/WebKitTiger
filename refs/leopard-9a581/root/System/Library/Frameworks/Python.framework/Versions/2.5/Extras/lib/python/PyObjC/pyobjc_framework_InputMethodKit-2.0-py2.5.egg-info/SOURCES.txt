@@ -1,9 +1,0 @@
-README.txt
-setup.py
-Lib/InputMethodKit/__init__.py
-Lib/pyobjc_framework_InputMethodKit.egg-info/PKG-INFO
-Lib/pyobjc_framework_InputMethodKit.egg-info/SOURCES.txt
-Lib/pyobjc_framework_InputMethodKit.egg-info/dependency_links.txt
-Lib/pyobjc_framework_InputMethodKit.egg-info/requires.txt
-Lib/pyobjc_framework_InputMethodKit.egg-info/top_level.txt
-Lib/pyobjc_framework_InputMethodKit.egg-info/zip-safe

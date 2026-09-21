@@ -1,0 +1,25 @@
+9A241 (Leopard DP1) CoreText running on Tiger 10.4.11. See logs/leopard-backport.md.
+
+The install directory below is a parameter, not a convention, and it is baked into
+the framework: repoint-imports.py writes it into an LC_LOAD_DYLIB and
+install_name_tool into the install name. Patch with whatever path the host program
+will dlopen. The two test programs here differ:
+    ct9-test.c    hardcodes /tmp/l9
+    ct9metrics.c  defaults to /tmp/ct9 and takes a directory as its second argument
+so patch a separate copy for each, or pass ct9metrics the path you used.
+
+Build and install:
+  python3 ../../leopard/tools/repoint-imports.py \
+      ../root/System/Library/Frameworks/ApplicationServices.framework/Versions/A/\
+Frameworks/CoreText.framework/Versions/A/CoreText \
+      /tmp/LeopardCT9 ct9-repoint-symbols.txt /tmp/l9/ct9shim.dylib
+  toolchain/bin/tiger-install_name_tool -id /tmp/l9/LeopardCT9 /tmp/LeopardCT9
+  toolchain/bin/tiger-clang -dynamiclib -o ct9shim.dylib ct9-shim.c \
+      -install_name /tmp/l9/ct9shim.dylib -compatibility_version 1.0.0 \
+      -current_version 1.0.0 -framework CoreFoundation -ltigercompat
+
+Two things the host program must do, both in ct9-test.c:
+  - dlopen the shim with RTLD_GLOBAL before the framework;
+  - after loading, call CTFontGetTypeID and CTFontDescriptorGetTypeID, create one
+    font and one descriptor, and pass each one's isa to ct9_bind with its type id.
+    Type ids are assigned in first-call order, so read them at run time.

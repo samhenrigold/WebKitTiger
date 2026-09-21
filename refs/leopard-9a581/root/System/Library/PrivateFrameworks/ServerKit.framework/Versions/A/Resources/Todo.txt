@@ -1,8 +1,0 @@
-• We need official artwork for:
-	  Gear
-	  Log
-	  Graph
-
-• <rdar://problem/4324375> Login Window needs to be common
-• <rdar://problem/4324380> Users & Groups drawer needs to be common
-• <rdar://problem/4324383> Activity Monitor needs to be common
