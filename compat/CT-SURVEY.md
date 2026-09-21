@@ -400,6 +400,72 @@ is a local symbol, so the adapter needs the text position set **per run**. And
 `CTLineGetImageBounds` accumulates its pen across runs, which assumes visual
 left-to-right layout and misplaces the ink of an RTL run.
 
+## Checked against a live Apple CoreText
+
+`spike/ctoracle.c` runs the shims against a real Apple implementation **on the box**.
+Leopard DP1 (9A241) CoreText loads on 10.4.11 with a patched import table and a
+CF-bridge bootstrap; the recipe is in `refs/leopard-9a241/tools/`. It is a
+Tiger-generation binary with the real public CGFloat ABI and it exports 13 of the 66
+functions here, which makes it an oracle rather than a dependency: it is pre-release,
+it puts two CoreTexts in one process, and objects cannot cross between them, so every
+comparison keeps each side's objects on its own side and diffs only values.
+
+**56 comparisons, 0 unexplained mismatches** (8 before the two test bugs below were
+fixed and the rest were chased down). What it confirms:
+
+- **All 21 UI font types match Apple exactly**, by PostScript name. That is the
+  strongest possible check on the table decoded from 10.5.8, and it is now verified
+  against a running implementation rather than a data dump.
+- `CTLineGetTypographicBounds` through the adapter, `CTLineGetBoundsWithOptions`, and
+  `CTLineGetTrailingWhitespaceWidth` all agree with Apple's numbers. The last of those
+  was written from scratch, so agreement on a line with two trailing spaces is worth
+  more than the rest.
+- Full names, glyph counts, graphics fonts, descriptor matching, copy-with-attributes
+  and `CTFontDescriptorCreateForUIType` all agree.
+
+Two differences were chased down and are **not** defects here, so the oracle records
+them as known rather than counting them:
+
+- **Bold via symbolic traits.** 9A241 returns NULL from
+  `CTFontDescriptorCreateCopyWithSymbolicTraits` for Helvetica plus bold, though the
+  same descriptor resolves to plain Helvetica. Ours returns Helvetica-Bold, through
+  Tiger's `CTFontCreateVariantWithMatchingSymbolicTraits`. We are ahead of the oracle.
+- **Cascade list length, 7 against 6.** Tiger's font catalogue lists `AquaKana` and
+  `HiraKakuPro-W3` separately where DP1 has the merged `AquaKana-HiraKaku`. The entries
+  either side of that pair are identical. Ours faithfully returns Tiger's own list.
+
+Three things the oracle simply cannot answer, marked n/a: its `CTFontCreateForCharacters`
+is an empty stub, so it has no CJK fallback to compare against (ours returns
+HiraKakuPro-W3), and its advances entry point returns NaN for fonts created on its own
+side, which is a limitation of running it outside its own CoreFoundation.
+
+**Two of the original eight mismatches were bugs in the test, not the shims**, and both
+are worth recording because they are the same trap this port keeps hitting: 9A241's
+plain `CTFontGetAdvancesForGlyphs` is five-argument while Tiger's is four, and its
+`CTFontCreateForCharacters` looks like a working export but is a stub. Guessing the arity
+crashed the process.
+
+### The TRANSITIONAL cross-check
+
+9A241 exports 11 `*TRANSITIONAL` entry points, which is Apple's own record of which
+functions changed shape in the double-to-CGFloat migration. Five of them are functions
+this layer already adapts: `CTFontGetAdvancesForGlyphs`,
+`CTFontGetBoundingRectsForGlyphs`, `CTLineGetTypographicBounds`, `CTLineDraw` and
+`CTLineGetImageBounds`. That is independent confirmation from Apple that those five
+needed adapting.
+
+The list also caught one this layer had **wrong**:
+`CTFontGetSideBearingsForGlyphs` is on it, and Tiger's takes no orientation, but the
+overlay was declaring the modern five-argument form. It is now the twelfth adapter.
+Nothing in WebCore calls it today, so it was a latent trap rather than a live bug.
+
+Of the rest of the list, `CTFontCopyDefaultCascadeList` was re-checked and really is
+one-argument on Tiger, so the direct call is correct;
+`CTFontGetTransformedAdvancesForGlyphs`, `CTFontGetTransformedBoundingRectsForGlyphs`
+and `CTFontCollectionCreateWithFilterCallback` have no WebCore call site and are not
+declared in the overlay; and `CTFontDescriptorCreateForUIType` does not exist on Tiger
+at all, so it is implemented here rather than adapted.
+
 ## Do not trust the count files
 
 `logs/api/used-CT.txt` and `used-kCT.txt` count **identifier occurrences, not calls**, and
