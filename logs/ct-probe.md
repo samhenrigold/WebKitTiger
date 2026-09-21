@@ -451,8 +451,10 @@ first and visible to the second. Both are worth running.
 
 # Re-verified after Security Update 2009-005
 
-The box was updated on 2026-09-20 at 21:50 with Security Update 2009-005, QuickTime 7.6.4,
-ImageIO and Safari 4.1.3. Five of the libraries these probes exercise were replaced:
+The box was updated on 2026-09-20 with Security Update 2009-005, QuickTime 7.6.4, ImageIO
+and Safari 4.1.3, then again with Java 9 and iPhoto, rebooting at 21:57. Everything below
+was re-run at 22:03, after that final reboot, against software the user has now frozen.
+Five of the libraries these probes exercise were replaced:
 
 | | before | after |
 |---|---|---|
