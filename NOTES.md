@@ -227,3 +227,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   shape fine; OpenType web fonts get no ligatures / Arabic-Indic forms. Plan: HarfBuzz (building into the sysroot) via WebKit's
   ComplexTextControllerHarfBuzz for fonts without AAT tables, glyph drawing stays CG. Cap-height/x-height are quantized to
   half points on Tiger (adapters requested); every other metric matches modern to 6 decimals.
+
+## Git rule (2026-09-20 21:10)
+- Commit only your own paths: `git add <files you changed>` then commit. Never `git add -A` on this shared tree; it sweeps other
+  agents' in-flight work into your commit. The lead commits NOTES.md and memory-adjacent files only.
