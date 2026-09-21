@@ -30,10 +30,40 @@ Two live Mac call sites:
 - `WebKitLegacy/mac/WebView/WebView.mm:6895` — `return [[NSScreen mainScreen] backingScaleFactor];`
 - `WebCore/platform/mac/PlatformScreenMac.mm:201` — `screenData.scaleFactor = screen.backingScaleFactor;`
 
-Both would raise at runtime. The fix is a three-line category returning 1.0, matching the NSView
-and NSWindow shims already there. **Sent to nscompat.**
+Both would raise at runtime. **Fixed by nscompat**, returning `-userSpaceScaleFactor` like the
+NSView and NSWindow shims. Checking the rest of NSScreen turned up a second live gap my probe
+missed because it only asked for the scale factor: `-[NSScreen safeAreaInsets]`, used ungated at
+`PlatformScreenMac.mm:568`, with the `NSEdgeInsets` type absent from the 10.4u SDK entirely. Both
+are now shimmed and `appkittest.m` walks every screen rather than only the main one.
 
 ### NSFont and CoreText disagree about xHeight and capHeight on Tiger
+
+**Correction, after ctcompat checked it: the conclusion I drew from this was wrong, and the method
+behind it was confounded.** The measurement below stands; what I inferred from it does not. Kept
+with the correction rather than deleted, because the confound is worth not repeating.
+
+Two things went wrong. Comparing a metric by **font name** across the two machines measures the
+difference between two font files as much as between two implementations: Tiger's Helvetica has no
+usable OS/2 table, modern's is version 3 with `sCapHeight` declared, and modern's 11.477 is simply
+1469/2048 x 16 read straight out of that table. And 16pt is a lucky size. ctcompat swept it:
+NSFont quantises to the same half-point grid as Tiger's CoreText, because it is the same ATS
+measurement underneath, and at 9 and 10pt it is 8.4% and 11.5% out. So reading capHeight from
+NSFont would reintroduce exactly the quantisation the adapters exist to remove, at a worse maximum
+error. The suggestion is withdrawn.
+
+The useful residue: a probe that compares font metrics across machines must **ship its own font
+file** and hand identical bytes to both sides, which is what ctcompat's does. Ascent and descent
+agreeing exactly, which is what made the finding look clean, is a weaker signal than it appears,
+since those come from `hhea` rather than from outlines and can agree while the glyphs differ.
+
+**And the hazard I raised is not live**, checked afterwards: no WebCore path reads NSFont's
+capHeight or xHeight. Layout goes through `FontMetrics::capHeight()`/`xHeight()`, which is fed from
+CoreText, and `FontPlatformData` is built from a `CTFontRef`. The only direct NSFont metric reads
+in the tree are `[font ascender]` and `[font descender]` at `WebKitNSStringExtras.mm:95,97`, and
+those two agree exactly between NSFont and CoreText on Tiger. Everything else takes `[font
+pointSize]` only.
+
+The original measurement follows.
 
 On modern they agree exactly. On Tiger they do not:
 
@@ -105,7 +135,10 @@ that follows from it. This is a colour-space semantics change in AppKit, not a T
 
 ## Could not be measured, and why
 
-**NSPasteboard: no pasteboard server in an ssh session.** Every pasteboard comes back nil on the
+**NSPasteboard: no pasteboard server in an ssh session.** (Attribution correction from nscompat:
+there is no compat surface here to leave untested. The porting plan puts pasteboard work in
+WebCore's `LegacyNSPasteboardTypes.h` as constants, not in a shim, so the gap is in measuring
+*Tiger's* pasteboard rather than anyone's code.) Every pasteboard comes back nil on the
 box, including `+generalPasteboard`, so `declareTypes:`, `setString:forType:`, `stringForType:` and
 the change-count behaviour are all unmeasured. This is the session, not Tiger: the window server
 *is* reachable from ssh, windows are created and `screencapture` produces a real 984KB screenshot,
