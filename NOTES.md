@@ -313,3 +313,8 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   7.6.4 QTKit, QuickTime frameworks and /System/Library/QuickTime components (incl. AppleVAH264HW.component, AppleProResDecoder);
   the 7.2 copies are in sysroot-old/. Export lists: logs/api/tiger-QTKit-7.2.txt vs tiger-QTKit-7.6.4.txt (117 new/118 removed
   symbols, e.g. QTMovieFrameImageForce(No)VisualContexts, QTMovieNaturalSizeDidChangeNotification). Plan and spike being redone.
+- 2026-09-20 21:50: the box received Security Update 2009-005 (Intel), QuickTime 7.6.4, ImageIO.pkg, RAWCamera, Safari 4.1.3
+  (new system WebKit 533.x with JIT), Java release 8, iLife bits (receipts in /Library/Receipts). ATS/CoreGraphics/ImageIO/
+  libxml/libxslt/OpenSSL/libz system binaries changed. sysroot/ is being re-mirrored (agent "remirror"; old copy will be
+  sysroot-old-preupdates/, old export lists logs/api/preupdate/). All CT/CG/ImageIO/ctprobe suites are being re-run on the
+  updated box. Our own deps are static, so only the shim measurements are affected.
