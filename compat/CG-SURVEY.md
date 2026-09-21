@@ -1,5 +1,34 @@
 # CoreGraphics / ImageIO survey for Mac OS X 10.4.11 (i386)
 
+## Status: closed
+
+This track is complete and verified against the box after Security Update 2009-005. It is kept
+as a UI-process asset: the 32-bit UI process and its Core Animation host use these shims. No
+further CoreGraphics shim work is planned.
+
+**If the Leopard x86_64 branch wins**, the behavioural findings here are the checklist to
+re-probe there, not results to carry over. 10.5's CoreGraphics is a different implementation
+with a public API, and several findings here are specifically 10.4's:
+
+- the five ignored blend modes (Copy, XOR, DestinationOver, PlusLighter, Clear) are the ones
+  10.5 *added*, so they are the first thing to re-check and the most likely to be fixed
+- shadings discarding their function's alpha
+- shadow darkness and blur saturation above radius 8
+- interpolation quality collapsing to one level
+- `ClipToMask` accepting only a DeviceGray non-alpha image
+- font smoothing being inert, and the per-font antialias flag
+
+`spike/cgprobe.c` is the tool for that: it already emits and compares against a modern
+reference, so pointing it at 10.5 is a rebuild rather than a rewrite.
+
+**Three things here are 32-bit-specific and will silently mislead on x86_64.** `CGFloat` is
+`float` on i386 and `double` on x86_64, so every prototype in `CGCompat.h` that looks
+ABI-identical stops being so. The `CGColorSpace` field offsets that `CGColorSpaceGetModel`
+reads (kind at +0x0c, model at +0x10, component count at +0x14) are an i386 layout; the
+accessor cross-checks +0x14 against the public API on every call and falls back, so it degrades
+rather than corrupting, but it will stop reporting Indexed and Pattern. And `spike/cgprobe.c`
+samples pixels assuming premultiplied-first little-endian byte order.
+
 ## Framework versions
 
 The box took Security Update 2009-005 on 2026-09-20, which patches CoreGraphics and ImageIO.
