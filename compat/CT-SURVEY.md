@@ -608,6 +608,17 @@ Worst case: **adapter 0.05%, NSFont 7.69%.** The adapter is exact wherever the f
 declares `sCapHeight` and `sxHeight`, because it reads them; only DejaVu, whose OS/2 is
 version 1, falls through to the glyph heuristic.
 
+**Nothing in WebCore reads NSFont for either metric**, which was worth checking, because
+if layout took cap height from the platform font on some paths and from CoreText on
+others, the two sources disagreeing would show up as text looking subtly wrong rather
+than as a failure. It does not: `FontMetrics::capHeight()` and `xHeight()` are fed from
+CoreText, and `FontPlatformData` is built from a `CTFontRef` throughout. The only direct
+NSFont metric reads in the tree are `[font ascender]` and `[font descender]` in
+`WebKitNSStringExtras.mm`, for placing a drawn string, and those two agree exactly with
+CoreText on Tiger. Everything else that touches an NSFont takes `[font pointSize]` and
+bridges straight to a `CTFontRef`. So these adapters are the only source of cap height and
+x-height on this port, and their accuracy is the whole story.
+
 That also answers what NSFont reads, without needing a disassembly. Arial, Georgia and
 Verdana all carry valid OS/2 version 2+ fields, which is why the adapter is exact on them
 to four decimal places. **NSFont is still 2-7% out on those same fonts**, so it is not
