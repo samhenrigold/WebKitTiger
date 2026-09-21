@@ -436,3 +436,7 @@ one triage pass before it was noticed. See the triage table at the end of
   stub pass. Agent ld64fix is fixing it (patch to toolchain/patches/) and building a stopgap that links on the box with Xcode
   2.5's /usr/bin/ld64 (toolchain/bin/tiger-ld64-onbox.sh). Plain C with -fno-asynchronous-unwind-tables -fno-unwind-tables
   avoids the trigger. i386 links are unaffected.
+- WebCore 32-bit compile parked (23:20, commit e788401 in WebKit/): 478/480 targets, 49 TUs / 240 errors in 8 clusters (absent
+  frameworks to exclude; CFNetwork cookie SPI moot under curl; modern CG/ImageIO SPI; AppKit 10.10+ API; Security SecTrust
+  vintage (CSSM adapter possible); wheel-phase gating fallout; method_copyReturnType & co. missing in Tiger's runtime (objcrt);
+  crypto via LibreSSL). The JSString.h subscript ambiguity is a fragile-ABI artifact, not 32-bit. No link attempted.
