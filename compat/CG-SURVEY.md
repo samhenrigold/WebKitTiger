@@ -6,7 +6,7 @@ Tiger's CoreGraphics exports), `logs/api/tiger-CG.txt` (3568 CG exports),
 `logs/api/used-CG.txt` / `used-kCG.txt`.
 
 Implementation: `compat/cgcompat.c`, declarations in `compat/include/TigerCompat/CGCompat.h`.
-Test: `spike/cgtest.c`, 53 checks, all passing on the box.
+Test: `spike/cgtest.c`, 54 checks, all passing on the box.
 
 ## Counts
 
@@ -440,7 +440,7 @@ reads back pixels at the endpoints and midpoint, fills a rounded rect through
 `CGContextDrawPathDirect` and checks that the corner stays unpainted, transforms a path, checks
 the transparency layer clips to its rect, and decodes a PNG through `CGImageSource`. It also
 covers both interpolation modes, the colorspace model including Indexed and Pattern, name
-aliasing and the property list round trip, and a lopsided rounded rect. 53 checks, all passing.
+aliasing and the property list round trip, and a lopsided rounded rect. 54 checks, all passing.
 
 One thing the test surfaced that is worth knowing for the rest of the port: filling with
 `CGContextSetRGBFillColor` in an ICC sRGB context goes through a generic-RGB to sRGB

@@ -302,6 +302,36 @@ int main(void)
     pixelAt(40, 40, &r, &g, &b, &a);
     expect(a < 40, "transparency layer clips to its rect");
 
+    /* ---- tiled image: a fractional origin must not leave seams ---- */
+    {
+        CGImageRef tile;
+        int minAlpha = 255, x, y;
+        {
+            CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+            CGContextRef tc = CGBitmapContextCreate(NULL, 8, 8, 8, 0, cs,
+                kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+            CGContextSetRGBFillColor(tc, 1, 0, 0, 1);
+            CGContextFillRect(tc, CGRectMake(0, 0, 8, 8));
+            tile = CGBitmapContextCreateImage(tc);
+            CGContextRelease(tc);
+            CGColorSpaceRelease(cs);
+        }
+        clear(context);
+        /* Fractional origin: the case that used to lose alpha at every tile
+           boundary, because adjacent tiles antialiased against the backdrop
+           rather than against each other. */
+        CGContextDrawTiledImage(context, CGRectMake(2.5f, 1.5f, 8, 8), tile);
+        for (y = 2; y < H - 2; ++y) {
+            for (x = 2; x < W - 2; ++x) {
+                pixelAt(x, y, &r, &g, &b, &a);
+                if (a < minAlpha)
+                    minAlpha = a;
+            }
+        }
+        expect(minAlpha == 255, "tiled image with a fractional origin leaves no seams");
+        CGImageRelease(tile);
+    }
+
     /* ---- Tiger ABI adapter: CGGStateGetCTM returns the matrix by value ---- */
     {
         /* Tiger's implementation copies six dwords from gstate+4 and touches

@@ -37,6 +37,14 @@ scp -O build/cgprobe tiger:/tmp/ && ssh tiger /tmp/cgprobe
 Checks were chosen by ranking real call sites under
 `WebKit/Source/WebCore/platform/graphics/{cg,cocoa}`.
 
+**Build the probe for both platforms, not just Tiger.** The audit track's
+`spike/cgbehaviour.c` prints identical `KEY=value` lines on Tiger and the host, so the result
+is a diff against modern CoreGraphics rather than a judgement about Tiger numbers. That caught
+two broken tests before either found anything: one measuring nothing because layer grouping
+only shows against a global alpha, and a y-axis mistake that made every point sample read an
+empty pixel on both platforms, which reads as agreement rather than as a broken test. Neither
+was visible from Tiger's output alone.
+
 **A check is only as good as its discrimination.** The first version of the blend check used an
 opaque source, which makes Copy and Normal produce the same pixel, so it passed on a CG that
 ignores Copy completely. The source is half alpha now. Worth remembering before trusting any
@@ -68,7 +76,7 @@ not a parameter that can be intercepted. This has to be gated or accepted in the
 concrete bug it causes, `NativeImageCG.cpp` compositing over an uninitialized buffer, is
 recorded in `CG-SURVEY.md` and was sent to the build track.
 
-### 2. Shadows are lighter (1 check)
+### 2. Shadows are lighter, and must not be corrected (1 check)
 
 Alpha along the shadow, `CGContextSetShadowWithColor` with offset (4, -4) and blur 2:
 
@@ -84,10 +92,21 @@ edge.
 **WebCore hits it**, wherever `box-shadow` or `text-shadow` is drawn. Nothing breaks; shadows
 render weaker than they should.
 
-**A shim is possible but not shipped.** `CGContextSetShadowWithColor` takes the colour, so a
-wrapper could scale its alpha up. One ratio measured at one blur radius is not enough to fit a
-correction, though, and a wrong fudge factor is worse than a consistently light shadow. If this
-matters visually, measure across blur radii first.
+**A shim is possible and must not be shipped.** The audit track ran the blur sweep
+(`spike/cgbehaviour.c`, commits 9233271 and fe34d9c) and the ratio is stable: Tiger carries
+91.7% of modern's total shadow ink, between 0.905 and 0.949 across blur 0 to 32. By the
+criterion stated here that would make an alpha correction shippable. It should not be, and the
+sweep is why.
+
+Up to blur 6 the geometry matches exactly and the peak is 255 on both, so the shortfall is
+entirely edge antialiasing and close to invisible. From blur 8 up, Tiger's blur saturates: at
+16 it covers 70% of modern's area at peak 195 against 128, and at 32 it covers 54% at peak 134
+against 41. Those shadows are already too dark and too tight. Scaling alpha up would fix an
+invisible error at small radii while making the visible defect worse at large ones.
+
+The 74% figure measured here at blur 2 is a narrower metric than the audit track's 91.7%, which
+is total ink over the whole shadow region. A peak or single-pixel reading lands on the part
+that saturates, so the sweep's number is the one to trust.
 
 ### 3. Colour conversion on draw differs (1 check)
 
@@ -152,6 +171,35 @@ map them to at all: no `CGContextSetFontRenderingStyle`, and nothing else in its
 antialias exports beyond the context Should/Allows pairs, their GState backings, the per-font
 flag above, a `CGFontAllowsFontSmoothing` that takes no arguments and reads a process-wide
 global, and a `__CGFontSmoothingMode` data symbol.
+
+### Fixed here: CGContextDrawTiledImage seamed (audit track)
+
+Tiger exports no `CGContextDrawTiledImage`, so `cgcompat.c` supplies a draw loop. It covered
+exactly the right pixels in every clip tried, with inked counts matching the host exactly, but
+a fractional tile origin lost about 6% of the alpha to a seam line at each tile boundary, where
+the real function stays fully opaque.
+
+The cause is direct: with the origin on the integer lattice the loop byte-matched the host;
+only a fractional origin diverged. Adjacent tiles share an edge, and CG was antialiasing each
+tile's edge against the backdrop rather than against its neighbour. It fires in practice,
+because `GraphicsContextCG.cpp:517` passes a `FloatRect` straight from layout, so any repeated
+background at a non-integral position or scale shows faint seams.
+
+Fixed by bracketing the loop with antialiasing off, so a shared edge snaps the same way for
+both tiles, closing the seam without leaving a gap. `spike/cgtest.c` asserts that no pixel in
+the interior falls below full alpha with a fractional origin; the check was confirmed to fail
+with the fix removed.
+
+### Matched, nothing to do (audit track)
+
+Pattern tiling is honoured, on both `CGPatternCreate` and `CGPatternCreateWithImage2`.
+NoDistortion renders differently from the two constant-spacing modes on both platforms, and the
+two spacing modes agree with each other on both, so the argument is not dropped.
+`kCGPatternTilingConstantSpacing`, the value WebCore passes most, behaves as on modern.
+
+Transparency layers group correctly under a non-identity CTM: scaled, rotated and composed
+transforms each show the same layer-versus-no-layer alpha drop as modern, within 0.05%. Line
+dash phase, `CGContextClipToRects` and `CGImageCreateWithMaskingColors` are identical to modern.
 
 ## What matched
 

@@ -1050,9 +1050,24 @@ void CGContextDrawTiledImage(CGContextRef context, CGRect rect, CGImageRef image
     clip = CGContextGetClipBoundingBox(context);
     if (CGRectIsEmpty(clip) || CGRectIsInfinite(clip))
         return;
-    /* Snap the tile origin to the lattice rect defines, then cover the clip.
-       ponytail: a plain draw loop, not a CGPattern. Fine for the one WebCore
-       call site; move to CGPattern if a huge clip ever makes this slow. */
+    /* Antialiasing has to be off for the loop. Adjacent tiles share an edge, and
+       when the tile origin is fractional CG antialiases each tile's edge against
+       the backdrop rather than against its neighbour, so roughly 6% of the alpha
+       is lost to a seam line at every boundary. Apple's real CGContextDrawTiledImage
+       stays fully opaque there. With antialiasing off, a shared edge snaps the
+       same way for both tiles, which closes the seam without leaving a gap.
+
+       This matters in practice: GraphicsContextCG.cpp passes a FloatRect straight
+       from layout, so any repeated background at a non-integral position or scale
+       hits it. Measured on the audit track (spike/cgbehaviour.c): with the origin
+       on the integer lattice this loop already byte-matched the host, and only a
+       fractional origin diverged, which is what identifies the cause.
+
+       ponytail: a plain draw loop, not a CGPattern. Fine for the one WebCore call
+       site; move to CGPattern if a huge clip ever makes this slow. */
+    CGContextSaveGState(context);
+    CGContextSetShouldAntialias(context, false);
+    /* Snap the tile origin to the lattice rect defines, then cover the clip. */
     x = rect.origin.x + floorf((CGRectGetMinX(clip) - rect.origin.x) / CGRectGetWidth(rect))
         * CGRectGetWidth(rect);
     for (; x < CGRectGetMaxX(clip); x += CGRectGetWidth(rect)) {
@@ -1061,6 +1076,7 @@ void CGContextDrawTiledImage(CGContextRef context, CGRect rect, CGImageRef image
         for (; y < CGRectGetMaxY(clip); y += CGRectGetHeight(rect))
             CGContextDrawImage(context, CGRectMake(x, y, CGRectGetWidth(rect), CGRectGetHeight(rect)), image);
     }
+    CGContextRestoreGState(context);
 }
 
 /* Font rendering state Tiger does not carry. The setters drop the request; the
