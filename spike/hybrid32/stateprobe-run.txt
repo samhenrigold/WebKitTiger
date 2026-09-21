@@ -1,0 +1,2 @@
+guest page=0x5000 spin loop at 0x5049, cs64=0x8f
+worker: tport=0xc07 entering guest

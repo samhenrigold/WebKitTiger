@@ -1,0 +1,432 @@
+== ud2 ==
+  guest page=0x6000 entry=+0 fault@0x607b len=2
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x607b si_code=1
+  [sig 4] trapno=6 err=0 faultvaddr=0x9016b290 | eip=0x607b cs=0x17 ss=0x1f esp=0xbffffc98 eflags=0x282
+  [sig 4] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x299e ebp=0xbffffcf8
+  [sig 4] expected fault eip=0x607b -> MATCH ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  guest returned eax=0
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x400017ba si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x400017ba | eip=0x2f94 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 11] eax=0x40000000 ecx=0x0 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcf1
+  [sig 11] expected fault eip=0x607b -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x60b7 si_code=3
+  [sig 4] trapno=13 err=64864 faultvaddr=0x5a7ff9bc | eip=0x60b7 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffffa edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcea
+  [sig 4] expected fault eip=0x607b -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x60b7 si_code=3
+  [sig 4] trapno=13 err=64864 faultvaddr=0x5a7ff9bc | eip=0x60b7 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffff4 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffce3
+  [sig 4] expected fault eip=0x607b -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  child exit=90
+
+== ud2 +SA_64REGSET ==
+  guest page=0x6000 entry=+0 fault@0x607b len=2
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x607b si_code=1
+  [sig 4] trapno=6 err=0 faultvaddr=0x7000 | eip=0x607b cs=0x17 ss=0x1f esp=0xbffffc98 eflags=0x282
+  [sig 4] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x299e ebp=0xbffffcf8
+  [sig 4] expected fault eip=0x607b -> MATCH ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  guest returned eax=0
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x400017ba si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x400017ba | eip=0x2f94 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 11] eax=0x40000000 ecx=0x0 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcf1
+  [sig 11] expected fault eip=0x607b -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x60b7 si_code=3
+  [sig 4] trapno=13 err=64864 faultvaddr=0x5a7ff9bc | eip=0x60b7 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffffa edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcea
+  [sig 4] expected fault eip=0x607b -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x60b7 si_code=3
+  [sig 4] trapno=13 err=64864 faultvaddr=0xa2818000 | eip=0x60b7 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffff4 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffce3
+  [sig 4] expected fault eip=0x607b -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  child exit=90
+
+== hlt ==
+  guest page=0x6000 entry=+184 fault@0x6133 len=1
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x6133 si_code=3
+  [sig 4] trapno=13 err=0 faultvaddr=0x7000 | eip=0x6133 cs=0x17 ss=0x1f esp=0xbffffc98 eflags=0x282
+  [sig 4] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x299e ebp=0xbffffcf8
+  [sig 4] expected fault eip=0x6133 -> MATCH ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  guest returned eax=0
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x400017ba si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x400017ba | eip=0x2f94 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 11] eax=0x40000000 ecx=0x0 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcf1
+  [sig 11] expected fault eip=0x6133 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x616e si_code=3
+  [sig 4] trapno=13 err=64864 faultvaddr=0x5afff9bc | eip=0x616e cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffffa edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcea
+  [sig 4] expected fault eip=0x6133 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x616e si_code=3
+  [sig 4] trapno=13 err=64864 faultvaddr=0x5afff9bc | eip=0x616e cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffff4 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffce3
+  [sig 4] expected fault eip=0x6133 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  child exit=90
+
+== hlt +SA_64REGSET ==
+  guest page=0x6000 entry=+184 fault@0x6133 len=1
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x6133 si_code=3
+  [sig 4] trapno=13 err=0 faultvaddr=0x7000 | eip=0x6133 cs=0x17 ss=0x1f esp=0xbffffc98 eflags=0x282
+  [sig 4] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x299e ebp=0xbffffcf8
+  [sig 4] expected fault eip=0x6133 -> MATCH ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  guest returned eax=0
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x400017ba si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x400017ba | eip=0x2f94 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 11] eax=0x40000000 ecx=0x0 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcf1
+  [sig 11] expected fault eip=0x6133 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x616e si_code=3
+  [sig 4] trapno=13 err=64864 faultvaddr=0x5a7ff9bc | eip=0x616e cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffffa edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcea
+  [sig 4] expected fault eip=0x6133 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x616e si_code=3
+  [sig 4] trapno=13 err=64864 faultvaddr=0x5a7ff9bc | eip=0x616e cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffff4 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffce3
+  [sig 4] expected fault eip=0x6133 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  child exit=90
+
+== segv ==
+  guest page=0x6000 entry=+367 fault@0x61ea len=7
+  [sig 10] uc_mcsize=600 (i386 mcontext=600) si_addr=0x30000000 si_code=2
+  [sig 10] trapno=14 err=4 faultvaddr=0x30000000 | eip=0x61ea cs=0x17 ss=0x1f esp=0xbffffc98 eflags=0x282
+  [sig 10] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x299e ebp=0xbffffcf8
+  [sig 10] expected fault eip=0x61ea -> MATCH ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  guest returned eax=0
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x400017ba si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x400017ba | eip=0x2f94 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 11] eax=0x40000000 ecx=0x0 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcf1
+  [sig 11] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x622b si_code=3
+  [sig 4] trapno=13 err=64856 faultvaddr=0xa2818000 | eip=0x622b cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 4] eax=0x0 ecx=0xfffffffa edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcea
+  [sig 4] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x622b si_code=3
+  [sig 4] trapno=13 err=64856 faultvaddr=0x5afff9bc | eip=0x622b cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffff4 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffce3
+  [sig 4] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  child exit=90
+
+== segv +SA_64REGSET ==
+  guest page=0x6000 entry=+367 fault@0x61ea len=7
+  [sig 10] uc_mcsize=600 (i386 mcontext=600) si_addr=0x30000000 si_code=2
+  [sig 10] trapno=14 err=4 faultvaddr=0x30000000 | eip=0x61ea cs=0x17 ss=0x1f esp=0xbffffc98 eflags=0x282
+  [sig 10] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x299e ebp=0xbffffcf8
+  [sig 10] expected fault eip=0x61ea -> MATCH ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  guest returned eax=0
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x400017ba si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x400017ba | eip=0x2f94 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 11] eax=0x40000000 ecx=0x0 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcf1
+  [sig 11] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x622b si_code=3
+  [sig 4] trapno=13 err=64856 faultvaddr=0xa2818000 | eip=0x622b cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 4] eax=0x0 ecx=0xfffffffa edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcea
+  [sig 4] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x622b si_code=3
+  [sig 4] trapno=13 err=64856 faultvaddr=0x5a7ff9bc | eip=0x622b cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffff4 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffce3
+  [sig 4] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  child exit=90
+
+== int3 ==
+  guest page=0x6000 entry=+556 fault@0x62a7 len=1
+  [sig 5] uc_mcsize=600 (i386 mcontext=600) si_addr=0x62a8 si_code=1
+  [sig 5] trapno=3 err=0 faultvaddr=0x7000 | eip=0x62a8 cs=0x17 ss=0x1f esp=0xbffffc98 eflags=0x282
+  [sig 5] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x299e ebp=0xbffffcf8
+  [sig 5] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  guest returned eax=0
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x400017ba si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x400017ba | eip=0x2f94 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 11] eax=0x40000000 ecx=0x0 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcf1
+  [sig 11] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x62e2 si_code=3
+  [sig 4] trapno=13 err=64856 faultvaddr=0x5a7ff9bc | eip=0x62e2 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 4] eax=0x0 ecx=0xfffffffa edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcea
+  [sig 4] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x62e2 si_code=3
+  [sig 4] trapno=13 err=64856 faultvaddr=0x5afff9bc | eip=0x62e2 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffff4 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffce3
+  [sig 4] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  child exit=90
+
+== int3 +SA_64REGSET ==
+  guest page=0x6000 entry=+556 fault@0x62a7 len=1
+  [sig 5] uc_mcsize=600 (i386 mcontext=600) si_addr=0x62a8 si_code=1
+  [sig 5] trapno=3 err=0 faultvaddr=0x7000 | eip=0x62a8 cs=0x17 ss=0x1f esp=0xbffffc98 eflags=0x282
+  [sig 5] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x299e ebp=0xbffffcf8
+  [sig 5] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  guest returned eax=0
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x400017ba si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x400017ba | eip=0x2f94 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 11] eax=0x40000000 ecx=0x0 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcf1
+  [sig 11] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x62e2 si_code=3
+  [sig 4] trapno=13 err=64856 faultvaddr=0x5a7ff9bc | eip=0x62e2 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x246
+  [sig 4] eax=0x0 ecx=0xfffffffa edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffcea
+  [sig 4] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x62e2 si_code=3
+  [sig 4] trapno=13 err=64856 faultvaddr=0x5a7ff9bc | eip=0x62e2 cs=0x17 ss=0x1f esp=0xbffffca0 eflags=0x10246
+  [sig 4] eax=0x0 ecx=0xfffffff4 edx=0x8 esi=0x3e78 edi=0x0 ebx=0x40d4 ebp=0xbffffce3
+  [sig 4] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  scan mcontext                  600 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan ucontext                   32 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  scan sigframe stack below uc  2048 bytes: r8-r15 sentinel x0 (first @+-1), rax-rdi upper x0
+  child exit=90
+
+== alarm ==
+  [alrm] uc_mcsize=600 eip=0x6390 cs=0x8f (cs64=0x8f, in-guest=yes)
+  child died on signal 11
+
+== alarm +SA_64REGSET ==
+  [alrm] uc_mcsize=600 eip=0x6390 cs=0x8f (cs64=0x8f, in-guest=yes)
+  child died on signal 11
+
+
+===== ./sigprobe all tramp (handler far-jumps back into long mode instead of returning) =====
+== ud2 +trampoline ==
+  guest page=0x6000 entry=+0 fault@0x607b len=2
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x607b si_code=1
+  [sig 4] trapno=6 err=0 faultvaddr=0x7000 | eip=0x607b cs=0x17 ss=0x1f esp=0xbffffc88 eflags=0x286
+  [sig 4] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffcf8
+  [sig 4] expected fault eip=0x607b -> MATCH ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x607d with esp=0xbffffc88
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0xc0000fad si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0xc0000fad | eip=0x9000af00 cs=0x17 ss=0x1f esp=0xbfffed60 eflags=0x293
+  [sig 11] eax=0xc0000fad ecx=0xa0001c38 edx=0x8 esi=0xc0000fad edi=0xbffffc84 ebx=0x9000ad32 ebp=0xbffff4b8
+  [sig 11] expected fault eip=0x607b -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x607d with esp=0xbfffed60
+  WATCHDOG: killed after 8 s -- never returned from the fault
+
+== ud2 +SA_64REGSET +trampoline ==
+  guest page=0x6000 entry=+0 fault@0x607b len=2
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x607b si_code=1
+  [sig 4] trapno=6 err=0 faultvaddr=0x7000 | eip=0x607b cs=0x17 ss=0x1f esp=0xbffffc88 eflags=0x286
+  [sig 4] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffcf8
+  [sig 4] expected fault eip=0x607b -> MATCH ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x607d with esp=0xbffffc88
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0xc0000fad si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0xc0000fad | eip=0x9000af00 cs=0x17 ss=0x1f esp=0xbfffed60 eflags=0x293
+  [sig 11] eax=0xc0000fad ecx=0xa0001c38 edx=0x8 esi=0xc0000fad edi=0xbffffc84 ebx=0x9000ad32 ebp=0xbffff4b8
+  [sig 11] expected fault eip=0x607b -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x607d with esp=0xbfffed60
+  WATCHDOG: killed after 8 s -- never returned from the fault
+
+== hlt +trampoline ==
+  guest page=0x6000 entry=+184 fault@0x6133 len=1
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x6133 si_code=3
+  [sig 4] trapno=13 err=0 faultvaddr=0x7000 | eip=0x6133 cs=0x17 ss=0x1f esp=0xbffffc88 eflags=0x286
+  [sig 4] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffcf8
+  [sig 4] expected fault eip=0x6133 -> MATCH ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x6134 with esp=0xbffffc88
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x5fbffdc8 si_code=1
+  [sig 11] trapno=14 err=6 faultvaddr=0x5fbffdc8 | eip=0x6134 cs=0x17 ss=0x1f esp=0xbffffc88 eflags=0x286
+  [sig 11] eax=0x37 ecx=0x0 edx=0x8 esi=0x3c6a edi=0x32be ebx=0xbffff9d0 ebp=0xbffff978
+  [sig 11] expected fault eip=0x6133 -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x6134 with esp=0xbffffc88
+  WATCHDOG: killed after 8 s -- never returned from the fault
+
+== hlt +SA_64REGSET +trampoline ==
+  guest page=0x6000 entry=+184 fault@0x6133 len=1
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x6133 si_code=3
+  [sig 4] trapno=13 err=0 faultvaddr=0x7000 | eip=0x6133 cs=0x17 ss=0x1f esp=0xbffffc88 eflags=0x286
+  [sig 4] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffcf8
+  [sig 4] expected fault eip=0x6133 -> MATCH ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x6134 with esp=0xbffffc88
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0xc0000fad si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0xc0000fad | eip=0x9000af00 cs=0x17 ss=0x1f esp=0xbfffed60 eflags=0x293
+  [sig 11] eax=0xc0000fad ecx=0xa0001c38 edx=0x8 esi=0xc0000fad edi=0xbffffc84 ebx=0x9000ad32 ebp=0xbffff4b8
+  [sig 11] expected fault eip=0x6133 -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x6134 with esp=0xbfffed60
+  WATCHDOG: killed after 8 s -- never returned from the fault
+
+== segv +trampoline ==
+  guest page=0x6000 entry=+367 fault@0x61ea len=7
+  [sig 10] uc_mcsize=600 (i386 mcontext=600) si_addr=0x30000000 si_code=2
+  [sig 10] trapno=14 err=4 faultvaddr=0x30000000 | eip=0x61ea cs=0x17 ss=0x1f esp=0xbffffc78 eflags=0x286
+  [sig 10] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffce8
+  [sig 10] expected fault eip=0x61ea -> MATCH ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x61f1 with esp=0xbffffc78
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0xc0000f9d si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0xc0000f9d | eip=0x9000af00 cs=0x17 ss=0x1f esp=0xbfffed50 eflags=0x10293
+  [sig 11] eax=0xc0000f9d ecx=0xa0001c38 edx=0x8 esi=0xc0000f9d edi=0xbffffc74 ebx=0x9000ad32 ebp=0xbffff4a8
+  [sig 11] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x61f1 with esp=0xbfffed50
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x622b si_code=3
+  [sig 4] trapno=13 err=0 faultvaddr=0xc0000fad | eip=0x622b cs=0x17 ss=0x1f esp=0xbfffed50 eflags=0x246
+  [sig 4] eax=0x0 ecx=0x0 edx=0x8 esi=0x3c6a edi=0x32be ebx=0xbfffea98 ebp=0xbfffea48
+  [sig 4] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x61f1 with esp=0xbfffed50
+  WATCHDOG: killed after 8 s -- never returned from the fault
+
+== segv +SA_64REGSET +trampoline ==
+  guest page=0x6000 entry=+367 fault@0x61ea len=7
+  [sig 10] uc_mcsize=600 (i386 mcontext=600) si_addr=0x30000000 si_code=2
+  [sig 10] trapno=14 err=4 faultvaddr=0x30000000 | eip=0x61ea cs=0x17 ss=0x1f esp=0xbffffc78 eflags=0x286
+  [sig 10] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffce8
+  [sig 10] expected fault eip=0x61ea -> MATCH ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x61f1 with esp=0xbffffc78
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0xc0000f9d si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0xc0000f9d | eip=0x9000af00 cs=0x17 ss=0x1f esp=0xbfffed50 eflags=0x10293
+  [sig 11] eax=0xc0000f9d ecx=0xa0001c38 edx=0x8 esi=0xc0000f9d edi=0xbffffc74 ebx=0x9000ad32 ebp=0xbffff4a8
+  [sig 11] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x61f1 with esp=0xbfffed50
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x622b si_code=3
+  [sig 4] trapno=13 err=0 faultvaddr=0xc0000fad | eip=0x622b cs=0x17 ss=0x1f esp=0xbfffed50 eflags=0x246
+  [sig 4] eax=0x0 ecx=0x0 edx=0x8 esi=0x3c6a edi=0x32be ebx=0xbfffea98 ebp=0xbfffea48
+  [sig 4] expected fault eip=0x61ea -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x61f1 with esp=0xbfffed50
+  WATCHDOG: killed after 8 s -- never returned from the fault
+
+== int3 +trampoline ==
+  guest page=0x6000 entry=+556 fault@0x62a7 len=1
+  [sig 5] uc_mcsize=600 (i386 mcontext=600) si_addr=0x62a8 si_code=1
+  [sig 5] trapno=3 err=0 faultvaddr=0x7000 | eip=0x62a8 cs=0x17 ss=0x1f esp=0xbffffc78 eflags=0x286
+  [sig 5] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffce8
+  [sig 5] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x62a8 with esp=0xbffffc78
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0xc0000f9d si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0xc0000f9d | eip=0x9000af00 cs=0x17 ss=0x1f esp=0xbfffed50 eflags=0x293
+  [sig 11] eax=0xc0000f9d ecx=0xa0001c38 edx=0x8 esi=0xc0000f9d edi=0xbffffc74 ebx=0x9000ad32 ebp=0xbffff4a8
+  [sig 11] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x62a8 with esp=0xbfffed50
+  WATCHDOG: killed after 8 s -- never returned from the fault
+
+== int3 +SA_64REGSET +trampoline ==
+  guest page=0x6000 entry=+556 fault@0x62a7 len=1
+  [sig 5] uc_mcsize=600 (i386 mcontext=600) si_addr=0x62a8 si_code=1
+  [sig 5] trapno=3 err=0 faultvaddr=0x7000 | eip=0x62a8 cs=0x17 ss=0x1f esp=0xbffffc78 eflags=0x286
+  [sig 5] eax=0x0 ecx=0x0 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffce8
+  [sig 5] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x62a8 with esp=0xbffffc78
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x5fbffdc8 si_code=1
+  [sig 11] trapno=14 err=6 faultvaddr=0x5fbffdc8 | eip=0x62a8 cs=0x17 ss=0x1f esp=0xbffffc78 eflags=0x282
+  [sig 11] eax=0x37 ecx=0x0 edx=0x8 esi=0x3c6a edi=0x32be ebx=0xbffff9c0 ebp=0xbffff968
+  [sig 11] expected fault eip=0x62a7 -> no ; cs matches cs64(0x8f)=no
+  trampolining back to 0x8f:0x62a8 with esp=0xbffffc78
+  WATCHDOG: killed after 8 s -- never returned from the fault
+
+== alarm +trampoline ==
+  [alrm] uc_mcsize=600 eip=0x6435 cs=0x8f (cs64=0x8f, in-guest=yes)
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0xbf7fffff si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0xbf7fffff | eip=0x6408 cs=0x17 ss=0x1f esp=0xbffffc78 eflags=0x292
+  [sig 11] eax=0x290f15 ecx=0xaaeff06 edx=0xcb00 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbf7fff8f
+  [sig 11] expected fault eip=0x0 -> no ; cs matches cs64(0x8f)=no
+  FAULT after 7 SIGALRMs: sig=11 eip=0x6408 cs=0x17 faultvaddr=0xbf7fffff mode-marker=0
+  child exit=92
+
+== alarm +SA_64REGSET +trampoline ==
+  [alrm] uc_mcsize=600 eip=0x9011070b cs=0x17 (cs64=0x8f, in-guest=no)
+  [sig 11] uc_mcsize=600 (i386 mcontext=600) si_addr=0x5fbffe48 si_code=1
+  [sig 11] trapno=14 err=4 faultvaddr=0x5fbffe48 | eip=0x641b cs=0x17 ss=0x1f esp=0xbffffc78 eflags=0x246
+  [sig 11] eax=0x0 ecx=0xbb18e1b edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffce8
+  [sig 11] expected fault eip=0x0 -> no ; cs matches cs64(0x8f)=no
+  FAULT after 1 SIGALRMs: sig=11 eip=0x641b cs=0x17 faultvaddr=0x5fbffe48 mode-marker=0
+  child exit=92
+
+== wake +trampoline ==
+  [alrm] uc_mcsize=600 eip=0x635e cs=0x8f (cs64=0x8f, in-guest=yes)
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x6387 si_code=3
+  [sig 4] trapno=13 err=5888 faultvaddr=0xa1679354 | eip=0x6387 cs=0x17 ss=0x1f esp=0xbffffc77 eflags=0x246
+  [sig 4] eax=0x0 ecx=0x1 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffce8
+  [sig 4] expected fault eip=0x0 -> no ; cs matches cs64(0x8f)=no
+  FAULT after 1 SIGALRMs: sig=4 eip=0x6387 cs=0x17 faultvaddr=0xa1679354 mode-marker=1
+  child exit=92
+
+== wake +SA_64REGSET +trampoline ==
+  [alrm] uc_mcsize=600 eip=0x635e cs=0x8f (cs64=0x8f, in-guest=yes)
+  [sig 4] uc_mcsize=600 (i386 mcontext=600) si_addr=0x6387 si_code=3
+  [sig 4] trapno=13 err=5888 faultvaddr=0xc0000fad | eip=0x6387 cs=0x17 ss=0x1f esp=0xbffffc77 eflags=0x246
+  [sig 4] eax=0x0 ecx=0x1 edx=0x0 esi=0x0 edi=0x0 ebx=0x240e ebp=0xbffffce8
+  [sig 4] expected fault eip=0x0 -> no ; cs matches cs64(0x8f)=no
+  FAULT after 1 SIGALRMs: sig=4 eip=0x6387 cs=0x17 faultvaddr=0xc0000fad mode-marker=1
+  child exit=92
+
