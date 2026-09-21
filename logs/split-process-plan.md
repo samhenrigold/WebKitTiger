@@ -8,7 +8,8 @@ viable with a shipping upstream precedent.
 
 | Process | Arch | Owns |
 |---|---|---|
-| **UI + render** | **i386** | AppKit shell and view, the Core Animation compositor (private QuartzCore), **display-list replay against Tiger's real CoreGraphics and CoreText** through `compat/`, `NSCell`/`HITheme` control drawing, text input and IME, audio output |
+| **UI** | **i386** | AppKit shell and view, the Core Animation compositor (private QuartzCore), tile upload, text input and IME, audio output |
+| **GPU** | **i386** | **display-list replay against Tiger's real CoreGraphics and CoreText** through `compat/`, painting into shareable bitmaps; `NSCell`/`HITheme` control drawing |
 | **Web** | **x86_64** | JSC with the full JIT including FTL, DOM and layout, image and video decoding (ffmpeg), HarfBuzz shaping and font fallback, display-list **recording**. No Apple frameworks — libSystem only |
 | **Network** | **x86_64** | curl, LibreSSL, HTTP/2 |
 
@@ -17,9 +18,10 @@ process holding the platform graphics is the small one. The precedent is
 WinCairo, which remotes 2D image-buffer drawing to its GPU process by default
 with `PLATFORM(COCOA)` off — about 110 messages, of which two are platform-gated.
 
-Two processes, not three. Compositing needs the window, Tiger cannot lend a
-window across processes, and a separate compositor would copy every frame back.
-So replay lives with AppKit.
+**Four processes.** Compositing needs the window and Tiger cannot lend one
+across processes, so the compositor stays in the UI process — but replay does
+not have to live with it, and §2.0.2 explains why keeping them apart is the
+better trade.
 
 Written against the fork at `df6cc9ff`; `Source/WebKit` was fetched into the
 sparse checkout to write it. Read-only otherwise.
@@ -407,47 +409,83 @@ every CMake port from `Sources.txt:32-47`. Of roughly 110 messages in
 And it keeps everything the split was for: the x86_64 JIT, a 64-bit address
 space, 64-bit ffmpeg decode, crash isolation.
 
-#### 2.0.2 Why two processes and not three
+#### 2.0.2 Where replay lives — and a correction
 
-Replay lives in the 32-bit UI process, alongside AppKit and the compositor.
-Three reasons, the first of which is decisive and is not about performance:
+**This section previously argued for merging replay into the UI process. That
+was wrong, and the argument that overturned it is worth recording, because the
+mistake was a specific confusion rather than a judgement call.**
 
-1. **Compositing needs the window, and Tiger cannot lend a window across
-   processes.** There is no CA render-server protocol (`atv/REPORT.md`), so the
-   compositor must live wherever the `NSWindow` is.
-2. **A separate compositor would copy every frame back** to the process that
-   owns the window — the cost the whole display-list design exists to avoid.
-3. **Splitting later is cheap; merging later is impossible.**
+I wrote that "a separate compositor would copy every frame back — the cost the
+whole display-list design exists to avoid." The confusion was between *the
+compositor* and *the replayer*. Nobody proposed moving the compositor: it stays
+in the UI process, because compositing needs the window. Only replay moves, and a
+replayer that paints into a shareable bitmap costs **no** extra copy, because the
+UI process has to upload that tile to the GPU either way. `spike/ipc32x64`
+measured a 1440×900 BGRA GL upload **directly from the mapping at ~8 ms with no
+copy**. The upload happens in both designs; the split just changes who wrote the
+bytes.
 
-| | merged UI + render (recommended) | separate render process |
+So the final topology is **four processes**:
+
+| Process | Arch | Rationale |
 |---|---|---|
-| Processes | 2 (+ NetworkProcess) | 3 (+ NetworkProcess) |
-| Hop from replay to screen | none — same process as the CA host | one more IPC hop per frame |
-| Hop for control drawing | none — AppKit is right there | another hop |
-| Scheduling on 2 cores | better | three runnable processes on two cores |
-| Crash isolation of graphics | none | yes |
-| Can composite at all | **yes** | **no** — the window is in the other process |
+| UI | i386 | owns the window, therefore owns the compositor |
+| **GPU** | **i386** | replay + control drawing, painting into shareable bitmaps |
+| Web | x86_64 | JIT, layout, recording |
+| Network | x86_64 | curl |
 
-The last row is the one that settles it.
+This is upstream's own shape, which is worth something on its own: the GPU
+process is where WebKit already puts a replayer, so we inherit its structure
+instead of inventing one.
 
-The **NetworkProcess stays 64-bit** (§2.6): pure C++ over curl, no frameworks,
-and it keeps TLS and HTTP/2 off the WebProcess's cores.
+##### What the merge would have cost
 
-So: **64-bit WebProcess, 64-bit NetworkProcess, 32-bit UI+render process.**
+wkcmake traced the seam (`logs/wkcmake-journal.md`, "The in-process rendering
+seam", commit `1c233ac`). The structural news was good — the redirect is **seven
+lines** at `UIProcess/WebProcessPool.cpp:581-587` (`createGPUProcessConnection`),
+plus about twenty lines of map, and **the web process needs no changes at all**,
+since it mints the connection pair itself and never learns which process the
+other end lives in. Nothing in the transport is process-bound.
+
+The costs were the problem, and two of the three are ones I had not considered:
+
+1. **~6,000 relocated lines.** `GPUConnectionToWebProcess` is 1,901 lines with
+   188 conditional blocks, all behind flags a Tiger port turns off — grinding
+   rather than hard, but 188 chances for one not to hold.
+2. **CoreGraphics on a non-main thread.** Every rendering member is annotated as
+   guarded by the work queue, so replay runs on a graphics thread. In a separate
+   process that thread owns the address space; in the UI process it would run
+   beside AppKit drawing on the main thread, against a **2005 CoreGraphics whose
+   font and colour-space caches were never audited for that**. This is the one
+   that would have produced intermittent, hard-to-attribute crashes. The
+   mitigation — a work queue draining on the main run loop — trades latency for
+   safety and is exactly the latency the merge was supposed to save.
+3. **The trust model inverts.** Every message check and release assertion in the
+   2D path currently kills a sacrificial process. In the UI process each becomes
+   a browser crash, and an image-buffer overflow becomes a UI-process
+   memory-safety bug.
+
+Point 2 is the decisive one. It is a property of Tiger's CoreGraphics rather
+than of WebKit, so no amount of upstream structure would have saved us, and it
+is not something a spike would have surfaced until late.
+
+The seam is narrow and stays narrow, so merging later burns no bridge if the
+tile handoff ever turns out to cost more than it measures.
 
 #### 2.0.3 Data flow
 
 | What crosses | As | Direction |
 |---|---|---|
-| 2D drawing | display-list items over the shared-memory stream ring with two semaphores | 64 → 32 |
-| Text | **glyph IDs + per-glyph advances + one anchor point** — shaping already done in the recorder | 64 → 32 |
-| Native controls | `ControlPart` + `ControlStyle`, serialized upstream already (§2.7) | 64 → 32 |
+| 2D drawing | display-list items over the shared-memory stream ring with two semaphores | web → GPU |
+| Text | **glyph IDs + per-glyph advances + one anchor point** — shaping already done in the recorder | web → GPU |
+| Native controls | `ControlPart` + `ControlStyle`, serialized upstream already (§2.7) | web → GPU |
 | Decoded images | `ShareableBitmap` handles; a source image in the stream is a resource identifier | 64 → 32 |
 | Canvas | remote `ImageBuffer`s | both |
 | Font handles | `FontPlatformDataAttributes` — file path, PostScript name, size, synthetic bold/oblique, orientation, variation axes, feature settings; web fonts ship bytes | 64 → 32 |
-| **Font metrics and advances** | plain floats, computed by **real CoreText in the 32-bit process**, cached per handle | 32 → 64 |
-| Layer tree deltas | the Windows coordinated-graphics layer delta (**~1,600 LOC reused unchanged**), consumed by a **~300-LOC scene applier** that builds real `CALayer`s | 64 → 32 |
-| Decoded video frames | shared bitmaps, or a video layer in the compositor (§3.1) | 64 → 32 |
+| **Font metrics and advances** | plain floats, computed by **real CoreText in the GPU process**, cached per handle | GPU → web |
+| Layer tree deltas | the Windows coordinated-graphics layer delta (**~1,600 LOC reused unchanged**), consumed by a **~300-LOC scene applier** that builds real `CALayer`s | web → UI |
+| Painted tiles | `ShareableBitmap` handles; the UI process uploads directly from the mapping, no copy (`spike/ipc32x64`) | GPU → UI |
+| Decoded video frames | shared bitmaps, or a video layer in the compositor (§3.1) | web → GPU → UI |
 
 The measured IPC characteristics on the box (`spike/ipc32x64`, commits
 `6c45186`/`f88e046`) say this is affordable:
@@ -558,6 +596,39 @@ From the survey, both must be fixed before a pixel appears:
 2. **There is no image-buffer backend for "no 2D library".** The 64-bit side
    records without rasterizing, so it needs a **pixel-less shareable-bitmap
    backend**, about 150 LOC.
+
+#### 2.0.5a The authoritative flag list
+
+`logs/tiger-ipc-shared-flags.txt` is the generated record of **every `ENABLE_`
+and `USE_` name that appears in a serialization or message condition — 221
+lines** — with its final value. It is produced by the configure itself from one
+grep of the tree, so it cannot drift, and `tiger-check-ipc` compares two build
+trees and fails by name. The i386 UI copy is in `logs/`; each build directory
+carries its own as `tiger-ipc-features.txt`.
+
+Three facts from it that constrain everything above:
+
+- **Every name in it must be identical across all four configurations.** Not a
+  style preference: the generator copies conditions verbatim into the generated
+  C++, so one disagreement compiles different serializer sets from the same
+  source and diverges on the wire with no compile error anywhere.
+- **55 of the names are not CMake options**, they are compile-time macros in the
+  platform-enable headers, so agreement is the port header's job rather than the
+  build system's. The list includes `ENABLE_ROUTING_ARBITRATION`,
+  `ENABLE_DOM_AUDIO_SESSION`, `ENABLE_UI_SIDE_COMPOSITING`,
+  `ENABLE_TILED_CA_DRAWING_AREA`, and the PDF, accessibility, touch and
+  notification ones.
+- **`USE_CG` and `USE_CORE_TEXT` are among the 55** — both read `<unset>` in the
+  record, confirming they are not CMake variables under the Cocoa port. So the
+  divergence we most want cannot be expressed in the build system, which is why
+  the answer is not matching flags but **forcing the port-neutral encoding for
+  the three types that change with them** (§2.0.5). wkcmake has that switch on by
+  default.
+
+Two knock-ons worth knowing: `ENABLE_VIDEO` and `ENABLE_MEDIA_SOURCE` are now
+**ON in every configuration**, because they appear in serialization conditions
+and the ffmpeg backend is therefore a whole-port decision, not a web-process one.
+`ENABLE_GPU_PROCESS` behaves the same way and flips for all four at once.
 
 #### 2.0.6 What this costs
 
@@ -978,9 +1049,15 @@ for their original reasons — live `NSView`s for z-order, and the vestigial
 #### 2.7.1 The design
 
 `ControlPart` and `ControlStyle` ride the same display-list stream as everything
-else (§2.0.3) into the 32-bit process, which draws them with **real `NSCell`s
-and `HITheme`**. In branch (d) that process is the merged UI+render process; in
-branches (a) or (b) it is the UI process, and the routing is the same.
+else (§2.0.3) into the **GPU process**, which draws them with **real `NSCell`s
+and `HITheme`**.
+
+That this works in the GPU process rather than the UI process is not an
+assumption: **nscompat confirmed the control drawing reads no window state**, so
+`compat/aquacontrols.m` does not need to be where the `NSWindow` is. Focus rings
+are the case that looks like it should need one, and it does not — the cell is
+told its first-responder state through `ControlStyle::Focused` rather than
+inferring it.
 
 The drawing implementation is `compat/aquacontrols.m`, which the nscompat track
 is porting from `Source/WebCore/platform/graphics/mac/controls/*Mac.mm` — that
@@ -1099,11 +1176,10 @@ including the NetworkProcess.
 
 Three processes, not two, because the NetworkProcess is mandatory (§2.6):
 
-Under branch (d), the recommended primary (§2.0.2):
-
 | Process | Arch | Contains |
 |---|---|---|
-| UI + render | **i386** | AppKit, window, events, IME, pasteboard, menus; the CARenderer compositing host; **display-list replay against Tiger's real CoreGraphics and CoreText**; Aqua control drawing; CoreAudio |
+| UI | **i386** | AppKit, window, events, IME, pasteboard, menus; the CARenderer compositing host; tile upload; CoreAudio |
+| GPU | **i386** | display-list replay against Tiger's real CoreGraphics and CoreText; Aqua control drawing; painting into shareable bitmaps |
 | WebProcess | **x86_64** | WTF, JSC with the full JIT stack, WebCore, HarfBuzz shaping, image decode, display-list recording, the media pipeline |
 | Network | **x86_64** | curl, LibreSSL, nghttp2, the cookie and cache stores |
 
@@ -1113,8 +1189,9 @@ On a 2-core machine a third process is a real scheduling cost, so if measurement
 shows contention, the fallback is to run the network code inside the WebProcess
 rather than to move it to 32-bit.
 
-Under branches (a) or (b) the middle row keeps the rendering and the first row
-shrinks to AppKit and compositing; everything else here is unchanged.
+Note `ENABLE_GPU_PROCESS` is the most-used condition in the serialization inputs,
+so it flips on for **all four** configurations at once when the GPU process
+lands — it cannot be a per-process choice (§2.0.5a).
 
 ### 3.1 YouTube: Media Source Extensions
 
@@ -1494,8 +1571,8 @@ The earlier warning to those tracks is withdrawn.
 | **N-1** | Split the arch-blind Tiger block | `OptionsCocoa.cmake:165-199` forces `ENABLE_C_LOOP` and turns off JIT, video and MSE for all of `TIGER`, and hardcodes the i386 sysroot at `:299`/`:469`. It must now split **three** ways: 64-bit web, 64-bit network, 32-bit UI+render. Nothing below configures until it does | ~150 | 1–2 |
 | **N0** | **`jsc` x86_64 runs with the JIT** | `jsc -e 'print(1+1)'`, then JetStream 2 and the 2M-iteration loop. **The whole premise.** Every platform prerequisite is already proven on the box by the Leopard spike, so the remaining risk is JSC itself | ~100 | in flight |
 | **N1** | **Web process links** | WTF, JSC and WebCore for x86_64 with **no raster backend** — the pixel-less shareable-bitmap backend (~150), display-list recording, HarfBuzz shaping, the font cache and cascade over the manifest, ffmpeg decode. Plus the three neutral wire encodings and the cross-ABI IPC patch, both of which must land here | 2,500–3,800 | 12–18 |
-| **N2** | **UI + render process** | C-API view (`PageClientImpl` + view stack, ~856 from PlayStation), display-list **replay** against Tiger CG/CoreText via `compat/`, the CA compositor from `logs/ca-hosting-design.md`, the ~300-LOC scene applier over the reused ~1,600-LOC layer delta, and the font **metrics service** | 3,000–4,200 | 15–22 |
-| **N3** | **`about:blank` end to end** | two processes launched with `fork`+`exec`, the stream connected, a page loaded, a white frame composited on screen. Proves the transport, the serializer symmetry fix, the font handle and the compositor together | 400–700 | 6–10 |
+| **N2** | **UI and GPU processes** | C-API view (`PageClientImpl` + view stack, ~856 from PlayStation) and the CA compositor from `logs/ca-hosting-design.md` in the **UI** process; display-list **replay** against Tiger CG/CoreText via `compat/` and the font **metrics service** in the **GPU** process; the ~300-LOC scene applier over the reused ~1,600-LOC layer delta. The GPU process is upstream's shape, so `createGPUProcessConnection` (`UIProcess/WebProcessPool.cpp:581-587`) is used as written rather than redirected | 3,000–4,200 | 15–22 |
+| **N3** | **`about:blank` end to end** | four processes launched with `fork`+`exec`, the stream connected, a page loaded, a white frame composited on screen. Proves the transport, the serializer symmetry fix, the font handle and the compositor together | 400–700 | 6–10 |
 | **N4** | **An HTTPS page with text and images** | the 64-bit NetworkProcess over curl with `cacert.pem` shipped and set at runtime; image decode; **real CoreText rasterization of HarfBuzz-shaped runs** — the first point where §2.0.4's 0.03 pt result is tested on real pages rather than a harness | 600–1,000 | 8–12 |
 | **N5** | **Controls, scrollbars, text input** | route `DrawControlPart` into `compat/aquacontrols.m` (~275), `HITheme` scrollbars (~250), the lean Tiger `NSTextInput` view over the C API (~1,000, per `logs/textinput-plan.md`, including the 5 query messages that need synchronous variants and the `NSNotFound` clamp), `WebPopupMenuProxy` as a real `NSMenu` | 1,800–2,400 | 12–16 |
 | **N6** | **Video** | `MediaPlayerPrivateFFmpeg` (~5,300 content-side, ~700 on the 32-bit side), MSE via libavformat over a custom AVIO on a growing buffer, audio over the `spike/audiobridge` ring in the `RemoteAudioDestination` shape, codec policy preferring H.264 | ~6,000 | 15–25 |
