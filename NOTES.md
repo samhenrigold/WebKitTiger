@@ -1901,3 +1901,52 @@ should contain.
 yet**, and no GPU process link or run numbers. Pass 15 was at 236/883 with zero failures when
 this was written; nothing is known to be wrong with it. The `run.sh` in that directory does
 build, copy, headless compare and screenshot in one go the moment the archive exists.
+
+
+## 2026-09-21 — gpu32: passes 15-16, and the trap I documented and then walked into
+
+Pass 15 cleared the pass-13 census and exposed nine more translation units — the
+NSAttributedString HTML converter, `AttributedString.mm`, `EditorMac`, the CoreMedia sample
+renderer, and five that got real Tiger implementations rather than exclusions:
+
+- **ImageAdapterCocoa, RenderThemeMac** each wanted exactly one identifier out of
+  UniformTypeIdentifiers.framework (10.15). `"public.tiff"` and `"public.folder"` are 10.4-era
+  strings and are literally what `UTTypeTIFF.identifier` and `UTTypeFolder.identifier` return
+  on any system, so the Tiger arm is the literal and the modern arm is untouched.
+- **IconCocoa** — `-[NSImage CGImageForProposedRect:context:hints:]` is 10.6; Tiger's NSImage
+  keeps its representations, so ask the bitmap one for its CGImage, which is what the modern
+  call does for a single-representation image and every icon here is one.
+- **PlatformScreenMac** — PAL's OpenGL soft-link header names GLint and GLuint without
+  pulling in a GL header, and the registry-ID renderer properties it exists for are 10.13.
+  Tiger has `CGLQueryRendererInfo` but no GPU registry ID to ask it for, so
+  `gpuIDForDisplayMask` answers 0, which is what every caller already treats as "unknown GPU".
+  Screen rect, depth and scale are untouched, and those are what WebCore actually needs.
+- **NSPopoverSPI.h** — NSGestureRecognizer is 10.10; a forward declaration of the
+  immediate-action protocol is enough for the rest of the header.
+
+`NSScrollerStyleLegacy`/`Overlay` had to become casts, not bare integers: WebCore declares
+`enum NSScrollerStyle : long`, and the fixed underlying type is what makes the cast a constant
+expression and therefore usable as a case label, which is how `ScrollTypesMac.h` uses both.
+
+### The trap, again
+
+The previous section in this file says, in as many words, that touching `compat/sdk-overlay`
+invalidates the precompiled header and costs a ~900-edge rebuild of WTF, JavaScriptCore and
+WebCore, and that flag and overlay changes must be batched. Pass 16 is a ~880-edge rebuild
+**because the NSScrollerStyle fix touched the AppKit overlay**, and it spent its first half
+hour in offlineasm's LLIntAssembly.h generation, which the PCH drags along with it.
+
+So: writing the rule down did not stop me doing it. The rule needs to be operational, not
+advisory. Concretely, before editing anything under `compat/sdk-overlay`, `PlatformUse.h`,
+`PlatformEnable*.h` or `cmakeconfig`, collect every such change you are going to need and make
+them in one edit — and if a fix can go in a `.cpp`/`.mm`/`PlatformCocoa.cmake` instead of the
+overlay, put it there even if the overlay is the tidier home, because the overlay costs three
+hours and the source file costs ninety seconds.
+
+### Status
+
+Every compile error found so far in the i386 GPU configuration is fixed and committed. Pass 16
+is the verification run and was at 236/882 with zero failures when this was written.
+`libWebCore.a` still does not exist, so: **no pixel-compare number, no screenshot, no GPU
+process link or run numbers.** `spike/gpureplay/run.sh` closes that loop in one invocation the
+moment the archive lands.
