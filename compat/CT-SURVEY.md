@@ -55,11 +55,15 @@ has to compute them from glyph bounding rects itself.
 
 These ten are **not** in `missing-CT.txt`, because they are exported under exactly the
 name WebCore calls. They are the worst kind of problem: they link, they run, and they
-return zeroes. The port has to either compile WebCore against corrected declarations and
-adapt the call sites, or interpose shims under the modern signature that reach Tiger's
-implementation through `dlopen`/`dlsym` of the CoreText binary. `ctcompat.c` does the
-conversion internally wherever it calls them itself, so the compat layer is correct
-today; WebCore's own direct calls are not yet.
+return zeroes.
+
+**This is now handled, and WebCore needs no edits.** `ctcompat.c` carries a
+`TigerCT...`-prefixed adapter for each of the ten, presenting the modern signature and
+reaching Tiger's real behaviour underneath, and the SDK overlay's `<CoreText/*.h>` binds
+the public name to the adapter with an `__asm__` label. WebCore writes `CTFontCopyTable`
+and the call lands on `_TigerCTFontCopyTable`. The same mechanism covers the by-value
+`double` parameters, except that those need no adapter at all: declaring the prototype
+with `double` is enough, because C converts the caller's `CGFloat` at the call site.
 
 **Descriptors are thinner than they look.** `CTFontCopyFontDescriptor` returns a
 descriptor holding exactly three attributes: `NSFontNameAttribute` (the PostScript name),
@@ -321,12 +325,55 @@ Leopard's `CTParagraphStyleGetValueForSpecifier` both bound the specifier at 13,
 So Tiger uses the documented 10.5 numbering and `...LineBreakMode` is 6. Re-running the
 audit now reports zero unresolved names of either kind.
 
+## The SDK overlay
+
+`compat/sdk-overlay/CoreText.framework/Headers/` is the CoreText header set, seventeen
+files, all ours, because Tiger ships none. Layout and per-file notes are in
+`compat/sdk-overlay/README.md`; `CTDefines.h` is the one to read first.
+
+Only six Tiger exports actually need the `double` treatment, and they are all the font
+`size` parameter: `CTFontCreateWithName`, `CTFontCreateWithFontDescriptor`,
+`CTFontCreateWithGraphicsFont`, `CTFontCreateCopyWithAttributes`,
+`CTFontCreateWithPlatformFont` and `CTFontDescriptorCreateWithNameAndSize`. Sixteen
+exports take a by-value double in total, but for the other ten the modern header already
+says `double` — `CTTypesetterSuggestLineBreak`, `CTLineCreateTruncatedLine`,
+`CTTextTabCreate` and friends — so Tiger and Apple agree and nothing needs doing.
+Scalar *returns* never need adapting either: on i386 they come back in `ST(0)`, so a
+`CGFloat` return reads correctly whether the callee computed a float or a double.
+
+**The overlay declares no SPI, by design.** WebCore declares CoreText SPI for itself in
+`PAL/pal/spi/cf/CoreTextSPI.h`. The two are meant to be included together, so the overlay
+must not define anything that header's non-internal-SDK branch defines. Checked
+mechanically: they now share **no type and no enumerator**. The six types that would have
+collided are `CTCompositionLanguage`, `CTFontDescriptorOptions`, `CTFontFallbackOption`,
+`CTFontShapeOptions`, `CTFontTextStylePlatform` and `CTFontTransformOptions`, along with
+27 enumerators including `kCTFontTraitEmphasized`, `kCTRunStatusHasOrigins` and the
+`kCTFontTextStylePlatform*` set. All of them are SPI and all now live only in
+`CoreTextSPI.h`. Duplicate *function* and *constant* declarations are legal when the
+signatures match, so those overlap harmlessly.
+
+### For the wkcmake track
+
+Nothing in `CoreTextSPI.h` needs a `PLATFORM(TIGER)` gate to avoid conflicting with the
+overlay. What it does need:
+
+- `USE(APPLE_INTERNAL_SDK)` must be **off**, so its `#else` branch is the one that
+  compiles. That branch is what supplies the SPI types the overlay deliberately omits.
+- The `HAVE()` and `ENABLE()` gates listed in section (a) above should be **0**. They are
+  what turn off sbix, color-glyph, memory-safe-parser and multi-representation-HEIC code
+  paths whose shims are honest stubs rather than implementations.
+- `CTFontShapeGlyphs` is the one SPI declaration that matters most: it is called
+  unconditionally and its shim does no shaping. Complex text has to route through
+  `ComplexTextController`.
+- The overlay needs `-F compat/sdk-overlay` ahead of the SDK, and the ApplicationServices
+  sub-framework directory also on `-F` so `<ATS/SFNTLayoutTypes.h>` resolves from
+  `<CoreText/SFNTLayoutTypes.h>`. `compat/Makefile` shows both.
+
 ## Open items for the port
 
-- Nothing stages CoreText **headers**. The 10.4u SDK's `CoreText.framework` has a binary
-  and no `Headers` directory. WebCore does `#include <CoreText/CoreText.h>`, so the 10.5
-  SDK's CoreText headers need to go into the SDK overlay. `CTCompat.h` does not depend on
-  this: it declares what it needs when `<CoreText/CoreText.h>` is not includable.
+- ~~Nothing stages CoreText headers.~~ Done: see the SDK overlay section above. Note that
+  the 10.5 SDK's CoreText headers were **not** used, and must not be: they spell the font
+  size `CGFloat`, which is wrong for this binary.
 - `FontCustomPlatformDataCoreText.cpp` reaches `CTFontManagerCreateFontDescriptorFromData`
   only after `FPFontCreateFontsFromData` / `FPFontCopySFNTData`. Those are the `fparse`
   font-parser SPI, a different library, and are not in `missing-CT.txt` or in scope here.

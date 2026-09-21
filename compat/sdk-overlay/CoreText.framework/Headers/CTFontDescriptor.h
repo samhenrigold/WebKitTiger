@@ -7,30 +7,10 @@
 
 typedef const struct __CTFontDescriptor* CTFontDescriptorRef;
 
-typedef uint32_t CTFontDescriptorOptions;
 typedef uint32_t CTFontOptions;
-typedef uint32_t CTFontTextStylePlatform;
 
-enum {
-    kCTFontDescriptorOptionSystemUIFont         = (1 << 1),
-    kCTFontOptionsSystemUIFont                  = (1 << 1),
-    kCTFontOptionsPreferSystemFont              = (1 << 2),
-    kCTFontDescriptorOptionPreferAppleSystemFont = kCTFontOptionsPreferSystemFont,
-    kCTFontDescriptorOptionThisIsNotARealOption = 0xFFFFFFFF
-};
-
-enum { kCTFontDescriptorMatchingOptionIncludeHiddenFonts = (1 << 16) };
-
-enum {
-    kCTFontTextStylePlatformDefault      = (CTFontTextStylePlatform)-1,
-    kCTFontTextStylePlatformPhone        = 0,
-    kCTFontTextStylePlatformWatch        = 1,
-    kCTFontTextStylePlatformTV           = 2,
-    kCTFontTextStylePlatformMac          = 3,
-    kCTFontTextStylePlatformMacTouchBar  = 4,
-    kCTFontTextStylePlatformVision       = 5,
-    kCTFontTextStylePlatformVisionLegacy = 6
-};
+/* Public. The SPI options that build on it live in CoreTextSPI.h. */
+enum { kCTFontOptionsPreferSystemFont = (1 << 2) };
 
 CT_EXTERN CFTypeID CTFontDescriptorGetTypeID(void);
 
@@ -119,13 +99,10 @@ CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateCopyWithFeature(CTFontDescri
 CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateCopyWithSymbolicTraits(CTFontDescriptorRef, CTFontSymbolicTraits value, CTFontSymbolicTraits mask);
 CT_EXTERN CFArrayRef CTFontDescriptorCreateMatchingFontDescriptors(CTFontDescriptorRef, CFSetRef mandatoryAttributes);
 CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateMatchingFontDescriptor(CTFontDescriptorRef, CFSetRef mandatoryAttributes);
-CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateWithAttributesAndOptions(CFDictionaryRef attributes, CTFontDescriptorOptions);
-CT_EXTERN CTFontDescriptorOptions CTFontDescriptorGetOptions(CTFontDescriptorRef);
 CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateLastResort(void);
 CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateForUIType(uint32_t uiType, CGFloat size, CFStringRef language);
 CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateWithTextStyle(CFStringRef style, CFStringRef size, CFStringRef language);
 CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateWithTextStyleAndAttributes(CFStringRef style, CFStringRef size, CFDictionaryRef attributes);
-CT_EXTERN CGFloat CTFontDescriptorGetTextStyleSize(CFStringRef style, CFTypeRef sizeCategory, CTFontTextStylePlatform, CGFloat* weight, CGFloat* lineSpacing);
 CT_EXTERN CTFontDescriptorRef CTFontDescriptorCreateForCSSFamily(CFStringRef cssFamily, CFStringRef language);
 CT_EXTERN bool CTFontDescriptorIsSystemUIFont(CTFontDescriptorRef);
 

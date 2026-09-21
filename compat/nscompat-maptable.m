@@ -160,30 +160,20 @@ static BOOL tigerOptionsUsePointerIdentity(NSUInteger options)
     return NSCountMapTable((NSMapTableCStruct *)_table);
 }
 
-/* NSAllMapTableKeys/Values build an NSArray, which retains every element. That is a crash on a
- * table whose keys or values are not objects (opaque/integer personality), so collect into a
- * CFArray with null callbacks in that case and only use the retaining callbacks when the
- * personality really is objects. */
-static NSArray *tigerMapTableContents(void *table, BOOL wantKeys, BOOL elementsAreObjects)
-{
-    const CFArrayCallBacks *cb = elementsAreObjects ? &kCFTypeArrayCallBacks : NULL;
-    CFMutableArrayRef out = CFArrayCreateMutable(NULL, 0, cb);
-    NSMapEnumerator it = NSEnumerateMapTable((NSMapTableCStruct *)table);
-    void *key, *value;
-    while (NSNextMapEnumeratorPair(&it, &key, &value))
-        CFArrayAppendValue(out, wantKeys ? key : value);
-    NSEndMapTableEnumeration(&it);
-    return [(NSArray *)out autorelease];
-}
-
+/* Both of these retain every element, so they are only meaningful on a table whose keys (resp.
+ * values) really are objects. Real Foundation is the same: -[NSClassicMapTable allKeys] packs the
+ * keys and calls +arrayWithObjects:count:, which retains them, and Apple documents enumeration of
+ * a non-object personality as unsupported. Routing non-objects through an NSEnumerator instead is
+ * worse, not better -- tried it, and Tiger's NSCFArray enumerator messages the element on the
+ * second -nextObject and hangs. So: do not enumerate an opaque/integer-keyed table. */
 - (NSEnumerator *)keyEnumerator
 {
-    return [tigerMapTableContents(_table, YES, !tigerOptionsUsePointerIdentity(_keyOptions)) objectEnumerator];
+    return [NSAllMapTableKeys((NSMapTableCStruct *)_table) objectEnumerator];
 }
 
 - (NSEnumerator *)objectEnumerator
 {
-    return [tigerMapTableContents(_table, NO, !tigerOptionsUsePointerIdentity(_valueOptions)) objectEnumerator];
+    return [NSAllMapTableValues((NSMapTableCStruct *)_table) objectEnumerator];
 }
 
 

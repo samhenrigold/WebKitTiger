@@ -8,6 +8,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <unistd.h>
 
 static int failures;
 
@@ -309,6 +310,19 @@ int main(int, char **)
         [queue addOperation:[NSBlockOperation blockOperationWithBlock:^{ ran = true; }]];
         [queue waitUntilAllOperationsAreFinished];
         expect("NSBlockOperation", ran);
+
+        // A suspended queue must hold work back, not drop it: the operation has to run once the
+        // queue resumes, and -waitUntilFinished has to return rather than hang.
+        __block bool deferredRan = false;
+        NSOperation *deferred = [NSBlockOperation blockOperationWithBlock:^{ deferredRan = true; }];
+        [queue setSuspended:YES];
+        [queue addOperation:deferred];
+        usleep(50000);
+        expect("suspended queue defers instead of dropping", !deferredRan && ![deferred isFinished]);
+        [queue setSuspended:NO];
+        [deferred waitUntilFinished];
+        expect("resumed queue runs the deferred operation", deferredRan && [deferred isFinished]);
+
 #if !__has_feature(objc_arc)
         [queue release];
 #endif

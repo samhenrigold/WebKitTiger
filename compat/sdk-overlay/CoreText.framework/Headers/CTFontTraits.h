@@ -26,9 +26,6 @@ enum {
     kCTFontTraitUIOptimized     = (1 << 12),
     kCTFontTraitColorGlyphs     = (1 << 13),
     kCTFontTraitComposite       = (1 << 14),
-    /* SPI, and the alias WebCore uses for bold. */
-    kCTFontTraitTightLeading    = (1 << 15),
-    kCTFontTraitEmphasized      = kCTFontTraitBold,
     kCTFontTraitClassMask       = 0xF0000000
 };
 

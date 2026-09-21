@@ -327,8 +327,68 @@ static int tigerComparatorTrampoline(id a, id b, void *context)
  * NSData
  * ========================================================================= */
 
-#if TIGER_NS_BLOCKS
 @implementation NSData (TigerCompat)
+
+/* Base64 arrived in Foundation in 10.9; Tiger has nothing to build on. The line
+ * wrapping options are honoured because the one non-test caller feeds the
+ * result into a data: URL, where a stray newline would corrupt it, and getting
+ * that wrong would be silent. */
+- (NSString *)base64EncodedStringWithOptions:(NSDataBase64EncodingOptions)options
+{
+    static const char alphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    const unsigned char *bytes = (const unsigned char *)[self bytes];
+    NSUInteger length = [self length];
+
+    NSUInteger lineLength = 0;
+    if (options & NSDataBase64Encoding64CharacterLineLength)
+        lineLength = 64;
+    else if (options & NSDataBase64Encoding76CharacterLineLength)
+        lineLength = 76;
+
+    const char *lineEnding = "\r\n";
+    if (lineLength) {
+        BOOL cr = (options & NSDataBase64EncodingEndLineWithCarriageReturn) != 0;
+        BOOL lf = (options & NSDataBase64EncodingEndLineWithLineFeed) != 0;
+        if (cr && !lf)
+            lineEnding = "\r";
+        else if (lf && !cr)
+            lineEnding = "\n";
+    }
+
+    NSMutableString *result = [NSMutableString stringWithCapacity:((length + 2) / 3) * 4];
+    char quad[4];
+    NSUInteger sinceBreak = 0;
+
+    for (NSUInteger i = 0; i < length; i += 3) {
+        NSUInteger remaining = length - i;
+        unsigned long triple = (unsigned long)bytes[i] << 16;
+        if (remaining > 1)
+            triple |= (unsigned long)bytes[i + 1] << 8;
+        if (remaining > 2)
+            triple |= (unsigned long)bytes[i + 2];
+
+        quad[0] = alphabet[(triple >> 18) & 0x3f];
+        quad[1] = alphabet[(triple >> 12) & 0x3f];
+        quad[2] = remaining > 1 ? alphabet[(triple >> 6) & 0x3f] : '=';
+        quad[3] = remaining > 2 ? alphabet[triple & 0x3f] : '=';
+
+        if (lineLength && sinceBreak == lineLength) {
+            [result appendFormat:@"%s", lineEnding];
+            sinceBreak = 0;
+        }
+        [result appendString:[NSString stringWithCString:quad length:4]];
+        sinceBreak += 4;
+    }
+
+    return result;
+}
+
+@end
+
+#if TIGER_NS_BLOCKS
+@implementation NSData (TigerCompatBlocks)
 
 /* Tiger has only -initWithBytesNoCopy:length:freeWhenDone:, which always frees
  * with free(), while a deallocator block may free some other way. NSData is a

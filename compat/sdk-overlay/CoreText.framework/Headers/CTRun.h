@@ -12,8 +12,7 @@ enum {
     kCTRunStatusNoStatus     = 0,
     kCTRunStatusRightToLeft  = (1 << 0),
     kCTRunStatusNonMonotonic = (1 << 1),
-    kCTRunStatusHasNonIdentityMatrix = (1 << 2),
-    kCTRunStatusHasOrigins   = (1 << 4)
+    kCTRunStatusHasNonIdentityMatrix = (1 << 2)
 };
 
 CT_EXTERN CFTypeID CTRunGetTypeID(void);

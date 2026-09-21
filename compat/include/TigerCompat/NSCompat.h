@@ -158,13 +158,26 @@ enum { NSEnumerationConcurrent = 1UL << 0, NSEnumerationReverse = 1UL << 1 };
 
 /* ------------------------------------------------------------------------- */
 #if TIGER_NS_BLOCKS
-@interface NSData (TigerCompat)
+@interface NSData (TigerCompatBlocks)
 /* 10.9 */
 - (id)initWithBytesNoCopy:(void *)bytes
                    length:(NSUInteger)length
               deallocator:(void (^)(void *bytes, NSUInteger length))deallocator;
 @end
 #endif
+
+typedef NSUInteger NSDataBase64EncodingOptions;
+enum {
+    NSDataBase64Encoding64CharacterLineLength = 1UL << 0,
+    NSDataBase64Encoding76CharacterLineLength = 1UL << 1,
+    NSDataBase64EncodingEndLineWithCarriageReturn = 1UL << 4,
+    NSDataBase64EncodingEndLineWithLineFeed = 1UL << 5
+};
+
+@interface NSData (TigerCompat)
+/* 10.9. Tiger's Foundation has no base64 of any kind. */
+- (NSString *)base64EncodedStringWithOptions:(NSDataBase64EncodingOptions)options;
+@end
 
 /* NSFileWriteFileExistsError is 10.5. Same value as the real one. */
 #ifndef NSFileWriteFileExistsError

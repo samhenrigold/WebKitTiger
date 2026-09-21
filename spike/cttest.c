@@ -25,6 +25,49 @@ bool CGFontGetGlyphAdvancesForStyle(CGFontRef, const CGAffineTransform*, uint32_
 /* CoreText SPI. Not in the public overlay by design: WebCore declares these for
  * itself in PAL/pal/spi/cf/CoreTextSPI.h, which is where the port will gate
  * them. Spelled here exactly as that header spells them. */
+typedef CFOptionFlags CTFontFallbackOption;
+typedef CFOptionFlags CTFontShapeOptions;
+typedef uint32_t CTFontTransformOptions;
+typedef uint32_t CTFontTextStylePlatform;
+typedef uint8_t CTCompositionLanguage;
+enum { kCTFontFallbackOptionSystem = (1 << 0), kCTFontFallbackOptionUserInstalled = (1 << 1),
+       kCTFontFallbackOptionDefault = kCTFontFallbackOptionSystem | kCTFontFallbackOptionUserInstalled };
+enum { kCTFontShapeWithKerning = (1 << 0) };
+enum { kCTFontTransformApplyPositioning = (1 << 1) };
+enum { kCTFontTextStylePlatformDefault = (CTFontTextStylePlatform)-1 };
+enum { kCTCompositionLanguageNone = 1 };
+CTFontRef CTFontCreateForCharactersWithLanguageAndOption(CTFontRef, const UniChar[], CFIndex, CFStringRef, CTFontFallbackOption, CFIndex*);
+CTFontRef CTFontCreateForCharacters(CTFontRef, const UniChar[], CFIndex, CFIndex*);
+bool CTFontIsSystemUIFont(CTFontRef);
+CTFontUIFontType CTFontGetUIFontType(CTFontRef);
+bool CTFontGetGlyphsForCharacterRange(CTFontRef, CGGlyph[], CFRange);
+bool CTFontGetVerticalGlyphsForCharacters(CTFontRef, const UniChar[], CGGlyph[], CFIndex);
+void CTFontGetVerticalTranslationsForGlyphs(CTFontRef, const CGGlyph[], CGSize[], CFIndex);
+CTFontSymbolicTraits CTFontGetPhysicalSymbolicTraits(CTFontRef);
+CTFontRef CTFontCopyPhysicalFont(CTFontRef);
+CFBitVectorRef CTFontCopyColorGlyphCoverage(CTFontRef);
+CFBitVectorRef CTFontCopyGlyphCoverageForFeature(CTFontRef, CFDictionaryRef);
+bool CTFontIsAppleColorEmoji(CTFontRef);
+bool CTFontHasComplexColorFormatForGlyph(CTFontRef, CGGlyph);
+CGFloat CTFontGetSbixImageSizeForGlyphAndContentsScale(CTFontRef, CGGlyph, CGFloat);
+CGFloat CTFontGetAccessibilityBoldWeightOfWeight(CGFloat);
+bool CTFontTransformGlyphs(CTFontRef, CGGlyph[], CGSize[], CFIndex, CTFontTransformOptions);
+void CTFontGetUnsummedAdvancesForGlyphsAndStyle(CTFontRef, CTFontOrientation, uint32_t, const CGGlyph[], CGSize[], CFIndex);
+CTFontDescriptorRef CTFontDescriptorCreateWithAttributesAndOptions(CFDictionaryRef, uint32_t);
+uint32_t CTFontDescriptorGetOptions(CTFontDescriptorRef);
+CGFloat CTFontDescriptorGetTextStyleSize(CFStringRef, CFTypeRef, CTFontTextStylePlatform, CGFloat*, CGFloat*);
+bool CTFontDescriptorIsSystemUIFont(CTFontDescriptorRef);
+CTFontDescriptorRef CTFontDescriptorCreateLastResort(void);
+CTFontDescriptorRef CTFontDescriptorCreateForUIType(CTFontUIFontType, CGFloat, CFStringRef);
+CTFontDescriptorRef CTFontDescriptorCreateWithTextStyle(CFStringRef, CFStringRef, CFStringRef);
+CTFontDescriptorRef CTFontDescriptorCreateWithTextStyleAndAttributes(CFStringRef, CFStringRef, CFDictionaryRef);
+CTFontDescriptorRef CTFontDescriptorCreateForCSSFamily(CFStringRef, CFStringRef);
+CTFontRef CTFontCreateWithFontDescriptorAndOptions(CTFontDescriptorRef, CGFloat, const CGAffineTransform*, uint32_t);
+CFArrayRef CTFontCopyDefaultCascadeListForLanguages(CTFontRef, CFArrayRef);
+CGSize CTRunGetInitialAdvance(CTRunRef);
+void CTRunGetBaseAdvancesAndOrigins(CTRunRef, CFRange, CGSize[], CGPoint[]);
+CTTypesetterRef CTTypesetterCreateWithUniCharProviderAndOptions(CTUniCharProviderCallback, CTUniCharDisposeCallback, void*, CFDictionaryRef);
+void CTParagraphStyleSetCompositionLanguage(CTParagraphStyleRef, CTCompositionLanguage);
 CGSize CTFontShapeGlyphs(CTFontRef, CGGlyph glyphs[], CGSize advances[], CGPoint origins[],
     CFIndex indexes[], const UniChar chars[], CFIndex count, CTFontShapeOptions,
     CFStringRef language, void (^handler)(CFRange, CGGlyph**, CGSize**, CGPoint**, CFIndex**));

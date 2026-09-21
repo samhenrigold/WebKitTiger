@@ -12,13 +12,9 @@ typedef uint32_t CTFontUIFontType;
 typedef uint32_t CTFontTableTag;
 typedef uint32_t CTFontTableOptions;
 typedef uint32_t CTFontOrientation;
-typedef CFOptionFlags CTFontShapeOptions;
-typedef uint32_t CTFontTransformOptions;
-typedef CFOptionFlags CTFontFallbackOption;
 
 enum { kCTFontTableOptionNoOptions = 0, kCTFontTableOptionExcludeSynthetic = (1 << 0) };
 enum { kCTFontOrientationDefault = 0, kCTFontOrientationHorizontal = 1, kCTFontOrientationVertical = 2 };
-enum { kCTFontPaletteLight = -1, kCTFontPaletteDark = -2 };
 
 enum {
     kCTFontNoFontType             = (uint32_t)-1,
@@ -29,27 +25,8 @@ enum {
     kCTFontUIFontSmallSystem      = 4,
     kCTFontUIFontMiniSystem       = 6,
     kCTFontUIFontMenuItem         = 10,
-    kCTFontUIFontLabel            = 20,
-    kCTFontUIFontSystemItalic     = 27,
-    kCTFontUIFontSystemThin       = 102,
-    kCTFontUIFontSystemLight      = 103,
-    kCTFontUIFontSystemUltraLight = 104
+    kCTFontUIFontLabel            = 20
 };
-
-enum {
-    kCTFontFallbackOptionNone          = 0,
-    kCTFontFallbackOptionSystem        = (1 << 0),
-    kCTFontFallbackOptionUserInstalled = (1 << 1),
-    kCTFontFallbackOptionDefault       = kCTFontFallbackOptionSystem | kCTFontFallbackOptionUserInstalled
-};
-
-enum {
-    kCTFontShapeWithKerning            = (1 << 0),
-    kCTFontShapeWithClusterComposition = (1 << 1),
-    kCTFontShapeRightToLeft            = (1 << 2)
-};
-
-enum { kCTFontTransformApplyShaping = (1 << 0), kCTFontTransformApplyPositioning = (1 << 1) };
 
 /* sfnt tags. Tiger exports its own as CFStrings, which is an implementation
  * detail of CTFontCopyTable; every tag WebCore uses is an integer here. */
@@ -172,11 +149,8 @@ CT_EXTERN CFBitVectorRef CTFontCopyColorGlyphCoverage(CTFontRef);
 CT_EXTERN CFBitVectorRef CTFontCopyGlyphCoverageForFeature(CTFontRef, CFDictionaryRef feature);
 CT_EXTERN bool CTFontIsAppleColorEmoji(CTFontRef);
 CT_EXTERN CGFloat CTFontGetAccessibilityBoldWeightOfWeight(CGFloat);
-CT_EXTERN bool CTFontTransformGlyphs(CTFontRef, CGGlyph glyphs[], CGSize advances[], CFIndex count, CTFontTransformOptions);
-CT_EXTERN void CTFontGetUnsummedAdvancesForGlyphsAndStyle(CTFontRef, CTFontOrientation, uint32_t renderingStyle, const CGGlyph[], CGSize advances[], CFIndex count);
 CT_EXTERN CTFontRef CTFontCreateForCharacters(CTFontRef, const UniChar characters[], CFIndex length, CFIndex* coveredLength);
 CT_EXTERN CTFontRef CTFontCreateForCharactersWithLanguage(CTFontRef, const UniChar characters[], CFIndex length, CFStringRef language, CFIndex* coveredLength);
-CT_EXTERN CTFontRef CTFontCreateForCharactersWithLanguageAndOption(CTFontRef, const UniChar characters[], CFIndex length, CFStringRef language, CTFontFallbackOption, CFIndex* coveredLength);
 CT_EXTERN CTFontDescriptorRef CTFontCreatePhysicalFontDescriptorForCharactersWithLanguage(CTFontRef, const UniChar characters[], CFIndex length, CFStringRef language, CFIndex* coveredLength);
 CT_EXTERN CTFontRef CTFontCreateForCSS(CFStringRef name, uint16_t weight, CTFontSymbolicTraits, CGFloat size);
 CT_EXTERN CGFloat CTFontGetSbixImageSizeForGlyphAndContentsScale(CTFontRef, CGGlyph, CGFloat contentsScale);

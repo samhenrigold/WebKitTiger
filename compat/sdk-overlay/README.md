@@ -215,3 +215,39 @@ nullability, the NSEvent and NSWindow renames, `@available` being false for
 class and the C struct. `spike/run-overlaytest.sh` builds it in MRR and ARC with
 `-Wall`, copies it to the Tiger box and runs it, and is the reference for the
 flag order.
+
+## CoreText.framework/Headers
+
+Owned by the ctcompat track. **Every file here is ours**; none is a symlink,
+because Tiger's CoreText ships no headers at all. The framework binary exists
+inside `ApplicationServices.framework/Frameworks` and exports 243 symbols, but
+Apple never shipped a public header for it until 10.5.
+
+These declare the **modern public CoreText API**, spelled the way WebCore calls
+it, bound to what the 10.4.11 binary actually does. `CTDefines.h` explains the
+three kinds of declaration; `compat/CT-SURVEY.md` has the full reasoning and the
+disassembly behind it. In short:
+
+| Kind | How it is declared |
+|---|---|
+| Tiger's ABI already matches | normally |
+| Tiger reads the size as a by-value `double` | with `double`, not `CGFloat`. The caller's float converts at the call site, so WebCore's source is unchanged |
+| Tiger's differs, does nothing, or does not exist | modern prototype plus an `__asm__` label onto the adapter or shim in `libtigercompat` |
+
+| File | Why |
+|---|---|
+| `CTDefines.h` | Ours. Shared types, `CGFloat`, `CFErrorRef`, and the `CT_TIGER_ADAPTER` asm-label macro. Read this first |
+| `CoreText.h` | Ours. The umbrella |
+| `CTFont.h` | Ours. Carries four of the ten asm-label adapters |
+| `CTFontDescriptor.h`, `CTFontTraits.h`, `CTFontCollection.h` | Ours |
+| `CTFontManager.h` | Ours. Tiger has no font manager at all; every function is a shim over `ATSFontActivateFromMemory` |
+| `CTLine.h`, `CTRun.h` | Ours. Carry the other six adapters |
+| `CTFrame.h`, `CTFramesetter.h`, `CTTypesetter.h` | Ours |
+| `CTParagraphStyle.h`, `CTStringAttributes.h`, `CTTextTab.h`, `CTGlyphInfo.h` | Ours |
+| `SFNTLayoutTypes.h` | Ours, one line. Modern SDKs re-export it from CoreText; on Tiger it only ever lived in ATS, so this forwards to `<ATS/SFNTLayoutTypes.h>` |
+
+**These headers declare no SPI.** WebCore declares CoreText SPI for itself in
+`PAL/pal/spi/cf/CoreTextSPI.h`, and that header and this overlay are designed to
+be included together: they share no type and no enumerator. Adding an SPI
+declaration here would collide with it. `libtigercompat` still *implements* the
+SPI; only the declaration lives on WebCore's side.

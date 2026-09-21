@@ -9,7 +9,6 @@ typedef uint8_t CTTextAlignment;
 typedef uint8_t CTLineBreakMode;
 typedef uint8_t CTWritingDirection;
 typedef uint32_t CTParagraphStyleSpecifier;
-typedef uint8_t CTCompositionLanguage;
 
 enum {
     kCTLineBreakByWordWrapping      = 0,
@@ -47,14 +46,6 @@ enum {
     kCTParagraphStyleSpecifierCount                  = 14
 };
 
-enum {
-    kCTCompositionLanguageUnset = 0,
-    kCTCompositionLanguageNone,
-    kCTCompositionLanguageJapanese,
-    kCTCompositionLanguageSimplifiedChinese,
-    kCTCompositionLanguageTraditionalChinese
-};
-
 typedef struct CTParagraphStyleSetting {
     CTParagraphStyleSpecifier spec;
     size_t valueSize;
@@ -65,8 +56,5 @@ CT_EXTERN CFTypeID CTParagraphStyleGetTypeID(void);
 CT_EXTERN CTParagraphStyleRef CTParagraphStyleCreate(const CTParagraphStyleSetting* settings, CFIndex settingCount);
 CT_EXTERN CTParagraphStyleRef CTParagraphStyleCreateCopy(CTParagraphStyleRef);
 CT_EXTERN bool CTParagraphStyleGetValueForSpecifier(CTParagraphStyleRef, CTParagraphStyleSpecifier, size_t valueBufferSize, void* valueBuffer);
-
-/* Ours: Tiger's paragraph style is immutable and has no such slot. */
-CT_EXTERN void CTParagraphStyleSetCompositionLanguage(CTParagraphStyleRef, CTCompositionLanguage);
 
 #endif /* __CTPARAGRAPHSTYLE__ */
