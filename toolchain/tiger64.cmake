@@ -57,6 +57,13 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 # os/availability.h, ...). The dispatch polyfill is i386-only
 # (it is built on CFRunLoop, which has no x86_64 slice), so it is NOT on the path
 # here; JSCOnly must not reach for dispatch.
+# Every Mac that can run a 64-bit process under Mac OS X 10.4 is a Core 2 (Merom) or
+# later: the first-generation Intel Macs are Core Solo/Duo (Yonah), which has no EM64T,
+# so an x86_64 binary already excludes them. That makes core2 the exact floor for this
+# target rather than a compromise, and it buys SSSE3 and better scheduling for free.
+# Set to an empty string to build for the generic x86_64 baseline instead.
+set(TIGER64_MARCH "core2" CACHE STRING "-march/-mtune value for the 10.4 x86_64 target")
+
 set(_tiger64_common_flags
     "-femulated-tls -fno-stack-protector -isystem ${WKT}/compat/sdk-overlay/usr/include -isystem ${WKT}/compat/include/sdk-fill")
 
@@ -70,6 +77,10 @@ set(_tiger64_cxx_flags
 # 10.4. bmalloc and libpas map TIGER64 onto their own BPLATFORM(TIGER)/PAS_PLATFORM(TIGER)
 # since those adaptations are about libSystem gaps, which the two architectures share.
 string(APPEND _tiger64_common_flags " -DWTF_PLATFORM_TIGER64=1")
+
+if (TIGER64_MARCH)
+    string(APPEND _tiger64_common_flags " -march=${TIGER64_MARCH} -mtune=${TIGER64_MARCH}")
+endif ()
 
 set(CMAKE_C_FLAGS_INIT   "${_tiger64_common_flags} -DU_DISABLE_RENAMING=1")
 set(CMAKE_CXX_FLAGS_INIT "${_tiger64_common_flags} ${_tiger64_cxx_flags}")

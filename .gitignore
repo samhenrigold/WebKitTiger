@@ -1,6 +1,9 @@
 # large/derived trees; WebKit/ and toolchain/src are their own repos
 /WebKit/
 /build/
+# TIGER64: the 64-bit JSC spike builds here rather than under build/, which is
+# shared scratch and has been swept from under a running build once.
+/build-jsc64/
 /sdk/*
 /sysroot/
 /deps/src/
