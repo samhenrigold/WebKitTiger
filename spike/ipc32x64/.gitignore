@@ -1,0 +1,6 @@
+parent32
+parent32-nogl
+child64
+hello64
+*.dSYM/
+.DS_Store
