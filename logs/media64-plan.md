@@ -324,3 +324,24 @@ Suggested order, each step independently testable on the box:
   on one thread (720p 2-thread throughput drops from 112 to 92 fps). In the real
   backend the conversion must run on the decoder thread pool or on its own thread,
   not on whatever thread drains frames.
+
+---
+
+## Addendum, 2026-09-20: §2.4 superseded
+
+The incremental-append spike (`logs/mse-demux.md`, `spike/msebench.c`) tested §2.4's
+"one AVFormatContext per SourceBuffer over a growing buffer with EAGAIN semantics"
+on the box. **It does not work**, for mov or for matroska: `mov_switch_root` zeroes
+its continuation pointer and resets `found_mdat` before parsing the next root atom
+(mov.c:10889), so the first pump at a fragment boundary with the next `moof` not yet
+appended destroys the demuxer's ability to continue. It decodes the first segment
+and nothing after.
+
+The working model is a throwaway `AVFormatContext` per append over
+`init segment || complete buffered fragments` as a finite stream, with one
+long-lived `AVCodecContext` per track. It decodes every phase (play, seek across a
+timestamp discontinuity, remove) on fMP4 H.264+AAC and WebM VP9+Opus, costs 0.32 ms
+per open and 5-7 ms per 2 s append, and makes `remove()` free. It does require ~120
+lines of our own top-level box / EBML scanning, because a truncated `mdat` parses
+into garbage packets rather than failing. See `logs/mse-demux.md` for the detail and
+the revised step list.
