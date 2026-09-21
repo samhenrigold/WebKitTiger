@@ -357,12 +357,17 @@ More broadly, `GraphicsContextCG.cpp` maps every `CompositeOperator` onto these 
 canvas `globalCompositeOperation` or CSS blend other than source-over degrades silently to
 source-over.
 
-**CGContextClipToMask: suspected, then cleared.** While building the gradient alpha path, a
-mask-clipped draw with a varying colour ramp produced a destination alpha that looked like the
-mask times the source colour rather than the mask. `spike/cgprobe.c` later probed
-`ClipToMask` directly, with both a plain mask and a varying-colour source, and both match
-modern CoreGraphics. So the fault was in how the gradient code used it, not in `ClipToMask`.
-The gradient path does not need it either way and was not changed back.
+**CGContextClipToMask: suspected, then cleared, and the misreading explained.** While building
+the gradient alpha path, a mask-clipped draw looked like it gave the destination an alpha of
+mask times source colour. Direct probes, here and on the audit track, show `ClipToMask` is
+correct: with a DeviceGray mask the destination alpha equals the mask exactly, across four fill
+colours. The *colour* channels are colour times mask, which is what premultiplied means, and
+reading one of those while expecting alpha produces exactly the reported symptom.
+
+It does have a real and silent constraint, measured on the audit track: it accepts **only** a
+DeviceGray non-alpha image. A `CGImageMaskCreate` stencil or an RGBA image clips everything
+away with no error. `GraphicsContextCG.cpp:1078` passes an RGBA image, so on Tiger that call
+blanks subsequent drawing instead of masking it. Details in `compat/CG-PROBE.md`.
 
 ### Conflicts with PAL's CoreGraphicsSPI.h
 

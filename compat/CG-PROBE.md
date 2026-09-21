@@ -117,9 +117,28 @@ rules, `CGContextEOClip`, arc and curve fills, `CGContextSetLineDash`, line caps
 the premultiplied-last big-endian bitmap layout, `CGLayer` with `CGContextDrawLayerInRect`,
 `CGPattern` fills, and `CGContextSetShouldAntialias`.
 
-`CGContextClipToMask` matched on both the plain-mask and varying-colour checks. That is worth
-noting against the earlier suspicion recorded in `CG-SURVEY.md`: the alpha anomaly seen while
-building the gradient path was **not** reproduced by a direct probe, so whatever went wrong
-there was in how the gradient code used it, not in `ClipToMask` itself. The gradient path does
-not need it either way, so it stays as it is, but the note in `CG-SURVEY.md` overstates the
-case.
+`CGContextClipToMask` matched on both the plain-mask and varying-colour checks, which clears
+the suspicion recorded earlier in `CG-SURVEY.md`.
+
+The audit track then probed it properly (`spike/clipmasktest.c`, commit 25438a1) and explained
+the original misreading. With a DeviceGray mask, destination alpha equals the mask sample
+exactly and is identical across white, red, mid grey and black fills. The **colour** channels
+are colour times mask, which is just what premultiplied means. Reading a colour channel while
+expecting alpha gives exactly the "mask times source colour" that the gradient work reported.
+Confirmed across five mask values, four fill colours and a colour ramp.
+
+So the two-bitmap composite in `cgcompat.c` is not forced by `ClipToMask` being broken. It is
+kept because it is measured and passing, and the comment there now says so.
+
+**Two real `ClipToMask` failures, both silent** (audit track, same probe). Tiger's
+`ClipToMask` accepts only a DeviceGray non-alpha image:
+
+- a `CGImageMaskCreate` stencil clips everything away, at mask sample 0 and 255 alike
+- an RGBA image clips everything away, at any alpha
+
+Neither reports an error. Both images are well formed: drawing them with `CGContextDrawImage`
+instead renders correctly, so `ClipToMask` is what rejects them. This has a consequence in
+WebCore at `GraphicsContextCG.cpp:1078`, `clipToImageBuffer`, which passes an RGBA image and
+already carries a FIXME saying it should be grayscale. On Tiger that call does not mask, it
+blanks everything drawn afterwards in the clipped region. The fix is a grayscale conversion at
+the call site, in WebCore rather than here.

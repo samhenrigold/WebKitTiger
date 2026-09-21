@@ -1,0 +1,264 @@
+# ctprobe
+cgfloat_is_double                                    true
+
+## 01 font load (helper: CTFontManagerCreateFontDescriptorFromData)
+font.bytes                                           756072
+font.descriptorFromData                              true
+
+## 02 CTFontDescriptorCopyAttribute / CopyAttributes
+desc.CTFontDescriptorCopyAttribute.Name              "DejaVuSans"
+desc.CTFontDescriptorCopyAttribute.Family            "DejaVu Sans"
+desc.CTFontDescriptorCopyAttribute.Style             "Book"
+desc.CTFontDescriptorCopyAttribute.Size              (null)
+desc.CTFontDescriptorCopyAttribute.Traits            dict[4]
+desc.CTFontDescriptorCopyAttributes                  [1] NSFontNameAttribute
+
+## 03 font at size 12
+size12.CTFontCreateWithFontDescriptor                true
+size12.CTFontGetSize                                 12.000000
+size12.CTFontGetAscent                               11.138672
+size12.CTFontGetDescent                              2.830078
+size12.CTFontGetLeading                              0.000000
+size12.CTFontGetCapHeight                            8.824219
+size12.CTFontGetXHeight                              6.638672
+size12.CTFontGetUnderlinePosition                    -0.761719
+size12.CTFontGetUnderlineThickness                   0.527344
+size12.CTFontGetUnitsPerEm                           2048
+size12.CTFontGetSymbolicTraits                       0x0
+size12.CTFontGetMatrix                               [1.000000 0.000000 0.000000 1.000000 0.000000 0.000000]
+size12.CTFontCopyFamilyName                          "DejaVu Sans"
+size12.CTFontCopyPostScriptName                      "DejaVuSans"
+size12.CTFontCopyAttribute.Family                    "DejaVu Sans"
+size12.CTFontCopyAttribute.Size                      12.000000
+size12.glyphs.latin.allMapped                        true
+size12.glyphs.latin.ids                              36 57 36 3 73 76 3 58 68 89 72
+size12.glyphs.arabic.allMapped                       true
+size12.glyphs.arabic.ids                             1382 1374 1365 1394 1366
+size12.glyphs.cjk.allMapped                          false
+size12.glyphs.cjk.ids                                0 0 0
+size12.glyphs.mixed.allMapped                        false
+size12.glyphs.mixed.ids                              68 69 932 837 1365 0
+size12.CTFontCopyCharacterSet                        U+0041=y U+007A=y U+00E9=y U+0410=y U+03B1=y U+0628=y U+4E00=n U+3042=n U+20AC=y
+
+## 04 font at size 16
+size16.CTFontCreateWithFontDescriptor                true
+size16.CTFontGetSize                                 16.000000
+size16.CTFontGetAscent                               14.851562
+size16.CTFontGetDescent                              3.773438
+size16.CTFontGetLeading                              0.000000
+size16.CTFontGetCapHeight                            11.765625
+size16.CTFontGetXHeight                              8.851562
+size16.CTFontGetUnderlinePosition                    -1.015625
+size16.CTFontGetUnderlineThickness                   0.703125
+size16.CTFontGetUnitsPerEm                           2048
+size16.CTFontGetSymbolicTraits                       0x0
+size16.CTFontGetMatrix                               [1.000000 0.000000 0.000000 1.000000 0.000000 0.000000]
+size16.CTFontCopyFamilyName                          "DejaVu Sans"
+size16.CTFontCopyPostScriptName                      "DejaVuSans"
+size16.CTFontCopyAttribute.Family                    "DejaVu Sans"
+size16.CTFontCopyAttribute.Size                      16.000000
+size16.glyphs.latin.allMapped                        true
+size16.glyphs.latin.ids                              36 57 36 3 73 76 3 58 68 89 72
+size16.glyphs.arabic.allMapped                       true
+size16.glyphs.arabic.ids                             1382 1374 1365 1394 1366
+size16.glyphs.cjk.allMapped                          false
+size16.glyphs.cjk.ids                                0 0 0
+size16.glyphs.mixed.allMapped                        false
+size16.glyphs.mixed.ids                              68 69 932 837 1365 0
+size16.CTFontCopyCharacterSet                        U+0041=y U+007A=y U+00E9=y U+0410=y U+03B1=y U+0628=y U+4E00=n U+3042=n U+20AC=y
+
+## 05 font at size 24
+size24.CTFontCreateWithFontDescriptor                true
+size24.CTFontGetSize                                 24.000000
+size24.CTFontGetAscent                               22.277344
+size24.CTFontGetDescent                              5.660156
+size24.CTFontGetLeading                              0.000000
+size24.CTFontGetCapHeight                            17.648438
+size24.CTFontGetXHeight                              13.277344
+size24.CTFontGetUnderlinePosition                    -1.523438
+size24.CTFontGetUnderlineThickness                   1.054688
+size24.CTFontGetUnitsPerEm                           2048
+size24.CTFontGetSymbolicTraits                       0x0
+size24.CTFontGetMatrix                               [1.000000 0.000000 0.000000 1.000000 0.000000 0.000000]
+size24.CTFontCopyFamilyName                          "DejaVu Sans"
+size24.CTFontCopyPostScriptName                      "DejaVuSans"
+size24.CTFontCopyAttribute.Family                    "DejaVu Sans"
+size24.CTFontCopyAttribute.Size                      24.000000
+size24.glyphs.latin.allMapped                        true
+size24.glyphs.latin.ids                              36 57 36 3 73 76 3 58 68 89 72
+size24.glyphs.arabic.allMapped                       true
+size24.glyphs.arabic.ids                             1382 1374 1365 1394 1366
+size24.glyphs.cjk.allMapped                          false
+size24.glyphs.cjk.ids                                0 0 0
+size24.glyphs.mixed.allMapped                        false
+size24.glyphs.mixed.ids                              68 69 932 837 1365 0
+size24.CTFontCopyCharacterSet                        U+0041=y U+007A=y U+00E9=y U+0410=y U+03B1=y U+0628=y U+4E00=n U+3042=n U+20AC=y
+
+## 06 descriptor round trips
+CTFontCopyFontDescriptor                             true
+CTFontCopyFontDescriptor.attributes                  [2] NSFontNameAttribute NSFontSizeAttribute
+CTFontCopyFontDescriptor.Name                        "DejaVuSans"
+CTFontCopyFontDescriptor.Family                      "DejaVu Sans"
+CTFontCopyFontDescriptor.Style                       "Book"
+CTFontCopyFontDescriptor.Size                        16.000000
+CTFontCopyFontDescriptor.Traits                      dict[4]
+CTFontDescriptorCreateWithNameAndSize                true
+  -> CTFontCreateWithFontDescriptor(size 0)          true
+  -> size carried from descriptor                    18.000000
+  -> family                                          "Helvetica"
+CTFontDescriptorCreateWithAttributes                 true
+  -> font                                            true
+  -> size                                            18.000000
+  -> postScriptName                                  "Helvetica"
+CTFontCreateCopyWithAttributes                       true
+  -> size                                            30.000000
+  -> ascent                                          27.846680
+  -> family                                          "DejaVu Sans"
+
+## 07 CTFontCreateWithName
+CTFontCreateWithName(family, 20)                     true
+  -> size                                            20.000000
+  -> family                                          "Helvetica"
+  -> ascent                                          15.400391
+CTFontCreateWithName(bogus, 14)                      true
+  -> substituted family                              "Helvetica"
+  -> size                                            14.000000
+
+## 08 CTFontCreateWithGraphicsFont
+helper CTFontCopyGraphicsFont                        true
+CTFontCreateWithGraphicsFont                         true
+  -> size                                            22.000000
+  -> ascent                                          20.420898
+  -> unitsPerEm                                      2048
+  -> postScriptName                                  "DejaVuSans"
+cgfont.glyphs.latin.allMapped                        true
+cgfont.glyphs.latin.ids                              36 57 36 3 73 76 3 58 68 89 72
+
+## 09 CTFontCopyFeatures / CTFontCopyVariationAxes
+CTFontCopyFeatures.count                             7
+CTFontCopyFeatures[0].keys                           [3] CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+CTFontCopyFeatures[1].keys                           [3] CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+CTFontCopyFeatures[2].keys                           [4] CTFeatureTypeExclusive CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+CTFontCopyFeatures[3].keys                           [4] CTFeatureTypeExclusive CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+CTFontCopyFeatures[4].keys                           [3] CTFeatureTypeIdentifier CTFeatureTypeName CTFeatureTypeSelectors
+CTFontCopyFeatures[5].keys                           [4] CTFeatureOpenTypeTag CTFeatureTypeExclusive CTFeatureTypeName CTFeatureTypeSelectors
+CTFontCopyFeatures[6].keys                           [4] CTFeatureOpenTypeTag CTFeatureTypeExclusive CTFeatureTypeName CTFeatureTypeSelectors
+CTFontCopyVariationAxes                              (null)
+
+## 10 line layout at size 16
+line.latin.created                                   true
+line.latin.CTLineGetStringRange                      {0, 11}
+line.latin.CTLineGetGlyphRuns.count                  1
+line.latin.run0.CTRunGetGlyphCount                   10
+line.latin.run0.CTRunGetStatus                       0x0
+line.latin.run0.CTRunGetStringRange                  {0, 11}
+line.latin.run0.CTRunGetAttributes                   [1] NSFont
+line.latin.run0.CTRunGetGlyphsPtr                    (null)
+line.latin.run0.CTRunGetAdvancesPtr                  (null)
+line.latin.run0.CTRunGetStringIndicesPtr             (null)
+line.latin.CTLineCreateTruncatedLine.created         true
+line.latin.CTLineCreateTruncatedLine.range           {0, 11}
+line.latin.CTLineCreateTruncatedLine.runs            1
+line.arabic.created                                  true
+line.arabic.CTLineGetStringRange                     {0, 5}
+line.arabic.CTLineGetGlyphRuns.count                 1
+line.arabic.run0.CTRunGetGlyphCount                  5
+line.arabic.run0.CTRunGetStatus                      0x1
+line.arabic.run0.CTRunGetStringRange                 {0, 5}
+line.arabic.run0.CTRunGetAttributes                  [1] NSFont
+line.arabic.run0.CTRunGetGlyphsPtr                   5259 5355 5256 5285 5314
+line.arabic.run0.CTRunGetAdvancesPtr                 (null)
+line.arabic.run0.CTRunGetStringIndicesPtr            4 3 2 1 0
+line.arabic.CTLineCreateTruncatedLine.created        true
+line.arabic.CTLineCreateTruncatedLine.range          {0, 5}
+line.arabic.CTLineCreateTruncatedLine.runs           1
+line.cjk.created                                     true
+line.cjk.CTLineGetStringRange                        {0, 3}
+line.cjk.CTLineGetGlyphRuns.count                    1
+line.cjk.run0.CTRunGetGlyphCount                     3
+line.cjk.run0.CTRunGetStatus                         0x0
+line.cjk.run0.CTRunGetStringRange                    {0, 3}
+line.cjk.run0.CTRunGetAttributes                     [1] NSFont
+line.cjk.run0.CTRunGetGlyphsPtr                      193 568 489
+line.cjk.run0.CTRunGetAdvancesPtr                    (null)
+line.cjk.run0.CTRunGetStringIndicesPtr               0 1 2
+line.cjk.CTLineCreateTruncatedLine.created           true
+line.cjk.CTLineCreateTruncatedLine.range             {0, 3}
+line.cjk.CTLineCreateTruncatedLine.runs              1
+line.mixed.created                                   true
+line.mixed.CTLineGetStringRange                      {0, 6}
+line.mixed.CTLineGetGlyphRuns.count                  5
+line.mixed.run0.CTRunGetGlyphCount                   2
+line.mixed.run0.CTRunGetStatus                       0x0
+line.mixed.run0.CTRunGetStringRange                  {0, 2}
+line.mixed.run0.CTRunGetAttributes                   [1] NSFont
+line.mixed.run0.CTRunGetGlyphsPtr                    68 69
+line.mixed.run0.CTRunGetAdvancesPtr                  (null)
+line.mixed.run0.CTRunGetStringIndicesPtr             0 1
+line.mixed.run1.CTRunGetGlyphCount                   1
+line.mixed.run1.CTRunGetStatus                       0x0
+line.mixed.run1.CTRunGetStringRange                  {2, 1}
+line.mixed.run1.CTRunGetAttributes                   [1] NSFont
+line.mixed.run1.CTRunGetGlyphsPtr                    932
+line.mixed.run1.CTRunGetAdvancesPtr                  (null)
+line.mixed.run1.CTRunGetStringIndicesPtr             2
+line.mixed.run2.CTRunGetGlyphCount                   1
+line.mixed.run2.CTRunGetStatus                       0x0
+line.mixed.run2.CTRunGetStringRange                  {3, 1}
+line.mixed.run2.CTRunGetAttributes                   [1] NSFont
+line.mixed.run2.CTRunGetGlyphsPtr                    837
+line.mixed.run2.CTRunGetAdvancesPtr                  (null)
+line.mixed.run2.CTRunGetStringIndicesPtr             3
+line.mixed.run3.CTRunGetGlyphCount                   1
+line.mixed.run3.CTRunGetStatus                       0x1
+line.mixed.run3.CTRunGetStringRange                  {4, 1}
+line.mixed.run3.CTRunGetAttributes                   [1] NSFont
+line.mixed.run3.CTRunGetGlyphsPtr                    1365
+line.mixed.run3.CTRunGetAdvancesPtr                  (null)
+line.mixed.run3.CTRunGetStringIndicesPtr             4
+line.mixed.run4.CTRunGetGlyphCount                   1
+line.mixed.run4.CTRunGetStatus                       0x0
+line.mixed.run4.CTRunGetStringRange                  {5, 1}
+line.mixed.run4.CTRunGetAttributes                   [1] NSFont
+line.mixed.run4.CTRunGetGlyphsPtr                    193
+line.mixed.run4.CTRunGetAdvancesPtr                  (null)
+line.mixed.run4.CTRunGetStringIndicesPtr             5
+line.mixed.CTLineCreateTruncatedLine.created         true
+line.mixed.CTLineCreateTruncatedLine.range           {0, 6}
+line.mixed.CTLineCreateTruncatedLine.runs            1
+
+## 11 CTTypesetterCreateLine
+helper CTTypesetterCreateWithAttributedString        true
+CTTypesetterCreateLine{0,5}                          true
+  -> stringRange                                     {0, 5}
+  -> runs                                            1
+  -> run0 glyphs                                     5
+
+## 12 CTLineCreateWithUniCharProvider
+CTLineCreateWithUniCharProvider                      true
+  -> runs                                            1
+  -> run0 glyphs                                     8
+  -> run0 glyphsPtr                                  51 85 82 89 76 71 72 71
+
+## 13 CTParagraphStyleCreate
+CTParagraphStyleCreate                               true
+  -> alignment readback ok                           true
+  -> alignment value                                 2
+  -> firstLineHeadIndent readback ok                 true
+  -> firstLineHeadIndent value                       7.500000
+
+## 14 framesetter
+CTFramesetterCreateWithAttributedString              true
+CTFramesetterCreateFrame                             true
+CTFrameGetLines.count                                8
+CTFrameGetLines[0].stringRange                       {0, 7}
+CTFrameGetLines[1].stringRange                       {7, 11}
+CTFrameGetLines[2].stringRange                       {18, 11}
+CTFrameGetLines[3].stringRange                       {29, 11}
+CTFrameGetLines[4].stringRange                       {40, 11}
+CTFrameGetLines[5].stringRange                       {51, 11}
+CTFrameGetLines[6].stringRange                       {62, 11}
+CTFrameGetLines[7].stringRange                       {73, 4}
+
+## 15 end
+status                                               "complete"

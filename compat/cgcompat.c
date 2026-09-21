@@ -617,11 +617,18 @@ static CGShadingRef createShading(int radial, CGColorSpaceRef space, CGFunctionR
    same shading in both passes, and the two are combined into a premultiplied
    RGBA image that gets drawn into the clip.
 
-   CGContextClipToMask was the obvious route and is not used on purpose. Tiger's
-   version does not give the destination its alpha from the mask alone: with a
-   colour ramp that varies, the resulting alpha came out as the mask times the
-   source colour rather than the mask, which is wrong for exactly the fade the
-   caller asked for.
+   CGContextClipToMask would also work, and the reason this does not use it is
+   historical rather than technical. While building this path a mask-clipped
+   draw looked like it was giving the destination an alpha of mask times source
+   colour; a later direct probe of ClipToMask, both here and on the audit track,
+   showed it is correct with a DeviceGray non-alpha mask and that the earlier
+   reading was of the premultiplied colour channel, which IS colour times mask.
+   The two-bitmap composite is kept because it is measured and passing, not
+   because ClipToMask is broken.
+
+   If this is ever revisited, note the constraint the audit track measured:
+   Tiger's ClipToMask accepts only a DeviceGray non-alpha image. A
+   CGImageMaskCreate stencil or an RGBA image clips everything away, silently.
 
    ponytail: the composite is rasterized at the clip's device size, capped
    below. An opaque gradient skips all of this and draws the shading directly. */

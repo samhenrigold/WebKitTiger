@@ -88,6 +88,18 @@ Class objc_allocateClassPair(Class superclass, const char *name, size_t extraByt
 void objc_registerClassPair(Class cls);
 void objc_disposeClassPair(Class cls);
 
+/* ARC weak entry points, implemented in compat/arc.m. Apple declares these in <objc/objc.h>, which
+ * the 10.4 SDK predates. WebKit's own wtf/spi/cocoa/objcSPI.h declares five of the seven, but not
+ * objc_storeWeak or objc_loadWeak, and WeakObjCPtr.h calls both from its non-ARC branch. Declaring
+ * the whole family here keeps them in one place; the overlapping five match objcSPI.h exactly. */
+id objc_loadWeak(id *location);
+id objc_loadWeakRetained(id *location);
+id objc_storeWeak(id *location, id obj);
+id objc_initWeak(id *location, id value);
+void objc_destroyWeak(id *location);
+void objc_copyWeak(id *to, id *from);
+void objc_moveWeak(id *to, id *from);
+
 typedef uintptr_t objc_AssociationPolicy;
 #define OBJC_ASSOCIATION_ASSIGN           ((objc_AssociationPolicy)0)
 #define OBJC_ASSOCIATION_RETAIN_NONATOMIC ((objc_AssociationPolicy)1)

@@ -33,6 +33,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* SPI on modern macOS (WebKit declares it in CoreTextSPI.h) and declared by the
+   Tiger overlay. Spelled here exactly as the overlay spells it so both agree. */
+extern CTLineRef CTLineCreateWithUniCharProvider(
+    const UniChar *(*provider)(CFIndex, CFIndex *, CFDictionaryRef *, void *),
+    void (*dispose)(const UniChar *, void *), void *refCon);
+
 /* ---------- canonical output helpers ---------- */
 
 static int g_section;
@@ -244,7 +250,7 @@ static const UniChar *provider_get(CFIndex idx, CFIndex *count, CFDictionaryRef 
     if (attrs) *attrs = d;
     return chunk + idx;
 }
-static void provider_dispose(void *info) { (void)info; }
+static void provider_dispose(const UniChar *chars, void *info) { (void)chars; (void)info; }
 
 int main(int argc, char **argv) {
     const char *path = argc > 1 ? argv[1] : "spike/ctprobe-data/DejaVuSans.ttf";
@@ -495,7 +501,9 @@ int main(int argc, char **argv) {
     /* ---- paragraph style ---- */
     section("CTParagraphStyleCreate");
     {
-        CTTextAlignment align = kCTTextAlignmentCenter;
+        /* the deprecated spelling: the only one the Tiger overlay declares, and modern
+           CoreText still defines it with the same value (2). */
+        CTTextAlignment align = kCTCenterTextAlignment;
         double firstIndent = 7.5;
         CTParagraphStyleSetting set[2];
         set[0].spec = kCTParagraphStyleSpecifierAlignment;
