@@ -813,3 +813,36 @@ of the source directly (see deps/src/icu-x86_64, "TIGER64: patched") rather than
   EBML scanning, and the ISO-BMFF cut must be at the last complete **mdat**, not the last complete box (a moof
   without its mdat yields nothing and gets consumed: 0 packets at every split). With the scanner, append
   granularity stops mattering (600/600 frames at 1, 2, 4, 16 and 64 appends per segment).
+- **Actually final (23:25), and this one is verified by symbol ownership rather than by a passing test:
+  64-bit `os_*` lives in `libtigerdispatch.a`, not in libtigercompat.** compat/dispatch restored its x86_64 target
+  (833495c) and the lead accepted that as the end state, so the os.c fold-in recorded above was reverted. Link
+  **`-ltigercompat -ltigerdispatch`** for os_log / os_retain / os_release / os_unfair_lock / os_signpost / sys/qos.
+  Checked on the box: dispatch's `spike/os64test.c` passes (os_unfair_lock across 4 threads, os_log, os_signpost),
+  a lifecycle program (os_log_create + os_retain + os_release) runs, and the same program fails to link without
+  `-ltigerdispatch`. x86_64 libtigercompat.a members: availability.c.o, libcompat.c.o, tlv.c.o, cfcompat.c.o, runtime.c.o.
+  - **The check that actually settles this is `nm` on both archives, not a program that runs.** For twenty minutes both
+    archives carried os.o, and separately there was a window where neither did; in both windows a test could pass or
+    fail for the wrong reason. `tiger-nm -g` on each archive for os_log_create, os_unfair_lock_lock and os_release
+    gives 0 from libtigercompat and 3 from libtigerdispatch, which is the invariant. Assert ownership, not liveness.
+  - Three agents changed this in one hour by independent commits. If it ever moves back to compat it has to be **one
+    commit** that adds os.c, stages `dispatch/include/{os,sys}` and retires the 64-bit libtigerdispatch together.
+    Never `dispatch/` itself: a 64-bit TU including `<dispatch/dispatch.h>` must fail at the include, because
+    `dispatch_*` cannot exist in 64-bit (the main queue needs CFRunLoop; Tiger has no x86_64 CoreFoundation).
+- **Correction to my Availability.h entry above: there was nothing to restore, and what I restored was a superseded
+  draft.** The canonical file is `compat/sdk-overlay/usr/include/Availability.h`, which is present and is the better
+  one: its version constants come from the real AvailabilityVersions.h out of the Xcode 27 SDK, where the sdk-fill
+  draft hardcoded them. I had recreated the draft at compat/include/sdk-fill/Availability.h from a staged copy and
+  committed it; that is now removed, along with the copy I had newly staged into sysroot-x86_64. The long-standing
+  i386 staged copy is left alone. **Two headers with the same name and different content is worse than one missing
+  header**, and "it exists in a sysroot" was not evidence that it belonged in the source tree.
+- Live NSView hosting over the CA surface (cahost ec5b1f6): works (10.4 ms/frame scrolling 40 controls, 0.7 at rest) and is
+  the FALLBACK path only; the chosen path paints controls into page pixels (DrawControlPart + aquacontrols.m). Rules that
+  survive either way: NSOpenGLCPSurfaceOrder=-1 + isOpaque NO + NSRectFillUsingOperation(NSCompositeCopy) to punch the hole;
+  controls must be SUBVIEWS of the GL view; invalidate old+new rects on setFrame:; Tab traversal is gated on the global
+  AppleKeyboardUIMode (host must walk focus itself, which matches WebCore FocusController); popup menus are their own
+  windows and need nothing.
+- Text input (browsershell bf7a40d): command vocabulary on 10.4 matches WebHTMLView.mm selector names exactly; Ctrl-A/E
+  map to ...OfParagraph:, not ...OfLine:. Synthetic NSEvents for arrows need the 0xF7xx PUA glyph in `characters` or
+  interpretKeyEvents: emits insertText:"". Dead keys/IME need the real TSM pipeline (CGEventPost), deferred.
+- Box state changes by agents (2026-09-21 ~02:55): screensaver idle timer disabled (defaults -currentHost write
+  com.apple.screensaver idleTime 0); a stale root-owned crash-report dialog from an earlier CAVideo run was on screen.
