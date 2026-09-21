@@ -165,7 +165,26 @@ libraries inserted, and loading CoreGraphics and CoreText alongside does not dis
 is not argument shape: `CGRect` is 32 bytes and therefore passed in memory, which an earlier
 version of the test got wrong, and fixing that did not change the fault. Tracing shows
 `vproc_swap_integer` called twice immediately before the crash, but making it report success
-rather than failure did not help either. The cause is not isolated.
+rather than failure did not help either.
+
+**It is also not the cross-linker.** cctools ld64 has a known x86_64 crash in its classic
+stub pass, which raised the possibility that it had quietly mis-linked the shim. So the
+shim, the stubs and the probe were all recompiled to objects, copied to the box, and
+relinked there with Xcode 2.5's own `ld64-62.1`. Both builds crash at the same call:
+
+```
+cross-linked  EXIT=139
+box-linked    EXIT=139
+```
+
+That rules the toolchain out and points at CoreGraphics itself or at something it expects
+from the system that a headless Tiger process does not provide. The cause is still not
+isolated.
+
+Linking on the box, for anyone who needs it: ld64-62.1 wants `-dylib_install_name` rather
+than `-install_name`, `-dylib_compatibility_version` and `-dylib_current_version` rather
+than the modern spellings, and it will not supply the startup objects itself, so
+`/usr/lib/dylib1.o` goes on a dylib link and `/usr/lib/crt1.o` on an executable one.
 
 **CoreText was not exercised.** It loads, but the planned calls need a context to draw into.
 
