@@ -584,16 +584,37 @@ It is the obvious alternative and it looks good at one size, so the measurement 
 recording. For Helvetica at 16pt, `[NSFont capHeight]` gives 11.500 against modern's
 11.477, where this heuristic gives 11.633. Nearly seven times closer.
 
-It does not survive a size sweep. **Tiger's NSFont quantises to the same half-point grid
-as its CoreText**, because it is the same ATS measurement underneath: 7.0 at 9pt, 8.0 at
-both 10 and 11pt, 9.0 at 12pt, 73.0 at 100pt. Against modern Helvetica's declared
-`sCapHeight` of 1469/2048, that is 8.4% out at 9pt and 11.5% out at 10pt. The 16pt
-agreement is luck, the one size where the grid lands near the true value, and 16pt is
-where it was measured.
+It does not survive a size sweep, and it does not survive a second font. **Tiger's NSFont
+quantises to a half-point grid**: Helvetica cap height is 7.0 at 9pt, 8.0 at both 10 and
+11pt, 9.0 at 12pt, 73.0 at 100pt. The 16pt agreement is the one size where the grid lands
+near the true value, and 16pt is where it was measured.
 
-So NSFont would reintroduce exactly the quantisation these adapters exist to remove, and
-at a larger worst-case error than Tiger's CoreText had. It would also put an AppKit
-dependency inside a CoreText compat library. Not taken.
+Measured properly, with **identical font bytes on both machines** so that no part of the
+difference is one font file against another, four fonts at eight sizes for both metrics,
+64 comparisons, error against modern CoreText:
+
+| font | metric | adapter mean | adapter max | NSFont mean | NSFont max |
+|---|---|---|---|---|---|
+| Arial | cap | 0.000% | 0.000% | 1.92% | 4.70% |
+| Arial | x | 0.000% | 0.000% | 3.57% | 7.14% |
+| Georgia | cap | 0.000% | 0.000% | 2.02% | 4.97% |
+| Georgia | x | 0.000% | 0.000% | 4.33% | 7.69% |
+| Verdana | cap | 0.000% | 0.000% | 2.37% | 6.98% |
+| Verdana | x | 0.000% | 0.000% | 2.06% | 6.95% |
+| DejaVu Sans | cap | 0.033% | 0.034% | 2.29% | 5.77% |
+| DejaVu Sans | x | 0.044% | 0.045% | 1.83% | 5.44% |
+
+Worst case: **adapter 0.05%, NSFont 7.69%.** The adapter is exact wherever the font
+declares `sCapHeight` and `sxHeight`, because it reads them; only DejaVu, whose OS/2 is
+version 1, falls through to the glyph heuristic.
+
+That also answers what NSFont reads, without needing a disassembly. Arial, Georgia and
+Verdana all carry valid OS/2 version 2+ fields, which is why the adapter is exact on them
+to four decimal places. **NSFont is still 2-7% out on those same fonts**, so it is not
+reading the table; it is measuring a rasterised outline, which is why the values land on
+a half-point grid. Reading the field directly in C, which is what these adapters already
+do, is strictly better than going through AppKit and gets the AppKit dependency out of a
+CoreText compat library for free. Not taken.
 
 One methodological note, because the comparison is easy to set up wrongly. **Tiger's
 Helvetica is not modern macOS's Helvetica.** Tiger's has no usable OS/2 table at all,
