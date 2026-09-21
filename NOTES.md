@@ -2063,3 +2063,20 @@ moment the archive lands.
   comes from, including the one the web process makes for its own GPU connection.
 - -dead_strip did NOT bite: the web process ran a full load, parse, style, layout and font resolution
   with JSC linked in and nothing was missing.
+- **tiger-check-ipc found its first real divergence** (WebKit d43e837f). Two more bugs in the check
+  first, both invisible until two trees generated serializers — which happened this round, when the
+  GPU tree turned WebKit2 on: the SHA256 reads still used the pre-fix path (a hard CMake error rather
+  than a result), and the glob excluded `.messages-stage` but not `.serializers-stage`.
+  Then the noise: nine generated serializers differ between tiger-gpu and tiger-web-port in their
+  **include block only** — the generator emits `FontPlatformData.h` and `CoreIPCLOGFONT.h` for a
+  USE(CAIRO) port and not for a USE(CG) one, while every encoder and decoder below is byte-identical,
+  because the conditions that shape the wire are copied into the body and evaluated by the compiler.
+  The check now re-compares from the first `namespace` line and calls those "includes only, same wire".
+  **What is left is real: `GeneratedSerializersShared.cpp` differs in the BODY, and
+  `tiger-gpu vs tiger-web-port` FAILS.** It is `WebCore::CustomFontCreationData` under
+  `USE(CORE_TEXT)` — present on the i386 side, compiled away on the x86_64 side. That is exactly the
+  `FontPlatformDataAttributes` divergence logs/render-process-survey.md named as one of the three
+  types needing a neutral encoding before anything renders. Left failing on purpose: it spans both
+  sides and wants one coordinated change, not a whitelist entry.
+  (`LOGFONT`/`CoreIPCLOGFONT` also appears, under `USE(CAIRO) && PLATFORM(WIN)` — dead text on both
+  sides, no wire effect, but a reminder that the cairo arm is written for WinCairo.)
