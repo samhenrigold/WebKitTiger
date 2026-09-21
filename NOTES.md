@@ -3179,8 +3179,11 @@ GC redesign, a hand-written ABI bridge for all of libSystem, a 2 GB ceiling, the
 signal-based JIT mechanism, and a failure mode that panics the machine, that is not a trade worth
 taking. **Recommendation: keep the 64-bit content process + thin 32-bit UI split.**
 
-The reusable part is narrower and genuinely useful: a *small, self-contained* 64-bit compute
-kernel inside a 32-bit process — no syscalls, no signals expected, no GC, bounded runtime, all
-memory below 2 GB — is viable today with just `h32common.h` and a far-call entry point. A codec
-inner loop, a rasteriser, or a hash/compression kernel would work. Anything with a runtime under
-it would not.
+The reusable part is narrower than it looked a section ago, and it now comes with a register
+constraint that has to be honoured by hand. A *small, self-contained* 64-bit compute kernel inside
+a 32-bit process is still viable with just `h32common.h` and a far-call entry point — no syscalls,
+no libSystem calls, no signals expected, memory below 2 GB, few enough crossings that the ~1-in-10^8
+bridge fault does not matter — **but it may only keep 64-bit values in r8–r15**, because the upper
+halves of rax–rdi are silently reset a few hundred times a second. That rules out anything a
+compiler generates and leaves hand-written assembly kernels, where the register discipline is
+explicit: a wide-integer or hash inner loop would work, a C-compiled codec or rasteriser would not.
