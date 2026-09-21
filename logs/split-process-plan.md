@@ -1,19 +1,24 @@
 # A 64-bit content process on Mac OS X 10.4.11
 
 Design for option (3) of the JS-performance decision in `NOTES.md`: a
-WebKit2-shaped split, with a 32-bit Cocoa UI process and an x86_64 content
-process carrying WTF, JSC (for the maintained x86_64 JIT, including FTL) and
-WebCore.
+WebKit2-shaped split, with a 32-bit Cocoa UI process, an x86_64 content process
+carrying WTF, JSC (for the maintained x86_64 JIT, including FTL) and WebCore,
+and an x86_64 NetworkProcess (§2.6 — it is mandatory in modern WebKit2, so this
+is three processes, not two).
 
 Written 2026-09-20 against the fork at `df6cc9ff`. Read-only: nothing under
 `WebKit/` was modified. `Source/WebKit` (65 MB, the full WebKit2 tree) was
 fetched into the sparse checkout to write this; that is the only change to the
 working tree.
 
-The two spikes this was supposed to wait on (`logs/jsc64-spike.md`,
-`logs/leopard-x86_64-spike.md`) have not landed yet, so §3 branches on their
-outcomes. Where I could settle a question myself with the material already in
-the repo, I did, and those answers are marked **measured**.
+Revised after the user set the direction (`NOTES.md`, "DIRECTION SET BY THE
+USER"): option (3) is chosen, the targets are YouTube, React applications and
+The Verge, and the governing principle is **as much 64-bit as possible**.
+
+`logs/leopard-x86_64-spike.md` has landed and §2.1 is rewritten around it.
+`logs/jsc64-spike.md` has not, so the JIT premise in §3.2 and milestone N0 in §6
+remain the one unverified load-bearing assumption. Where I could settle a
+question myself from the repo, I did, and those answers are marked **measured**.
 
 ---
 
@@ -335,58 +340,91 @@ to the extent that its fixes are generic rather than Cocoa-specific.
 
 ### 2.1 Branch (a): Leopard's x86_64 frameworks loaded privately
 
-**Status: not dead, but it chains further than the brief assumed.** The
-`leopard` agent is measuring the real binaries; what follows is what I could
-establish from the 10.5 SDK stubs already in the repo, and it is a useful
-early signal rather than a verdict.
+**Status, per `logs/leopard-x86_64-spike.md`: plausible, one fault away.**
+The spike has run on the box and supersedes the estimate I made from the SDK
+stubs. Worth recording that the two agreed exactly — I measured 12 unresolved
+libSystem symbols for CoreFoundation from the 10.5 SDK stub, and the spike
+measured 12 from the real binary. The method is sound, which matters for the
+next time someone wants a cheap answer before a spike lands.
 
-Leopard's x86_64 CoreFoundation has 419 undefined symbols. Against Tiger's
-x86_64 libSystem exports, 200 are unresolved, of which **12 are genuine
-libSystem version gaps** (present in Leopard's x86_64 libSystem, absent from
-Tiger's):
+What the spike established on the box:
 
-```
-_bootstrap_look_up2   _bootstrap_register2  _bootstrap_strerror
-_dlopen_preflight     _flsl                 _fstat64
-_gethostuuid          _stat64               _vproc_swap_integer
-_OSAtomicCompareAndSwapPtr  _OSAtomicCompareAndSwapPtrBarrier
-_select$DARWIN_EXTSN
-```
+| Framework | undefined | unresolved against Tiger |
+|---|---|---|
+| **CoreText** | 391 | **0** |
+| ColorSync | 219 | 1 |
+| ATS | 334 | 3 |
+| libobjc | 132 | 3 |
+| CoreGraphics | 624 | 9 |
+| CoreFoundation | 419 | 12 |
+| Foundation | 1613 | 19 |
 
-That is a **shimmable** list, unlike the CFNetwork 250 lead in `atv/REPORT.md`
-which needed private CoreFoundation internals. `flsl` is three lines;
-`OSAtomicCompareAndSwapPtr` is a CAS on a pointer, which Tiger has at 64 bits;
-`select$DARWIN_EXTSN` is an alias; `stat64`/`fstat64` are struct translations;
-the four bootstrap and `vproc` entries are launchd machinery that can fail
-gracefully.
+**CoreText needs nothing at all.** That is the single most interesting number
+here, because text rendering is precisely where branch (b) is weakest (§2.4).
 
-**But the remaining 188 undefined symbols are the chain**, and they are the
-problem:
+Results: all three of CoreFoundation, CoreGraphics and CoreText **load** into a
+64-bit process on 10.4.11. CoreFoundation **works** — real strings, correct
+`CFGetTypeID`, a live run loop. CoreGraphics **half works**: colour spaces are
+real objects, but **`CGBitmapContextCreate` faults** with SIGSEGV in every
+variant tried. CoreText loads but could not be exercised without a context.
 
-- `___objc_personality_v0`, `__objc_empty_cache`, `__objc_empty_vtable`,
-  `_class_addMethod`, … — Leopard's x86_64 **ObjC 2.0 runtime**. You would be
-  bringing `libobjc` too.
-- `_auto_zone_*`, `_auto_assign_weak_reference`, … — **libauto**, Leopard's
-  garbage collector, which CF on 64-bit was built against.
+Three findings from that spike are worth carrying regardless of which branch
+wins:
 
-So branch (a) is not "load CoreGraphics" but "bring up a private Leopard
-userland — libobjc, libauto, CoreFoundation, then ApplicationServices —
-inside a Tiger process." Each layer adds its own version gap against Tiger's
-libSystem. The 12-symbol result is encouraging for the *first* layer only.
+- **`LC_REEXPORT_DYLIB` (0x8000001f) must be demoted to `LC_LOAD_DYLIB`.**
+  Leopard introduced it and dyld-46 refuses outright; CoreServices carries ten.
+  `spike/demote-reexports.py` rewrites the command word, and the structures are
+  identical so nothing else changes. The dropped re-export costs nothing under
+  `DYLD_FORCE_FLAT_NAMESPACE=1`.
+- **`dyld_register_image_state_change_handler` was the unlock.** objc4 learns
+  about images through it and Tiger's dyld has no such call — which is exactly
+  what killed the earlier 32-bit libobjc attempt. Tiger's
+  `_dyld_register_func_for_add_image` replays every loaded image at
+  registration, so the shim drives the Leopard-style handler with a one-element
+  batch per callback.
+- **The toolchain is ruled out of the CG fault.** The shim was relinked on the
+  box with Xcode 2.5's own ld64-62.1 and crashes identically, so the cctools
+  x86_64 stub bug is not implicated.
 
-**Recommendation: do not gate the project on this.** Treat it as a possible
-later upgrade for text rendering quality (§2.4 explains why text is where it
-would pay), not as the primary backend. The spike is still worth finishing,
-because a positive result on the real binaries would be worth a lot, but it
-should not hold up branch (b).
+The honest caveat is the **closure**: walking dependencies from CoreText and
+CoreGraphics reaches **25 libraries** with 3,094 undefined and 112 unresolved,
+because CoreGraphics pulls in CoreServices, which pulls in CarbonCore,
+LaunchServices, Metadata, SearchKit, Security and DiskArbitration. Almost none
+of that sits on a drawing path — it is CommonCrypto, file quarantine, launchd
+and `fenv` — and cutting CoreServices out of the closure would remove most of
+it. But it is 25 libraries of private userland to ship and keep working.
 
-If it does work, the content process would still need curl for networking
-(Leopard's CFNetwork drags the same launchd chain) and would gain CoreGraphics,
-CoreText and ImageIO. That is the branch where the existing CG and CT
-*behavioural* knowledge partially transfers — the probe results in
-`compat/CG-SURVEY.md` and `logs/ct-probe.md` describe Tiger's 32-bit
-frameworks, and Leopard's are a different generation, so even then the shims
-themselves do not carry over, only the method.
+**Recommendation unchanged: do not gate the project on this.** Branch (b) is
+the guaranteed fallback and should be the critical path. Branch (a) is worth
+finishing because a CoreText that needs zero shims is a genuinely better
+answer for text than FreeType, and because the fault is one debugging session
+from being understood. Fold it in at N3 as an alternative graphics backend
+behind a build option, never as a prerequisite.
+
+Either way the content process still needs curl: Leopard's CFNetwork drags the
+same launchd chain, and §2.6 shows curl is now the cheaper option anyway.
+
+### 2.1.1 The third toolchain variant
+
+Branch (a) is not just a different backend, it is a **third build
+configuration**, and it should be named as such:
+
+| Variant | Target | SDK | Links against | Runs against |
+|---|---|---|---|---|
+| UI process | i386 | `sdk/MacOSX10.4u.sdk` + `compat/sdk-overlay` | Tiger frameworks | Tiger frameworks |
+| Content, branch (b) | x86_64 | 10.4u SDK, libSystem only | `sysroot-x86_64` static deps | libSystem only |
+| **Content, branch (a)** | **x86_64** | **`sdk/MacOSX10.5.sdk` x86_64 stubs** | Leopard framework stubs | **private repointed copies** under `@executable_path` |
+
+The 10.5 SDK already carries x86_64 slices for CoreFoundation and the rest, so
+there is something to link against. The runtime copies then need the
+`install_name` rewrite that `spike/CAHost/rebundle.sh` already does for
+QuartzCore, plus the re-export demotion, plus `DYLD_FORCE_FLAT_NAMESPACE=1` and
+the two shim libraries via `DYLD_INSERT_LIBRARIES`.
+
+WebCore under branch (a) would build much closer to a normal `PLATFORM(COCOA)`
+configuration — `USE_CG`, `USE_CORE_TEXT`, the CG and CoreText backends — but
+still with **no AppKit**, which §2.5 shows is the part that actually hurts. So
+branch (a) buys back text and raster quality, not native controls.
 
 ### 2.2 Branch (b): the cross-platform backend — **recommended**
 
@@ -502,9 +540,378 @@ blending. It will be *sharper* than Tiger's CoreText at small sizes and less
 Mac-like. This is the one area where branch (a) would genuinely pay, which is
 why it is worth finishing that spike even though it should not gate the project.
 
+### 2.5 No AppKit in the content process — the theme consequence in full
+
+This deserves its own section because it is true in **both** rendering
+branches, and it is easy to assume branch (a) fixes it. It does not.
+
+**AppKit and HIToolbox are 32-bit-only on Tiger** (§0.1: AppKit is i386/ppc;
+HIToolbox likewise, as part of Carbon). So `RenderThemeMac.mm` (2,033 LOC),
+`ThemeMac`, and `ScrollbarThemeMac.mm` (700 LOC) — which draw form controls with
+`NSCell` and scrollbars with `HIThemeDrawTrack` — **cannot run in the content
+process under any branch**, because that is where WebCore paints. Branch (a)
+gives back CoreGraphics and CoreText; it does not give back `NSButtonCell`.
+
+This also retires a piece of already-planned work: the
+`ScrollbarThemeMac`-on-HITheme rewrite in `logs/webcore-plan.md` §4.3a and
+`logs/webkitlegacy-plan.md` §2, roughly 150 new lines plus eight file
+exclusions, **is no longer needed** and should be stopped if anyone has started
+it.
+
+#### The three options
+
+**(1) A cross-platform theme in the content process — recommended for v1.**
+`RenderThemeAdwaita` (490 + 114 LOC) with the 22-file, 1,933-LOC
+`platform/graphics/adwaita/` painter set, subclassed the way
+`RenderThemePlayStation` does it in 78 lines. Controls are drawn with plain
+2D primitives, so they work identically over Cairo (branch b) or CG (branch a).
+Cost: ~80 LOC. Look: GNOME, as described in §2.4.
+
+A **Tiger-Aqua variant is genuinely feasible** and is the honest middle path.
+The Adwaita painters are ordinary path-and-gradient drawing — rounded rects,
+linear gradients, strokes — and Aqua's 2005 look is well within that
+vocabulary: the lozenge push button, the blue-and-white gradient checkbox, the
+pinstripe scrollbar track, the blue focus glow. Nothing needs a bitmap from the
+system. Writing `ControlFactoryTiger` against the Adwaita structure is ~2,000
+LOC and produces something that reads as Aqua at a glance. It is optional,
+deferrable, and the single highest-visibility polish item in the project.
+
+**(2) Remote control rendering — do not do this.** The content process would ask
+the UI process to draw a named control at a size into a shared bitmap, and the
+UI process would use real `NSCell`s. **WebKit2 has no such mechanism today**;
+there is no "render me a control" message anywhere in `Source/WebKit`. It would
+mean a new message pair, a control-description serialization covering every
+control type and state permutation (pressed, hovered, focused, disabled,
+indeterminate, sized, with a tint), a bitmap cache keyed on that description,
+and a synchronous round trip on a paint path — or an async one with an
+invalidation dance. Estimate **1,500–2,500 LOC of new IPC surface** plus the UI-side
+`NSCell` rendering, for controls that would still be a frame behind, still need
+a fallback for the first paint, and still not match Aqua's animation. Against
+~2,000 LOC for option (1)'s Aqua variant, which has no IPC, no latency and no
+cache, this is strictly worse. Record it as considered and rejected.
+
+**(3) Accept cross-platform controls for v1** — which is option (1) without the
+Aqua variant. This is the right call for shipping, with the Aqua variant as a
+follow-up once the three target sites work.
+
+#### What is already native, for free
+
+The WebKit2 design puts a great deal on the UI process side, where AppKit is
+available, and all of it transfers from the WebKitLegacy work:
+
+| Concern | Where it lives | On Tiger |
+|---|---|---|
+| `<select>` **open dropdown** | `WebPopupMenuProxy`, UI process | **native `NSMenu`** — we write the proxy anyway, per-port proxies exist only for gtk/win/mac |
+| Context menus | UI process | native `NSMenu` |
+| Colour and date pickers, `<datalist>` | UI process | native, or omitted |
+| Validation bubbles | UI process | native |
+| **Text input / IME** | UI process view | **`NSTextInput` transfers directly.** `WebKitLegacy/mac/WebHTMLView.mm` never migrated off the Tiger-era `NSTextInput` protocol (`logs/webkitlegacy-plan.md` §1.4), and the WebKit2 design already assumes the view owns text input. That whole analysis carries over to the `PageClient` view |
+| Spellcheck | UI process `TextChecker` | can use Tiger's `NSSpellChecker` 10.0/10.3 API, or stay off |
+| Pasteboard | UI process | native, and the `LegacyNSPasteboardTypes.h` constant work transfers |
+| Drag and drop | UI process | native, and the Tiger-era `dragImage:at:offset:…` path transfers |
+| Accessibility | UI process | Tiger's informal `NSAccessibility` protocol; the WebCore-side object graph is remote |
+
+So the split is: **chrome, input and menus are native; the page's own controls
+are not.** That is a defensible product for v1 and an honest thing to say in a
+README.
+
+#### Scrollbars, specifically
+
+Scrollbars are the most visible of the in-page controls because they are on
+every page and always at the window edge next to real Aqua chrome.
+`ScrollbarThemeAdwaita` draws GNOME overlay-style thin bars. Tiger's Aqua
+scrollbars are wide, with a pinstriped track and paired arrows whose placement
+follows the `AppleScrollBarVariant` default. The gap is obvious.
+
+Two mitigations, both cheap: draw Aqua-styled scrollbars as the first piece of
+the `ControlFactoryTiger` work (they are the highest ratio of visibility to
+effort, maybe 300 of the 2,000 LOC), or have the UI process draw the window's
+outer scrollbars as real `NSScroller`s and let WebCore draw only overflow
+scrollers. The second is tempting but splits the scrolling model across two
+processes, so prefer the first.
+
+### 2.6 Networking: the curl backend is upstream and current
+
+A correction to §1.7 and to `logs/webcore-plan.md` §2, which planned to restore
+`ResourceHandleCurl` from `refs/webkit-history/curl-resourcehandle/` because the
+WebKit1 handle was deleted in 2023.
+
+**In the WebKit2 architecture none of that restoration is needed.**
+`Source/WebKit/NetworkProcess/curl/` exists in the tree and is live, maintained
+upstream code used by WinCairo and PlayStation:
+
+```
+NetworkDataTaskCurl.{cpp,h}      NetworkSessionCurl.{cpp,h}
+NetworkProcessCurl.cpp           NetworkStorageSessionCurl.cpp
+NetworkProcessMainCurl.cpp       WebSocketTaskCurl.{cpp,h}
+```
+
+That is the whole networking stack, including WebSockets, against the same
+`platform/network/curl/` transport we already have. PlayStation sets
+`USE_CURL ON` and includes `platform/Curl.cmake`.
+
+So the WebKit1 curl work in `refs/webkit-history/curl-resourcehandle/` — the
+~600-line `ResourceHandleCurl` plus its delegate, and the ~1,000–1,250 LOC
+estimate in `logs/webcore-plan.md` §2.8 — **is dead work under this direction.**
+Anyone on that track should stop. The only piece that survives is the CA bundle
+finding: curl's compiled-in path points into `toolchain/sysroot-x86_64`, which
+does not exist on the box, so `cacert.pem` must ship and be set at runtime via
+`CurlSSLHandle::setCACertPath` (the PlayStation pattern).
+
+**The NetworkProcess is mandatory**, not optional: there is no
+`ENABLE_NETWORK_PROCESS` flag, and `WebProcessPool.cpp` references
+`NetworkProcessProxy` unconditionally. So the architecture is **three
+processes**, not two.
+
 ---
 
-## 3. Process-model details on Tiger
+## 3. The three target sites
+
+The user's stated targets are YouTube, React applications and The Verge. Each
+exercises a different part of the stack, and together they define what "done"
+means. The governing principle from `NOTES.md` is **as much 64-bit as
+possible**: everything except the AppKit-facing UI process runs x86_64,
+including the NetworkProcess.
+
+### 3.0 Process layout
+
+Three processes, not two, because the NetworkProcess is mandatory (§2.6):
+
+| Process | Arch | Contains |
+|---|---|---|
+| UI | **i386** | AppKit, the window, events, IME, pasteboard, menus, the CARenderer compositing host |
+| Content (WebProcess) | **x86_64** | WTF, JSC with the full JIT stack, WebCore, Cairo/FreeType, the media pipeline |
+| Network | **x86_64** | curl, LibreSSL, nghttp2, the cookie and cache stores |
+
+Running the NetworkProcess 64-bit costs nothing — it is pure C++ over curl with
+no framework dependencies — and keeps TLS and HTTP/2 off the content process's
+cores. On a 2-core machine a third process is a real scheduling cost, so if
+measurement shows contention, the fallback is to run the network code inside the
+content process rather than to move it to 32-bit.
+
+### 3.1 YouTube: Media Source Extensions
+
+YouTube needs `ENABLE_MEDIA_SOURCE`: fragmented MP4 appended by JavaScript
+through `SourceBuffer.appendBuffer`. QuickTime and QTKit cannot do this — they
+are file- and stream-oriented, have no concept of a JS-driven append, and are
+32-bit-only besides. `logs/qtkit-plan.md` remains valid only for a 32-bit
+single-process media path, which this architecture abandons.
+
+**DRM is out.** There is no Widevine CDM for this platform and never will be, so
+`ENABLE_ENCRYPTED_MEDIA` and `ENABLE_LEGACY_ENCRYPTED_MEDIA` stay off. In
+practice YouTube serves non-DRM fMP4 for ordinary videos, so this costs playback
+of premium and rented content, not the general case. Say so in the README rather
+than letting a user discover it.
+
+#### GStreamer versus ffmpeg-direct
+
+| | GStreamer | **ffmpeg-direct** |
+|---|---|---|
+| WebCore glue already in tree | 25,662 LOC (`platform/graphics/gstreamer/` 61 files/20,296 + `mse/` 18 files/5,366) | 0 |
+| WebCore glue to write | ~0, plus a Tiger video sink by hand | **~4,000–6,000** |
+| Third-party to port to libSystem-only x86_64 | **~1.2–1.5M LOC**: libffi, pcre2, gettext, glib, gobject, gio, gstreamer core, -base, -good, -libav | **0 — ffmpeg is already built** |
+| Build system | meson, cross-bootstrapped; static-only (`USE_GSTREAMER_FULL`) because Tiger's dyld has no `@rpath` and the plugin registry `dlopen`s | our existing scripts |
+| Abstract interface | 32 pure virtuals | 32 pure virtuals |
+| Compositing | wants `USE_GSTREAMER_GL` (default ON) + texmap, must be pried off | none — `paint()` only |
+
+**Recommendation: ffmpeg-direct.** 70 of the 79 GStreamer files are GObject
+down to the bone; there is no GLib-free subset. Porting GLib to a libSystem-only
+10.4 target would become the whole project, and at the end of it we would still
+be writing a Tiger video sink by hand. Note also that
+`Source/cmake/OptionsPlayStation.cmake` contains **zero** media lines — the
+PlayStation template gives nothing here, so a backend is being written either
+way.
+
+#### The shape of the work
+
+The port-independent machinery is large and we reimplement none of it:
+`Source/WebCore/Modules/mediasource/` is 6,894 LOC, plus
+`platform/graphics/SourceBufferPrivate.cpp` (1,971) and `MediaSourcePrivate.cpp`
+(745), which own coded-frame processing, `SampleMap`, buffered-range math and
+eviction.
+
+What a port must supply is **32 pure virtuals**: `MediaPlayerPrivateInterface`
+18, `MediaSourcePrivate` 5, `SourceBufferPrivate` 5, `MediaPlayerFactory` 4.
+The real surface is three methods — `appendInternal` (demux one fMP4 segment),
+`enqueueSample` (hand samples to a decode queue) and `paint()`. Everything else
+is state plumbing.
+
+**There is a complete reference implementation to clone**:
+`Source/WebCore/platform/mock/mediasource/` is 1,477 LOC, of which 1,060 is the
+backend minus its fake parser. Copy it into
+`Source/WebCore/platform/graphics/tiger/` (which already exists, holding
+`GraphicsLayerTiger.cpp`), swap `MockBox` for a libavformat `AVIOContext`-backed
+`mov` demuxer over the appended `SharedBuffer`, and swap the mock renderer for
+libavcodec plus `sws_scale`.
+
+**Frames reach the screen through `paint()`, not through compositing.**
+`MediaPlayerPrivateInterface::paint(GraphicsContext&, const FloatRect&)` is pure
+virtual and the software path is fully live: `RenderVideo::paintReplaced`
+(`Source/WebCore/rendering/RenderVideo.cpp:415-431`) only skips software
+painting when `hasAcceleratedCompositing() && supportsAcceleratedRendering()`,
+and the latter defaults to `false`. So decode with ffmpeg, `sws_scale` to BGRA,
+wrap in a `NativeImage` over a Cairo image surface, and draw into the same
+`ImageBuffer` as the rest of the page. Video then rides the existing
+shared-memory path to the UI process for free: **no `VideoFrame`, no IOSurface,
+no extra IPC surface, no compositing integration.** `videoFrameForCurrentTime()`
+and `nativeImageForCurrentTime()` are both non-pure and default to `nullptr`, so
+they can be ignored entirely.
+
+#### Codec policy — where to steer YouTube
+
+A Core 2 Duo at 2.2 GHz decodes 720p H.264 acceptably with SSSE3 assembly and
+does **not** decode VP9 720p in real time. The ffmpeg build is already
+`-O3 -march=core2` with SSSE3 asm via nasm (`deps/build-ffmpeg64.sh`), which is
+the right configuration.
+
+The decision point is one function: the backend's
+`MediaPlayerFactory::supportsTypeAndCodecs`, forwarded to a static
+`supportsType`, exactly as `MockMediaPlayerMediaSource.cpp:57-60, 84-102` does.
+Advertise `video/mp4` and `audio/mp4` only, and within those return
+`IsSupported` for `avc1.*` and `mp4a.40.*` while returning `IsNotSupported` for
+`vp09.*`, `vp9`, `av01.*`, `opus` and `vorbis`. Implement `getSupportedTypes`
+with the same two MIME types, since that is what `canPlayType` reports.
+
+YouTube's player calls `MediaSource.isTypeSupported` for every candidate and
+picks from the survivors, so this single function forces the `avc1`+`mp4a`
+ladder. Note that `MediaSourceTypeSupportedCache` memoizes per content-type
+string, so the answer cannot change at runtime without clearing it.
+
+Realistic target: **360p smooth, 480p likely, 720p on a good day.** Aim the
+first milestone at `isTypeSupported` returning true for
+`video/mp4; codecs="avc1.42E01E"` and one keyframe painted into a
+`GraphicsContext`.
+
+Audio goes out through the already-proven `spike/audiobridge` ring to the 32-bit
+UI process, which owns CoreAudio (there are no x86_64 CoreAudio, AudioUnit or
+AudioToolbox slices). That path measured 0 underruns at ~12 ms latency under 4%
+CPU, and the shared-struct 4-byte rule from §0.3 applies to its ring header.
+
+### 3.2 React applications: the JIT tiers
+
+This is the reason for the whole architecture, and it is the cheapest of the
+three targets because the work is upstream's.
+
+All gating lives in `Source/WTF/wtf/PlatformEnable.h`, not in CMake:
+
+| Enable | Location | Condition on x86_64 |
+|---|---|---|
+| `ENABLE_JIT` | `:717-719` | `CPU(X86_64)` → **1** |
+| `ENABLE_DFG_JIT` | `:776-787` | `ENABLE(JIT) && CPU(X86_64) && OS(DARWIN)` → **1** |
+| `ENABLE_FTL_JIT` | `:749-755` | no negative gate at 64 bits; default from `WebKitFeatures.cmake:223` |
+| `ENABLE_B3_JIT` | `:814-816` | auto-1 whenever FTL is on |
+| `ENABLE_CONCURRENT_JS` | `:796-798` | auto-1 whenever JIT is on |
+
+**FTL does not need LLVM** — B3/Air replaced that years ago and there is no
+`ENABLE_LLVM` anywhere in the gating. Nothing extra to link.
+
+**Concurrent JIT thread counts are already correct for a 2-core machine.**
+`Options::computeNumberOfWorkerThreads` (`runtime/Options.cpp:436-446`) does
+`min(cores, max) → max(that, 2) → minus 1`, which on two cores yields **one DFG
+thread and one FTL thread**. Do not raise them. The one thing to verify is that
+`kernTCSMAwareNumberOfProcessorCores()` returns 2 rather than 0 on 10.4; the
+floor of 2 saves us either way, but a wrong value also feeds GC marker counts.
+
+**WebAssembly** is available and worth turning on later.
+`ENABLE_WEBASSEMBLY`, `_BBQJIT` and `_OMGJIT` exist
+(`WebKitFeatures.cmake:297-299`), both JITs depend on FTL, and x86_64 support is
+real — 63 `CPU(X86_64)` sites across `Source/JavaScriptCore/wasm/`. Turning it on
+means `ENABLE_C_LOOP OFF`, the full B3/Air build, and verifying the executable
+allocator's `mmap` flags (§4). Disable `ENABLE_ZYDIS`, which auto-enables on
+`CPU(X86_64) && ENABLE(JIT)` (`PlatformEnable.h:761`) and only costs build time.
+YouTube's player does not need wasm; treat it as a follow-up.
+
+#### The blocker in front of all of this
+
+`Source/cmake/OptionsCocoa.cmake:165-199` is **architecture-blind**. It forces
+`ENABLE_JIT`, `ENABLE_DFG_JIT`, `ENABLE_FTL_JIT`, `ENABLE_WEBASSEMBLY` and both
+wasm JITs OFF and `ENABLE_C_LOOP` ON for all of `TIGER`, and the same list turns
+off `ENABLE_VIDEO`, `ENABLE_MEDIA_SOURCE`, `ENABLE_WEB_AUDIO`,
+`ENABLE_WEB_CODECS` and `ENABLE_AV1`. It also hardcodes the i386 sysroot at
+`:299` and `:469`.
+
+Every one of those is correct for the 32-bit UI process and wrong for the 64-bit
+content process. **Splitting that block on target architecture is the first
+build-system task**, ahead of everything in §6, because nothing in §3 can be
+built until it is done.
+
+### 3.3 The Verge: throughput
+
+Modern content sites are bound by network setup, image decode and compositing
+rather than by script.
+
+**HTTP/2 and compression.** curl with nghttp2 gives multiplexing, which matters
+most on a high-latency link with many small assets. nghttp2 and brotli are
+already built for x86_64. Both are live in the NetworkProcess curl path.
+
+**Image formats.** WebP and AVIF are the two that a 2026 site will actually
+serve. `libwebp` and `libavif`+`dav1d` are already built for x86_64, and
+WebCore's own decoders (`platform/image-decoders/`, 7,882 LOC) cover png, jpeg,
+gif, bmp, ico and webp, with `USE_AVIF` and `USE_JPEGXL` gating the modern two.
+Turn AVIF on and JPEG-XL off. Note that AVIF decode on a Core 2 Duo is slow; a
+large hero AVIF will be visibly late. Lazy loading (`loading="lazy"`) is
+upstream behaviour and needs nothing from us.
+
+**libjpeg-turbo SIMD.** The i386 build used `-DWITH_SIMD=0` because nasm was not
+installed at the time (`deps/build-c-deps.sh:151`). **nasm is installed now**, so
+the x86_64 build should enable SIMD — JPEG is the single most common decode on a
+site like this and the SIMD path is roughly 2–4x.
+
+**Compositing bandwidth, estimated.** A 1440x900 display at 32 bits per pixel is
+5.18 MB per full frame; at 60 Hz that is **311 MB/s**. The shared-memory handoff
+itself is free — the UI process maps the same pages — so the real costs are
+Cairo painting into the buffer, and the UI process turning it into a `CGImage`
+and setting it as a `CALayer`'s contents, which CoreAnimation then uploads to
+the GeForce 8600M.
+
+Putting numbers on that: the T7500's DDR2-667 dual-channel memory is about
+10.6 GB/s theoretical and 5–6 GB/s real, so a full-screen 60 Hz cycle of one
+write plus one read is roughly **620 MB/s, about 10–12% of memory bandwidth**,
+before any painting. The PCIe upload to the 8600M is not the constraint. The
+constraint is that full-screen 60 Hz repaint is not a realistic target on this
+machine and should not be designed for. Tiled, dirty-rect-driven updates are,
+and that is exactly what `DrawingAreaCoordinatedGraphics` sends: a
+`ShareableBitmap` handle plus the dirty rects. A scroll of a Verge article
+should touch one or two tile rows per frame, on the order of 20–40 MB/s, which
+is comfortable.
+
+`spike/CAHost` already measured the UI-side half of this: 0.5–0.9 ms per frame
+for CA rendering with 48 manual 256px tiles, about 5 ms to paint a tile, and
+12 live tiles at ~32 MB resident. Those numbers are the budget.
+
+### 3.4 Performance engineering
+
+Ordered by expected return per unit of effort.
+
+| # | Item | Notes |
+|---|---|---|
+| 1 | **`-march=core2 -O3` everywhere** | The T7500 is Merom: SSE through **SSSE3, but no SSE4.1** (that is Penryn). `-march=core2` is exactly right. Already used for ffmpeg; apply to WTF, JSC, WebCore and every dependency |
+| 2 | **libjpeg-turbo SIMD** | nasm is installed; rebuild x86_64 with `-DWITH_SIMD=1`. The i386 build's `WITH_SIMD=0` was a tooling accident, not a decision |
+| 3 | **LTO across WTF/JSC/WebCore** | Real gains on a codebase this size, but watch link memory on the build host and confirm cctools ld64 handles the bitcode; if it does not, per-library LTO still helps |
+| 4 | **JSC options** | Leave the concurrent-JIT thread counts alone (§3.2). Consider raising `Options::thresholdForOptimizeSoon`-family only after measuring; the defaults are tuned for machines with more cores but also more memory pressure |
+| 5 | **Memory** | 6 GB box, 64-bit content process, no compressed memory on Tiger, so swapping is real 2007-laptop disk I/O. Keep the back/forward cache small or off initially. The content process can address far more than it should actually use; budget ~1.5–2 GB before paging hurts |
+| 6 | **PGO** | Plausible and unglamorous. JSC and WebCore both benefit; the cost is a two-stage build and a representative profile run. Defer until after the three sites work, then profile on Speedometer |
+| 7 | **Accelerate/vecLib** | x86_64 slices exist on Tiger. Marginal for a browser, but available for colour conversion and `sws_scale`-adjacent work if profiling points there |
+
+**What to measure, and when.** Do not benchmark before the thing runs; do not
+tune without a baseline.
+
+| Benchmark | Measures | When |
+|---|---|---|
+| **JetStream 2** | raw JS, JIT tiers, wasm if on | as soon as `jsc` runs; this is the N0 gate's real scorecard |
+| **Speedometer 2 and 3** | the React case end to end: DOM, layout, style, JS | once the content process paints |
+| **MotionMark**, a subset | compositing and paint throughput; expect poor absolute numbers and use it for regression tracking, not bragging | after N6 |
+| **A YouTube 360p playback** | the whole media path, A/V sync, sustained decode | after the media backend lands |
+| **A Verge article scroll** | tile upload bandwidth, image decode, memory | after N7 |
+| The existing 2M-iteration loop | continuity with the numbers already in `NOTES.md` (2.24 s interpreter, 59 ms for Safari 4.1.3's i386 JIT) | throughout |
+
+Speedometer 2 versus 3 is worth running both: 3 is the current standard, but 2
+is closer to the 2010s-era React workloads and more likely to complete on this
+hardware.
+
+---
+
+## 4. Process-model details on Tiger
 
 **Memory.** A 64-bit process escapes the ~2.7 GB usable address space of a
 32-bit one, which matters on a 6 GB box for exactly the sites the user named:
@@ -560,7 +967,7 @@ the largest uncertainty in the process model.
 
 ---
 
-## 4. What transfers from the work already done
+## 5. What transfers from the work already done
 
 | Asset | 32-bit UI process | 64-bit content process |
 |---|---|---|
@@ -572,7 +979,12 @@ the largest uncertainty in the process model.
 | `compat/dispatch/` (libdispatch polyfill) | yes | needs an x86_64 build, or use `WorkQueueGeneric` |
 | `compat/libcompat.c` (libc gaps) | yes | **yes** — already built for x86_64, and the unwind-sections fix landed there |
 | CA hosting design + `spike/CAHost` | **yes, this is the compositor** | n/a |
-| curl + LibreSSL networking backend | n/a | **yes** — and it becomes mandatory, not optional |
+| curl + LibreSSL networking backend | n/a | **yes, in the NetworkProcess** — and it is upstream's current code, not a restoration (§2.6) |
+| `refs/webkit-history/curl-resourcehandle/` (the WebKit1 handle) | n/a | **no — dead work.** `NetworkProcess/curl/` supersedes it entirely |
+| `ScrollbarThemeMac` on HITheme (`webcore-plan.md` §4.3a) | n/a | **no — retired.** WebCore draws scrollbars in the content process, which has no AppKit or HIToolbox (§2.5) |
+| `NSTextInput` analysis (`webkitlegacy-plan.md` §1.4) | **yes** — the UI-process view owns text input in WebKit2 too | n/a |
+| `logs/qtkit-plan.md` (QuickTime media) | n/a | **no** — QTKit cannot do MSE and is 32-bit-only (§3.1) |
+| ffmpeg x86_64 build, `-march=core2` + SSSE3 asm | n/a | **yes — it is the media pipeline** |
 | `spike/audiobridge` shm ring | **yes** — it is the 32-bit consumer | **yes** — it is the 64-bit producer |
 | cctools ld64 x86_64 stub patch | n/a | **yes, load-bearing** |
 | `toolchain/sysroot-x86_64` deps | n/a | **yes** — most of them already built |
@@ -591,13 +1003,14 @@ before they invest another day.
 
 ---
 
-## 5. Milestones and effort
+## 6. Milestones and effort
 
-### 5.1 Branch (b), the recommended path
+### 6.1 Branch (b), the recommended path
 
 | # | Milestone | Gate | Effort |
 |---|---|---|---|
-| **N0** | `jsc` x86_64 runs on the box with the JIT on | `jsc -e 'print(1+1)'`, then the 2M-iteration loop. **This is the whole premise** — if the x86_64 JIT does not work on Tiger, stop | in flight (`jsc64` agent) |
+| **N-1** | Split the arch-blind Tiger block | `OptionsCocoa.cmake:165-199` forces `ENABLE_C_LOOP` and turns off JIT/video/MSE for all of `TIGER`, and hardcodes the i386 sysroot at `:299`/`:469`. **Nothing below can be configured until this is split on architecture** | 1–2 d |
+| **N0** | `jsc` x86_64 runs on the box with the JIT on | `jsc -e 'print(1+1)'`, then JetStream 2 and the 2M-iteration loop. **This is the whole premise.** The Leopard spike has already proved every JIT *prerequisite* on the box — RWX `mmap`, the W^X flip, executing generated code, `mach_vm`, 16 MB stacks, 64 GB of VA — so the remaining risk is JSC itself, not the platform | in flight (`jsc64` agent) |
 | **N1** | x86_64 dependency set complete | build pixman, cairo, harfbuzz, curl for x86_64; everything else is already there | 2–3 d |
 | **N2** | `PORT=TigerContent` WebCore configures and compiles | clone PlayStation: `OptionsTigerContent.cmake` (250–350 LOC), `PlatformTigerContent.cmake` (150–250), the seven `platform/playstation/`-shaped files (~480), `RenderThemeTigerContent` (~80) | 10–15 d |
 | **N3** | WebCore links, and a headless render-to-PNG works | proves Cairo, FreeType, HarfBuzz, the decoders and curl end to end without any IPC | 5–8 d |
@@ -605,12 +1018,15 @@ before they invest another day.
 | **N5** | Two processes talk | `ProcessLauncherTiger.cpp` (~120), `PageClientImpl` + view stack cloned from PlayStation (~856); a page loads and paints into a `ShareableBitmap` | 8–12 d |
 | **N6** | Pixels on screen | UI process wraps the bitmap as a `CGImage` and sets it as a `CALayer`'s contents in the CARenderer host; `logs/ca-hosting-design.md` is the reference | 5–8 d |
 | **N7** | Interactive | events, `WebPopupMenuProxy` as a real `NSMenu`, pasteboard, IME, scrolling | 10–15 d |
-| **N8** | The three target sites | HTTP/2 via nghttp2, MSE and H.264 via the ffmpeg libs already built, audio via the proven bridge | 15–25 d |
+| **N8** | The Verge class works | HTTP/2 via nghttp2, brotli, WebP and AVIF decode, tiled scrolling within the bandwidth budget of §3.3 | 8–12 d |
+| **N9** | YouTube plays | `MediaPlayerPrivateTiger` + `MediaSourcePrivateTiger` + `SourceBufferPrivateTiger` cloned from `platform/mock/mediasource/` (1,060 LOC skeleton), libavformat demux behind `appendInternal`, libavcodec + `sws_scale` behind `paint()`, codec policy forcing `avc1`/`mp4a`, audio over the proven bridge | 15–25 d |
 
-**N0 through N7: roughly 45–70 engineer-days**, comparable to the WebCore
-milestone estimate in `logs/webcore-plan.md`, and on top of it rather than
-instead of it. N8 is the part that makes YouTube work and is the least
-predictable.
+**N-1 through N7: roughly 46–72 engineer-days** to an interactive browser,
+comparable to the WebCore milestone estimate in `logs/webcore-plan.md` and on
+top of it rather than instead of it. **N8 and N9 add 23–37 days** and are the
+least predictable, N9 especially: A/V sync and sustained decode throughput on a
+2.2 GHz Merom are the kind of thing that is either fine on the second day or
+consumes a fortnight.
 
 New code, by area:
 
@@ -620,11 +1036,17 @@ New code, by area:
 | WebKit2 glue (launcher, PageClient, view, popup proxy) | 1,200–1,800 |
 | IPC ABI fixes | ~30 |
 | Optional: fontconfig-free `FontCacheFreeType` fork | +600 |
-| Optional: `ControlFactoryTiger` for an Aqua look | +2,000 |
-| **Baseline** | **≈ 2,800–4,300** |
-| **With both optionals** | **≈ 6,900** |
+| Optional: `ControlFactoryTiger` for an Aqua look (scrollbars first, ~300 of it) | +2,000 |
+| **Baseline, to an interactive browser** | **≈ 2,800–4,300** |
+| Media backend, `MediaPlayerPrivateTiger` and friends (N9) | +4,000–6,000 |
+| **Baseline + media** | **≈ 6,800–10,300** |
+| **With both optionals and media** | **≈ 9,400–12,900** |
 
-### 5.2 Branch (a), if the Leopard spike succeeds
+Rejected and recorded: **remote control rendering** (§2.5 option 2), which would
+have cost 1,500–2,500 LOC of new IPC surface for a worse result than the 2,000
+LOC Aqua painter set.
+
+### 6.2 Branch (a), if the Leopard spike succeeds
 
 Add to N1: bring up a private Leopard x86_64 userland (libobjc, libauto,
 CoreFoundation, ApplicationServices) with ~12 libSystem shims for CF plus
@@ -637,12 +1059,12 @@ curl regardless.
 **Net effect: probably a wash on effort, a clear win on text rendering, and a
 large increase in risk** — four layers of a pre-release-adjacent OS loaded into
 a process on a different OS. It also reintroduces an ObjC runtime into the
-content process, which changes §3's "C-only 64-bit compat library" conclusion.
+content process, which changes §4's "C-only 64-bit compat library" conclusion.
 
 Do not sequence N2 behind it. If the spike lands positive, fold it in at N3 as
 an alternative graphics backend behind a build option, not as a prerequisite.
 
-### 5.3 Comparison with the alternatives
+### 6.3 Comparison with the alternatives
 
 `NOTES.md` records that **the 2021 pin is off the table by explicit user
 decision (22:50)**, not merely deprioritised: *"The port runs the 2026 WebKit
@@ -654,9 +1076,11 @@ three-way one.
 | | (1) 2026 tree, interpreter, single 32-bit process | **(3) 64-bit content process** |
 |---|---|---|
 | JS on the 2M-iteration loop | 2.24 s | x86_64 JIT + FTL; Safari 4.1.3's i386 JIT does it in 59 ms, so expect that order |
-| Architecture | one process, WebKit1 | two processes, WebKit2 |
-| Extra engineering | none beyond the existing plans | 2,800–4,300 LOC, 45–70 days |
+| Architecture | one process, WebKit1 | **three** processes, WebKit2 |
+| Extra engineering | none beyond the existing plans | 2,800–4,300 LOC to interactive, 46–72 days |
 | Rendering | Tiger CoreGraphics + CoreText, native Aqua | Cairo + FreeType, Adwaita controls, foreign look |
+| **YouTube** | **no** — QTKit cannot do MSE | yes, non-DRM, 360–480p realistic |
+| **React apps** | unusable at interpreter speed | the reason for the architecture |
 | Crash isolation | none | yes |
 | CT/CG shim investment | fully used | stranded (UI process only) |
 | Address space | ~2.7 GB | full 64-bit |
@@ -671,20 +1095,26 @@ the stranding cost is real and is not visible from the JS benchmark alone.
 
 **Everything hinges on N0.** If `jsc` x86_64 with the JIT does not run on
 Tiger's libSystem, the entire branch collapses to option (1), and the work in
-§4's "does not transfer" column was spent for nothing. N0 should stay ahead of
+§5's "does not transfer" column was spent for nothing. N0 should stay ahead of
 every other milestone here, and nothing in §5.1 should start before it reports.
 
 ---
 
-## 6. Open questions for the spikes
+## 7. Open questions for the spikes
 
 1. **`jsc64`** — does the x86_64 JIT run at all, and does FTL? Does
    `ExecutableAllocator` need a Tiger gate beyond the `MAP_JIT` one already
    applied? What does the 2M-iteration loop measure?
-2. **`leopard`** — do the *real* Leopard x86_64 binaries (not the SDK stubs
-   measured here) resolve against Tiger's x86_64 libSystem, and how far does the
-   libobjc and libauto chain go?
+2. **`leopard`** — answered for load and resolve (§2.1): they do, with small
+   shims, and CoreText needs none. The open part is now narrow and specific:
+   **why does `CGBitmapContextCreate` fault?** The toolchain is ruled out. Next
+   suspects are something CoreGraphics expects from a windowed session, or a
+   dependency initialising incorrectly under flat namespace.
+3. **Unverified and load-bearing** — the arch-blind block at
+   `Source/cmake/OptionsCocoa.cmake:165-199` forces `ENABLE_JIT` and
+   `ENABLE_C_LOOP` for all of `TIGER`. Until it is split on architecture, N0
+   cannot even be configured the way it needs to be.
 
 The third question I had listed here — whether the content process needs an
-x86_64 libdispatch — is **answered in §3: it does not.** `RunLoopGeneric` and
+x86_64 libdispatch — is **answered in §4: it does not.** `RunLoopGeneric` and
 `WorkQueueGeneric` are pure WTF and are selected by source list.
