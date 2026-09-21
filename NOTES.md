@@ -1289,3 +1289,6 @@ Next step when work resumes: wkcmake's item first (it gates everything), then js
 - OPEN for this track: StackBounds' main-thread fix is still only shallowly exercised (a deep-recursion test expecting a
   RangeError at a sane depth would close it); no JSC path was driven through int3/SIGTRAP; GC stress was not run under
   memory pressure.
+- jsc64's two fixes cherry-picked into WebKit tiger-fontcache (91ae27ac VMTraps hlt→SIGILL, 7e71da8d footprint) and
+  verified in the PORT=Tiger jsc on the box: `--watchdog=1500` on a DFG/FTL loop → "JavaScript execution terminated." exit 3;
+  `--footprint` reports a real 17.9 MB. tiger-jsc64 (WebKit-jsc64) is now fully folded into the main tree.
