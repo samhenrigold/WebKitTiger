@@ -287,6 +287,16 @@ static inline CGPoint NSPointToCGPoint(NSPoint p) { CGPoint q; q.x = p.x; q.y = 
 static inline NSRect NSRectFromCGRect(CGRect r) { NSRect s; s.origin = NSPointFromCGPoint(r.origin); s.size = NSSizeFromCGSize(r.size); return s; }
 static inline CGRect NSRectToCGRect(NSRect r) { CGRect s; s.origin = NSPointToCGPoint(r.origin); s.size = NSSizeToCGSize(r.size); return s; }
 
+/* NSScrollerStyle's VALUES, 10.7. The typedef itself is deliberately absent --
+   WebCore's PAL/pal/spi/mac/NSScrollerImpDetails.h declares it and a second one
+   would be a conflict rather than a shim -- but platform/mac/ScrollTypesMac.h
+   names the two constants, and nothing declares those. Tiger has only the
+   legacy scroller; the values are Apple's. */
+#ifndef NSScrollerStyleLegacy
+#define NSScrollerStyleLegacy  0
+#define NSScrollerStyleOverlay 1
+#endif
+
 /* NSScrollerKnobStyle, 10.7, named by PAL/pal/spi/mac/NSScrollerImpSPI.h. Tiger
    has one scroller look and no knob styles; Default is what it draws. The
    values are Apple's. NSScrollerStyle itself is NOT declared here -- WebCore's
