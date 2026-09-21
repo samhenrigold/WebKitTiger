@@ -82,21 +82,84 @@ def disassemble(path):
     if cur and cur not in syms: syms[cur] = body
     return syms
 
+# otool labels only exported symbols, so a scan can run on past the end of a
+# function into unlabelled code or data and decode nonsense. A real argument
+# offset is small; anything past this is a decode artifact, not an access.
+MAX_ARG_OFF = 0x400
+
 def analyse(body):
     if not body: return dict(status="empty")
     frame = (len(body) >= 2 and body[0][0] == "pushl" and "%ebp" in body[0][1]
              and body[1][0] == "movl" and body[1][1].replace(" ", "") == "%esp,%ebp")
-    end, acc = None, {}
+    end, acc, lea, junk = None, {}, None, False
     for op, args in body:
         w = width(op)
         for m in EBP.finditer(args):
             v = int(m.group(1), 16)
-            if v >= 8:
-                acc.setdefault(v, set()).add((op, w))
-                if end is None or v + w > end: end = v + w
+            if v > MAX_ARG_OFF: junk = True; continue
+            if v < 8: continue
+            if op.startswith("lea"):
+                # `leal 0xc(%ebp)` takes the address of a by-value argument and
+                # hands it on (CGContextFillRect does this with its CGRect). The
+                # callee never loads the fields, so the extent is invisible here.
+                if lea is None or v < lea: lea = v
+                acc.setdefault(v, set()).add((op, 0))
+                continue
+            acc.setdefault(v, set()).add((op, w))
+            if end is None or v + w > end: end = v + w
     thunk = len(body) <= 4 and any(o.startswith("jmp") for o, _ in body)
     return dict(status="ok", has_frame=frame, n=len(body), acc=acc, thunk=thunk,
+                lea=lea, junk=junk,
                 bytes=(((end - 8) + 3) & ~3) if end is not None else None)
+
+# ------------------------------------------------------------- stub detectors --
+# Two additive modes from the audit track's screen, which found real stubs the
+# footprint comparison cannot see: a function whose signature matches perfectly
+# can still do nothing at all. Credit: the `audit` agent.
+
+PIC = re.compile(r'___i686\.get_pc_thunk\.([a-z]{2})')
+GLOBAL = re.compile(r'0x[0-9a-f]+\(%e([a-z]{2})\)')
+QUIET = {"pushl", "popl", "movl", "mov", "ret", "retl", "leave", "nop", "push", "pop"}
+
+def stub_kind(body, acc, modern):
+    """Classify a body as an empty stub, a fixed-global-return stub, or neither."""
+    if not body: return None
+    mnems = [op for op, _ in body]
+
+    # Mode 1 -- empty body. First ret within five instructions, nothing but
+    # frame bookkeeping, and no argument read at all.
+    #   Tiger CTRunGetGlyphs: push ebp; mov esp,ebp; pop ebp; ret
+    ret_at = next((i for i, op in enumerate(mnems) if op.startswith("ret")), None)
+    if ret_at is not None and ret_at < 5 and not acc \
+            and all(op in QUIET for op in mnems[:ret_at + 1]):
+        return ("empty", "returns immediately, reads no argument")
+
+    # Mode 2 -- fixed-global-return stub. No real call, at least one PIC-relative
+    # global reference, short body, and the only argument slot touched is the
+    # hidden sret pointer, i.e. it fills the caller's struct from a constant.
+    #   Tiger CTRunGetImageBounds: copies 16 bytes from a global into *sret.
+    if len(body) > 25: return None
+    picreg = None
+    for op, args in body:
+        if op.startswith("call"):
+            m = PIC.search(args)
+            if not m: return None          # a real call means real work
+            picreg = "e" + m.group(1)
+        elif op.startswith("jmp") and re.search(r'\b_[A-Za-z]', args):
+            return None                    # tail call into a real implementation
+    globals_seen = [m for op, args in body for m in GLOBAL.finditer(args)
+                    if picreg is None or m.group(1) == picreg[1:]]
+    if not globals_seen: return None
+    touched = sorted(acc)
+    if touched != [8]: return None
+    if not modern or len(modern["plist"]) < 1: return None
+    if "sret" not in modern["notes"]:
+        # Slot 0 is a real first argument, not a hidden sret: the function does
+        # read something. Tiger's CGLayerGetSize looks like this -- it reads the
+        # layer and only falls back to a global when the layer is NULL.
+        return ("global?", "reads only arg 0 and a global; arg 0 is NOT sret, likely genuine")
+    return ("global", "fills the sret struct from a fixed global, ignores every argument")
+
 
 # --------------------------------------------------------------- modern side --
 DECL = re.compile(r'^declare[^@]*@([A-Za-z0-9_]+)\((.*?)\)\s*(?:#\d+)?\s*$')
@@ -238,12 +301,15 @@ def main(argv):
     modern, dropped = modern_lowering(screened, workdir)
     dis = {fw: disassemble(FRAMEWORKS[fw][0]) for fw in fws}
 
-    clean, cands, undet, shape = [], [], [], []
+    clean, cands, undet, shape, under, stubs = [], [], [], [], [], []
     for n in screened:
         fw = exports[n]
         t = analyse(dis[fw].get(n, []))
         m = modern.get(n)
         row = (n, counts.get(n, 0), m, t)
+        if t["status"] == "ok":
+            k = stub_kind(dis[fw].get(n, []), t["acc"], m)
+            if k: stubs.append((n, counts.get(n, 0), k[0], k[1]))
         if not m or t["status"] != "ok": undet.append(row); continue
         for off, _, kind in m["plist"]:
             ops = {o for o, _ in t["acc"].get(off + 8, set())}
@@ -256,25 +322,43 @@ def main(argv):
         elif m["variadic"]:
             (clean if t["bytes"] >= m["bytes"] else cands).append(row)
         elif t["bytes"] == m["bytes"]: clean.append(row)
-        else: cands.append(row)
+        elif t.get("junk") and t["bytes"] > m["bytes"]:
+            undet.append(row + ("disassembly ran past the function",))
+        elif t["bytes"] > m["bytes"]:
+            # The dangerous direction: the callee consumes stack the caller did
+            # not push. This is the CTLineDraw shape.
+            cands.append(row)
+        elif t.get("lea") is not None and t["lea"] - 8 <= t["bytes"]:
+            undet.append(row + ("argument address taken; extent not visible",))
+        else:
+            # Callee reads fewer bytes than the prototype passes. Harmless under
+            # cdecl (the caller pops), so informational rather than a break:
+            # CGRectIsNull only needs a CGRect's origin to answer.
+            under.append(row)
 
     print("frameworks: %s" % ", ".join(fws))
-    print("screened %d functions (%d call sites)  clean=%d candidates=%d undetermined=%d"
+    print("screened %d functions (%d call sites)  clean=%d over-reads=%d "
+          "under-reads=%d undetermined=%d"
           % (len(screened), sum(counts.get(n, 0) for n in screened),
-             len(clean), len(cands), len(undet)))
-    for title, items in (("CANDIDATES (stack footprint differs)", cands),
-                         ("SHAPE MISMATCHES", shape), ("UNDETERMINED", undet)):
+             len(clean), len(cands), len(under), len(undet)))
+    for title, items in (("OVER-READS (callee consumes stack the caller did not push)", cands),
+                         ("SHAPE MISMATCHES", shape),
+                         ("under-reads (callee reads less than passed; benign in cdecl)", under),
+                         ("STUBS (signature matches, implementation does nothing)", stubs),
+                         ("UNDETERMINED", undet)):
         print("\n--- %s ---" % title)
         if not items: print("   none")
         for it in items:
             if title.startswith("SHAPE"): print("   %s param@%d: %s" % it); continue
-            n, c, m, t = it
+            if title.startswith("STUBS"):
+                print("   %-44s calls=%-4d [%s] %s" % it); continue
+            n, c, m, t = it[0], it[1], it[2], it[3]
+            why = it[4] if len(it) > 4 else ("" if m else "(no modern prototype)")
             print("   %-44s calls=%-4d tiger=%-5s modern=%-5s %s"
-                  % (n, c, t.get("bytes"), m["bytes"] if m else "-",
-                     "" if m else "(no modern prototype)"))
+                  % (n, c, t.get("bytes"), m["bytes"] if m else "-", why))
     if dropped:
         print("\ndropped (no modern declaration): %s" % ", ".join(sorted(dropped)))
-    return 1 if cands or shape else 0
+    return 1 if cands or shape or [x for x in stubs if x[2] != "global?"] else 0
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

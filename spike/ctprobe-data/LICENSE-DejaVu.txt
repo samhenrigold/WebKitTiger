@@ -1,0 +1,5 @@
+DejaVuSans.ttf is bundled so that both machines in the CoreText probe measure the
+same font bytes. DejaVu Fonts are free: the Bitstream Vera Fonts Copyright
+(Bitstream, Inc.) plus the DejaVu changes, both permissive and redistributable.
+Full text: https://dejavu-fonts.github.io/License.html
+Copied from matplotlib's bundled copy on the build Mac.

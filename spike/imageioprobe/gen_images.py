@@ -29,8 +29,12 @@ W, H = 32, 32
 # 8-bit RGBA PNG
 grad(W, H, "RGBA").save(os.path.join(OUT, "rgba8.png"))
 
-# Interlaced (Adam7) PNG
-grad(W, H, "RGB").save(os.path.join(OUT, "interlaced.png"), interlace=True)
+# Interlaced (Adam7) PNG -- Pillow's encoder cannot write interlaced PNGs, shell out to
+# ImageMagick instead.
+_plain = os.path.join(OUT, "_interlaced_src.png")
+grad(W, H, "RGB").save(_plain)
+os.system(f'convert "{_plain}" -interlace PNG "{os.path.join(OUT, "interlaced.png")}"')
+os.remove(_plain)
 
 # 16-bit PNG (grayscale 16, Pillow mode I;16)
 im16 = Image.new("I", (W, H))
@@ -70,12 +74,14 @@ cmyk.save(os.path.join(OUT, "cmyk.jpg"))
 
 # JPEG with EXIF orientation 6 (minimal hand-built TIFF/EXIF blob, one IFD entry)
 def build_minimal_exif_orientation(value):
-    # TIFF header (little-endian) + IFD with 1 entry: Orientation (tag 0x0112, SHORT, count 1)
+    # APP1 payload: "Exif\0\0" + TIFF header (little-endian) + IFD with 1 entry
+    # (Orientation, tag 0x0112, SHORT, count 1). Pillow's exif= save param wants
+    # the full APP1 payload including the "Exif\0\0" prefix, not just the TIFF blob.
     tiff = b"II*\x00" + struct.pack("<I", 8)
     ifd = struct.pack("<H", 1)  # 1 entry
     ifd += struct.pack("<HHI", 0x0112, 3, 1) + struct.pack("<H", value) + b"\x00\x00"
     ifd += struct.pack("<I", 0)  # next IFD offset
-    return tiff + ifd
+    return b"Exif\x00\x00" + tiff + ifd
 
 im = grad(W, H, "RGB")
 exif_bytes = build_minimal_exif_orientation(6)

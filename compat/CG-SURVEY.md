@@ -332,8 +332,9 @@ returned matrix proves the by-value return without needing a real gstate.
 
 The audit track's ABI screen came back clean for CoreGraphics: no signature mismatches, no
 empty stubs, no argument-ignoring functions anywhere WebCore reaches. What is left is functions
-that take their arguments, return plausibly, and do the wrong thing. Three found so far, all by
-measuring pixels on the box.
+that take their arguments, return plausibly, and do the wrong thing. Two confirmed so far, both by
+measuring pixels on the box; a third suspicion was cleared by direct probing. The full
+behavioural sweep is `compat/CG-PROBE.md`.
 
 **Shadings discard alpha.** Covered above. The function's alpha output is ignored whatever the
 range dimension or colorspace. Worked around by composing the gradient by hand.
@@ -356,11 +357,12 @@ More broadly, `GraphicsContextCG.cpp` maps every `CompositeOperator` onto these 
 canvas `globalCompositeOperation` or CSS blend other than source-over degrades silently to
 source-over.
 
-**CGContextClipToMask does not take the destination alpha from the mask alone.** With a colour
-ramp that varies, the resulting alpha came out as the mask times the source colour rather than
-the mask. Not characterised further, because the gradient path stopped needing it, but
-`GraphicsContextCG.cpp` does call it, so that path wants a pixel-level check before it is
-trusted.
+**CGContextClipToMask: suspected, then cleared.** While building the gradient alpha path, a
+mask-clipped draw with a varying colour ramp produced a destination alpha that looked like the
+mask times the source colour rather than the mask. `spike/cgprobe.c` later probed
+`ClipToMask` directly, with both a plain mask and a varying-colour source, and both match
+modern CoreGraphics. So the fault was in how the gradient code used it, not in `ClipToMask`.
+The gradient path does not need it either way and was not changed back.
 
 ### Conflicts with PAL's CoreGraphicsSPI.h
 
