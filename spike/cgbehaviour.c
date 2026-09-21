@@ -15,6 +15,31 @@
  *     -framework CoreGraphics -framework ApplicationServices
  *
  * See spike/run-cgbehaviour.sh, which builds both, runs both and diffs them.
+ *
+ * Measured 10.4.11 against macOS 26 on this Mac:
+ *
+ *   MATCHES MODERN, no action needed
+ *     - CGPatternCreate and CGPatternCreateWithImage2 honour the tiling argument.
+ *       NoDistortion differs from the two constant-spacing modes on BOTH ends, and
+ *       the two spacing modes agree with each other on both, so the argument is
+ *       not being dropped. kCGPatternTilingConstantSpacing is what WebCore passes.
+ *     - Transparency layers group correctly under a non-identity CTM: scaled,
+ *       rotated and composed all show the same layer-versus-no-layer drop as
+ *       modern, within 0.05%.
+ *     - CGContextSetLineDash honours the phase, and a null pattern clears it.
+ *     - CGContextClipToRects, CGImageCreateWithMaskingColors: identical.
+ *
+ *   DIFFERS
+ *     - Shadows carry a stable ~91.7% of modern's total ink at EVERY radius
+ *       (0.905 to 0.949 across blur 0..32), but the blur SATURATES above radius
+ *       ~8: at blur 32 Tiger covers 54% of the area at 3.3x the peak alpha. So a
+ *       uniform alpha correction would fix small-blur intensity and make large
+ *       blurs worse, since those are already too dark and too tight.
+ *     - cgcompat's CGContextDrawTiledImage shim SEAMS. It covers exactly the
+ *       right pixels, but a fractional tile origin loses ~6% alpha to seams
+ *       between tiles, where the real function stays fully opaque. Aligning the
+ *       origin to the integer lattice gives exactly inked*255, proving the cause.
+ *       GraphicsContextCG.cpp:517 passes a FloatRect from layout, so this fires.
  */
 #include <ApplicationServices/ApplicationServices.h>
 #include <stdio.h>
@@ -58,11 +83,15 @@ static unsigned alphaSum(const Canvas *v)
         n += v->px[i * 4 + 3];
     return n;
 }
+/* x and y are CG USER coordinates, origin bottom-left. The bitmap rows run the
+   other way, so the row index is flipped. Getting this wrong made every point
+   sample read a pixel that happened to be empty on both platforms, which looks
+   like agreement rather than like a bug. */
 static unsigned alphaAt(const Canvas *v, int x, int y)
 {
     if (x < 0 || y < 0 || x >= DIM || y >= DIM)
         return 0;
-    return v->px[y * STRIDE + x * 4 + 3];
+    return v->px[(DIM - 1 - y) * STRIDE + x * 4 + 3];
 }
 /* A cheap content fingerprint, so two renderings can be compared across machines
    without shipping pixels around. */
@@ -152,18 +181,24 @@ static void probePatterns(void)
 
 /* -------------------------------------------------- transparency layers ---- */
 
-/* Two half-alpha rects overlapping inside a layer must composite as a GROUP:
-   the overlap keeps the layer's alpha rather than doubling up. Outside a layer
-   the overlap is visibly darker. The question is whether that still holds when
-   the CTM is not the identity. */
+/* The grouping only shows up against a GLOBAL alpha. Two opaque rects drawn
+   under CGContextSetAlpha(0.5) without a layer each get 0.5 applied separately,
+   so the overlap double-composites to 0.75. Inside a transparency layer they
+   composite opaque against the layer's transparent backdrop and the 0.5 is
+   applied once to the finished group, so the overlap stays 0.5 and alphasum
+   drops. Setting a per-fill alpha instead exercises nothing -- the host run
+   showed layer and no-layer identical, which is what caught the first version
+   of this test. The question is whether the grouping still holds when the CTM
+   is not the identity. */
 static void layerCase(const char *label, int useLayer, CGAffineTransform ctm)
 {
     Canvas v;
     if (!canvasInit(&v)) return;
     CGContextConcatCTM(v.c, ctm);
+    CGContextSetAlpha(v.c, 0.5f);
     if (useLayer)
         CGContextBeginTransparencyLayer(v.c, NULL);
-    CGContextSetRGBFillColor(v.c, 1, 0, 0, 0.5f);
+    CGContextSetRGBFillColor(v.c, 1, 0, 0, 1);
     CGContextFillRect(v.c, CGRectMake(4, 4, 16, 16));
     CGContextFillRect(v.c, CGRectMake(12, 12, 16, 16));
     if (useLayer)
@@ -284,7 +319,7 @@ static void probeMaskingColors(void)
 
 static void probeShadows(void)
 {
-    const CGFloat blurs[] = { 0, 1, 2, 4, 8, 16 };
+    const CGFloat blurs[] = { 0, 1, 2, 4, 6, 8, 10, 12, 16, 24, 32 };
     for (unsigned i = 0; i < sizeof blurs / sizeof *blurs; ++i) {
         Canvas v;
         if (!canvasInit(&v)) continue;
@@ -297,17 +332,20 @@ static void probeShadows(void)
         CGContextSetRGBFillColor(v.c, 1, 0, 0, 1);
         CGContextFillRect(v.c, CGRectMake(8, 32, 16, 16));
         /* Total shadow ink, and the peak well inside the shadow's offset copy. */
-        unsigned shadowInk = 0, peak = 0;
+        /* Sum only what is outside the filled rect, in user coordinates, so the
+           rect's own 256 opaque pixels do not swamp the shadow measurement. */
+        unsigned shadowInk = 0, peak = 0, shadowPixels = 0;
         for (int y = 0; y < DIM; ++y)
             for (int x = 0; x < DIM; ++x) {
-                /* skip the rect itself */
                 if (x >= 8 && x < 24 && y >= 32 && y < 48) continue;
                 unsigned a = alphaAt(&v, x, y);
                 shadowInk += a;
+                if (a) ++shadowPixels;
                 if (a > peak) peak = a;
             }
         printf("shadow.blur%d.ink=%u\n", (int)blurs[i], shadowInk);
         printf("shadow.blur%d.peak=%u\n", (int)blurs[i], peak);
+        printf("shadow.blur%d.pixels=%u\n", (int)blurs[i], shadowPixels);
         printf("shadow.blur%d.inked=%u\n", (int)blurs[i], inked(&v));
         canvasFree(&v);
     }
@@ -324,6 +362,43 @@ static void probeShadows(void)
     }
 }
 
+/* On Tiger this is cgcompat's draw-loop shim, since Tiger does not export the
+   function at all; on the host it is the real one. Comparing them is the point. */
+static void probeTiledImage(void)
+{
+    CGImageRef tile = solidImage(8, 8, 0, 255, 0, 255);
+    const CGRect clips[3] = {
+        CGRectMake(0, 0, DIM, DIM),           /* whole canvas */
+        CGRectMake(10, 10, 20, 20),           /* a window not on the tile lattice */
+        CGRectMake(3, 27, 41, 11),            /* deliberately awkward */
+    };
+    for (int i = 0; i < 3; ++i) {
+        Canvas v;
+        if (!canvasInit(&v)) continue;
+        CGContextClipToRect(v.c, clips[i]);
+        /* A tile origin off the lattice, so snapping is exercised. */
+        CGContextDrawTiledImage(v.c, CGRectMake(2.5f, 1.5f, 8, 8), tile);
+        printf("tiled.clip%d.inked=%u\n", i, inked(&v));
+        printf("tiled.clip%d.alphasum=%u\n", i, alphaSum(&v));
+        canvasFree(&v);
+    }
+    /* Is any alpha shortfall caused by fractional tile origins seaming against
+       each other, or is it inherent? Repeat clip 0 with the tile origin on the
+       integer lattice. Full opaque coverage must give alphasum = inked * 255. */
+    {
+        Canvas v;
+        if (canvasInit(&v)) {
+            CGContextClipToRect(v.c, CGRectMake(0, 0, DIM, DIM));
+            CGContextDrawTiledImage(v.c, CGRectMake(0, 0, 8, 8), tile);
+            printf("tiled.aligned.inked=%u\n", inked(&v));
+            printf("tiled.aligned.alphasum=%u\n", alphaSum(&v));
+            printf("tiled.aligned.opaque=%d\n", alphaSum(&v) == inked(&v) * 255u);
+            canvasFree(&v);
+        }
+    }
+    CGImageRelease(tile);
+}
+
 int main(void)
 {
     setbuf(stdout, NULL);
@@ -338,5 +413,6 @@ int main(void)
     probeClipToRects();
     probeMaskingColors();
     probeShadows();
+    probeTiledImage();
     return 0;
 }
