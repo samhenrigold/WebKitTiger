@@ -8,6 +8,7 @@
 #define __CORETEXT__
 
 #include <CoreText/CTDefines.h>
+#include <CoreText/SFNTLayoutTypes.h>
 #include <CoreText/CTFontTraits.h>
 #include <CoreText/CTFontDescriptor.h>
 #include <CoreText/CTFont.h>

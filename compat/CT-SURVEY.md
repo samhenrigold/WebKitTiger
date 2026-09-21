@@ -531,6 +531,35 @@ and `CTFontCollectionCreateWithFilterCallback` have no WebCore call site and are
 declared in the overlay; and `CTFontDescriptorCreateForUIType` does not exist on Tiger
 at all, so it is implemented here rather than adapted.
 
+## AAT case features: the constants, and what they buy
+
+WebCore's `font-variant-caps` code uses `kLowerCaseType`, `kUpperCaseType` and their
+small-caps and petite-caps selectors. **Tiger predates the split**: its
+`SFNTLayoutTypes.h` has only `kLetterCaseType` (3), the single feature type Apple later
+divided into separate lower-case (37) and upper-case (38) types. Six translation units
+would not build without them, so the overlay's `<CoreText/SFNTLayoutTypes.h>` forwards to
+ATS's and adds the modern set, values taken from the Xcode 27 SDK rather than memory
+because these are `feat` table identifiers and a wrong number silently selects a different
+feature. The overlay's `CoreText.h` now pulls that header in, as modern CoreText's does.
+
+**Tiger's shaper honours only the legacy spelling, and Tiger's fonts declare only the
+legacy spelling.** Measured: of eight system faces, Hoefler Text and Didot declare feature
+type 3 and nothing declares 37 or 38. Applying type 3 selector 3 to Hoefler Text really
+substitutes, glyphs 68/69/70 becoming 460/461/462, and Didot 69/70/71 becoming 264/265/266.
+Applying type 37 selector 1 to the same fonts changes nothing.
+
+So Tiger can do genuine small caps, on the fonts that carry them, through the old feature
+identifiers. Nothing reaches that today: all six WebCore uses funnel into
+`CTFontCopyGlyphCoverageForFeature`, which is the NULL stub described under (d), so
+`supportsSmallCaps()` and its siblings always answer no and WebCore synthesises scaled
+capitals instead. **The constants fix the build; they do not change rendering.**
+
+That also sharpens what implementing the coverage query would be worth. It no longer needs
+a `morx` parser: applying the feature to a copy of the font and diffing the glyph mapping
+over a bounded character set would do, and the legacy identifiers are what it would have
+to ask for. The payoff is real small caps on the two faces that have them, in place of
+synthesised ones.
+
 ## Tiger's shaping is better than "no shaping"
 
 Measured, not assumed: `spike/ctshape.c` prints the raw `cmap` glyphs beside the glyphs a
