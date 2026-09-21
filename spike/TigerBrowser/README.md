@@ -6,7 +6,10 @@ from `WebKit/WebKit.h`). This is the browser shell we will later relink
 against our own WebKitLegacy build — the API is identical between Tiger's
 system WebKit and modern WebKitLegacy. For now it links against the 10.4u
 SDK's `/System/Library/Frameworks/WebKit.framework` and runs against Tiger's
-own WebKit on the box.
+own WebKit on the box (originally build 4522/2007; **as of 2026-09-20 the box
+has Safari 4.1.3 installed, which upgraded the system WebKit.framework to
+533.19.4, build 4533.19.4** — TigerBrowser needed no changes to pick this up,
+since it always links the system framework by path).
 
 ## Layout
 
@@ -65,8 +68,18 @@ ssh tiger '/Users/shg/TigerBrowser.app/Contents/MacOS/TigerBrowser \
 - `screenshot-images.png` — PNG and JPEG both decode and render.
 - `screenshot-form.png` — native Aqua text field, popup button, checkbox, submit button.
 - `screenshot-js.png` — JS timing loop; 2,000,000-iteration loop took **5298 ms**
-  on Tiger's non-JIT JavaScriptCore interpreter (confirms real JS execution,
-  not just static HTML).
+  on Tiger's original 2007 system WebKit (build 4522, non-JIT interpreter-only
+  JavaScriptCore). **Update 2026-09-20, after the user installed Safari 4.1.3
+  for Tiger** (which replaces `/System/Library/Frameworks/WebKit.framework`
+  with WebKit 533.19.4, build 4533.19.4 — first JIT-capable JavaScriptCore on
+  Tiger): the same loop now takes **~59 ms** (three runs: 59, 62, 56 ms;
+  screenshots `screenshot-js-run1.png`..`run3.png`), roughly **90x faster**.
+  TigerBrowser itself is unchanged — it always linked the system
+  `WebKit.framework` by path, so it picked up Safari 4.1.3's WebKit
+  automatically on relaunch. This is the number to compare against the
+  project's C-loop jsc build (2.24 s on the same loop) — Safari 4.1.3's JIT
+  is now dramatically faster than our interpreter-only C-loop jsc, the
+  opposite of the relationship implied by the original 5.3 s baseline.
 
 ## What works
 
@@ -85,7 +98,11 @@ shell itself.
   the same gap the deps track's curl/LibreSSL work is meant to cover once
   WebKitLegacy's own network stack replaces Tiger's. Plain HTTP and
   `file://` loads both work fine. Not a WebView API problem, a system
-  TLS-stack limitation.
+  TLS-stack limitation. **Still fails identically after the Safari 4.1.3
+  update** (re-checked 2026-09-20, `screenshot-https.png`) — the Safari
+  update replaces `WebKit.framework` but evidently not whatever TLS bits
+  `NSURLConnection`/CFNetwork use underneath, so this gap is unaffected by
+  the WebKit version bump.
 - **No missing/renamed WebFrameLoadDelegate, WebPolicyDelegate, or
   WebUIDelegate methods were hit.** Every delegate method used here exists
   on Tiger's 10.4.11 WebKit exactly as declared in the 10.4u SDK headers
