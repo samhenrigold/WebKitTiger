@@ -40,3 +40,26 @@ and any QuickTime playback in the process throws. `decollide.py` renames every
 whole `CI*` string in the private copy to `ZI*`: same length, so it is an
 in-place byte patch, and self-consistent because every reference inside that one
 binary is patched too. `rebundle.sh` runs it.
+
+## Scene applier: what is unfinished
+
+Committed as `b0845ee`. Done: the WC-shaped delta vocabulary, the applier over
+real CALayers (create, flat property loop, delete last), children as a wholesale
+`setSublayers:` replacement, one CATransaction per commit, tile contents as a
+CGImage over an mmap'd region, and the measurements above.
+
+Not done, stopped on a budget cut:
+
+- **Tiles from a second process.** The mapping is a file this process writes, not
+  shm handed over from an i386 GPU process over `spike/ipc32x64`'s channel. So
+  the number that decides whether an in-process merge is worth it — CGImage over
+  shm bytes with no copy, versus a copy into an owned buffer, versus a direct GL
+  texture upload, per tile size at 200 tiles — is **not measured**. What is
+  measured is the CA side of it: no copy at `-setContents:`, a copy at upload,
+  and no re-read of the mapping afterwards.
+- **200 tiles at 900 px/s.** The test scene is 48 tiles with a scripted scroll,
+  not 200 tiles at a fixed speed.
+- **Animations.** The delta has no animation records; CA should be handed them
+  rather than ticked per frame, and the applier does not yet do that.
+- **Replica layers.** Left out of the delta format deliberately; CA has no
+  equivalent and WebCore's own CA port clones the subtree above this level.
