@@ -84,7 +84,8 @@ set(_tiger_common_flags
 string(APPEND _tiger_common_flags
     " -F${WKT}/compat/sdk-overlay"
     " -F${WKT}/sdk/MacOSX10.4u.sdk/System/Library/Frameworks/ApplicationServices.framework/Frameworks"
-    " -F${WKT}/sdk/MacOSX10.4u.sdk/System/Library/Frameworks/Carbon.framework/Frameworks")
+    " -F${WKT}/sdk/MacOSX10.4u.sdk/System/Library/Frameworks/Carbon.framework/Frameworks"
+    " -F${WKT}/sdk/MacOSX10.4u.sdk/System/Library/Frameworks/CoreServices.framework/Frameworks")
 
 # -stdlib=libc++ makes clang look for the C++ headers under CMAKE_OSX_SYSROOT,
 # which is the 10.4u SDK; ours are in the cross sysroot we built them into.
