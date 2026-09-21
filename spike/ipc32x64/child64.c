@@ -3,11 +3,16 @@
 #include "common.h"
 #include <mach/mach_vm.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <unistd.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 static mach_port_t parentPort;
 static mach_port_t myPort;
-static uint8_t *shmem;
+static uint8_t *shmemMach;
+static uint8_t *shmemPosix;
+static const char *shmName;
 
 static void fail(const char *what, kern_return_t kr)
 {
@@ -44,7 +49,7 @@ static void setUpSharedMemory(void)
     mach_vm_address_t addr = 0;
     kern_return_t kr = mach_vm_allocate(mach_task_self(), &addr, IPC_SHM_BYTES, VM_FLAGS_ANYWHERE);
     if (kr != KERN_SUCCESS) fail("mach_vm_allocate", kr);
-    shmem = (uint8_t *)(uintptr_t)addr;
+    shmemMach = (uint8_t *)(uintptr_t)addr;
 
     memory_object_size_t size = IPC_SHM_BYTES;
     mach_port_t entry = MACH_PORT_NULL;
@@ -72,8 +77,29 @@ static void setUpSharedMemory(void)
 
 /* Double-buffered production: paint buffer i%2, announce it, and only wait for the ack of frame
  * i-1 before painting i+1, so the parent's copy of frame i overlaps our paint of frame i+1. */
-static void produceFrames(uint32_t count)
+/* POSIX shared memory, the baseline the audio bridge established. Same size, same access pattern,
+ * so the only difference from the mach path is how the pages were obtained. */
+static void setUpPosixSharedMemory(void)
 {
+    shm_unlink(shmName); /* a previous run may have left it behind */
+    int fd = shm_open(shmName, O_CREAT | O_RDWR, 0600);
+    if (fd < 0) { printf("child64: shm_open failed (%s); POSIX path unavailable\n", strerror(errno)); return; }
+    if (ftruncate(fd, IPC_SHM_BYTES) != 0) {
+        printf("child64: ftruncate to %u failed (%s); POSIX path unavailable\n",
+               (unsigned)IPC_SHM_BYTES, strerror(errno));
+        close(fd); shm_unlink(shmName); return;
+    }
+    void *p = mmap(NULL, IPC_SHM_BYTES, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+    if (p == MAP_FAILED) { printf("child64: mmap failed (%s)\n", strerror(errno)); shm_unlink(shmName); return; }
+    shmemPosix = (uint8_t *)p;
+    printf("child64: POSIX shm %s mapped at %p\n", shmName, p);
+}
+
+static void produceFrames(uint32_t count, uint32_t usePosix)
+{
+    uint8_t *region = usePosix ? shmemPosix : shmemMach;
+    if (!region) { sendSimple(IPC_MSG_PONG, count, 0); return; }
     double paintTotal = 0;
     uint32_t acked = 0;
     for (uint32_t i = 0; i < count; ++i) {
@@ -85,7 +111,7 @@ static void produceFrames(uint32_t count)
             acked = ack.seq;
         }
         double t0 = ipcNowSeconds();
-        paintFrame(shmem + (i % IPC_BUFFERS) * IPC_FRAME_BYTES, i);
+        paintFrame(region + (i % IPC_BUFFERS) * IPC_FRAME_BYTES, i);
         paintTotal += ipcNowSeconds() - t0;
         sendSimple(IPC_MSG_FRAME, i, i % IPC_BUFFERS);
     }
@@ -95,16 +121,18 @@ static void produceFrames(uint32_t count)
                      MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL) != KERN_SUCCESS) break;
         acked = ack.seq;
     }
-    printf("child64: paint %.2f ms/frame (%.1f MB/s write into shared memory)\n",
+    printf("child64: paint %.2f ms/frame (%.1f MB/s write into %s)\n",
            paintTotal * 1000.0 / count,
-           (double)count * IPC_FRAME_BYTES / (1024.0 * 1024.0) / paintTotal);
+           (double)count * IPC_FRAME_BYTES / (1024.0 * 1024.0) / paintTotal,
+           usePosix ? "POSIX shm" : "mach memory entry");
     sendSimple(IPC_MSG_PONG, count, 0);
 }
 
 int main(int argc, char **argv)
 {
     setvbuf(stdout, 0, _IONBF, 0);
-    if (argc < 2) { fprintf(stderr, "child64: need service name\n"); return 1; }
+    if (argc < 3) { fprintf(stderr, "child64: need service name and shm name\n"); return 1; }
+    shmName = argv[2];
 
     printf("child64: %d-bit, pid %d\n", (int)(sizeof(void *) * 8), (int)getpid());
     printf("child64: sizeof header=%u simple=%u portmsg=%u ool_desc=%u\n",
@@ -144,6 +172,7 @@ int main(int argc, char **argv)
     if (kr != KERN_SUCCESS) fail("send task port", kr);
 
     setUpSharedMemory();
+    setUpPosixSharedMemory();
 
     for (;;) {
         union {
@@ -179,7 +208,7 @@ int main(int argc, char **argv)
             break;
         }
         case IPC_MSG_START:
-            produceFrames((uint32_t)in.simple.value);
+            produceFrames((uint32_t)in.simple.value, in.simple.seq);
             break;
         case IPC_MSG_CRASH:
             printf("child64: crashing on purpose\n");
@@ -187,6 +216,7 @@ int main(int argc, char **argv)
             break;
         case IPC_MSG_QUIT:
             printf("child64: quitting\n");
+            if (shmemPosix) shm_unlink(shmName);
             return 0;
         default:
             break;

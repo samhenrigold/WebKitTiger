@@ -6,18 +6,23 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <errno.h>
 
 static mach_port_t myPort;
 static mach_port_t childPort;
 static mach_port_t childTask;
 static mach_port_t excPort;
 static pid_t childPid;
-static uint8_t *shmem;
+static uint8_t *shmem;        /* mach memory entry mapping */
+static uint8_t *shmemPosix;   /* POSIX shm mapping of an equivalent region */
+static char shmName[64];
 
 #ifdef NO_GL
-static void glUploadBenchmark(const uint8_t *p) { (void)p; printf("RESULT gl_upload skipped (NO_GL build)\n"); }
+static void glUploadBenchmark(const uint8_t *p, const char *l) { (void)p; (void)l; printf("RESULT gl_upload skipped (NO_GL build)\n"); }
 #else
-void glUploadBenchmark(const uint8_t *pixels); /* glupload.c */
+void glUploadBenchmark(const uint8_t *pixels, const char *label); /* glupload.c */
 #endif
 
 static void fail(const char *what, kern_return_t kr)
@@ -45,6 +50,61 @@ static void rpcPing(uint32_t seq, uint64_t value, uint64_t *out)
     if (out) *out = m.rcv.value;
 }
 
+static void runFramePipeline(uint32_t usePosix, uint8_t *region, const char *label)
+{
+    const uint32_t frames = 120;
+    static uint8_t *sink;
+    if (!sink) sink = (uint8_t *)malloc(IPC_FRAME_BYTES);
+
+    IPCSimpleMsg start;
+    memset(&start, 0, sizeof(start));
+    start.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
+    start.header.msgh_size = sizeof(start);
+    start.header.msgh_remote_port = childPort;
+    start.op = IPC_MSG_START;
+    start.header.msgh_id = IPC_MSG_START;
+    start.seq = usePosix;
+    start.value = frames;
+    kern_return_t kr = mach_msg(&start.header, MACH_SEND_MSG, sizeof(start), 0, MACH_PORT_NULL,
+                                MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+    if (kr != KERN_SUCCESS) fail("send start", kr);
+
+    double copyTotal = 0, firstFrame = 0, lastFrame = 0;
+    uint32_t received = 0;
+    while (received < frames) {
+        IPCSimpleRcv in;
+        kr = mach_msg(&in.header, MACH_RCV_MSG, 0, sizeof(in), myPort,
+                      MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+        if (kr != KERN_SUCCESS) fail("recv frame", kr);
+        if (in.header.msgh_id != IPC_MSG_FRAME) break; /* child reported the region unavailable */
+        if (!received) firstFrame = ipcNowSeconds();
+        double c0 = ipcNowSeconds();
+        memcpy(sink, region + in.value * IPC_FRAME_BYTES, IPC_FRAME_BYTES);
+        copyTotal += ipcNowSeconds() - c0;
+        lastFrame = ipcNowSeconds();
+        ++received;
+        IPCSimpleMsg ack;
+        memset(&ack, 0, sizeof(ack));
+        ack.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
+        ack.header.msgh_size = sizeof(ack);
+        ack.header.msgh_remote_port = childPort;
+        ack.op = IPC_MSG_ACK;
+        ack.header.msgh_id = IPC_MSG_ACK;
+        ack.seq = in.seq;
+        mach_msg(&ack.header, MACH_SEND_MSG, sizeof(ack), 0, MACH_PORT_NULL,
+                 MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+    }
+    if (!received) { printf("RESULT pipeline_%s UNAVAILABLE\n", usePosix ? "posix" : "mach"); return; }
+    double wall = lastFrame - firstFrame;
+    double mb = (double)IPC_FRAME_BYTES / (1024.0 * 1024.0);
+    printf("RESULT frame_copy_ms_%s %.2f   copy_mb_s %.1f   (%s)\n",
+           usePosix ? "posix" : "mach", copyTotal * 1000.0 / received, mb * received / copyTotal, label);
+    printf("RESULT pipeline_fps_%s %.1f   pipeline_mb_s %.1f   (%u frames, double buffered)\n",
+           usePosix ? "posix" : "mach", (received - 1) / wall, mb * (received - 1) / wall, received);
+    IPCSimpleRcv done;
+    mach_msg(&done.header, MACH_RCV_MSG, 0, sizeof(done), myPort, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+}
+
 int main(int argc, char **argv)
 {
     setvbuf(stdout, 0, _IONBF, 0);
@@ -64,12 +124,13 @@ int main(int argc, char **argv)
     snprintf(service, sizeof(service), "org.webkittiger.ipcspike.%d", (int)getpid());
     kr = bootstrap_register(bootstrap_port, service, myPort);
     if (kr != KERN_SUCCESS) fail("bootstrap_register", kr);
-    printf("parent32: registered %s\n", service);
+    snprintf(shmName, sizeof(shmName), "/wkt%d", (int)getpid());
+    printf("parent32: registered %s, shm %s\n", service, shmName);
 
     childPid = fork();  /* Tiger has no posix_spawn */
     if (childPid < 0) { perror("fork"); return 1; }
     if (childPid == 0) {
-        execl(childPath, childPath, service, (char *)NULL);
+        execl(childPath, childPath, service, shmName, (char *)NULL);
         perror("execl");
         _exit(127);
     }
@@ -97,7 +158,19 @@ int main(int argc, char **argv)
                 VM_PROT_READ | VM_PROT_WRITE, VM_INHERIT_NONE);
     if (kr != KERN_SUCCESS) fail("vm_map of 64-bit memory entry", kr);
     shmem = (uint8_t *)mapped;
-    printf("parent32: mapped %u bytes at %p\n", (unsigned)IPC_SHM_BYTES, shmem);
+    printf("parent32: mapped %u bytes at %p (mach memory entry)\n", (unsigned)IPC_SHM_BYTES, shmem);
+    {
+        int fd = shm_open(shmName, O_RDWR, 0600);
+        if (fd < 0) {
+            printf("parent32: shm_open failed (%s); POSIX comparison skipped\n", strerror(errno));
+        } else {
+            void *p = mmap(NULL, IPC_SHM_BYTES, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+            close(fd);
+            if (p == MAP_FAILED) printf("parent32: mmap failed (%s)\n", strerror(errno));
+            else { shmemPosix = (uint8_t *)p; printf("parent32: mapped %u bytes at %p (POSIX shm)\n",
+                                                    (unsigned)IPC_SHM_BYTES, p); }
+        }
+    }
 
     /* --- round-trip latency --- */
     uint64_t v = 0;
@@ -163,63 +236,13 @@ int main(int argc, char **argv)
                    (unsigned)(m.rcv.value >> 16), (unsigned)(m.rcv.value & 0xff));
     }
 
-    /* --- shared-memory frame pipeline --- */
-    {
-        const uint32_t frames = 120;
-        static uint8_t *sink;
-        if (!sink) sink = (uint8_t *)malloc(IPC_FRAME_BYTES);
+    /* --- shared-memory frame pipeline, over each mapping --- */
+    runFramePipeline(0, shmem, "mach memory entry");
+    if (shmemPosix) runFramePipeline(1, shmemPosix, "POSIX shm");
 
-        IPCSimpleMsg start;
-        memset(&start, 0, sizeof(start));
-        start.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
-        start.header.msgh_size = sizeof(start);
-        start.header.msgh_remote_port = childPort;
-        start.op = IPC_MSG_START;
-        start.header.msgh_id = IPC_MSG_START;
-        start.value = frames;
-        kr = mach_msg(&start.header, MACH_SEND_MSG, sizeof(start), 0, MACH_PORT_NULL,
-                      MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
-        if (kr != KERN_SUCCESS) fail("send start", kr);
-
-        double copyTotal = 0, firstFrame = 0, lastFrame = 0;
-        uint32_t received = 0;
-        while (received < frames) {
-            IPCSimpleRcv in;
-            kr = mach_msg(&in.header, MACH_RCV_MSG, 0, sizeof(in), myPort,
-                          MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
-            if (kr != KERN_SUCCESS) fail("recv frame", kr);
-            if (in.header.msgh_id != IPC_MSG_FRAME) continue;
-            if (!received) firstFrame = ipcNowSeconds();
-            double c0 = ipcNowSeconds();
-            memcpy(sink, shmem + in.value * IPC_FRAME_BYTES, IPC_FRAME_BYTES);
-            copyTotal += ipcNowSeconds() - c0;
-            lastFrame = ipcNowSeconds();
-            ++received;
-            IPCSimpleMsg ack;
-            memset(&ack, 0, sizeof(ack));
-            ack.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
-            ack.header.msgh_size = sizeof(ack);
-            ack.header.msgh_remote_port = childPort;
-            ack.op = IPC_MSG_ACK;
-            ack.header.msgh_id = IPC_MSG_ACK;
-            ack.seq = in.seq;
-            mach_msg(&ack.header, MACH_SEND_MSG, sizeof(ack), 0, MACH_PORT_NULL,
-                     MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
-        }
-        double wall = lastFrame - firstFrame;
-        double mb = (double)IPC_FRAME_BYTES / (1024.0 * 1024.0);
-        printf("RESULT frame_copy_ms %.2f   copy_mb_s %.1f   (32-bit side, %ux%u BGRA = %.2f MB)\n",
-               copyTotal * 1000.0 / received, mb * received / copyTotal,
-               IPC_FRAME_W, IPC_FRAME_H, mb);
-        printf("RESULT pipeline_fps %.1f   pipeline_mb_s %.1f   (%u frames, double buffered)\n",
-               (received - 1) / wall, mb * (received - 1) / wall, received);
-        /* Drain the child's completion message. */
-        IPCSimpleRcv done;
-        mach_msg(&done.header, MACH_RCV_MSG, 0, sizeof(done), myPort, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
-    }
-
-    /* --- OpenGL upload straight from the shared mapping --- */
-    glUploadBenchmark(shmem);
+    /* --- OpenGL upload straight from each shared mapping --- */
+    glUploadBenchmark(shmem, "mach memory entry");
+    if (shmemPosix) glUploadBenchmark(shmemPosix, "POSIX shm");
 
     /* --- crash isolation: can we get the child's fault on an exception port? --- */
     {

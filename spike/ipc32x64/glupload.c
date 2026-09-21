@@ -66,17 +66,17 @@ static void drawQuad(void)
     glDisable(GL_TEXTURE_RECTANGLE_EXT);
 }
 
-void glUploadBenchmark(const uint8_t *pixels)
+void glUploadBenchmark(const uint8_t *pixels, const char *label)
 {
     const char *how = "?";
     CGLContextObj ctx = makeContext(&how);
-    if (!ctx) { printf("RESULT gl_upload UNAVAILABLE (no CGL context: no window session)\n"); return; }
+    if (!ctx) { printf("RESULT gl_upload UNAVAILABLE for %s (no CGL context)\n", label); return; }
 
     const char *renderer = (const char *)glGetString(GL_RENDERER);
     const char *exts = (const char *)glGetString(GL_EXTENSIONS);
     int hasClientStorage = exts && strstr(exts, "GL_APPLE_client_storage") != NULL;
     int hasTextureRange = exts && strstr(exts, "GL_APPLE_texture_range") != NULL;
-    printf("parent32: GL context via %s, renderer=%s\n", how, renderer ? renderer : "?");
+    printf("parent32: GL from %s, context via %s, renderer=%s\n", label, how, renderer ? renderer : "?");
     printf("parent32: GL_APPLE_client_storage=%d GL_APPLE_texture_range=%d\n", hasClientStorage, hasTextureRange);
 
     glViewport(0, 0, IPC_FRAME_W, IPC_FRAME_H);
@@ -102,7 +102,7 @@ void glUploadBenchmark(const uint8_t *pixels)
     for (int i = 0; i < iterations; ++i) { drawQuad(); glFinish(); }
     t1 = ipcNowSeconds();
     double drawOnly = (t1 - t0) * 1000.0 / iterations;
-    printf("RESULT gl_draw_only_ms %.2f\n", drawOnly);
+    printf("RESULT gl_draw_only_ms %.2f   (%s)\n", drawOnly, label);
 
     t0 = ipcNowSeconds();
     for (int i = 0; i < iterations; ++i) {
@@ -113,8 +113,8 @@ void glUploadBenchmark(const uint8_t *pixels)
     }
     t1 = ipcNowSeconds();
     double sub = (t1 - t0) * 1000.0 / iterations;
-    printf("RESULT gl_texsubimage_ms %.2f   upload_only_ms %.2f   upload_mb_s %.1f   (err=0x%lx)\n",
-           sub, sub - drawOnly, mb * 1000.0 / (sub - drawOnly), (unsigned long)glGetError());
+    printf("RESULT gl_texsubimage_ms %.2f   upload_only_ms %.2f   upload_mb_s %.1f   (%s, err=0x%lx)\n",
+           sub, sub - drawOnly, mb * 1000.0 / (sub - drawOnly), label, (unsigned long)glGetError());
 
     if (hasClientStorage) {
         GLuint tex2 = 0;
@@ -141,8 +141,8 @@ void glUploadBenchmark(const uint8_t *pixels)
         }
         t1 = ipcNowSeconds();
         double cs = (t1 - t0) * 1000.0 / iterations;
-        printf("RESULT gl_client_storage_ms %.2f   upload_only_ms %.2f   upload_mb_s %.1f   (err=0x%lx)\n",
-               cs, cs - drawOnly, mb * 1000.0 / (cs - drawOnly), (unsigned long)glGetError());
+        printf("RESULT gl_client_storage_ms %.2f   upload_only_ms %.2f   upload_mb_s %.1f   (%s, err=0x%lx)\n",
+               cs, cs - drawOnly, mb * 1000.0 / (cs - drawOnly), label, (unsigned long)glGetError());
         glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_FALSE);
         glDeleteTextures(1, &tex2);
     }

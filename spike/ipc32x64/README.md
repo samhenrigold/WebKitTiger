@@ -70,8 +70,15 @@ Layout compatibility, measured rather than assumed, by printing `sizeof` on both
 - `mach_msg_ool_descriptor_t` holds a pointer and so differs. **The kernel translates it anyway**: a
   256 KB out-of-line send from the 32-bit parent arrived in the 64-bit child with the correct size
   and intact contents at a valid 64-bit address. Out-of-line data is usable across the split.
-- **Keep every field in a message a fixed-width type.** No pointers, no `long`, no `size_t`. The
-  structs in `common.h` follow that rule and are identical on both sides.
+- **Keep every field in a message a fixed-width type, and check offsets, not just sizeof.** The
+  classic i386 ABI 4-byte-aligns an 8-byte field while x86_64 8-byte-aligns it, so one `uint64_t`
+  after an odd number of 4-byte fields shifts every later offset on one side only. Measured on the
+  box: `{u32,u32,u32,u64}` is 20 bytes with the u64 at offset 12 on i386, and 24 bytes with it at 16
+  on x86_64, while `{u32,u32,u64}` is 16 bytes with it at 8 on both. `common.h` carries
+  `_Static_assert`s on the size and every field offset of each message struct; both compilers build
+  that header, so a future field that breaks the layout fails the build instead of corrupting
+  messages. Splitting a 64-bit value into two `uint32_t` also works and is what to reach for when a
+  struct cannot be reordered.
 - **Dispatch on `msgh_id`, never on a field in the body.** `msgh_id` is at a fixed offset in every
   message shape; a discriminator placed after a descriptor is not, because the descriptor changes
   size across the split. Getting this wrong deadlocked the first version of this spike: the child
@@ -86,7 +93,13 @@ The 64-bit side owns the buffer, which is the right way round for a content proc
 3. parent: `vm_map` it into the 32-bit address space with `VM_FLAGS_ANYWHERE`.
 
 This works unchanged across the split. The 32-bit parent maps a region allocated by a 64-bit task
-and reads it directly. `shm_open` was not needed as a fallback.
+and reads it directly.
+
+**POSIX `shm_open` + `ftruncate` + `mmap` also works across the split, at the same speed**, for the
+full 10.37 MB double buffer. The spike sets up both and measures them back to back; see RESULTS.md.
+OpenGL uploads from either mapping at an identical rate. Choose between them on lifetime, not
+performance: a memory entry is a port and dies with the process, while POSIX shm needs a global name
+and an explicit `shm_unlink` that a crashed process will not perform.
 
 Note the address spaces: the child's buffer sits above 4 GB (`0x102008000` in a sample run) and the
 parent's mapping of the same pages is at `0x2008000`. Nothing may pass a raw address across the
@@ -117,6 +130,10 @@ to detect content-process crashes and tear down or restart, which is what the UI
 ## Tiger gotchas collected here
 
 - No `posix_spawn`; fork/exec.
+- Compile the 64-bit side with `-fno-asynchronous-unwind-tables -fno-unwind-tables`. cctools ld64 can
+  assert (`targetAtom != NULL`, ld.hpp:914) linking x86_64 at 10.4 when objects carry EH personality
+  references. This spike has not hit it, being plain C, but the flags are in the Makefile as
+  insurance.
 - `bootstrap_register` is allowed, unlike on later systems.
 - The 32-bit side uses `vm_map`; `mach_vm_*` is what the 64-bit side uses to allocate. Both are
   present on Tiger.

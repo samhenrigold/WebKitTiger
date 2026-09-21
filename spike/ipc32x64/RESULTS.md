@@ -5,34 +5,57 @@ Frame geometry throughout: 1440x900 BGRA, 5,184,000 bytes, which is 4.94 MiB. Al
 
 ## Measurement caveat, read this first
 
-**The box was never idle while these were taken.** Load average sat near 3.0 on a dual-core machine
-throughout, with another agent's CPU-bound `cgprobe` running alongside. Every metric degraded
-monotonically with the amount of concurrent work: round-trip latency was measured at 11.2 us during
-a quiet moment and 49.8 us at peak contention, from the same binary.
-
-So the figures below are the **minimum across nine runs**, which is the closest available estimate of
-the uncontended case. Treat them as conservative floors rather than as the machine's ceiling. They
-are good enough to decide the drawing-area design, since the design conclusions hold with a wide
-margin, but anyone tuning against them should re-measure on an idle box first.
+**The box is shared with other agents' work, and load changes every number here.** Early runs were
+taken while another agent's CPU-bound `cgprobe` held load average near 3.0 on two cores, and every
+metric degraded monotonically with contention: the same binary measured an 11.2 us round trip when
+quiet and 49.8 us at peak. The shared-memory comparison below was taken later on a quiet box and
+repeated three times, and those runs agree with each other to about a percent, so that table can be
+read at face value. The single figures further down are minimums across all twelve runs, which is a
+conservative floor rather than a ceiling.
 
 An earlier draft of this file presented a "quiet machine" column. That was wrong: the machine was not
 quiet, and the run labelled as such was in fact the most contended of the set.
 
-## Results, best of nine runs
+## Shared memory: mach memory entry vs POSIX shm
+
+Both work across the split, and they are the same speed. Three consecutive runs on a quiet box, with
+the two paths measured back to back in the same process against the same 10,368,000-byte double
+buffer:
+
+| measurement | mach memory entry | POSIX shm |
+|---|---|---|
+| 32-bit side memcpy of a frame | 5.27, 5.28, 5.45 ms | 5.16, 5.20, 5.37 ms |
+| copy bandwidth | 906 to 938 MB/s | 920 to 959 MB/s |
+| double-buffered pipeline | 136, 178, 181 fps | 157, 181, 185 fps |
+| `glTexSubImage2D` upload, draw baseline subtracted | 7.76, 7.76, 7.94 ms | 7.74, 7.75, 7.76 ms |
+| GL upload bandwidth | 622 to 637 MB/s | 637 to 639 MB/s |
+
+POSIX shm is consistently a percent or two ahead, which is inside the noise, but it is never worse.
+**OpenGL uploads straight from either mapping at the same rate**, 637 MB/s, matching to three
+significant figures. There is no GL-side reason to prefer one.
+
+`shm_open` + `ftruncate` + `mmap` handled the full 10.37 MB region with no size limit trouble, so the
+audio bridge's finding scales from a PCM ring to tile buffers.
+
+The tiebreaker is lifetime, not speed. A mach memory entry is a port: it needs no name, collides with
+nothing, and disappears when the last right goes away, including when a process crashes. POSIX shm
+needs a name in a global namespace and an explicit `shm_unlink`. This spike unlinks on the normal
+quit path, which means a crashed content process leaks its segment until reboot. The usual fix is to
+unlink immediately after both sides have mapped it, since the mapping outlives the name, but that
+needs a handshake the mach path does not.
+
+## Other results, best of twelve runs
 
 | measurement | figure | notes |
 |---|---|---|
 | Mach RPC round trip | 11.2 us | one `mach_msg` doing send+receive, 10k iterations |
 | 64 KB inline message | 241 MB/s | 2000 round trips, ack per message |
-| 32-bit side memcpy of a frame out of shared memory | 4.55 ms, 1086 MB/s | |
-| 64-bit side painting a frame into shared memory | 5.09 ms, 971 MB/s | sequential 32-bit writes |
-| double-buffered pipeline | 176 fps, 869 MB/s | paint and copy overlapped |
-| GL draw of a full-screen textured quad | 1.74 ms | baseline, no upload |
-| `glTexSubImage2D` from the mapped pointer | 8.11 ms, 610 MB/s | marginal cost, draw baseline subtracted |
-| `GL_APPLE_client_storage` + `GL_APPLE_texture_range` | 13.43 ms, 368 MB/s | same accounting |
+| 64-bit side painting a frame | 4.12 ms, 1199 MB/s | sequential 32-bit writes |
+| GL draw of a full-screen textured quad | 1.55 ms | baseline, no upload |
+| `GL_APPLE_client_storage` + `GL_APPLE_texture_range` | 12.08 ms, 409 MB/s | slower than a plain upload |
 
-Out-of-line descriptors, shared memory mapping and exception-port delivery worked on every one of the
-nine runs, contention or not. Those are pass/fail results and the load does not affect them.
+Out-of-line descriptors, shared memory mapping and exception-port delivery worked on every run,
+contended or not. Those are pass/fail and load does not affect them.
 
 ## Two results that contradict the obvious expectation
 

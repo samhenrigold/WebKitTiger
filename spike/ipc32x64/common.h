@@ -8,6 +8,7 @@
 #include <mach/mach_time.h>
 #include <servers/bootstrap.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -98,6 +99,35 @@ typedef struct {
     uint32_t                  seq;
     mach_msg_trailer_t        trailer;
 } IPCOolRcv;
+
+/* The i386 ABI 4-byte-aligns an 8-byte field while x86_64 8-byte-aligns it, so a single uint64_t in
+ * the wrong place shifts every later offset on one side only. Matching sizeof is not enough to prove
+ * that: check the offsets. Both compilers compile this header, so a future field that breaks the
+ * layout fails the build on at least one side instead of corrupting messages at runtime. */
+_Static_assert(sizeof(mach_msg_header_t) == 24, "mach_msg_header_t must be 24 bytes in both ABIs");
+_Static_assert(sizeof(mach_msg_body_t) == 4, "mach_msg_body_t must be 4 bytes");
+_Static_assert(sizeof(mach_msg_port_descriptor_t) == 12, "port descriptor must be 12 bytes in both ABIs");
+
+_Static_assert(offsetof(IPCSimpleMsg, op) == 24, "IPCSimpleMsg.op");
+_Static_assert(offsetof(IPCSimpleMsg, seq) == 28, "IPCSimpleMsg.seq");
+_Static_assert(offsetof(IPCSimpleMsg, value) == 32, "IPCSimpleMsg.value");
+_Static_assert(sizeof(IPCSimpleMsg) == 40, "IPCSimpleMsg");
+
+_Static_assert(offsetof(IPCPortMsg, body) == 24, "IPCPortMsg.body");
+_Static_assert(offsetof(IPCPortMsg, port) == 28, "IPCPortMsg.port");
+_Static_assert(offsetof(IPCPortMsg, op) == 40, "IPCPortMsg.op");
+_Static_assert(offsetof(IPCPortMsg, seq) == 44, "IPCPortMsg.seq");
+_Static_assert(sizeof(IPCPortMsg) == 48, "IPCPortMsg");
+
+_Static_assert(offsetof(IPCBulkMsg, op) == 24, "IPCBulkMsg.op");
+_Static_assert(offsetof(IPCBulkMsg, seq) == 28, "IPCBulkMsg.seq");
+_Static_assert(offsetof(IPCBulkMsg, payload) == 32, "IPCBulkMsg.payload");
+
+/* IPCOolMsg is deliberately NOT asserted to a fixed layout: mach_msg_ool_descriptor_t holds a
+ * pointer, so it is 12 bytes on i386 and 16 on x86_64 and the kernel translates it on delivery.
+ * It is the one message here whose offsets legitimately differ between the two sides. */
+_Static_assert(sizeof(mach_msg_ool_descriptor_t) == (sizeof(void *) == 8 ? 16 : 12),
+               "ool descriptor size follows pointer width");
 
 static inline double ipcNowSeconds(void)
 {
