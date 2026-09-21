@@ -309,3 +309,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   QTMovieFrameImageTypeCGImageRef returns a real CGImageRef (CFTypeID == CGImageGetTypeID) for H.264 Baseline+AAC MP4/MOV;
   audio-only MP3/M4A play; works with or without NSApplication. QTKit's 10.5 availability annotations must be neutralized
   around the import (same #undef trick as the CA headers). Test media under spike/qtkit-media/.
+- 2026-09-20 22:00: the user updated the Tiger box to QuickTime/QTKit 7.6.4 (QTKit build 1327.73). sysroot/ now mirrors the
+  7.6.4 QTKit, QuickTime frameworks and /System/Library/QuickTime components (incl. AppleVAH264HW.component, AppleProResDecoder);
+  the 7.2 copies are in sysroot-old/. Export lists: logs/api/tiger-QTKit-7.2.txt vs tiger-QTKit-7.6.4.txt (117 new/118 removed
+  symbols, e.g. QTMovieFrameImageForce(No)VisualContexts, QTMovieNaturalSizeDidChangeNotification). Plan and spike being redone.
