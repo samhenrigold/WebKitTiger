@@ -1,0 +1,320 @@
+From 6b39076f7070610ca8fd8220c0eb7d173c31b867 Mon Sep 17 00:00:00 2001
+From: samhenrigold <49251320+samhenrigold@users.noreply.github.com>
+Date: Sun, 20 Sep 2026 22:49:46 -0400
+Subject: [PATCH] TIGER: make the IPC wire format identical in a 32-bit and a
+ 64-bit process
+
+Prepares the message set for the split where a 32-bit UI process talks to a
+64-bit content process.
+
+The socket framing header, IPC::MessageInfo, was three size_t fields and a bool
+blitted raw onto the socket: 12 bytes on i386 and 24 on x86_64, which would
+desynchronise the stream at the first message. It is now fixed-width with
+explicit padding and static_asserts on size, alignment and every offset. The
+new struct is 12 bytes on both, so the 32-bit side's framing is unchanged.
+
+Two message fields were size_t and are now uint32_t: SnapOffset::snapAreaIndices
+indexes the snap areas on a page and PlatformXR::LayerInfo::numImages counts
+swapchain images, so neither is near 2^32, and every consumer already widens
+them.
+
+The arithmetic argument coder now rejects long, unsigned long and long double,
+which covers size_t, ptrdiff_t and uintptr_t as they are spelled on Darwin, so a
+future field of one of those types fails to compile instead of corrupting
+messages. int64_t and uint64_t are long long on Darwin and are unaffected.
+
+Beyond that, alignment turned out to be on the wire too, which an audit of field
+types alone does not catch. Encoder::encodeSpan pads the stream to alignof(T)
+and Decoder::decodeSpan seeks to the same boundary, and alignof is 4 for
+uint64_t, int64_t and double on Darwin i386 against 8 on x86_64. A message of
+{ uint32_t, uint64_t, uint32_t, double } lays out at 0, 4, 12, 16 for 24 bytes
+on i386 and at 0, 8, 16, 24 for 32 bytes on x86_64. Nothing has to be declared
+wrongly for that: a uint64_t is enough, and uint64_t is what every container
+length and every ObjectIdentifier already uses. Both sides now pad by
+wireAlignmentOf, which gives 8-byte scalars an alignment of 8 everywhere.
+
+Claude-Session: https://claude.ai/code/session_01RHwCbDKQLvzXACuucjKev6
+---
+ Source/WTF/wtf/ArgumentCoder.h                | 37 ++++++++++++++
+ .../page/scrolling/ScrollSnapOffsetsInfo.cpp  |  4 +-
+ .../page/scrolling/ScrollSnapOffsetsInfo.h    |  5 +-
+ Source/WebCore/platform/xr/PlatformXR.h       |  4 +-
+ Source/WebKit/Platform/IPC/Decoder.cpp        |  4 +-
+ Source/WebKit/Platform/IPC/Decoder.h          |  2 +-
+ Source/WebKit/Platform/IPC/Encoder.h          |  4 +-
+ Source/WebKit/Platform/IPC/unix/UnixMessage.h | 49 +++++++++++++++----
+ .../WebCoreArgumentCoders.serialization.in    |  2 +-
+ .../Shared/XR/PlatformXR.serialization.in     |  2 +-
+ 10 files changed, 95 insertions(+), 18 deletions(-)
+
+diff --git a/Source/WTF/wtf/ArgumentCoder.h b/Source/WTF/wtf/ArgumentCoder.h
+index 705ab640..e38c1891 100644
+--- a/Source/WTF/wtf/ArgumentCoder.h
++++ b/Source/WTF/wtf/ArgumentCoder.h
+@@ -27,6 +27,7 @@
+ 
+ #include <optional>
+ #include <span>
++#include <type_traits>
+ #include <wtf/EnumTraits.h>
+ 
+ namespace IPC {
+@@ -55,9 +56,45 @@ struct ArgumentCoder<bool> {
+     }
+ };
+ 
++// A type may only go on the wire if its size and alignment are identical in every process sharing
++// the connection. Once a 32-bit UI process talks to a 64-bit content process that rules out the
++// native long types: long and unsigned long are 4 bytes on i386 and 8 on x86_64, and on Darwin
++// size_t, ptrdiff_t and uintptr_t are all spelled with them. int64_t and uint64_t are spelled
++// long long on Darwin and are unaffected.
++//
++// The fixed-width types agree in both size and alignment, including the 64-bit ones, but that last
++// part holds only because clang reports alignof(long long) as 8 on i386 Darwin where the platform
++// GCC reports 4. Both sides of the connection must therefore be built with the same clang.
++template<typename T>
++inline constexpr bool isWireUnstableArithmeticType =
++    std::is_same_v<std::remove_cv_t<T>, long>
++    || std::is_same_v<std::remove_cv_t<T>, unsigned long>
++    || std::is_same_v<std::remove_cv_t<T>, long double>;
++
++// Size is not the only thing the wire format takes from the native ABI. Encoder::encodeSpan pads the
++// stream to alignof(T) and Decoder::decodeSpan seeks to the same boundary, so the alignment is part
++// of the format too, and alignof is not stable across the split: on Darwin i386 alignof is 4 for
++// uint64_t, int64_t, double and long long, while on x86_64 it is 8. Measured on this toolchain, a
++// message of { uint32_t, uint64_t, uint32_t, double } lays out at offsets 0, 4, 12, 16 for 24 bytes
++// on i386 and 0, 8, 16, 24 for 32 bytes on x86_64: every field after the first 64-bit value lands
++// somewhere different. Nothing in the message set has to be wrong for that to happen; a uint64_t is
++// enough, and uint64_t is what container lengths and every ObjectIdentifier already use.
++//
++// So pad by a fixed rule instead of the native one. Over-aligning is always safe for the reader, so
++// an 8-byte scalar is padded to 8 on both sides and smaller types keep an alignment both already
++// agree on. long double is the one arithmetic type this cannot reconcile, 4-byte aligned on i386 and
++// 16-byte aligned on x86_64, and it is banned above rather than special-cased.
++template<typename T>
++inline constexpr size_t wireAlignmentOf = (alignof(T) < 8 && sizeof(T) >= 8) ? 8 : alignof(T);
++
+ template<typename T>
+     requires (std::is_arithmetic_v<T>)
+ struct ArgumentCoder<T> {
++    static_assert(!isWireUnstableArithmeticType<T>,
++        "long, unsigned long, size_t, ptrdiff_t, uintptr_t and long double change width or alignment "
++        "between the 32-bit and 64-bit processes and cannot be serialised. Declare the field as a "
++        "fixed-width type such as uint32_t or uint64_t.");
++
+     template<typename Encoder>
+     static void encode(Encoder& encoder, T value)
+     {
+diff --git a/Source/WebCore/page/scrolling/ScrollSnapOffsetsInfo.cpp b/Source/WebCore/page/scrolling/ScrollSnapOffsetsInfo.cpp
+index f484c2dc..d254ec07 100644
+--- a/Source/WebCore/page/scrolling/ScrollSnapOffsetsInfo.cpp
++++ b/Source/WebCore/page/scrolling/ScrollSnapOffsetsInfo.cpp
+@@ -412,11 +412,11 @@ void updateSnapOffsetsForScrollableArea(ScrollableArea& scrollableArea, const Re
+         offset.hasSnapAreaLargerThanViewport |= hasSnapAreaLargerThanViewport;
+ 
+         Ref newElement = *snapBoxesByAreaIndex[snapAreaIndex]->element();
+-        auto insertionPoint = std::ranges::find_if(offset.snapAreaIndices, [&](size_t existingIndex) {
++        auto insertionPoint = std::ranges::find_if(offset.snapAreaIndices, [&](uint32_t existingIndex) {
+             Ref existingElement = *snapBoxesByAreaIndex[existingIndex]->element();
+             return is_lt(treeOrder<ComposedTree>(newElement, existingElement));
+         });
+-        offset.snapAreaIndices.insert(insertionPoint - offset.snapAreaIndices.begin(), snapAreaIndex);
++        offset.snapAreaIndices.insert(insertionPoint - offset.snapAreaIndices.begin(), static_cast<uint32_t>(snapAreaIndex));
+     };
+ 
+     HashMap<LayoutUnit, SnapOffset<LayoutUnit>> verticalSnapOffsetsMap;
+diff --git a/Source/WebCore/page/scrolling/ScrollSnapOffsetsInfo.h b/Source/WebCore/page/scrolling/ScrollSnapOffsetsInfo.h
+index 45da66f6..2b71948f 100644
+--- a/Source/WebCore/page/scrolling/ScrollSnapOffsetsInfo.h
++++ b/Source/WebCore/page/scrolling/ScrollSnapOffsetsInfo.h
+@@ -54,7 +54,10 @@ struct SnapOffset {
+     bool isFocused;
+     bool isTarget;
+     Markable<NodeIdentifier> snapTargetID;
+-    Vector<size_t, 1> snapAreaIndices;
++    // uint32_t, not size_t: this is serialised to the web process, and size_t differs in
++    // width between a 32-bit UI process and a 64-bit content process. Snap area indices count the
++    // snap areas on a page, so 32 bits is ample.
++    Vector<uint32_t, 1> snapAreaIndices;
+ };
+ 
+ template <typename UnitType, typename RectType>
+diff --git a/Source/WebCore/platform/xr/PlatformXR.h b/Source/WebCore/platform/xr/PlatformXR.h
+index 56dc6411..4ac4252d 100644
+--- a/Source/WebCore/platform/xr/PlatformXR.h
++++ b/Source/WebCore/platform/xr/PlatformXR.h
+@@ -292,7 +292,9 @@ struct RateMapDescription {
+ 
+ struct LayerInfo {
+     LayerHandle handle;
+-    size_t numImages { 1 };
++    // uint32_t, not size_t: this crosses the IPC boundary, and size_t is 4 bytes on i386 and 8 on
++    // x86_64. A swapchain image count is small; every consumer takes it as a widened size_t.
++    uint32_t numImages { 1 };
+ };
+ 
+ 
+diff --git a/Source/WebKit/Platform/IPC/Decoder.cpp b/Source/WebKit/Platform/IPC/Decoder.cpp
+index 045a1e64..fd5beb40 100644
+--- a/Source/WebKit/Platform/IPC/Decoder.cpp
++++ b/Source/WebKit/Platform/IPC/Decoder.cpp
+@@ -77,7 +77,9 @@ Decoder::Decoder(std::span<const uint8_t> buffer, BufferDeallocator&& bufferDeal
+     , m_bufferDeallocator { WTF::move(bufferDeallocator) }
+     , m_attachments { WTF::move(attachments) }
+ {
+-    if (reinterpret_cast<uintptr_t>(m_buffer.data()) % alignof(uint64_t)) [[unlikely]] {
++    // 8 rather than alignof(uint64_t), which is 4 on i386: the wire format assumes 8-byte
++    // alignment for 8-byte scalars on both sides of the split. See wireAlignmentOf.
++    if (reinterpret_cast<uintptr_t>(m_buffer.data()) % wireAlignmentOf<uint64_t>) [[unlikely]] {
+         markInvalid();
+         return;
+     }
+diff --git a/Source/WebKit/Platform/IPC/Decoder.h b/Source/WebKit/Platform/IPC/Decoder.h
+index d4409c15..0eae2abc 100644
+--- a/Source/WebKit/Platform/IPC/Decoder.h
++++ b/Source/WebKit/Platform/IPC/Decoder.h
+@@ -237,7 +237,7 @@ inline std::span<const T> Decoder::decodeSpan(size_t size)
+     if (size > std::numeric_limits<size_t>::max() / sizeof(T))
+         return { };
+ 
+-    const size_t alignedBufferPosition = static_cast<size_t>(std::distance(m_buffer.data(), roundUpToMultipleOf<alignof(T)>(std::to_address(m_bufferPosition))));
++    const size_t alignedBufferPosition = static_cast<size_t>(std::distance(m_buffer.data(), roundUpToMultipleOf<wireAlignmentOf<T>>(std::to_address(m_bufferPosition))));
+     const size_t bytesNeeded = size * sizeof(T);
+     if (!alignedBufferIsLargeEnoughToContain(m_buffer.size_bytes(), alignedBufferPosition, bytesNeeded)) [[unlikely]] {
+         markInvalid();
+diff --git a/Source/WebKit/Platform/IPC/Encoder.h b/Source/WebKit/Platform/IPC/Encoder.h
+index ea85b7c3..fed89e9e 100644
+--- a/Source/WebKit/Platform/IPC/Encoder.h
++++ b/Source/WebKit/Platform/IPC/Encoder.h
+@@ -29,6 +29,7 @@
+ #include "MessageNames.h"
+ #include <WebCore/PlatformExportMacros.h>
+ #include <WebCore/SharedBuffer.h>
++#include <wtf/ArgumentCoder.h>
+ #include <wtf/Forward.h>
+ #include <wtf/OptionSet.h>
+ #include <wtf/StdLibExtras.h>
+@@ -134,7 +135,8 @@ template<typename T, size_t Extent>
+ inline void Encoder::encodeSpan(std::span<T, Extent> span)
+ {
+     auto bytes = asBytes(span);
+-    constexpr size_t alignment = alignof(T);
++    // Not alignof(T): that is 4 for 8-byte scalars on i386 and 8 on x86_64. See wireAlignmentOf.
++    constexpr size_t alignment = wireAlignmentOf<T>;
+     ASSERT(!(reinterpret_cast<uintptr_t>(bytes.data()) % alignment));
+ 
+     auto buffer = grow(alignment, bytes.size());
+diff --git a/Source/WebKit/Platform/IPC/unix/UnixMessage.h b/Source/WebKit/Platform/IPC/unix/UnixMessage.h
+index 10932fbb..6175ccb6 100644
+--- a/Source/WebKit/Platform/IPC/unix/UnixMessage.h
++++ b/Source/WebKit/Platform/IPC/unix/UnixMessage.h
+@@ -32,6 +32,7 @@
+ #include <WebCore/SharedMemory.h>
+ #include <wtf/StdLibExtras.h>
+ #include <wtf/TZoneMallocInlines.h>
++#include <limits>
+ #include <wtf/Vector.h>
+ 
+ namespace IPC {
+@@ -49,9 +50,12 @@ public:
+     MessageInfo(size_t bodySize, size_t initialAttachmentCount, size_t hardwareBufferCount)
+         : MessageInfo()
+     {
+-        m_bodySize = bodySize;
+-        m_attachmentCount = initialAttachmentCount;
+-        m_hardwareBufferCount = hardwareBufferCount;
++        ASSERT(bodySize <= std::numeric_limits<uint32_t>::max());
++        ASSERT(initialAttachmentCount <= std::numeric_limits<uint32_t>::max());
++        ASSERT(hardwareBufferCount <= std::numeric_limits<uint32_t>::max());
++        m_bodySize = static_cast<uint32_t>(bodySize);
++        m_attachmentCount = static_cast<uint32_t>(initialAttachmentCount);
++        m_hardwareBufferCount = static_cast<uint32_t>(hardwareBufferCount);
+     }
+ 
+     size_t hardwareBufferCount() const { return m_hardwareBufferCount; }
+@@ -59,8 +63,10 @@ public:
+     MessageInfo(size_t bodySize, size_t initialAttachmentCount)
+         : MessageInfo()
+     {
+-        m_bodySize = bodySize;
+-        m_attachmentCount = initialAttachmentCount;
++        ASSERT(bodySize <= std::numeric_limits<uint32_t>::max());
++        ASSERT(initialAttachmentCount <= std::numeric_limits<uint32_t>::max());
++        m_bodySize = static_cast<uint32_t>(bodySize);
++        m_attachmentCount = static_cast<uint32_t>(initialAttachmentCount);
+     }
+ #endif
+ 
+@@ -86,14 +92,39 @@ public:
+ 
+ private:
+     // The MessageInfo will be copied using memcpy, so all members must be trivially copyable.
+-    size_t m_bodySize;
+-    size_t m_attachmentCount;
++    //
++    // It is also blitted raw onto the socket as the framing header, so its layout has to be
++    // identical in every process that shares the connection. That matters once a 32-bit UI process
++    // talks to a 64-bit content process: size_t is 4 bytes on i386 and 8 on x86_64, which made this
++    // struct 12 bytes on one side and 24 on the other and desynchronised the stream at the first
++    // message. Fixed-width fields with explicit padding, checked below for both ABIs.
++    //
++    // uint32_t rather than uint64_t is deliberate: an inline body is bounded by the socket message
++    // size and an out-of-line body travels in shared memory, so neither a body size nor an
++    // attachment count approaches 4 GB, and a 32-bit receiver can widen these without truncating.
++    uint32_t m_bodySize;
++    uint32_t m_attachmentCount;
+ #if OS(ANDROID)
+-    size_t m_hardwareBufferCount;
++    uint32_t m_hardwareBufferCount;
+ #endif
+-    bool m_isBodyOutOfLine;
++    uint8_t m_isBodyOutOfLine;
++    uint8_t m_padding[3];
+ };
+ 
++// Same size, same alignment, same offsets when compiled for i386 and for x86_64.
++static_assert(std::is_standard_layout_v<MessageInfo>, "MessageInfo is blitted onto the socket");
++static_assert(alignof(MessageInfo) == 4, "MessageInfo must not gain a field with stricter alignment");
++static_assert(offsetof(MessageInfo, m_bodySize) == 0);
++static_assert(offsetof(MessageInfo, m_attachmentCount) == 4);
++#if OS(ANDROID)
++static_assert(offsetof(MessageInfo, m_hardwareBufferCount) == 8);
++static_assert(offsetof(MessageInfo, m_isBodyOutOfLine) == 12);
++static_assert(sizeof(MessageInfo) == 16, "MessageInfo is the wire framing header");
++#else
++static_assert(offsetof(MessageInfo, m_isBodyOutOfLine) == 8);
++static_assert(sizeof(MessageInfo) == 12, "MessageInfo is the wire framing header");
++#endif
++
+ class UnixMessage {
+     WTF_MAKE_TZONE_ALLOCATED_INLINE(UnixMessage);
+ public:
+diff --git a/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in b/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
+index 06ca416b..4fcb1208 100644
+--- a/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
++++ b/Source/WebKit/Shared/WebCoreArgumentCoders.serialization.in
+@@ -2929,7 +2929,7 @@ enum class WebCore::ScrollSnapStop : bool;
+     bool isFocused;
+     bool isTarget;
+     Markable<WebCore::NodeIdentifier> snapTargetID;
+-    Vector<size_t, 1> snapAreaIndices;
++    Vector<uint32_t, 1> snapAreaIndices;
+ };
+ 
+ struct WebCore::MediaSelectionOption {
+diff --git a/Source/WebKit/Shared/XR/PlatformXR.serialization.in b/Source/WebKit/Shared/XR/PlatformXR.serialization.in
+index 6c087e39..2331f1ab 100644
+--- a/Source/WebKit/Shared/XR/PlatformXR.serialization.in
++++ b/Source/WebKit/Shared/XR/PlatformXR.serialization.in
+@@ -348,7 +348,7 @@ header: <WebCore/PlatformXR.h>
+ #if ENABLE(WEBXR_LAYERS)
+ [CustomHeader] struct PlatformXR::LayerInfo {
+     PlatformXR::LayerHandle handle;
+-    size_t numImages;
++    uint32_t numImages;
+ };
+ 
+ enum class PlatformXR::CompositionLayerType : uint8_t {
+-- 
+2.55.0
+
