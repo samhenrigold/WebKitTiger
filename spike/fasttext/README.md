@@ -167,6 +167,41 @@ outline scan-converter and FreeType's are different code computing the same inte
 the difference lands entirely on edge pixels. No cairo or FreeType option addresses it, and
 the only thing that would is rasterising with Quartz, which is what the other mode is for.
 
+## Is there a Quartz smoothing parameter left to find? No.
+
+Worth settling before anyone disassembles CoreGraphics looking for filter weights, a gamma or
+a contrast setting: bin every inked pixel by *our* coverage and look at what CoreText put in
+the same pixel.
+
+```
+ours     n    ref mean   ref sd        ours     n    ref mean   ref sd
+0.025  2016     0.062    0.093         0.525   663     0.551    0.173
+0.175   747     0.216    0.153         0.675   611     0.666    0.131
+0.325   560     0.348    0.155         0.825   627     0.814    0.106
+0.475   651     0.481    0.168         0.975  3118     0.973    0.059
+```
+
+The conditional mean tracks the **identity line** the whole way. There is no tone curve: Quartz
+is not applying a gamma, a contrast boost or a coverage LUT that we are failing to apply. And
+the spread around it is large — 0.13 to 0.17 in the mid-coverage bins, which is the size of the
+entire residual. Fitting the best possible per-bin lookup table and applying it removes **-7%**
+of the error, i.e. an oracle LUT is slightly *worse* than doing nothing.
+
+So the two rasterisers already agree on how much ink a pixel should get on average, and disagree
+about *which* pixels get it. That is scan-conversion geometry, not tone mapping. Nothing in a
+disassembly of the smoothing path can be applied to close it; only replacing FreeType's
+rasteriser could, which is a large, hot-path change to buy ~8% on edge pixels alone.
+
+The useful lesson is the opposite one: the structural difference that *was* worth 30%, the
+1/4-pixel grid rule, was found by black-box probing in minutes. That is the method that pays
+here.
+
+**Untested and worth testing:** every baseline in this sample is an integer, so nothing here
+exercises fractional baselines, which real content produces constantly. cairo quantises glyph
+*y* to whole pixels (dy = 0 and dy = -0.125 render identically); if Quartz places y on the same
+1/4-pixel grid it uses for x, fast mode would diverge on any line box that does not land on an
+integer. The existing harness tests this by moving `FT_LINE0`/`FT_LEADING` off integers.
+
 ## Recommendation
 
 See `NOTES.md`, "Fast mode's font options".
