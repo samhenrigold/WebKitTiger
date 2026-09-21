@@ -3187,3 +3187,89 @@ bridge fault does not matter — **but it may only keep 64-bit values in r8–r1
 halves of rax–rdi are silently reset a few hundred times a second. That rules out anything a
 compiler generates and leaves hand-written assembly kernels, where the register discipline is
 explicit: a wide-integer or hash inner loop would work, a C-compiled codec or rasteriser would not.
+
+## 2026-09-21 — gpu32: the i386 libWebKit.a census, and the one rule it is made of
+
+Continues the section above. `libWebCore.a` for i386 has been green since pass 21; this is the
+WebKit half, `TIGER_WEBKIT2=ON` on `build/tiger-gpu`, passes 22-62. It is **not linked yet** —
+the last pass was 25 failing targets, down from 572 errors — but the shape of the remaining work
+is completely known, and it is one rule. Commits: WebKit `8cb96c43` and `7c6c596f` (WIP-tagged),
+plus `ea470cf7`, `62e34c5f`, `d0d55f74`, `be3be8f1`, `814a92f3`.
+
+### The rule
+
+> **`PLATFORM(COCOA)` in WebKit almost never means "this is a Cocoa platform".** It means one of
+> four narrower things, and this port is the first that can tell them apart, because its i386 side
+> is `PLATFORM(COCOA)` *and* speaks unix sockets, curl and no media stack, while its x86_64 side is
+> none of those:
+>
+> | written as | means |
+> |---|---|
+> | `PLATFORM(COCOA) && !USE(UNIX_DOMAIN_SOCKETS)` | this connection is Mach |
+> | `PLATFORM(COCOA) && !USE(CURL)` | this is the CFNetwork stack |
+> | `PLATFORM(COCOA) && USE(AVFOUNDATION)` | there is a media stack here |
+> | `PLATFORM(COCOA) && !PLATFORM(TIGER)` | the WK Objective-C API is in this build, or: the wire says Cocoa on BOTH ends |
+
+The fourth needed a decision and it is the one to know about. **This port's UI process is Cocoa and
+its web process is not.** A message or a serialized type conditioned on `PLATFORM(COCOA)` alone
+exists on one end of the wire and not the other: the i386 side compiles a receiver whose sender can
+never be built, and generates serializers its peer does not have. The wire owner's principle is
+that i386 must be a SUBSET of x86_64, so 46 message blocks across 33 `.messages.in` files and 62
+type blocks across 43 `.serialization.in` files are now `PLATFORM(COCOA) && !PLATFORM(TIGER)`,
+**together with the C++ members they pair with** — and that pairing is the part that costs passes:
+a struct whose serializer lost a member and whose header did not fails as
+`sizeof(ShouldBeSameSizeAsX) == sizeof(X)`, which is the generator telling you exactly that.
+
+### What else was structural
+
+- **The generator emitted three things this port cannot compile.** The WebKit secure-coding header
+  is included by *every* generated implementation file and is Objective-C++ (sixteen C++
+  translation units and four process PCHs); it is now
+  `PLATFORM(COCOA) && !USE(UNIX_DOMAIN_SOCKETS)`. `SecTrustRef` was forward-declared as
+  `struct __SecTrust *` against Tiger's `OpaqueSecTrustRef`. And a subclass enum whose *first*
+  member is conditional emitted a leading comma — `ENABLE(APPLE_PAY)` off is enough to stop
+  `WebCore::SystemImage` from parsing. Trailing commas everywhere is the fix.
+- **`#if !PLATFORM(COCOA) || !__has_feature(modules)`** guards six headers (APIObject and five
+  Shared value types) whose declarations are supposed to come from the WebKit module instead.
+  There is no module on this port, so the whole header vanished and `API::Object` was incomplete
+  everywhere. `PLATFORM(TIGER)` joins that guard, and `DELEGATE_REF_COUNTING_TO_COCOA` becomes
+  "the WK API is in this build" — otherwise `API::Array` has no `ref()` and no `deref()`.
+- **A CMake-side flag can contradict a header-side one and only the generator notices.**
+  `CSS_VALUE_PLATFORM_DEFINES` passes `HAVE_CORE_MATERIAL` to the CSS property generator by hand
+  (with an upstream FIXME saying it should be gated in PlatformHave.h). The wire-flag sweep set it
+  to 0 in the header, so `-apple-visual-effect` was generated with no member to store it in. The
+  generator's other input, `platform-feature-defines.txt`, is preprocessed from the real headers
+  and had it right.
+- **The wire-flag sweep** (56 flags, from the wire-flag track's patch, applied unchanged inside
+  this track's single PCH invalidation) plus `HAVE_AUDIT_TOKEN`, `USE_MEDIATOOLBOX`,
+  `HAVE_LSDATABASECONTEXT` and `ENABLE_NETWORK_CACHE_BLOB_STORAGE_MEMORY_CACHE`.
+
+### Traps worth keeping
+
+- **Ninja's progress output to a file is block-buffered.** A pass can look frozen for twenty
+  minutes and be perfectly healthy. `find build/<dir> -name '*.o' -mmin -10 | wc -l` is the real
+  heartbeat, and `ps` for the compiler is the real liveness check.
+- **Do not edit a header while a pass is running.** Three of WebCore's PCHs were rebuilt mid-pass
+  and 20 of that pass's 27 failures were `file ... has been modified since the precompiled header
+  was built`, which look like real errors and are not.
+- **Generated sources regenerate mid-pass too.** Two passes' worth of `appleVisualEffect` and
+  `AttributedString` errors were translation units compiled against generated headers that the
+  same pass replaced a few seconds later. If a census item's file on disk no longer contains the
+  thing the error names, it is stale: rerun before believing it.
+- **Two ninjas in one build directory corrupt `.ninja_log`** ("premature end of file; recovering")
+  and can leave an object the graph believes exists. Three stale invocations from another shell
+  were doing exactly that in `build/tiger-gpu`; one archive step failed on two `.o` files that had
+  been built and then removed.
+- `ps -ax | grep <AppName>` matches the ssh wrapper, not the app.
+
+### What is left
+
+Twenty-five targets, and the census names every one: `UIProcess/PageClient.h` (34 errors — the
+Cocoa view surface, the same "WK API is in this build" condition as APIObject),
+`Shared/EditorState.cpp` (19 — the members whose serializer arm is already off),
+`Platform/IPC/{Encoder,Decoder,StreamConnectionEncoder}.h` (16 — `ArgumentCoder<>` instantiations
+for `KeypressCommand`, `ShareableGainMap`, `CoreIPCAuditToken` and friends, each traceable to one
+last referencing header), `UIProcess/Launcher/ProcessLauncher.h` (6, the XPC launch path),
+`WebProcess/Model/Mesh.h` (2, simd), and five singletons. All of them are the rule above applied
+once more. Then the GPUProcess link, whose undefineds will be a subset of the 383 already
+tombstoned in `spike/gpureplay/tombstones.s`, then the driver run and `tiger-check-ipc`.
