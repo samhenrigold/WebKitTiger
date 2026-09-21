@@ -1152,3 +1152,12 @@ Added to the ARTIFACT OWNERSHIP MAP above.
 - Scripting a synchronous tracking loop: timer in kCFRunLoopCommonModes scheduled before the call, posting via -[NSApp postEvent:atStart:NO]. 34/34 assertions; screenshots pixel-identical to a separately built reference NSPopUpButton by construction.
 - Tiger NSMenu gap vs upstream: essentially none (separators, submenus, state, enable, indentation, images, attributedTitle all present). Only old-Aqua limit: image and checkmark cannot share the gutter slot. No vibrancy/vector icons.
 - browsershell stopped after this report (budget).
+
+## 2026-09-21 03:22 — cahost wind-down: scene applier on the box (b0845ee, spike/CAHost)
+
+- Page-like tree (root, scroll layer, 3x16 grid of 256 px tiles, 120 composited sublayers), 200 property changes + 20 tile updates per frame at 60 Hz: apply avg 1.14 ms (worst 2.61), CA render 13.76 ms, ~15 ms/frame total. Applier is not the cost: 20 tile uploads ~6 ms (0.3 ms/tile), masksToBounds on 120 transformed layers ~4 ms, compositing 170 layers ~7.8 ms. Initial commit (170 layers, 733 writes) 8.67 ms.
+- All 29 WCLayerChange flags declared with WC numbering (wire shape identical). Unhandled by design: replica, preserves-3D (needs CATransformLayer at create), filters, backdrop, platform layer, remote frame. Order = WCScene: create, flat property loop, delete last. Tile grid = container child with one CALayer per live tile, inserted at bottom.
+- FINDING: CATransform3D is 16 floats on i386 (CGFloat=float); the delta carries 16 doubles. memcpy → frame ±FLT_MAX → layer renders as nothing, indistinguishable from never created. Convert element by element. (This is the CGFloat sixth IPC hazard class, now with a concrete victim.)
+- FINDING: CA does not copy at -setContents: (48 tiles/12 MB over mmap → +0.1 MB RSS) but copies at texture upload; in-place mutation of the mapping has no effect. Zero-copy handoff is real; every change needs a fresh image.
+- spike/CAHost/README.md added; CAWidgets marked superseded by ControlPart remoting.
+- cahost stopped after this report (budget). Compositor side of the GPU process waits until WK2 builds.
