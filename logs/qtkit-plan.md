@@ -720,6 +720,169 @@ profile coverage). AAC-LC was already covered per §3; AAC-HE (used by some
 lower-bitrate streaming content) was not specifically checked and the
 component's `CFBundleVersion` string alone doesn't resolve it.
 
+## 9. The accelerated route: QuickTime's OpenGL visual context, for the CARenderer-host era
+
+`spike/qtrenderertest.m` (commit `b09f4fd`) confirmed `QTVideoRendererWebKitOnly`
+is real-time at 320x240 (~15fps matching a 15fps source, `drawInRect:` costing
+~30-38ms/draw) but the decoder itself can't keep up at 720p — only ~2
+`NewImageAvailable` notifications/second, `drawInRect:` costing 220-390ms/draw
+when it does fire. That spike measured the same software CPU-bound path §4a
+originally proposed as a fallback (`frameImageAtTime:`) and the one §8a found
+already works (`QTVideoRendererWebKitOnly`) — both feed a CPU-side pixel
+buffer through `NSGraphicsContext`/`CGContextDrawImage`. Team lead reports
+QuickTime Player on Tiger reached ~24fps at 720p H.264 on comparable
+hardware, which only happens through the GPU-resident path this section
+covers — **confirming the bottleneck is the CPU buffer readback + `drawRect:`
+composite, not the decoder itself.** The decoder is fine at 720p; walking
+each frame through main memory and AppKit's software blitter is what isn't.
+
+### 9a. The API, confirmed present on Tiger 7.6.4
+
+The C-level `QTVisualContext` API lives in `QuickTime.framework`, not
+`QTKit.framework` (the earlier `logs/api/tiger-QTKit-7.6.4.txt` export list,
+being QTKit-only, doesn't carry these symbols — that's why the initial grep
+against it came back empty; re-ran `tiger-nm -g -arch i386` directly against
+`sysroot/System/Library/Frameworks/QuickTime.framework/QuickTime` instead).
+**All of the following are present as defined (`T`) symbols**:
+
+```
+_QTOpenGLTextureContextCreate
+_QTVisualContextCreate
+_QTVisualContextRetain / _QTVisualContextRelease
+_QTVisualContextSetImageAvailableCallback
+_QTVisualContextSetIsNewImageAvailableCallback
+_QTVisualContextIsNewImageAvailable
+_QTVisualContextNewImageAvailable
+_QTVisualContextCopyImageForTime
+_QTVisualContextTask
+_QTVisualContextGetAttribute / SetAttribute / GetProperty / SetProperty
+_QTVCInitializeOpenGLTextureContext
+```
+
+(plus the pixel-buffer-context sibling API, `QTPixelBufferContextCreate` /
+`QTVCInitializePixelBufferContext`, for a CPU-side alternative not needed
+here.) `CVOpenGLTextureRef`'s consumer API is confirmed present in
+`CoreVideo.framework` (version 1.4.1, matches `logs/ca-hosting-design.md`'s
+existing `CVDisplayLink` finding): `_CVOpenGLTextureCacheCreate`,
+`_CVOpenGLTextureCacheCreateTextureFromImage` (not actually needed — the
+visual-context path hands back a ready `CVOpenGLTextureRef` directly, no
+cache round-trip required), `_CVOpenGLTextureGetTarget`,
+`_CVOpenGLTextureGetName` (the two calls that matter: they give the raw GL
+texture target/name to bind for drawing), `_CVOpenGLTextureRetain`/`Release`.
+
+On the `QTKit.framework`/`QTMovie` side, `-setVisualContext:`/`-visualContext`
+were already confirmed present in §2 (gated only by `QTKIT_VERSION_MAX_ALLOWED`,
+which defaults to 7.2 regardless of OS version — true at both 7.2 and 7.6.4,
+unaffected by the §8 upgrade). §2 also already flagged the one real gap:
+**`QTVisualContextRef` itself isn't declared in either SDK snapshot in this
+checkout** — a 1-line local `typedef struct OpaqueQTVisualContextRef*
+QTVisualContextRef;` forward-declaration closes it, same conclusion as
+before, now with a concrete use for it.
+
+### 9b. The pipeline
+
+1. `QTOpenGLTextureContextCreate(kCFAllocatorDefault, cglContext,
+   cglPixelFormat, attributes, &visualContext)` — bind the visual context to
+   the **same `CGLContextObj`** `logs/ca-hosting-design.md` §2.2 already
+   creates for the `CARenderer` host's `NSOpenGLView` (`WebCARendererHostView`).
+   One shared GL context for both CA's own rendering and QuickTime's texture
+   output — required for the texture handle to be usable without a
+   cross-context share/copy.
+2. `[m_qtMovie setVisualContext:visualContext]` (bridging the C ref through
+   the ObjC method — the `QTVisualContextRef`/`QTVisualContextRefID` divide
+   is exactly the toll-free-bridged relationship the 10.4u SDK header comment
+   implies but doesn't spell out, consistent with §4a's note about
+   `frameImageAtTime:`'s untyped `void *` return needing the same kind of
+   verification. Not independently spiked in this pass — flagged below).
+3. Per frame (driven by `QTVisualContextSetImageAvailableCallback` or by
+   polling `QTVisualContextIsNewImageAvailable` from the same timer/display-
+   link tick `logs/ca-hosting-design.md` §2.4 already drives the `CARenderer`
+   frame from — **reuse that driver, don't add a second one**): call
+   `QTVisualContextTask(visualContext)` to pump QuickTime's internal state,
+   then if a new image is available, `QTVisualContextCopyImageForTime(visualContext,
+   kCFAllocatorDefault, NULL, &cvImageBuffer)` and `CVOpenGLTextureGetTarget`/
+   `CVOpenGLTextureGetName` to get the GL texture target/name to bind.
+4. Draw it. **This is not a `CALayer.contents` assignment** — Tiger has no
+   IOSurface (10.6+) to back a zero-copy `CALayer.contents`/GL-texture bridge,
+   and copying the `CVOpenGLTextureRef` back to a `CGImageRef` for
+   `CALayer.contents` would reintroduce exactly the CPU round-trip this whole
+   section exists to avoid. Instead, draw the texture as a textured quad
+   directly in `WebCARendererHostView`'s own GL code, in the **same CGL
+   context and the same frame** as the `CARenderer` pass from
+   `logs/ca-hosting-design.md` §2.3:
+   ```
+   CGLSetCurrentContext(cgl);
+   [CATransaction flush];
+   glClear(GL_COLOR_BUFFER_BIT);
+   // draw layers stacked below the <video> element's z-order, if any, via CARenderer
+   glEnable(textureTarget); glBindTexture(textureTarget, textureName);
+   // draw the video's quad at its layer's screen-space rect
+   glDisable(textureTarget);
+   // draw layers stacked above the <video> element, if any, via CARenderer
+   [renderer render];   // as before
+   [renderer endFrame];
+   [[self openGLContext] flushBuffer];
+   ```
+   This matches `logs/ca-hosting-design.md` §4.4's own placeholder
+   ("Video — separate track... Not part of this design") — §9 is exactly
+   that missing track. **Caveat, not costed here**: a `<video>` element that
+   participates in complex stacking (transformed/opacity ancestors above and
+   below it in the same compositing context, or other elements painting
+   *through* transparency over the video) needs the layer tree partitioned
+   into "everything below the video's z-order" / "everything above," each
+   rendered as a separate `CARenderer` pass around the raw GL quad draw — a
+   real complication for correctness in the general case, though the common
+   case (`<video>` sitting in its own block, nothing overlapping it) works
+   with a single before/after split as sketched above. `CARenderer` doesn't
+   support partial-scene rendering by z-index natively; splitting the layer
+   tree into two `CARenderer` instances (or two render passes with different
+   root sublayer sets) is the mechanism, not costed in this pass.
+
+### 9c. Can this replace `QTMovieLayer`?
+
+**Yes, and it's not a coincidence — Apple's own `QTMovieLayer` (10.5+,
+confirmed still absent from Tiger 7.6.4's QTKit in §8a) is understood to be
+built on exactly this mechanism internally**: a `CALayer` subclass that
+installs a `QTVisualContext` (specifically the pixel-buffer or IOSurface
+variant depending on OS version, not the raw OpenGL-texture variant used
+here) and feeds each `QTVisualContextCopyImageForTime` result to the layer's
+`contents` on newer OS versions where IOSurface-backed `CALayer.contents`
+makes that a zero-copy operation. **This is stated from how QuickTime/WebKit's
+public documentation and the general shape of the API describe the
+relationship, not from disassembling `QTMovieLayer` itself** — no
+`QTMovieLayer` binary exists on this Tiger box to disassemble, per §8a, so
+this can't be verified against Tiger's own copy either way. The practical
+upshot either way: whether or not the internal mechanism is literally
+identical, **the video-track design in §9b is the correct Tiger-native
+replacement for what `QTMovieLayer` would have provided** — same visual
+result (a live-updating video image composited into the CA scene), reached
+through the one GL-texture-based mechanism confirmed to exist on this
+specific QuickTime version, with the CPU-round-trip removed. Once this
+lands, `MediaPlayerPrivateQTKit`'s `MediaRenderingMovieLayer` rendering mode
+(§8a/§0, `createQTMovieLayer`/`destroyQTMovieLayer`/`m_qtVideoLayer`, still
+recommended for deletion since the literal `QTMovieLayer` class stays
+unavailable) is superseded by a *third* rendering mode this plan hasn't
+previously named — call it `MediaRenderingVisualContext` — gated on whether
+the CARenderer host (`logs/ca-hosting-design.md`) is active, falling back to
+`MediaRenderingSoftwareRenderer` (§8a, `QTVideoRendererWebKitOnly`) when
+compositing is off, exactly mirroring the existing `currentRenderingMode()`/
+`preferredRenderingMode()` logic's shape (§8b) but with a new best tier
+added above the old two.
+
+**Not costed in this pass**: LOC estimate for `MediaRenderingVisualContext`
+itself (a new rendering mode plus the `WebCARendererHostView` quad-draw
+integration in §9b) — this depends on the CARenderer host existing first
+(plan §6, `logs/ca-hosting-design.md` phase 4.1+), so it's a phase *after*
+P0-P9 in §5's table, not a revision to any existing phase there.
+
+## Not done in this pass
+
+- Did not spike-test §9's `QTOpenGLTextureContextCreate`/`setVisualContext:`/
+  `QTVisualContextCopyImageForTime` pipeline on real Tiger hardware — §9's
+  symbol-presence check (via `nm`) confirms the API is linkable, not that it
+  behaves as documented at runtime on this specific QuickTime 7.6.4 build.
+  Natural next spike once `spike/CAHost`/`logs/ca-hosting-design.md`'s
+  `NSOpenGLView` host exists to bind the texture into.
 - Did not spike-test `frameImageAtTime:withAttributes:error:`'s actual
   runtime return type on real Tiger hardware (§4a/P0) — the header alone
   doesn't prove it returns a `CGImageRef` and not an `NSImage`/`CIImage`
