@@ -201,4 +201,55 @@ build_libwebp() {
 }
 build_libwebp
 
+# HarfBuzz: OpenType shaping fallback for WebKit's ComplexTextControllerHarfBuzz. Tiger's
+# CoreText shaper only reads AAT, not GSUB/GPOS, so web fonts with OpenType-only ligatures
+# or Arabic/Indic shaping need HarfBuzz instead (logs/ct-probe.md). Meson is HarfBuzz's
+# primary build system and cross-compiles cleanly with a cross file; CMake wasn't needed.
+# No FreeType/Cairo/GLib/ICU/CoreText integration -- WebKit feeds it font tables itself --
+# and tests/utilities/docs/benchmark/introspection are all off since we only need the
+# library. `-Dcoretext=disabled` is also meson's own default on Apple platforms, kept
+# explicit here since it's the whole point of building this.
+build_harfbuzz() {
+  local name=harfbuzz src=harfbuzz-14.5.0 builddir=$WKT/deps/build/harfbuzz-i386
+  mkdir -p $builddir
+  cat > $builddir/tiger-cross.ini <<EOF
+[binaries]
+c = '$WKT/toolchain/bin/tiger-clang'
+cpp = '$WKT/toolchain/bin/tiger-clang++'
+ar = '$WKT/toolchain/bin/tiger-ar'
+strip = '$WKT/toolchain/bin/tiger-strip'
+pkg-config = 'pkg-config'
+
+[built-in options]
+c_args = ['-I$P/include']
+c_link_args = ['-L$P/lib', '-ltigercompat']
+cpp_args = ['-std=c++17', '-stdlib=libc++', '-I$P/include/c++/v1', '-I$P/include']
+cpp_link_args = ['-L$P/lib', '-stdlib=libc++', '-ltigercompat']
+default_library = 'static'
+
+[host_machine]
+system = 'darwin'
+cpu_family = 'x86'
+cpu = 'i386'
+endian = 'little'
+
+[properties]
+pkg_config_libdir = '$P/lib/pkgconfig'
+needs_exe_wrapper = true
+EOF
+  log "$name configure"
+  meson setup $builddir/build --cross-file $builddir/tiger-cross.ini \
+    --prefix=$P --buildtype=release --default-library=static \
+    -Dglib=disabled -Dcairo=disabled -Dicu=disabled -Dfreetype=disabled -Dcoretext=disabled \
+    -Dgraphite=disabled -Dwasm=disabled -Dtests=disabled -Dutilities=disabled -Ddocs=disabled \
+    -Dbenchmark=disabled -Dintrospection=disabled \
+    $WKT/deps/src/$src > $WKT/logs/dep-$name.log 2>&1 || \
+    { echo "$name CONFIGURE FAILED"; tail -30 $WKT/logs/dep-$name.log; return 1; }
+  log "$name make"
+  ( cd $builddir/build && ninja && ninja install ) >> $WKT/logs/dep-$name.log 2>&1 || \
+    { echo "$name MAKE FAILED"; grep -E "error:|FAILED" $WKT/logs/dep-$name.log | head -20; return 1; }
+  echo "$name OK"
+}
+build_harfbuzz
+
 ls $P/lib/*.a
