@@ -26,3 +26,39 @@ clean:
 	rm -rf $(APP)
 
 .PHONY: all clean
+
+# --- CAVideo: QuickTime OpenGL visual context under the CA host -------------
+VAPP := $(ROOT)/build/CAVideo.app
+# Link order matters, and -framework does not preserve it (ld64 hoists those
+# after explicit inputs) — pass both QuartzCores by path. The Apple TV QuartzCore
+# duplicates 207 CI* class names from Tiger's own, which QTKit weak-links and
+# QuickTime needs; its CIFilter is a stripped Apple TV build with no
+# +filterWithName:. Tiger's dyld loads the main executable's direct dependencies
+# in load-command order and its libobjc keeps the FIRST registration of a
+# duplicate class name, so Tiger's QuartzCore has to come first. -u keeps ld from
+# dead-stripping a dylib we reference no symbol from.
+VLD  := -Wl,-u,_CICreateCGImageRefFromYCbCrData \
+        $(ROOT)/sdk/MacOSX10.4u.sdk/System/Library/Frameworks/QuartzCore.framework/QuartzCore \
+        $(ROOT)/spike/CAHost/Frameworks/QuartzCore.framework/Versions/A/QuartzCore \
+        -framework Cocoa -framework OpenGL -framework QTKit -framework QuickTime \
+        -framework CoreVideo -framework ApplicationServices
+
+CAVideo: $(VAPP)
+
+$(VAPP): CAVideo.m Info-CAVideo.plist $(FW)/Versions/A/QuartzCore
+	rm -rf $(VAPP)
+	mkdir -p $(VAPP)/Contents/MacOS $(VAPP)/Contents/Frameworks
+	cp Info-CAVideo.plist $(VAPP)/Contents/Info.plist
+	printf 'APPL????' > $(VAPP)/Contents/PkgInfo
+	cp -R $(FW) $(VAPP)/Contents/Frameworks/
+	$(CLANG) $(CFLAGS) -o $(VAPP)/Contents/MacOS/CAVideo CAVideo.m $(VLD)
+
+.PHONY: CAVideo
+
+# Same program with no Core Animation at all: isolates whether the Apple TV
+# QuartzCore's duplicate CIFilter is what breaks QuickTime's visual context.
+CAVideoNoCA: CAVideo.m
+	$(CLANG) $(CFLAGS) -DCAVIDEO_NO_CA -o $(ROOT)/build/CAVideoNoCA CAVideo.m \
+	  -framework Cocoa -framework OpenGL -framework QTKit -framework QuickTime \
+	  -framework CoreVideo -framework ApplicationServices
+.PHONY: CAVideoNoCA

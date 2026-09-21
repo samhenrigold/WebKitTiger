@@ -17,6 +17,12 @@ find "$dst" -name .DS_Store -delete
 # Leopard (CA 1.x) headers match this binary's API generation; the framework ships none.
 cp -R "$hdr" "$dst/Versions/A/Headers"
 ln -sf Versions/Current/Headers "$dst/Headers"
+chmod -R u+w "$dst"    # the SDK headers arrive read-only, which breaks rm -rf later
+
+# Stop the Core Image half of this framework from colliding with Tiger's own
+# QuartzCore. Without this, any QuickTime playback in the same process dies on
+# "+[CIFilter filterWithName:]: selector not recognized".
+python3 "$root/spike/CAHost/decollide.py" "$dst/Versions/A/QuartzCore"
 
 "$root/toolchain/bin/tiger-install_name_tool" -id \
   '@executable_path/../Frameworks/QuartzCore.framework/Versions/A/QuartzCore' \
