@@ -2739,3 +2739,71 @@ fractional x through unrounded. `FontRenderOptions::setHinting` sets `hint_metri
 `setHinting` call above has to come before the `cairo_font_options_set_hint_metrics` call, not after.
 
 Not applied to the WebKit tree: it was in use by the build track when this was written.
+
+### 2026-09-21 — Aqua form controls: ControlFactoryTiger, RenderThemeTiger, a test plan (aquacontrols)
+
+Written, committed, **not compiled** — the build machine was reserved for another track, so no
+ninja and no cmake was run on any tree. Same footing as the NSEvent factory (WebKit a774a942).
+
+**The gap this closes is exactly one layer wide.** `compat/aquacontrols.m` already draws every
+control 10.4 has, from real `NSCell`s, and `spike/aquaatlas` already pixel-compared it against live
+controls (540 PNGs, 7/48 states byte-identical, the rest differing in artwork and not in geometry).
+WebCore already emits `ControlPart`s and already puts them on the wire. What did not exist is the
+adapter: `ControlFactory::create()` on the i386 side returning something that turns a part into a
+Tiger cell. That is `Source/WebCore/platform/tiger/` (WebKit dde2849c), plus the one-line include
+that reaches it (WebKit 87f28415, committed alone because PlatformTiger.cmake is co-owned and had
+another track's texmap hunk in the working tree — staged as a partial hunk against HEAD).
+
+**One PlatformControl subclass, not ten.** Upstream's Mac port has `ButtonMac`, `ToggleButtonMac`,
+`MenuListMac` and seven more because each owns its cell, its `cellSize`/`cellOutsets` tables and its
+own state mapping. On this port all of that is already written, in C, in aquacontrols.m. So
+`ControlTiger` is one class parameterised by `TigerControlKind`: a kind, a struct fill, one call.
+The saving is not the line count, it is that there is exactly one copy of the tables and one copy of
+the state mapping, and the drawn control and the laid-out box therefore cannot disagree.
+
+**The state transfer is a coincidence being relied on, and it needs a static_assert.**
+`TigerControlState*` in `<TigerCompat/AquaControls.h>` is declared at the bit positions of
+`WebCore::ControlStyle::State`, so `style.states.toRaw()` crosses with no translation table.
+Nothing checks that at compile time. If anyone reorders `ControlStyle::State`, every control is
+subtly wrong in every state and only the pixel test sees it. First thing to add the day this
+compiles: one `static_assert` per bit in `ControlTiger.mm`.
+
+**Metrics: the numbers, and where each came from.** `RenderThemeTiger : RenderThemeAdwaita`
+overrides thirteen metric and adjustment functions and nothing else. Measured, from 10.4:
+size classes from `+[NSFont systemFontSizeForControlSize:]` = 13 / 11 / 9
+(`spike/aquaatlas/out/metrics.json`); push button 20/16/13; check box 14/12/10; radio 16/12/10 (the
+regular radio really is two px wider than the regular check box on Aqua); popup 21/18/15; search
+field 22/19/17 — all five from aquacontrols.m's `cellSizeFor`, which is what drew the compared
+atlas. Not yet measured and marked `MEASURE:` in the file: popup internal padding {2,26,3,8},
+text field 2px inset bezel + 1px, slider thumb **15** (today's RenderThemeMac says 17, which is the
+10.10 knob), slider ticks 1x7 at offset 8, progress bar 16/10. Each is one accessor call on the
+box and each is a row in `spike/aquacontrols/README.md`.
+
+**Where the metrics half actually bites, which is not where it was built.** Layout happens in the
+process that resolves style, and that is the x86_64 web process. `RenderThemeTiger` is built on the
+i386 arm as specified, where it serves that side's own `RenderTheme::singleton()`, but the Aqua
+boxes only reach layout when the TIGER64 arm swaps `RenderThemeAdwaita` for it too. That is one
+line in the other arm plus the theme's includes, and it is not this track's file to edit. Written
+down here so the day the controls look right and the boxes are still GNOME-sized, nobody debugs the
+drawing code.
+
+**Three one-word edits are needed before any of this compiles, deliberately not made.**
+`RenderThemeAdwaita.h` marks all thirteen overridden functions `final`; `RenderTheme.h` picks the
+singleton's return type by port and reaches `PLATFORM(MAC)` first on i386, so it needs a
+`PLATFORM(TIGER)` branch. Both headers are included by most of WebCore in the x86_64 tree as well,
+and that tree was mid-build. The list is at the top of `RenderThemeTiger.h`.
+
+**Stubbed, each with its reason:** search field cancel/results glyphs (they live inside
+`NSSearchFieldCell`'s subviews on 10.4 and cannot be drawn standalone — blit them from the atlas);
+`Switch` drawn as a check box (Aqua 2005 has no switch, `NSSwitch` is 10.15, and inventing one would
+put the only non-real control on the page); indeterminate progress drawing one frame
+(`NSProgressIndicator` owns its own timer and exposes no phase); Apple Pay and image controls;
+`deviceScaleFactor` ignored, since every 10.4 display is 1x.
+
+**The test plan is `spike/aquacontrols/README.md` and the harness is `aquaparts.mm`** (also
+uncompiled), which is `spike/aquaatlas/comparecontrols.m` moved up one layer: it builds a real
+`ControlPart`, draws it through `ControlFactory::create()`, and compares against a live `NSCell` in
+a real window — 11 controls × 3 size classes × 8 states. The two harness rules that fail silently
+if forgotten are aquaatlas's and are repeated there: run from inside a .app bundle (a bare
+executable cannot be foregrounded, and every live control then draws inactive), and burn the first
+launch of a freshly created bundle.
