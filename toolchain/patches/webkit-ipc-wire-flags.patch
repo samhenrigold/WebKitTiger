@@ -1,43 +1,246 @@
-From b649afd621b5e3026432da475aed318c51fd7436 Mon Sep 17 00:00:00 2001
+# TIGER: the font half of the IPC wire-flag divergence.
+#
+# This file replaces the earlier two-conditional patch (b649afd6, "remap
+# USE(CAIRO) to TIGER_WIRE_CAIRO in the two font generator inputs"): the commit
+# below contains that change and the rest of the font wire with it. Regenerate
+# with:
+#
+#   git -C WebKit format-patch -1 <sha> -- \
+#       Source/WebKit/Shared/WebCoreFont.serialization.in \
+#       Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in \
+#       Source/WebKit/Shared/PlatformPopupMenuData.serialization.in \
+#       Source/WTF/wtf/PlatformTigerWire.h
+#
+# The C++ half (FontPlatformData.h, FontPlatformDataCoreText.cpp,
+# FontPlatformDataFreeType.cpp, Font.h, FontCoreText.cpp, PlatformTiger.cmake) is
+# in the same WebKit commit and is not duplicated here; only the generator inputs
+# and the flag header belong in a rebase-survival patch.
+From 2aacaf33bcdc1f89c811af5f39ed672d0bef7617 Mon Sep 17 00:00:00 2001
 From: samhenrigold <49251320+samhenrigold@users.noreply.github.com>
-Date: Sun, 20 Sep 2026 23:18:37 -0400
-Subject: [PATCH] TIGER: remap USE(CAIRO) to TIGER_WIRE_CAIRO in the two font
- generator inputs
+Date: Mon, 21 Sep 2026 07:56:01 -0400
+Subject: [PATCH] TIGER: one neutral font wire, compiled identically by both
+ sides
 
-A conditional in a generator input answers "is this field on the wire?", while
-the same macro in a .cpp answers "do I have this framework?". The wire question
-must have the same answer in the 32-bit UI process and the 64-bit content
-process. TIGER_WIRE_CAIRO is defined 0 on every side: the content process
-records display lists and never rasterises, so the Cairo-shaped font fields are
-absent from the wire in both directions.
+The four processes have to agree byte-for-byte on every IPC serializer. Fonts
+were the last type where they could not, and tiger-check-ipc had been failing on
+GeneratedSerializersShared.cpp because of it.
 
-Scope is exactly what tools/check-wire-flags.py reported: two conditionals in
-two files. The other flags in those files agree between the two builds and are
-left alone, so this does not diverge from upstream any further than measured.
+Two causes, and the second was the one the notes had wrong:
 
-Note that the probe's own output argues this should be fixed in configuration
-instead, by not giving the content process Cairo at all. If that lands, this
-commit should be dropped rather than kept.
+1. The conditionals. WebCoreFont.serialization.in has two arms. USE(CORE_TEXT)
+   serializes a font as a CTFontDescriptor attribute dictionary -- twenty
+   CFNumber/CFString/CGColor fields, InstalledFont, a CoreText
+   CustomFontCreationData. !USE(CORE_TEXT) serializes the generic pair. The i386
+   side compiled the first, the x86_64 side the second, out of a byte-identical
+   generated source. That is the silent-wire-desync this whole flag set exists to
+   prevent.
 
-Claude-Session: https://claude.ai/code/session_01RHwCbDKQLvzXACuucjKev6
+2. The input LIST. Shared/cairo/WebCoreFontCairo.serialization.in was in the
+   x86_64 arm's WebKit_SERIALIZATION_IN_FILES and not the i386 arm's, so the two
+   trees generated different text, not just different compilations of the same
+   text. That is what the source diff was actually showing.
+
+The wire form. Neither side's native FontPlatformData travels. What travels is
+the manifest handle: WebCore::TigerFontWireFace { file, index }, the same
+(path, face index) pair compat/ctfonthandle.c resolves with and fontconfig
+records as FC_FILE/FC_INDEX, which spike/textpixel proved shaper64 and raster32
+agree on pixel for pixel. Everything else a face needs -- size, synthetic bold
+and oblique, orientation, width variant, text rendering mode, metrics overrides
+-- is already in FontMetadata, which was neutral and on the wire all along. So
+the whole addition to the wire is one two-field struct, carried in two places:
+FontPlatformDataAttributes (the RemoteRenderingBackend::CacheFont path) and
+FontPlatformSerializedData (the FontPlatformData::IPCData path).
+
+Web fonts need nothing new: their bytes already cross as
+FontCustomPlatformSerializedData via CacheFontCustomPlatformData, and the
+CacheFont that follows names them by RenderingResourceIdentifier.
+
+TIGER_WIRE_CORE_TEXT becomes 0 -- the first of the Cocoa set to be off -- and
+TIGER_WIRE_FONT is added at 1. Both sides now compile the generic serializers.
+
+Each side's half:
+
+  x86_64 (FontPlatformDataFreeType.cpp) encodes. The face is already in the
+  fontconfig pattern FontCacheTiger64 built, so attributes() and toIPCData()
+  read FC_FILE/FC_INDEX out of it. A web font has no file and an empty handle is
+  correct there. fromIPCData returns nullopt with a reason: fonts travel from
+  this process, never to it.
+
+  i386 (FontPlatformDataCoreText.cpp) decodes. FontPlatformData::create -- which
+  is RemoteRenderingBackend::cacheFont's receiving end -- resolves the handle
+  through TigerCTFontForHandle instead of the CF attribute dictionary that is no
+  longer on the wire, falls back to the system font with a logged error rather
+  than a null CTFont, and takes a custom font straight from the descriptor
+  FontCustomPlatformData already activated from bytes through ATS. toIPCData and
+  fromIPCData follow the same two arms.
+
+The CoreText serialization bodies (Font::fromIPCData, Font::toSerializableFont,
+InstalledFont::toCTFont and friends) are compiled out under TIGER_WIRE_FONT
+rather than left to fail to link against serializers nobody generates.
+PlatformPopupMenuData loses its InstalledFont field for the same reason: nothing
+compiled on this port ever set it.
+
+Verified by running generate-serializers.py with each tree's real input list:
+all 20 generated files are now byte-identical between build/tiger-gpu and
+build/tiger-web-port, not merely identical below the includes.
+
+Claude-Session: https://claude.ai/code/session_01A2FWWg3nnaTgeqCW7RDgQS
 ---
- Source/WebKit/Shared/WebCoreFont.serialization.in            | 2 +-
- Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ Source/WTF/wtf/PlatformTigerWire.h            | 20 ++++++-
+ .../PlatformPopupMenuData.serialization.in    |  2 +
+ .../Shared/WebCoreFont.serialization.in       | 55 +++++++++++++++++--
+ .../cairo/WebCoreFontCairo.serialization.in   |  2 +-
+ 4 files changed, 71 insertions(+), 8 deletions(-)
 
+diff --git a/Source/WTF/wtf/PlatformTigerWire.h b/Source/WTF/wtf/PlatformTigerWire.h
+index 64206aa3..d94983f9 100644
+--- a/Source/WTF/wtf/PlatformTigerWire.h
++++ b/Source/WTF/wtf/PlatformTigerWire.h
+@@ -56,7 +56,25 @@
+ #define TIGER_WIRE_CF        1
+ #define TIGER_WIRE_APPKIT    1
+ #define TIGER_WIRE_CG        1
+-#define TIGER_WIRE_CORE_TEXT 1
++
++/* Zero, and the one member of the Cocoa set that is. The CoreText arm of the font
++   wire (FontPlatformSerializedAttributes and the twenty CFNumber/CFString/CGColor
++   fields under it, InstalledFont, the CoreText CustomFontCreationData) describes a
++   font by a CTFontDescriptor attribute dictionary. The 64-bit side cannot build one
++   and has nothing to build it from: it resolves faces through the manifest, by
++   (file, face index). So the wire carries neither side's native form -- it carries
++   TigerFontWireFace, defined under TIGER_WIRE_FONT below, and BOTH sides compile
++   the generic (non-CoreText) font serializers. See the "wire fonts" section of
++   NOTES.md. */
++#define TIGER_WIRE_CORE_TEXT 0
++
++/* One, on every side: the neutral font wire form is in use. It is a separate flag
++   from the six above because it does not answer "does the wire carry the Cocoa
++   shape" -- it answers "does the wire carry the Tiger shape", which is a thing
++   upstream has no name for. It guards WebCore::TigerFontWireFace, the face field
++   in FontPlatformDataAttributes, and the generic CustomFontCreationData and
++   FontPlatformSerializedData that both sides share. */
++#define TIGER_WIRE_FONT      1
+ 
+ /* Zero on every side, and deliberately the opposite of the others. The 64-bit
+    process keeps cairo as a local software raster it never presents, for image
+diff --git a/Source/WebKit/Shared/PlatformPopupMenuData.serialization.in b/Source/WebKit/Shared/PlatformPopupMenuData.serialization.in
+index 04e13be2..d0fa1037 100644
+--- a/Source/WebKit/Shared/PlatformPopupMenuData.serialization.in
++++ b/Source/WebKit/Shared/PlatformPopupMenuData.serialization.in
+@@ -22,7 +22,9 @@
+ 
+ struct WebKit::PlatformPopupMenuData {
+ #if PLATFORM(COCOA)
++#if !TIGER_WIRE_FONT
+     WebCore::InstalledFont font;
++#endif
+     bool shouldPopOver;
+     bool hideArrows;
+     WebCore::PopupMenuStyle::Size menuSize;
 diff --git a/Source/WebKit/Shared/WebCoreFont.serialization.in b/Source/WebKit/Shared/WebCoreFont.serialization.in
-index 43b2a51c..165a0a9e 100644
+index 43b2a51c..2e1b099f 100644
 --- a/Source/WebKit/Shared/WebCoreFont.serialization.in
 +++ b/Source/WebKit/Shared/WebCoreFont.serialization.in
-@@ -85,7 +85,7 @@ using WebCore::FontPlatformData::IPCData = Variant<WebCore::FontPlatformSerializ
+@@ -62,6 +62,30 @@ header: <WebCore/FontMetricsOverrides.h>
+     WebCore::FontMetricsOverride lineGapOverride;
+ };
+ 
++#if TIGER_WIRE_FONT
++# TIGER: the identity of a face on the wire.
++#
++# Neither side's native form travels. The 64-bit web process shapes with HarfBuzz
++# over FreeType and has no CoreText to describe; the 32-bit GPU process rasterises
++# with CoreText and cannot read a fontconfig pattern. What both sides do share is
++# the manifest (logs/tiger-fonts.json, written on the box by spike/fontmanifest.c),
++# which names every installed face by the file it lives in and its index within a
++# .ttc or .dfont suitcase. That pair is what compat/ctfonthandle.c resolves with,
++# and what spike/textpixel proved shaper64 and raster32 agree on, pixel for pixel.
++#
++# The PostScript name is deliberately NOT the handle: two files can carry the same
++# one and activation order decides the winner (see TigerCompat/CTFontHandle.h).
++#
++# `file` is empty for a web font, which has no file. Its bytes travel once, in
++# FontCustomPlatformSerializedData by way of CacheFontCustomPlatformData, and the
++# CacheFont that follows names them by RenderingResourceIdentifier.
++header: <WebCore/FontPlatformData.h>
++[CustomHeader] struct WebCore::TigerFontWireFace {
++    String file;
++    int32_t index;
++};
++#endif
++
+ header: <WebCore/FontPlatformData.h>
+ [CustomHeader] struct WebCore::FontMetadata {
+     float pointSize;
+@@ -73,7 +97,7 @@ header: <WebCore/FontPlatformData.h>
+     WebCore::FontMetricsOverrides metricsOverrides;
+ }
+ 
+-#if !USE(CORE_TEXT)
++#if !TIGER_WIRE_CORE_TEXT
+ using WebCore::FontPlatformData::IPCData = Variant<WebCore::FontPlatformSerializedData, WebCore::CustomFontCreationData>;
+ 
+ [CreateUsing=fromIPCData] class WebCore::FontPlatformData {
+@@ -85,10 +109,13 @@ using WebCore::FontPlatformData::IPCData = Variant<WebCore::FontPlatformSerializ
  header: <WebCore/FontPlatformData.h>
  [CustomHeader] struct WebCore::FontPlatformDataAttributes {
      WebCore::FontMetadata m_metadata;
 -#if PLATFORM(WIN) && USE(CAIRO)
++#if TIGER_WIRE_FONT
++    WebCore::TigerFontWireFace m_face;
++#endif
 +#if PLATFORM(WIN) && TIGER_WIRE_CAIRO
      LOGFONT m_font;
  #endif
- #if USE(CORE_TEXT)
+-#if USE(CORE_TEXT)
++#if TIGER_WIRE_CORE_TEXT
+     std::optional<WebCore::FontPlatformSerializedAttributes> serializableAttributes();
+     CTFontDescriptorOptions m_options;
+     RetainPtr<CFStringRef> m_url;
+@@ -101,6 +128,22 @@ header: <WebCore/FontPlatformData.h>
+ #endif
+ };
+ 
++#if TIGER_WIRE_FONT
++# TIGER: the two halves of FontPlatformData::IPCData, in their neutral form.
++# Shared/cairo/WebCoreFontCairo.serialization.in used to define these for the
++# 64-bit side only, which is what made GeneratedSerializersShared.cpp differ
++# between the two trees: the input LIST differed, not just the conditionals.
++header: <WebCore/FontPlatformData.h>
++[CustomHeader] struct WebCore::CustomFontCreationData {
++    Vector<uint8_t> fontFaceData;
++    String itemInCollection;
++};
++
++[CustomHeader] struct WebCore::FontPlatformSerializedData {
++    WebCore::TigerFontWireFace face;
++};
++#endif
++
+ header: <WebCore/FontCustomPlatformData.h>
+ [CustomHeader] struct WebCore::FontCustomPlatformSerializedData {
+     Ref<WebCore::SharedBuffer> fontFaceData;
+@@ -108,7 +151,7 @@ header: <WebCore/FontCustomPlatformData.h>
+     WebCore::RenderingResourceIdentifier renderingResourceIdentifier;
+ };
+ 
+-#if USE(CORE_TEXT)
++#if TIGER_WIRE_CORE_TEXT
+ 
+ header: <WebCore/FontPlatformData.h>
+ 
+@@ -193,9 +236,9 @@ using WebCore::SystemUIFontType = uint32_t;
+     Variant<WebCore::InstalledFont, WebCore::CustomFontCreationData> toSerializableFont();
+ }
+ 
+-#endif // USE(CORE_TEXT)
++#endif // TIGER_WIRE_CORE_TEXT
+ 
+-#if !USE(CORE_TEXT)
++#if !TIGER_WIRE_CORE_TEXT
+ [RefCounted] class WebCore::Font {
+     WebCore::FontInternalAttributes attributes();
+     WebCore::FontPlatformData platformData();
 diff --git a/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in b/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in
 index eb413846..c1ee6ae5 100644
 --- a/Source/WebKit/Shared/cairo/WebCoreFontCairo.serialization.in

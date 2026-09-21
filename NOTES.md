@@ -2259,3 +2259,77 @@ Two operational notes. The machine is shared with the x86_64 build and with whoe
 headers, which invalidates the PCH and starts a ~1165-edge rebuild under you, with offlineasm's
 serial spike in the middle. And the on-screen ssh/window problem above is worth solving once,
 properly, because every UI-process screenshot from here on needs it.
+
+### 2026-09-21 — the font wire (wirefont)
+
+- **What tiger-check-ipc was actually failing on, and the notes had it half right.** The failing
+  file was `GeneratedSerializersShared.cpp`, `tiger-gpu` vs `tiger-web-port`. Diffing the bodies:
+  **every one of the 106 differing lines is present in the web tree and absent from the GPU one**,
+  and all of them come from `Shared/cairo/WebCoreFontCairo.serialization.in`. That file was in
+  `Platform/Cairo.cmake`'s `WebKit_SERIALIZATION_IN_FILES`, which `PlatformTiger.cmake` includes on
+  the x86_64 arm and deliberately does not on the i386 one. So the two trees fed the generator
+  **different input lists**, which no amount of conditional remapping would have fixed. Worth
+  keeping as a rule: `tools/check-wire-flags.py` compares the conditionals *inside* the inputs; the
+  set of inputs is a second, independent way for two trees to disagree, and only the source-level
+  half of tiger-check-ipc sees it.
+- The conditional divergence was real too, and invisible to both checks, which is worse. The
+  generated source is byte-identical by construction; `#if USE(CORE_TEXT)` in it selects the
+  CoreText font arm on i386 and the generic arm on x86_64, at compile time, out of the same text.
+  Two processes, two different serializer sets, no error anywhere.
+- **The enumeration** (`tools/check-wire-flags.py build/tiger-gpu build/tiger-web-port
+  --write-files logs/wire-font-files.txt`, 169 files disagree in total; the font-shaped ones are):
+
+  | input | flag | what it shapes |
+  |---|---|---|
+  | `Shared/WebCoreFont.serialization.in` | `USE(CORE_TEXT)` ×4 | `FontPlatformSerializedTraits`, `FontPlatformOpticalSize`, `FontPlatformFeatureSetting`, `FontPlatformSerializedAttributes`, the CoreText `CustomFontCreationData`, `InstalledFont` (+`SystemUIFont`/`PostScriptFont`), the `Font` and `FontPlatformData` class entries, and four fields of `FontPlatformDataAttributes` |
+  | `Shared/WebCoreFont.serialization.in` | `PLATFORM(WIN) && USE(CAIRO)` | `LOGFONT m_font` in `FontPlatformDataAttributes` |
+  | `Shared/cairo/WebCoreFontCairo.serialization.in` | `USE(CAIRO)` (whole file) | the generic `CustomFontCreationData` and `FontPlatformSerializedData`, plus WinCairo's `LOGFONT` alias |
+  | `Shared/PlatformPopupMenuData.serialization.in` | `PLATFORM(COCOA)` | `WebCore::InstalledFont font` — font-shaped, and the reason it is here: it is the only other consumer of a CoreText-only font type on the wire |
+  | `Shared/skia/WebCoreArgumentCodersSkia.serialization.in` | `USE(SKIA)` | the Skia pair; agrees (0 on both), not in either tree's input list |
+  | `GPUProcess/graphics/RemoteRenderingBackend.messages.in` | none | `CacheFont`, `CacheFontCustomPlatformData` are unconditional and already neutral — the font path that matters has no conditional at all |
+
+  Not font-shaped and not mine: `USE(CG)` in `RemoteGraphicsContext.messages.in`,
+  `WebCoreArgumentCoders.serialization.in`, `cf/CFTypes.serialization.in`.
+- **The wire form is two fields.** `WebCore::TigerFontWireFace { String file; int32_t index; }` —
+  the manifest handle. Everything else a face needs (point size, synthetic bold, synthetic oblique,
+  orientation, width variant, text rendering mode, metrics overrides) has been in `FontMetadata`,
+  neutral and on the wire, the whole time. It rides in two places: `FontPlatformDataAttributes`
+  (the `CacheFont` path, web → GPU) and `FontPlatformSerializedData` (the `FontPlatformData::IPCData`
+  path, which `FontAttributes` in `EditorState` uses, web → UI).
+  **Web fonts needed nothing new.** Their bytes already cross as
+  `FontCustomPlatformSerializedData` through `CacheFontCustomPlatformData`, and the `CacheFont`
+  that follows names them by `RenderingResourceIdentifier`. No inline-bytes field was added; the
+  one that exists in the generic `CustomFontCreationData` is for the `IPCData` arm.
+- **(file, index), not the PostScript name** — deliberately against what
+  logs/render-process-survey.md recommends. `TigerCompat/CTFontHandle.h` is the one that gets to
+  decide, because it is the code that resolves: two files can carry the same PostScript name and
+  activation order picks the winner, while (path, index) is what `TigerCTFontForHandle`,
+  fontconfig's `FC_FILE`/`FC_INDEX` and spike/textpixel's proven shaper64→raster32 path all already
+  use. No name lookup happens on the replay side, so the suitcase-ordering instability the survey
+  warns about does not arise. If a face ever fails to resolve, the PostScript name is the field to
+  add as a cross-check, not as the key.
+- `TIGER_WIRE_CORE_TEXT` is now **0** — the first of the Cocoa set to be off, and the reason is
+  worth stating: the other flags say "the wire carries the Cocoa shape and the 64-bit side plays
+  along". That works for a struct of plain fields. It does not work for a CTFontDescriptor
+  attribute dictionary, because the 64-bit side has nothing to build one *from*: it never saw a
+  CTFont. So for fonts the wire carries neither side's shape, and `TIGER_WIRE_FONT` (1 everywhere)
+  names that third option.
+- Each side's half: x86_64 reads `FC_FILE`/`FC_INDEX` out of the fontconfig pattern
+  `FontCacheTiger64` already built (`FontPlatformData::attributes()`, `toIPCData()`); i386 resolves
+  it with `TigerCTFontForHandle` in `FontPlatformData::create()`, which is
+  `RemoteRenderingBackend::cacheFont`'s receiving end, and takes a custom font from the descriptor
+  `FontCustomPlatformData` already activated from bytes via ATS. `fromIPCData` on the x86_64 side
+  returns `nullopt` with a reason rather than `ASSERT_NOT_REACHED`: fonts travel from that process,
+  never to it.
+- **What the GPU process must do at raster time with the record**: nothing new per glyph. `cacheFont`
+  turns the record into a real `CTFontRef` once, at cache time, and stores it in the
+  `RemoteResourceCache` under the `RenderingResourceIdentifier` the web process chose; every
+  `DrawGlyphs` afterwards names that identifier and hands the CTFont, the glyph ids and the
+  positions to `CTFontDrawGlyphs`. The two rules spike/textpixel established still bind and belong
+  to the *recording* side: Apple-format `kern` is applied to the leading glyph by the shaper, and
+  shaping happens at 1/1024 pt. Synthetic bold is not in the handle on purpose — it is a draw-time
+  stroke the graphics context owns.
+- Verification: `generate-serializers.py` run by hand with each tree's real input list (out of
+  `build.ninja`, so it is the list the build actually uses) → **all 20 generated files byte-identical
+  between the two trees**, not merely identical below the include block. That is a stronger result
+  than tiger-check-ipc asks for.
