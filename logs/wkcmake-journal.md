@@ -416,66 +416,219 @@ as the boxed expression `@(BOOL)1` and fails. Every `@YES` and `@NO` in WebKit
 is a syntax error against this SDK until `YES` is `__objc_yes`, which is what
 the 10.8+ SDK does and what the prelude does now.
 
+
+## Session 2
+
+`jsc` runs on the Tiger box. `/tmp/jsc -e 'print(1+1)'` prints 2 and exits 0.
+
+Three things stood between the binary that linked at the end of session 1 and
+one that works, and none of them was where the symptoms pointed.
+
+### 1. The SDK overlay
+
+`compat/sdk-overlay/`, put ahead of the 10.4u SDK by `toolchain/tiger.cmake`
+(`-isystem` for `usr/include`, `-F` for the frameworks). The 10.4u SDK itself is
+never edited. `compat/sdk-overlay/README.md` records every file and why.
+
+A framework binds by name: once clang resolves `Foundation` to the overlay,
+every `<Foundation/*.h>` must be found there — it does **not** fall through to
+the next `-F`. Verified, not assumed. So `make-overlay.sh` builds each overlaid
+framework's `Headers` as symlinks into the SDK and never touches a real file:
+a symlink is untouched, a real file is ours.
+
+What is overlaid:
+
+- **Availability.** `AvailabilityVersions.h` copied verbatim from the Xcode 27
+  SDK (self-contained, gives every `__MAC_xx` its true value), plus our own
+  `Availability.h` and `os/availability.h` that pin
+  `__MAC_OS_X_VERSION_MIN_REQUIRED` at 1040 and make the availability
+  *attributes* no-ops. The attributes have to be no-ops: marking a declaration
+  introduced in macOS 13 at a 10.4 deployment target makes every call to it a
+  hard error. Upstream WebKit has the same problem against any non-internal SDK
+  and solves it the same way, with `WebKitLibraries/AvailabilityOverlay`.
+- **Foundation generics.** `NSArray.h`, `NSDictionary.h`, `NSSet.h`,
+  `NSEnumerator.h` gain lightweight generics. Only the `@interface` lines change:
+  the type parameter is declared on the class and repeated on each category,
+  which is what clang requires. Method signatures keep their `id` types, since
+  `id` converts both ways — the parameter's job is to let the specialization
+  parse and be checked at the use site. The two WTF workarounds from session 1
+  are reverted.
+- **`NSMapTable.h`.** The 10.4 header typedefs the opaque C struct to the same
+  name as the class Foundation gained in 10.5. The typedef is renamed to
+  `NSMapTableCStruct`, the C functions are rewritten to it by a macro that is
+  `#undef`'d at the end of the header, and `TIGER_NSMAPTABLE_TYPEDEF_RENAMED`
+  tells `<TigerCompat/NSCompat.h>` it may declare the class.
+- **`NSNetServices.h`.** `id * _reserved;` is "pointer to non-const type 'id'
+  with no explicit ownership" under ARC, a hard error, and the Cocoa port
+  compiles WebKit with ARC. It is the only `id *` ivar in the 10.4 Foundation.
+- **`CFError.h`** (new, opaque `CFErrorRef` only) and `CoreFoundation.h` (the
+  SDK's plus that include), **`CGBase.h`** (the SDK's plus `CGFloat`). Both were
+  being defined locally by the CT and CG compat headers; the overlay is their
+  proper home.
+- **`AssertMacros.h`.** See below.
+
+Not overlaid, deliberately: CoreText, because the 10.5 prototypes are ABI-wrong
+against Tiger's binary (`compat/CT-SURVEY.md`); Foundation *runtime* gaps, which
+are declarations plus implementations and belong to `<TigerCompat/NSCompat.h>`.
+
+### 2. Carbon's namespace, and how it reaches JavaScriptCore
+
+Once the CoreGraphics hook headers landed in the overlay, `<CoreGraphics/*.h>`
+began pulling `<TigerCompat/CGCompat.h>` → `<ApplicationServices/...>` →
+CoreServices → CarbonCore into WTF and JavaScriptCore, and CarbonCore is full of
+unprefixed names that collide with ordinary C++:
+
+- `check`, `verify`, `require` and 29 more macros from `AssertMacros.h`.
+  JavaScriptCore's `bytecode/Fits.h` has `static bool check(T)`. Fixed properly:
+  the overlay's `AssertMacros.h` includes the real one and then honours Apple's
+  later `__ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES` opt-out, which
+  `tiger.cmake` passes as 0.
+- `Marker`, a CarbonCore typedef, against JavaScriptCore's own `Marker` in
+  `API/JSMarkingConstraintPrivate.cpp`. A macro opt-out cannot fix a typedef.
+
+Nothing below WebCore needs a CoreGraphics type, so CG is now gated out of WTF
+entirely: the CG traits in `wtf/cf/CFTypeTraits.h` and the `CGRect`/`CGSize`/
+`CGPoint` stream operators in `wtf/text/TextStream.h` and `TextStreamCocoa.mm`.
+That is a stopgap for the WebCore phase, where those hooks are the whole point;
+the cgcompat agent has been asked to narrow `<TigerCompat/CGCompat.h>` so it
+does not reach the ApplicationServices umbrella.
+
+### 3. Why jsc crashed, and why it then ran out of memory
+
+**The collector's dangling references were misaligned MarkedBlocks.**
+`MarkedBlock::blockFor()` finds a block's footer by masking a cell pointer with
+`~(blockSize - 1)`, and `blockSize` is 16 KB. Every MarkedBlock comes from
+`fastAlignedMalloc` → `bmalloc::api::memalign` → `aligned_alloc`, and on Tiger
+that was the inline in `tigerprelude.h` over `libcompat.c`'s `posix_memalign`,
+whose emulation tops out at `valloc`'s page alignment. Measured on the box:
+`posix_memalign(16384, 16384)` returns 4 KB-aligned addresses, eight times out
+of eight. So the collector was reading the footer of whatever sat below.
+
+`compat/cfcompat.c` now has a real `aligned_alloc`. Tiger has no aligned
+allocator to borrow, and Apple's lives inside the malloc zone, which Tiger's
+does not expose, so the block is over-allocated and an aligned interior pointer
+returned with the base stored just below it. That makes the result not
+`free()`-able, so the pair is closed by `tiger_aligned_free()`, which bmalloc's
+`free()` calls under `BPLATFORM(TIGER)` — the one seam every WebKit aligned
+allocation and free passes through. `malloc_size()` returning 0 for an interior
+pointer is what tells the two kinds of pointer apart. A stress test on the box
+(five alignments from 16 bytes to 64 KB, 200 rounds each, then 2000 rounds
+interleaved with plain malloc) shows no nulls, no misalignment, and no interior
+pointer ever mistaken for a block start.
+
+**Then arrays failed at about a thousand elements** with `RangeError: Out of
+memory`, while plain objects, strings and typed arrays were fine. The shape of
+that is the large-object path: a butterfly crosses `MarkedSpace::largeCutoff` at
+around 8 KB, which for `JSVALUE32_64` is a thousand elements.
+
+Instrumenting `CompleteSubspace::tryAllocateSlow` gave it away in one line:
+
+```
+TIGERDBG tryAllocateSlow: heap cap 549810 > multiple 2 * ramSize 0
+```
+
+`WTF::ramSize()` was **0**, so every allocation past the small-object path was
+refused. This is a genuine 32-bit overflow in WebKit, not a Tiger gap. The box
+has 6 GB; `host_info` reports `max_mem` as 6442450944 (`max_mem` is 64-bit even
+in the 10.4 headers); `memorySizeAccordingToKernel()` sees that it exceeds
+`size_t` and clamps to `SIZE_MAX`; and `computeAvailableMemory()` then does
+
+```c
+return ((sizeAccordingToKernel + multiple - 1) / multiple) * multiple;
+```
+
+with `multiple` = 128 MB, which overflows 32-bit `size_t` and lands on zero.
+`AvailableMemory.cpp` now rounds *down* when rounding up cannot be represented.
+
+Worth reporting upstream: any 32-bit WebKit build on a machine with more RAM
+than `size_t` can address hits this.
+
+### Smaller fixes
+
+- `libkern/OSCacheControl.h`, `memset_pattern4/8/16` and `sys_icache_invalidate`
+  are all **exported by Tiger's libSystem** and were only missing declarations.
+  The inline reimplementations written in session 1 were shadowing the real
+  ones and are gone. Checked the same way for every other shim:
+  `notify_get_state`, `mkstemps`, `uuid_generate`/`uuid_parse`/`uuid_unparse`
+  and `malloc_size` all exist; `backtrace`, `getsegmentdata`,
+  `notify_register_dispatch`, `malloc_zone_memalign`,
+  `malloc_zone_pressure_relief`, the `dyld_*` introspection calls,
+  `abort_with_reason`, `mkostemp`/`mkostemps`, `posix_memalign`,
+  `aligned_alloc`, `timingsafe_bcmp` and the pthread QOS setters do not.
+- `CFStringCreateWithBytesNoCopy` and `CFStringGetRangeOfCharacterClusterAtIndex`
+  are in Tiger's CoreFoundation binary but not its headers, so
+  `<TigerCompat/CFCompat.h>` declares the real functions rather than shimming
+  them. `CFLocaleCopyPreferredLanguages` is genuinely absent and is implemented
+  in `cfcompat.c` the way CF-550 does it, over the `AppleLanguages` preference.
+- `compat/foundationcompat.m` is deleted. It duplicated `NSUUID` and four
+  categories with the nscompat agent's `nscompat.m`, which made
+  `libtigercompat.a` unlinkable. `<TigerCompat/FoundationCompat.h>` survives as
+  the force-include: the `NS_*` annotation macros, the `YES`/`NO` redefinition,
+  `NSFileManagerDelegate`, `NSLocale`'s accessors as `@property`, and an import
+  of `<TigerCompat/NSCompat.h>`.
+- `NSFileCoordinator` is gone with it. Its only use in WTF is
+  `createTemporaryZipArchive`, and on Tiger there is nothing to coordinate with,
+  so that call site runs the accessor block directly.
+- ICU is built `--disable-renaming`, so `U_DISABLE_RENAMING=1` is a global
+  compile definition under TIGER. Without it the bundled ICU 74 headers append
+  `_74` to every call and nothing in the 76 library answers.
+
+**Why `YES` has to be redefined.** Tiger's `<objc/objc.h>` defines `YES` as
+`(BOOL)1`. Clang expands `@YES` to `@` followed by the macro, which parses as
+the boxed expression `@(BOOL)1` and fails — so every `@YES` and `@NO` in WebKit
+is a syntax error against this SDK until `YES` is `__objc_yes`, which is what
+the 10.8+ SDK does and what the prelude now does.
+
+### Two traps for anyone else working in compat/
+
+**`sdk-fill` must only ever be reached through an explicit `-isystem`.**
+`compat/Makefile`'s `install` copies `include/.` into the sysroot, and the
+compiler wrappers pass that directory with `-I`, which comes before every
+`-isystem`. Staging `sdk-fill/` flat into it put a second copy of each shadow
+header ahead of the first, and since they share include guards the
+`#include_next` chain stopped at the second copy and the real SDK header was
+never reached. `malloc/malloc.h` failed with "unknown type name
+'malloc_zone_t'".
+
+**Editing a compat header does nothing until `make -C compat install` runs**,
+for the same reason: the wrapper's `-I` of the staged sysroot outranks the
+source tree. The Makefile now has an `install-headers` target that every object
+depends on, so a source file is never compiled against the previously installed
+copy of its own header.
+
 ## Where it stands
 
-Everything below reproduces from a clean configure, not just incrementally.
+Everything below reproduces from a clean configure and build.
 
 | Target | State |
 |---|---|
-| `bmalloc` | builds, `build/tiger-jsc/libbmalloc.a` |
-| `WTF` | builds, all 212 objects, `libWTF.a` |
+| `bmalloc` | builds, `libbmalloc.a` |
+| `WTF` | builds, all objects, `libWTF.a` |
 | `JavaScriptCore` | builds, `libJavaScriptCore.a`, 25 MB |
-| `jsc` | links, 53 MB, i386 |
+| `jsc` | links, 51 MB, i386, **runs on Mac OS X 10.4.11** |
 
-`jsc` was copied to `tiger:/tmp/jsc` and run. It starts, initializes the VM, and
-then the garbage collector fails before any JavaScript runs.
+### What runs
 
-### The blocker: the GC finds dangling references at startup
+`/tmp/jsc -e 'print(1+1)'` prints 2, exit 0. A smoke test covering recursion
+(`fib(20)`), a 20000-element array of objects, `sort`, `JSON.stringify` and
+`JSON.parse`, `RegExp.exec`, string methods, non-ASCII strings and
+`encodeURIComponent` (so ICU is working), `Math`, `Date`, `Map`, closures,
+`try`/`catch`, ES6 classes, arrow functions and template literals all pass.
 
-`/tmp/jsc -e 'print(1+1)'` exits 133 (SIGTRAP, from a `RELEASE_ASSERT`). The same
-happens for an empty script and for a script file, so it is not about the code
-being run. The output is:
+A GC stress run — 40 rounds of 3000 short-lived objects with a few survivors,
+200 JSON round-trips, and a 20000-entry Map — completes and exits 0.
 
-```
-Suspected memory corruption: invalid handle [line=639]: markedBlock=0x32c0000;
-  heapCell=0x32c3120; cellFirst8Bytes=0x1880200032bf1d0; subspaceHash=0;
-  contiguousZeros=0; totalZeros=0; blockVM=0x0; actualVM=0x0;
-  isBlockVMValid=0; isBlockInSet=0; isBlockInDir=0; foundInBlockVM=0;
-JavaScriptCore garbage collector detected a dangling reference to cell 0x32c3120.
-```
+### Known-imperfect, and left alone
 
-What has been ruled out:
-
-- **Stack bounds.** `JSC_verboseSanitizeStack=true` reports a sane main stack,
-  `(0xbf800000, 0xc0000000]`, and stack pointers inside it.
-- **Callee-save capture.** `heap/RegisterState.h` already has a correct
-  `CPU(X86)` branch saving ebx/edi/esi.
-- **It is not the collector running at a bad time.** `JSC_useGC=false` moves the
-  failure to a SIGBUS (exit 138) rather than fixing it.
-
-The `blockVM=0x0` in that dump says the MarkedBlock footer the cell resolves to
-was never initialized, so the cell pointer does not correspond to a real block.
-The most likely area is the `USE(JSVALUE32_64)` code, which WebKit has not
-supported on x86 for years and which nothing else in the tree exercises.
-`cellFirst8Bytes` being a full 8-byte `EncodedJSValue` on a 32-bit build is
-consistent with that. Next session starts here.
-
-### Also worth doing next session
-
-- The Objective-C JavaScriptCore API, if WebKitLegacy turns out to need it: move
-  each class's ivars from its `@implementation` to its `@interface`, and drop
-  `SourcesTiger.txt` in favour of `SourcesCocoa.txt`. `NSMapTable` now exists.
-- Objective-C lightweight generics. `NSArray<NSString *> *` does not parse,
-  because the 10.4 `NSArray` has no `__covariant` type parameter and a category
-  cannot add one. Two WTF files work around it by spelling the type `NSArray`
-  under `PLATFORM(TIGER)`. WebCore will hit this everywhere, and the right fix
-  there is to add the type parameters to `NSArray`, `NSDictionary`, `NSSet` and
-  `NSOrderedSet` in our local copy of the SDK's Foundation headers — six edits
-  that unblock every site at once. It needs a decision, since it means patching
-  `sdk/`.
-- Nothing written this session has been exercised at runtime beyond process
-  startup: `backtrace`'s frame walk, `getsegmentdata`'s load-command walk, the
-  dyld stubs, `NSFileCoordinator`, and the CoreFoundation shims.
-- The `_NSAutoreleaseNoPool` warnings from `jsc` at startup are cosmetic (the
-  tool has no autorelease pool around its early Foundation use) but they do mean
-  those objects leak.
+- The Objective-C JavaScriptCore API is still off (`JSC_OBJC_API_ENABLED` 0,
+  `SourcesTiger.txt`). Those classes declare instance variables inside
+  `@implementation`, which the fragile runtime forbids. `NSMapTable` now exists,
+  so restoring it is mechanical: move each class's ivars into its `@interface`.
+- `ENABLE_REMOTE_INSPECTOR` is off.
+- CoreGraphics is gated out of WTF, which has to be undone for WebCore once
+  `<TigerCompat/CGCompat.h>` stops reaching the ApplicationServices umbrella.
+- `jsc` prints `_NSAutoreleaseNoPool` warnings at startup. Cosmetic, but those
+  objects do leak.
+- `aligned_alloc` over-allocates by a full alignment, so every 16 KB MarkedBlock
+  costs 32 KB of address space. Fine at this scale; if it ever matters, the fix
+  is a VM-backed allocator with its own free list rather than malloc.
