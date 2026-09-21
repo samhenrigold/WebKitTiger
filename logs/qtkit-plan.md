@@ -10,6 +10,13 @@ the current tree's `Source/WebCore/platform/graphics/MediaPlayerPrivate.h`
 `OptionsCocoa.cmake:171` (plan §1.2) — this document is for whenever that
 changes, not phase 1.
 
+**Update (same day): the Tiger box was upgraded from QuickTime/QTKit 7.2 to
+7.6.4 (build 1327.73, Aug 2009), the last QuickTime ever shipped for Tiger.**
+§§0-7 below were written against 7.2 and are kept as-is except where noted;
+**§8 has the 7.6.4 diff and supersedes the two rendering-path conclusions in
+§0 and §2** — `QTVideoRendererWebKitOnly` is no longer one of the two
+unavailable paths, it's back. Read §8 first if short on time.
+
 ## 0. tl;dr
 
 The 2018 backend is a reasonable skeleton but not a drop-in: the
@@ -583,7 +590,135 @@ Revises the P5 estimate in §5: this is closer to **40-60 LOC** (a rewritten
 `seekTimerFired()`), not an open-ended unknown — the original "40-80,
 read one other backend first" placeholder in §1c/P5 is now resolved.
 
-## Not done in this pass
+## 8. QuickTime 7.6.4 update — the box was upgraded, and it changes the rendering-path story
+
+The Tiger box was updated to QuickTime/QTKit **7.6.4** (`CFBundleVersion`
+`1327.73`, August 2009 — the last QuickTime release Apple ever shipped for
+Tiger). `sysroot/` was re-mirrored
+(`ssh tiger 'cd / && tar cf - System/Library/Frameworks/QTKit.framework
+System/Library/Frameworks/QuickTime.framework' | tar xf - -C sysroot`, plus
+`/System/Library/QuickTime`), the old 7.2 copy kept at `sysroot-old/` for
+diffing, and export lists regenerated to
+`logs/api/tiger-QTKit-7.2.txt` (454 symbols) and
+`logs/api/tiger-QTKit-7.6.4.txt` (453 symbols). Verified directly:
+`sysroot/System/Library/Frameworks/QTKit.framework/Resources/Info.plist` and
+the `QuickTime.framework` copy both say `CFBundleShortVersionString` 7.6.4,
+`CFBundleVersion` 1327.73.
+
+### 8a. The headline change: `QTVideoRendererWebKitOnly` is back
+
+Re-ran `tiger-nm -g -arch i386` against both the old (`sysroot-old/`) and new
+(`sysroot/`) `QTKit` binaries and diffed the defined-ObjC-class lists (not
+just the C-symbol export lists in `logs/api/`, which don't carry class
+names):
+
+```
+$ diff <(defined classes, 7.2) <(defined classes, 7.6.4)
+...
+> QTImageBufferConformer
+> QTMovieViewControllerViewTranslationHandler
+> QTPixelBufferConverter
+> QTVideoRendererWebKitOnly
+```
+
+**`QTVideoRendererWebKitOnly` — the private class the 2018 backend's
+non-accelerated `paint()` path drives via `-[QTVideoRendererWebKitOnly
+drawInRect:]` (§0, §4) — is now a real, defined ObjC class in Tiger's QTKit,
+where it was absent in 7.2.** Confirmed the matching notification constant
+too: `_QTVideoRendererWebKitOnlyNewImageAvailableNotification` is a new
+symbol in `logs/api/tiger-QTKit-7.6.4.txt`, absent from the 7.2 list
+(`comm -13` on the sorted export lists, filtered to non-capture symbols).
+
+**`QTMovieLayer` is still absent from both** — confirmed by the same
+class-list diff, it appears in neither 7.2 nor 7.6.4's defined classes. This
+matches the earlier analysis in §2/§0: `QTMovieLayer` needs
+`MAC_OS_X_VERSION_MAX_ALLOWED >= 10_5` in its own header gate on top of the
+QTKit-version gate, because it's a Leopard-AppKit-layer-backing feature, not
+a QuickTime-version feature — bumping QuickTime alone was never going to
+bring it back, and it hasn't.
+
+**This flips the rendering-path recommendation from §0/§4.** With 7.6.4:
+
+- The 2018 backend's **software-renderer path (`MediaRenderingSoftwareRenderer`,
+  `createQTVideoRenderer`/`destroyQTVideoRenderer`/`m_qtVideoRenderer`,
+  `MediaPlayerPrivateQTKit.mm:376-417`) now has everything it needs and can be
+  ported essentially unchanged** — no need for the from-scratch
+  `frameImageAtTime:withAttributes:error:` paint path §4a proposed as a
+  replacement. That path remains useful as a *fallback* (e.g. for
+  `nativeImageForCurrentTime()`, §1d, which wants a single still frame rather
+  than a live-updating renderer view) but is no longer required to get
+  `paint()` working at all.
+- The **movie-layer path (`MediaRenderingMovieLayer`,
+  `createQTMovieLayer`/`destroyQTMovieLayer`/`m_qtVideoLayer`) stays dead** —
+  `QTMovieLayer` is still unavailable, for the reason above, independent of
+  QuickTime version. This path (and its `CALayer`-hosting story) remains
+  gated on the plan §6 CARenderer work, not on the QuickTime version.
+
+### 8b. Revised phase table (supersedes P3/P4 in §5)
+
+| Phase | What | LOC | Depends on |
+|---|---|---|---|
+| P3 (revised) | Delete only `createQTMovieLayer`/`destroyQTMovieLayer`/`m_qtVideoLayer`/`SOFT_LINK_CLASS(QTKit, QTMovieLayer)` (~230 LOC gross deletion, `QTMovieLayer` still absent). **Keep** `createQTVideoRenderer`/`destroyQTVideoRenderer`/`m_qtVideoRenderer`/`QTVideoRendererWebKitOnly` (~150 LOC) — now available, no deletion needed | −230 net (was −380) | P2 |
+| P4 (revised) | `paint()`/`paintCurrentFrameInContext()` (`MediaPlayerPrivateQTKit.mm:1254-1291`) port **unchanged** — it already calls `[qtVideoRenderer drawInRect:]`, and `qtVideoRenderer` is now obtainable. The `currentRenderingMode()`/`preferredRenderingMode()` logic (`:452-474`) also needs no change beyond what §1b/§1c already require, since it already prefers `MediaRenderingSoftwareRenderer` whenever `MediaRenderingMovieLayer` isn't available (`preferredRenderingMode()` falls back correctly as written) | ~10-20 (just the §1b/§1c signature-rename mechanics, not new rendering logic) | P3 |
+
+Net effect on the §5 total: roughly **150 fewer LOC to write** than the
+original estimate (the §4a `frameImageAtTime:`-based paint path is no longer
+on the critical path for P0-P8; §4b's later CARenderer-era note about
+preferring `CGImageRef`-into-`CALayer.contents` over an OpenGL/`QTVisualContextRef`
+pipeline is now a choice between *three* implemented-and-working sources for
+the CA layer's `contents` — `frameImageAtTime:`, the now-available
+`QTVideoRendererWebKitOnly`'s underlying frame data if it's introspectable,
+or a true `QTVisualContextRef` pipeline — rather than being the only option).
+**§4a's spike is still worth doing** (still queued on another agent, per the
+team lead) since `nativeImageForCurrentTime()`/§1d and the CARenderer-era
+path in §4b both still want it regardless of which path `paint()` itself
+ends up using.
+
+### 8c. The rest of the requested symbol checks
+
+| Symbol | In 2018 code? | 7.2 | 7.6.4 | Note |
+|---|---|---|---|---|
+| `QTMovieOpenForPlaybackAttribute` | yes, `MediaPlayerPrivateQTKit.mm:276` | n/a | n/a | Used as a **raw string literal** (`@"QTMovieOpenForPlaybackAttribute"`), not a soft-linked exported constant — never was checkable via `nm` in either version, and the 2018 code already doesn't assume it's linkable (that's exactly why it's a literal instead of `SOFT_LINK_POINTER`). No version-dependent behavior to report |
+| `QTMovieOpenAsyncRequiredAttribute` | **no** — zero occurrences anywhere in the 2018 file | — | — | Not used by the ported backend; nothing to check or change |
+| `QTMovieApertureModeAttribute` | yes, `:90-91` (soft-linked) | present | present | No delta — was already available on 7.2 per §2's original finding (QTKit-version-gated at 7.2, not OS-version-gated) |
+| `QTMovieRateChangesPreservePitchAttribute` | yes, `:81` | present | present | No delta |
+| `QTMovieHasApertureModeDimensionsAttribute` | not directly referenced by name in the 2018 `.mm` (only in the SDK header, §2) | present | present | No delta |
+| `QTMovie` `loadedRanges` / `QTMovieLoadedRangesDidChangeNotification` | yes, `:77,99,354-355,880-881,1149,1661` | `-loadedRanges` guarded by `respondsToSelector:` (`:880`); **the notification constant itself is absent as an exported symbol in *both* 7.2 and 7.6.4** (`nm`, zero hits) | same | The 2018 code was already written defensively for this — the method-existence check means it degrades gracefully regardless of QuickTime version, and since the notification constant isn't exported in the version actually on this box either, `loadedRangesChanged:` (`:1661`) simply never fires here and `maxMediaTimeLoaded()`'s `loadedRanges`-based branch (`:880-881`) is the only place buffered-range data reaches WebCore. No action needed, no regression — same behavior in 7.2 and 7.6.4 |
+| `QTMovieView` changes | not used for rendering by the 2018 backend at all (only `QTMovie`/`QTVideoRendererWebKitOnly`/`QTMovieLayer`) | — | new class `QTMovieViewControllerViewTranslationHandler` appeared, capture-view-adjacent classes churned | Irrelevant to this port — the 2018 backend never instantiates `QTMovieView` (that's the higher-level, controller-chrome-included widget; WebKit always used the lower-level `QTMovie` object directly) |
+| 7.6.x error/notification constants generally | — | 454 exported symbols | 453 exported symbols, **117 added / 118 removed** (`comm -13`/`comm -23` on the sorted lists) | The overwhelming majority of churn is unrelated to anything the 2018 backend uses: a new `QTTimeFormatter` CF-style API (`kQTTimeFormatter*`, `QTTimeFormatterCreate*`), a new private `QTUI*` movie-controller-skin widget-drawing API (`QTUIWidget*`, `QTUIState*`, all clearly the modern QuickTime Player movie-controller chrome, nothing WebKit would touch), and a batch of `QTVisualContext`⟷`QTImageConsumer` attribute-bridging functions (`QTConvertImageConsumerAttributeToVisualContextAttribute` and siblings) that only matter if the CARenderer-era `QTVisualContextRef` path (§4b, §2's flagged gap) is ever pursued instead of the `CGImageRef`-based one. Removed symbols are almost entirely legacy `NSDataDataHandler`/`NSObjectDataHandler`/MP3-importer-patch internal plumbing — none of it referenced by the 2018 `MediaPlayerPrivateQTKit.mm` |
+
+### 8d. Codec components under `/System/Library/QuickTime`
+
+Now mirrored (previously absent from `sysroot/`, flagged as a gap in the
+original "Not done in this pass" list — partially closed): `sysroot/System/Library/QuickTime/`
+contains `QuickTimeH264.component`, `QuickTimeMPEG4.component`,
+`QuickTimeMPEG.component`, `QuickTime3GPP.component`,
+`QuickTimeComponents.component`, `AppleVAH264HW.component` (hardware-assisted
+H.264, irrelevant on this GPU/era but present), `AppleProResDecoder.component`,
+`ApplePixletVideo.component`, `QuickTimeStreaming.component`,
+`QuickTimeFireWireDV.component`, plus capture-device components
+(`QuickTimeIIDCDigitizer.component`, `QuickTimeUSBVDCDigitizer.component`,
+irrelevant, no `<video>` capture on this port) and `QuickTimeVR.component`
+(irrelevant). `QuickTimeH264.component`, `QuickTimeMPEG4.component`, and
+`QuickTimeComponents.component` all report `CFBundleShortVersionString`
+7.6.4 / `CFBundleVersion` 1327.73, matching `QTKit.framework` exactly — same
+release, not independently versioned.
+
+**Not independently re-verified by disassembly**: whether `QuickTimeH264.component`
+7.6.4 actually decodes H.264 High Profile (not just Baseline/Main as §3
+stated for the general QuickTime-7-era baseline). This is a documented Apple
+claim for the QuickTime 7.6 release specifically — 7.6 was the update that
+added support for playing H.264 content up to 1080p and improved
+profile/level coverage for the contemporary MacBook Pro/iMac hardware
+refresh — but confirming the exact profile/level bitmask this specific
+component enforces would need either disassembly or an actual High-profile
+test file played on the box, neither done here. Treat §3's Baseline/Main
+statement as the safe floor, and High-profile support as *plausible but
+unconfirmed* for 7.6.4 specifically (it does not change §3's WebM/VP9/AV1/HEVC
+conclusion either way — none of those become available regardless of H.264
+profile coverage). AAC-LC was already covered per §3; AAC-HE (used by some
+lower-bitrate streaming content) was not specifically checked and the
+component's `CFBundleVersion` string alone doesn't resolve it.
 
 - Did not spike-test `frameImageAtTime:withAttributes:error:`'s actual
   runtime return type on real Tiger hardware (§4a/P0) — the header alone
