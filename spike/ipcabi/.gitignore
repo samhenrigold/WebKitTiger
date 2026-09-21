@@ -1,0 +1,6 @@
+abitest32
+abitest64
+abitest32-unpatched
+abitest64-unpatched
+*.dSYM/
+.DS_Store
