@@ -520,3 +520,16 @@ one triage pass before it was noticed. See the triage table at the end of
 - USER DECISION (23:40): controls "absolutely need to look like Aqua". Approach: the 32-bit UI process renders real Aqua controls
   (NSCell/HITheme, every type/state/size) into an atlas + 9-slice manifest; the 64-bit content process's RenderTheme paints from
   it (pixel-exact Tiger Aqua). On-demand rendering over IPC for states the atlas lacks is the extension. Scrollbars: Aqua metrics.
+- **The exact trigger for that ld64 crash, measured against a rebuilt unpatched linker (22:35).** It is NOT exception
+  handling. A plain C file with one `__attribute__((weak))` function, compiled with `-fno-asynchronous-unwind-tables
+  -fno-unwind-tables`, still crashed the unpatched linker; a plain C hello with no weak symbol linked fine. The rule is:
+  **any x86_64 link below 10.6 whose stubs include a global weak definition.** That is every C++ program, since inline and
+  template functions, `operator new` and out-of-line `std::string` members are all weak defs, and it is also plain C that
+  touches a weak symbol (libcrypto's `__explicit_bzero_hook` is what made the HMAC repro fail). Plain C without weak
+  symbols is the only thing that ever worked, which is why the leopard track's six C programs and two C dylibs all linked.
+  Do not use "no exceptions" or "no unwind tables" as a safety rule; it is not one.
+- On-box linking, if ever needed (from the leopard track): the box's /usr/bin/ld64 is ld64-62.1 (Apr 2007). It parses
+  `-install_name` as `-i` and dies, and it supplies no startup objects, so it needs the older spellings and explicit crt:
+  `ld64 -arch x86_64 /usr/lib/crt1.o foo.o -lSystem -macosx_version_min 10.4 -o foo`, and for a dylib
+  `-dylib /usr/lib/dylib1.o ... -dylib_install_name <path> -dylib_compatibility_version/-dylib_current_version`.
+  Not needed for the build: the cross linker is correct now.
