@@ -148,21 +148,33 @@ so without the guard a unit that includes a leaf such as `CGGeometry.h` reaches
 own include of `CoreGraphics.h` is then a no-op because the umbrella's include
 guard is already set. `CGColorSpaceRef` ends up undeclared.
 
-`CGCompat.h` deliberately does **not** include
-`<ApplicationServices/ApplicationServices.h>`. Reaching it from inside
-`CoreGraphics.h` would drag QuickDraw's `Rect` and `Point` into every WebCore
-translation unit. It includes `<CoreGraphics/CoreGraphics.h>` and
-`<ImageIO/CGImageSource.h>` instead, which needs the ApplicationServices
-subframework directory on `-F`; `tiger.cmake` and `compat/Makefile` both pass it.
+**A hook must stay as narrow as the header it wraps.** Anything `CGCompat.h`
+includes is inflicted on every unit that includes *any* CoreGraphics header, so
+its include list is a constraint rather than a convenience. It names the ten
+specific sub-headers it needs and pulls neither umbrella:
+`<CoreGraphics/CoreGraphics.h>` reaches `CGRemoteOperation`, `CGSession`,
+`CGPSConverter` and `CGEvent`, and through them all of
+`<CoreServices/CoreServices.h>`, which is how CarbonCore's `check` and Finder's
+`Marker` collided with JavaScriptCore; `<ApplicationServices/...>` adds
+QuickDraw on top. `<ImageIO/CGImageSource.h>` is out for the same reason, since
+it includes the CoreGraphics umbrella itself, so `CGImageSourceRef` is
+forward-declared behind that header's own include guard.
+
+Measured with `clang -H`: each of the eleven hooked sub-headers pulls zero
+CoreServices umbrella headers. `<CoreGraphics/CoreGraphics.h>` pulls four, the
+same four the SDK's own umbrella pulls without any overlay.
 
 **ImageIO is not overlaid and does not need to be.** Its `CGImageSource.h`
 includes `<CoreGraphics/CoreGraphics.h>`, so `<ImageIO/ImageIO.h>` picks up the
-shims through the hook. Its `CGImageSourceRef` typedef sits above that include,
-so the type is declared before `CGCompat.h` runs in either include order.
+shims through the hook.
 
 **CGFloat has one owner: `CGBase.h` here.** `TigerCompat/CGCompat.h` keeps a
-copy behind Apple's `CGFLOAT_DEFINED` guard purely as a fallback for builds that
-do not put this overlay on `-F`, which is how `compat` itself builds. Same guard,
+copy behind Apple's `CGFLOAT_DEFINED` guard as a fallback for consumers reached
+without this overlay on `-F`, such as a hand-run spike. `compat`'s own build is
+*not* one of them: its Makefile passes `-Fsdk-overlay`, and a framework-style
+include from inside an absolutely-included SDK header still goes back through
+the search path, so the SDK's `CoreGraphics.h` asking for
+`<CoreGraphics/CGBase.h>` lands here (verified with `clang -H`). Same guard,
 same definition, so whichever is reached first wins and they cannot collide.
 
 `CGFloat` arrived in the 10.5 SDK. On i386 CoreGraphics is float-based

@@ -38,9 +38,9 @@
 #include <CoreGraphics/CGDataProvider.h>
 
 /* CGFloat's owner is the SDK overlay's CGBase.h, which every CoreGraphics header
-   includes. This guarded copy is the fallback for builds that do not put the
-   overlay on -F, which is how compat itself builds. Apple's guard macro means
-   whichever comes first wins and the two can never collide. */
+   includes. This guarded copy is the fallback for a consumer reached without the
+   overlay on -F, such as a hand-run spike. Apple's guard macro means whichever
+   comes first wins and the two can never collide. */
 #ifndef CGFLOAT_DEFINED
 #define CGFLOAT_DEFINED 1
 typedef float CGFloat;
