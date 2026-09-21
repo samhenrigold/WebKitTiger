@@ -293,3 +293,7 @@ for Intel Mac OS X 10.4.11 (i386, fragile ObjC runtime, no JIT/C-loop JSC, no Co
   WebCrypto symmetric algorithms excluded; digests stay; LibreSSL is the eventual answer.
 - Overlay: NSPoint/NSSize/NSRect unified with the CG types (NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES, as 10.5 did); CFBase.h
   gained CF_ENUM/CF_OPTIONS. WEBKIT_MAX_BUNDLE_SIZE is 16 under TIGER (non-modular 10.4 headers overflow clang's source locations).
+- SDK protection (2026-09-20 21:45): sdk/MacOSX10.4u.sdk and MacOSX10.5.sdk are read-only (chmod -R a-w); writes through
+  overlay symlinks now fail loudly instead of truncating SDK headers. `toolchain/verify-sdk.sh` checks the 10.4u SDK against
+  sdk/MacOSX10.4u.sdk.sha256 (6516 files). Restore from the tarball on failure. Overlay files: delete the symlink before
+  writing a real file at that path (make-overlay.sh warns about this).
