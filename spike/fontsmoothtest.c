@@ -71,8 +71,9 @@ CG_EXTERN void CGContextSetAllowsFontSmoothing(CGContextRef context, bool allows
    target for CGContextSetShouldAntialiasFonts -- it would alias glyphs without
    aliasing shapes, which the context-wide CGContextSetShouldAntialias cannot do.
    Storing a bit and honouring it are different things, so this measures. */
-CG_EXTERN void CGFontSetShouldAntialias(CGFontRef font, int shouldAntialias);
-CG_EXTERN int CGFontShouldAntialias(CGFontRef font);
+/* CGFontSetShouldAntialias / CGFontShouldAntialias are now declared by
+   TigerCompat/CGCompat.h, which CoreText.h pulls in, so they are not redeclared
+   here. CGFontCreateWithPlatformFont still needs one. */
 CG_EXTERN CGFontRef CGFontCreateWithPlatformFont(void *platformFontReference);
 
 #define W 96

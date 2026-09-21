@@ -652,6 +652,14 @@ and the output is still wrong.
 
 ---
 
+> **Re-verified after the 21:50 system update.** The box took Security Update 2009-005, QuickTime
+> 7.6.4 and Safari 4.1.3, which replaced CoreGraphics, CoreText, AppKit and ATS on disk — all four
+> now differ by checksum from the `sysroot/` mirror every disassembly in this report was taken
+> against. Every behavioural probe was re-run against the updated machine and **no measured
+> behaviour changed**. The only two deltas are teammates' fixes landing: the tiled-image seams are
+> gone (now exactly `inked * 255`, matching modern) and `-[NSScreen backingScaleFactor]` now
+> answers 1.0 instead of being absent. Conclusions stand; `sysroot/` is stale for new disassembly.
+
 ## Behavioural probes: the failure mode no static screen reaches
 
 The ABI screen finds functions whose shape is wrong. It cannot find a function whose signature
