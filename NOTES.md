@@ -1120,3 +1120,8 @@ Added to the ARTIFACT OWNERSHIP MAP above.
   Untested load-bearing pieces: thread_get_state(x86_THREAD_STATE64) for conservative GC scanning, and POSIX signal
   delivery into JIT code (HAVE(MACH_EXCEPTIONS) off; mach_exc.defs is 10.5+). ICU data step silently installs a stub
   for the x86_64 configure (workaround recorded). dispatch x86_64 install bug already fixed ($(LIB)).
+- Wire-flag probe (wcplan abead26, tools/check-wire-flags.py): verified by negative control (injected flips reported by
+  name, exit 1). Traps it found in itself: stripping -O breaks wtf/Compiler.h on release builds; reading build.ninja
+  FLAGS but not DEFINES dropped WTF_PLATFORM_TIGER so the probe evaluated as a non-Tiger build and produced a plausible
+  false report; the script now refuses values from a failed preprocess. First run was against stale Cocoa-port trees
+  (empty queue); re-running against the PORT=Tiger web tree to produce the real logs/wire-flag-queue.txt.
