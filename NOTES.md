@@ -960,3 +960,6 @@ branch, libwebp's -msse2/-msse4.1 capability checks, pixman's SSSE3 intrinsic ch
 either host_cpu string matches or compile-only `-c` probes, never execute a conftest), and
 cross_compiling/needs_exe_wrapper/CMAKE_CROSSCOMPILING were correctly set for every build
 that was actually affected by their absence (only ICU, already fixed). No changes made.
+- RULE: nothing under build/ is removed except via tools/rm-build-tree.sh (ld64fix's name-validating guard with
+  self-test; wkcmake committing). An inline rm -rf is unreviewable. Note the guard's own first version refused every
+  legitimate path (mktemp -d returns /var/folders, a symlink to /private/var); only its self-test caught it.
