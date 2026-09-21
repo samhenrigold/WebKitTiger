@@ -109,3 +109,6 @@
 /spike/oslog6464
 /spike/textpixel/raster32
 /spike/textpixel/shaper64
+
+# Media test fixtures for the MSE spike (large binaries, regenerable from spike/msescan notes).
+/spike/media64/
