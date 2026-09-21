@@ -971,3 +971,33 @@ file blocks twenty.
 | `NSMapTable` C functions taking the class | nscompat | the JSC Objective-C API |
 | `NSNotificationName` | nscompat | `PAL/spi/mac/NSWindowSPI.h` |
 | The five PopupMenu shims | nscompat | `PAL/system/mac/PopupMenu.mm` |
+
+## Deferred items, recorded so they are not rediscovered
+
+Two from the WebKitLegacy plan, neither reachable yet but both easy to lose.
+
+**The curl CA bundle path has to be set at runtime.** curl was built with
+`--with-ca-bundle` pointing at `toolchain/sysroot-i386/usr/etc/ssl/cacert.pem`,
+a path on *this* machine that does not exist on the Tiger box, so every TLS
+verification would fail at runtime with a certificate error that looks like a
+protocol problem. Ship `cacert.pem` in the app's Resources and call
+`CurlSSLHandle::setCACertPath`, defaulting to the bundle's
+`Resources/cacert.pem` and overridable by an environment variable
+(`WEBKIT_CURL_CA_BUNDLE`) so the `jsc` and test tools can point at a copy.
+`platform/network/playstation/CurlSSLHandlePlayStation.cpp` is the model, about
+thirty lines.
+
+**`WebDelegateImplementationCaching.mm` must use `objc_msgSend_fpret` on i386.**
+It casts `objc_msgSend` to a float-returning function pointer. On x86-64 that is
+harmless because floats come back in xmm0 either way; on i386 a float return
+comes off the x87 stack and the wrong entry point yields silent garbage rather
+than a crash. This is the same class of failure as the blend modes and
+`CGContextClipToMask`: correct-looking code, no diagnostic, wrong values.
+
+**And one still open from this round.** `GraphicsContextCG::clipToImageBuffer`
+passes an RGBA image to `CGContextClipToMask`, and Tiger's ClipToMask clips
+everything away for any mask that is not a DeviceGray non-alpha image — measured,
+`spike/clipmasktest.c`. It needs a grayscale conversion at that call site; the
+FIXME already there is pointing at exactly this. The symptom is blank regions
+where CSS masking, clip paths or a masked canvas composite should be, with no
+crash and no error, so it is worth checking first if that appears.
