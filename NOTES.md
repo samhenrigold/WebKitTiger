@@ -3848,3 +3848,14 @@ bug). Next: a real HTTPS page with sampling on, and the GPU process's 130% CPU.
 images, layout, links, all right side up; CA bundle via TIGER_CA_BUNDLE. 8 s in: UI
 0%, web 0.1% (106 MB), network 0%, GPU 100% CPU -- the GPU process spins at idle;
 sampled, see next entry.
+
+### The GPU process's idle core
+
+`ps -M` showed three threads at ~30% each, mostly system time; the all-thread
+sampler with dladdr leaves put them in `poll` and `recvmsg` under
+`tigerMonitorSocket`. Cause: 10.4 reports a stream socket's EOF as plain POLLIN, no
+POLLHUP; the handler reads zero bytes and calls connectionDidClose(), which
+invalidates asynchronously, so poll() returned at once forever on the three
+connections the navigation swap had retired (the first web process's GPU
+connection and its streams). The monitor now leaves its loop as soon as
+`m_isConnected` drops.
