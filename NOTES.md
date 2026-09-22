@@ -3471,3 +3471,15 @@ tiger-check-ipc (flags + generated text), tools/check-message-names.sh (preproce
 MessageName enum), tools/check-serializers.sh (preprocessed decoder member lists).
 Still open: WebEvent's `uintptr_t signpostIdentifier` is GTK/WPE-only and not on this wire,
 but any `long`/`CGFloat`/`NSInteger` that ever lands in a shared .in will be the same bug.
+
+## 2026-09-21 — input wired from the Tiger window (input agent)
+
+TigerWK2View in spike/wk2web/TigerWK2App.mm: mouse (all three buttons, moved, dragged;
+setAcceptsMouseMovedEvents on viewDidMoveToWindow), wheel, keyDown/keyUp/flagsChanged
+through the Tiger NativeWeb*Event factories into WebPageProxy; first responder on
+viewDidMoveToWindow, IsFocused toggled through TigerWebView::setViewState; cursor via
+Cursor::platformCursor() when the window is key. No NSTextInput yet (text goes through
+WebPage::handleEditingKeyboardEvent, which the pagedriver typing test already used);
+WindowIsActive stays always-on; doneWithKeyEvent does not re-dispatch to AppKit.
+Parallel tracks running: media inventory + QuickTime decode probe (spike/media32),
+fast-mode text snapping (worktree WebKit-fasttext, build/tiger-web-text).
