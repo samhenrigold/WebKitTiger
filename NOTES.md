@@ -4204,3 +4204,18 @@ relaunches): the GPU process crashes once mid-run (`gpuProcessExited: reason=Cra
 earlier run caught it in `gliDestroyContext`, i.e. the CGL pbuffer teardown), and the web
 process takes an EXC_BAD_INSTRUCTION in `WTF::Vector<JSC::JSONRanges::Entry>::~Vector`
 (JSON.parse source ranges) on x.com's onboarding payload.
+
+## Web-font "regression" in x-faithful screenshots was a stale build cache (2026-09-22 17:45)
+
+spike/wk2web/x-faithful-*.png and /tmp/repro-click.png (perf track, build/tiger-web-perf)
+show x.com in Helvetica. That build dir was configured before USE_WOFF2 went on for TIGER64
+and CMake kept USE_WOFF2:BOOL=OFF in its cache (build/tiger-web-media had the same). The
+main tree at the same time renders Chirp (fast mode, /tmp/x-fast-now.png). Fixed with
+`cmake -DUSE_WOFF2=ON .` in the affected dirs. Rule: when a build dir predates a cmake
+option change, re-run cmake with the option explicitly; the default does not override a
+cached value.
+
+Merged tiger-perf 978c3048: IPC::createEventSignalPair built the Signal from a duplicated
+descriptor, which serializes as a null FIFO path on this port, so every GPU-side
+Signal::signal() wrote to fd -1 and faithful-mode canvas readbacks waited forever
+(GPU "unresponsive", page at Loading... 89%). Signal now carries the FIFO path.
