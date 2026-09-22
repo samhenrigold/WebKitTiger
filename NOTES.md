@@ -4031,3 +4031,21 @@ mapping is not copy-on-write, so it is ordering or the replay path. (b) The GPU
 process sits at 100-200% CPU during the run (sampler: gld*/poll/semaphore
 leaves; unresolved). (c) One full-viewport bitmap per commit, no damage rects.
 (d) Filters, masks, replica layers, WebGL layers not applied (unchanged).
+
+### 15:12 — faithful mode composites and reads back (agent, merged)
+
+TIGER_FAITHFUL=1: web paints cairo tiles, the i386 GPU process applies WC deltas to
+CALayers (WCSceneCA), renders with a CARenderer over a CGL pbuffer, flips the
+glReadPixels rows into a ShareableBitmap and returns it in the UpdateInfo; the UI's
+BackingStore paints it unchanged. Test page (spike/wk2web/faithful-test.html:
+translateZ, rotate+opacity, rotateY flattened, overflow clip) and Wikipedia both right
+(spike/wk2web/faithful-composited.png, faithful-wikipedia.png). Two root causes fixed on
+the way: (1) the rebased QuartzCore was broken for any CATransaction -- with
+MH_PREBOUND cleared dyld binds external relocs as *loc += symAddr without subtracting
+the prebound value; rebase-dylib.py now fixes the 4820 external sites and slides the 80
+__IMPORT pointers to local symbols; (2) CARenderer needs [CATransaction flush] after
+the tree is attached or renders nothing. Merged into tiger-fontcache (three commits);
+stage-app now always syncs the framework. Open: TIGER_GPU_DOM=1 (display-list replay
+in the GPU process) gives zero-inked tiles; GPU at 100-200% CPU during faithful runs
+(gld*, poll, semaphore leaves); one full-viewport bitmap per commit; filters/masks/
+replica/WebGL/preserve-3d not applied.
