@@ -80,6 +80,27 @@ for i in range(nlocrel):
     n_applied += 1
 print(f"local relocs: {n_applied} rebased, {n_skipped} left (non-VANILLA)")
 
+# Pass 2b: external relocations. dyld binds these as `*location += symbolAddress`, and in a
+# prebound image the location already holds the address the symbol had when prebound,
+# which dyld subtracts only while MH_PREBOUND is set. We clear that flag below, so make
+# the stored words plain addends by subtracting the undefined symbol's n_value (that
+# prebound address) now. Without this every CFString constant's isa (and every other
+# bound data pointer) is prebound-address + real address: garbage.
+extreloff, nextrel = dysymtab[14], dysymtab[15]
+symoff = symtab[0]
+n_ext = 0
+for i in range(nextrel):
+    r_address, r_info = struct.unpack_from("<Ii", b, extreloff + 8*i)
+    assert not (r_address & 0x80000000), "scattered external relocation"
+    r_symbolnum = r_info & 0xffffff
+    r_type, r_extern, r_length, r_pcrel = (r_info >> 28) & 0xf, (r_info >> 27) & 1, (r_info >> 25) & 3, (r_info >> 24) & 1
+    if not r_extern or r_type != 0 or r_length != 2 or r_pcrel:
+        continue
+    n_value, = struct.unpack_from("<I", b, symoff + 12*r_symbolnum + 8)
+    add32(file_offset(base + r_address), (-n_value) & 0xffffffff)
+    n_ext += 1
+print(f"external relocs: {n_ext} made addend-only (prebound value subtracted)")
+
 # Pass 3: segment and section addresses in the load commands.
 for off, name, vmaddr, vmsize, fileoff, filesize, nsects, _ in segs:
     add32(off + 24, slide)
