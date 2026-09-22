@@ -3873,3 +3873,54 @@ on the 16 px lines read one shade softer. FreeType's v40 bytecode was tried and
 rejected (it also moves x and fattens stems, 17.36 -> 27.42). Next, in progress: render
 hinted-y / unhinted-x and merge outlines point-wise, only at the ppem Apple's
 interpreter fits. Crops: spike/fasttext/out/pagedriver/crop-*.png.
+
+## 2026-09-22 — perf track: where the web process spends a page load, and the two spins (WebKit-perf @047079ae, build/tiger-web-perf)
+
+Harness: `spike/wk2web/stage-perf.sh` (stage-app.sh with WEBBIN=, the full timestamped
+app.log brought back, KILL_WEB_AT= to SIGKILL the web process mid-run);
+`tools/tiger-profile.py <log> <binary> [pid]` buckets TIGER-SAMPLE lines per process.
+Two traps: the 64-bit leaf address (0x1098xxxxx) is libSystem, not the binary; and pick the
+pid from the ps table -- the network process has the most main-thread samples.
+`WEBKIT_DEBUG=...,Layout` already logs DidFirstVisuallyNonEmptyLayout / DidFirstLayout /
+DidFirstMeaningfulPaint with the wrapper's timestamps, so no first-paint marker was added.
+Do not use `JSC_reportCompileTimes=true` on a page: the JIT worklist thread dumps the
+CodeBlock, which reaches MemoryCache::singleton() off the main thread and kills the web
+process (verge-before2.log 17.7 s). It did confirm the JIT engages on the box: Verge in 27 s
+= 2370 Baseline, 1235 DFG, 40 FTL compiles; 18 of 91 busy main-thread samples had the pc in
+JIT code.
+
+Web-process main thread, 250 ms samples over ~25 s (logs/perf/*-before*.log):
+
+| page | first visually non-empty layout | main thread busy | busy breakdown |
+| Wikipedia Tiger article | 1.57 s | 2.8 s | layout 5, JS 4, images 2 (then idle) |
+| react.dev | 2.02 s | 2.5-3.5 s | JS 8, layout 4, style 2 (idle after 5 s) |
+| The Verge | 1.94 s | 22.8 s (the whole run) | JS parse+bytecodegen 37, JS execute 37, JIT 5, GC 3, style 3, layout 2, paint 2 |
+
+The web process was at 100% CPU on react.dev and The Verge anyway (27.5 s / 31.8 s CPU in
+27 s), the UI at 90%: not page work. The GPU process died at 2.5-4 s on both (never on
+Wikipedia) and then two SocketMonitor threads in the web process and one in the UI spun in
+recvmsg/readyReadHandler. 10.4 reports a stream EOF as POLLIN, and readyReadHandler's
+`if (!bytesRead) { }` was empty, so the zero-byte read looped forever: a core per dead
+connection, on a two-core box. Same thing showed as the network process at 197% after a
+web-process crash. Fix (047079ae): a zero read is connectionDidClose() on the Tiger arms.
+Measured with KILL_WEB_AT=6 on Wikipedia: network process 65.6% CPU / 9.8 s CPU by 27 s
+before, 0.0% and a clean exit after. The GPU and UI binaries still have the old loop until
+their trees rebuild past 047079ae (the GPU process sat at 130-200% in both runs).
+
+The GPU crash itself: the Tiger UI lends no window (`PageClientImpl::viewWidget()` is 0) and
+0 is the empty key of `WCSharedSceneContextHolder`'s `HashMap<int64_t, Holder*>`, so
+`ensureHolderForWindow(0)` hit HashTable's RELEASE_ASSERT(isValidKey) as soon as a page
+went into compositing mode (`DrawingAreaWC::isCompositingMode()` -- react.dev and The Verge
+do, Wikipedia does not, and TIGER_GPU=0 does not stop it). Same commit: the proxy sends the
+page identifier when the handle is 0. That gets past the assert and exposes the next one,
+outside this track: `WCScene::update` on the RemoteWCLayerTreeHost work-queue thread calls
+`+[CATransaction setValue:forKey:]` -> `CAInternAtom` -> objc_msgSend EXC_BAD_ACCESS
+(react-after.log 3.0 s), the web process now sees `GPUProcessConnection::didClose` (it never
+did before, the spin hid the EOF), asks for a new one (`create(177)`), and every process is
+gone by 8 s with no TIGER-CRASH line from anyone -- the GPU relaunch path in the UI needs a
+look. Before the fix the same pages were a blank white window with live, spinning processes.
+
+Net: Wikipedia unchanged (1.57 s / 2.8 s before and after). On heavy pages the web process's
+own work is JS-bound (Verge: 80% JS, half of it parsing and bytecode generation), the box
+has two cores, and the biggest waste was the spin, which is gone in the web and network
+processes. Nothing on the wire changed; no .messages.in/.serialization.in touched.
