@@ -161,8 +161,13 @@ void ChromeLoadObserver::update()
     auto pageConfiguration = API::PageConfiguration::create();
     pageConfiguration->setProcessPool(_pool.get());
     pageConfiguration->setWebsiteDataStore(&WebsiteDataStore::defaultDataStore());
-    pageConfiguration->preferences().setUseGPUProcessForDOMRenderingEnabled(false);
-    pageConfiguration->preferences().setAcceleratedCompositingEnabled(false);
+    // Same switches as the harness: TIGER_FAITHFUL=1 composites in the GPU process's CA
+    // scene (read back into the BackingStore); TIGER_GPU_DOM=1 additionally paints the DOM
+    // there. Default is fast mode: software WC in the web process.
+    bool faithful = getenv("TIGER_FAITHFUL") && !strcmp(getenv("TIGER_FAITHFUL"), "1");
+    bool gpuDOM = faithful && getenv("TIGER_GPU_DOM") && !strcmp(getenv("TIGER_GPU_DOM"), "1");
+    pageConfiguration->preferences().setUseGPUProcessForDOMRenderingEnabled(gpuDOM);
+    pageConfiguration->preferences().setAcceleratedCompositingEnabled(faithful);
     _webView = TigerWebView::create(pageConfiguration.get());
     if (!_webView) {
         fprintf(stderr, "TigerBrowser2: could not create the web view\n");
