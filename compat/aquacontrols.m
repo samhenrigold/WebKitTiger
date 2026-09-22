@@ -472,6 +472,7 @@ void *TigerRenderControlBitmap(TigerControlKind kind, const TigerControlStyle *s
     void *data;
     CGColorSpaceRef space;
     CGContextRef ctx;
+    TigerControlStyle shifted;
 
     if (!style || kind >= TigerControlKindCount)
         return NULL;
@@ -503,13 +504,16 @@ void *TigerRenderControlBitmap(TigerControlKind kind, const TigerControlStyle *s
         return NULL;
     }
 
-    /* TigerDrawControl wants WebCore's y-down space (beginDrawing wraps the port in a
-     * flipped NSGraphicsContext). Flipping here also puts user-space y=0 on memory row
-     * 0, which is the row order cairo and every image format expect. */
-    CGContextTranslateCTM(ctx, 0, h);
-    CGContextScaleCTM(ctx, 1, -1);
-    CGContextTranslateCTM(ctx, -x, -y);
-    TigerDrawControl(ctx, kind, style);
+    /* No CTM flip. beginDrawing already wraps the port in an NSGraphicsContext with
+     * flipped:YES, so AppKit draws y-down into an untransformed bitmap context and memory
+     * row 0 ends up being the top row -- the setup spike/aquaatlas draws its atlas with,
+     * and the one whose output was byte-identical to live 10.4 controls. Flipping here as
+     * well would flip it twice. The control is moved instead of the context, so its drawing
+     * bounds land exactly on the buffer. */
+    shifted = *style;
+    shifted.rect.origin.x -= x;
+    shifted.rect.origin.y -= y;
+    TigerDrawControl(ctx, kind, &shifted);
     CGContextRelease(ctx);
 
     if (outWidth) *outWidth = w;
