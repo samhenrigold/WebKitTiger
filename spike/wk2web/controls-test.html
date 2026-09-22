@@ -61,5 +61,25 @@
   <meter value="0.6"></meter>
 </div>
 
+
+<script>
+// The page's own view of what happened: every input/change event from any control, newest
+// first, echoed into the title so a screenshot of the title bar is the assertion.
+var log = [];
+function note(e) {
+  var t = e.target, v;
+  if (t.type === 'checkbox' || t.type === 'radio') v = t.checked ? 'on' : 'off';
+  else if (t.tagName === 'SELECT') v = t.selectedIndex + ':' + t.value;
+  else v = t.value;
+  log.unshift(e.type + ' ' + (t.tagName + '/' + (t.type || '')) + '=' + v);
+  document.title = log.slice(0, 3).join(' | ');
+}
+document.addEventListener('input', note, true);
+document.addEventListener('change', note, true);
+document.addEventListener('click', function (e) {
+  if (e.target.tagName === 'BUTTON' || e.target.type === 'submit')
+    { log.unshift('click ' + (e.target.value || e.target.textContent)); document.title = log.slice(0, 3).join(' | '); }
+}, true);
+</script>
 </body>
 </html>

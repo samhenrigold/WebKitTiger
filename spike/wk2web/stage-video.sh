@@ -31,6 +31,7 @@ for i in $(seq 1 60); do
     [ "$i" = 1 ] && echo "stage-video: waiting, already on the box:" && echo "$busy"
     sleep 5
 done
+if [ -n "$busy" ]; then echo "stage: box still busy (the user may be using TigerBrowser.app); aborting, nothing killed"; exit 1; fi
 ssh tiger-eth "mkdir -p $DEST/bin $DEST/Frameworks $DEST/share"
 rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" tiger-eth:$DEST/share/ 2>/dev/null || echo "stage-video: share files not all copied"
 FILES=""
@@ -43,7 +44,7 @@ ssh tiger-eth "cd $DEST/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env
   sleep 8; echo '== procs at 8s'; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep | cut -c1-80; \
   sleep 12; screencapture -x $DEST/shot.png; \
   sleep 10; echo '== procs at 30s'; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep | cut -c1-80; \
-  sleep $((SECS - 30)); killall TigerBrowser2 TigerWebProcess TigerNetworkProcess TigerGPUProcess tigeraudio32 2>/dev/null; rm -f /tmp/webkit-audio-* /tmp/webkit-video-*; sleep 1; \
+  sleep $((SECS - 30)); ps -axo pid,command | awk '$2 ~ /^\.\/Tiger/ || $2 ~ /\/wk2[a-z]*\// {print $1}' | xargs kill 2>/dev/null; rm -f /tmp/webkit-audio-* /tmp/webkit-video-*; sleep 1; \
   echo '== after'; ps -axo pid,command | grep -E 'Tiger(Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep; true"
 scp -qO tiger-eth:$DEST/shot.png "$SHOT"
 ssh tiger-eth "cat $DEST/app.log" > "$LOG"

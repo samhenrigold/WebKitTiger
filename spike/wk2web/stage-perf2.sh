@@ -28,6 +28,7 @@ for i in $(seq 1 60); do
     [ "$i" = 1 ] && echo "stage-app: waiting, already on the box:" && echo "$busy"
     sleep 5
 done
+if [ -n "$busy" ]; then echo "stage: box still busy (the user may be using TigerBrowser.app); aborting, nothing killed"; exit 1; fi
 ssh tiger-eth 'mkdir -p /Users/shg/wk2perf/bin /Users/shg/wk2perf/Frameworks /Users/shg/wk2perf/share'
 rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" tiger-eth:/Users/shg/wk2perf/share/ 2>/dev/null || echo "stage-app: share files not all copied (cacert.pem present?)"
 # rsync -t skips binaries that have not changed since the last stage.
@@ -42,7 +43,7 @@ rsync -rtl -z --partial --inplace --bwlimit=20000 "$WKT/spike/CAHost/Frameworks/
 # Safety net: the app is killed by alarm 3 s after it would have exited on its own, and
 # every helper is killed after the run, so nothing can sit on the socket pool if the run
 # goes wrong. One ssh invocation: launch, wait, capture, clean up, report the pool.
-ssh tiger-eth "cd /Users/shg/wk2perf/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV ./$APP '$URL' $SECS -WebKitLogging Process,Loading > /Users/shg/wk2perf/app-$TAG.log 2>&1 &) ; sleep 8; echo == procs at 8s; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep | cut -c1-90; netstat -m | grep 'clusters in use'; sleep $((SECS - 11)); echo == procs late; ps -axo pid,rss,%cpu,time,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep | cut -c1-96; screencapture -x /Users/shg/wk2perf/shot-$TAG.png; sleep 5; killall TigerWK2App TigerBrowser2 TigerWebProcess TigerNetworkProcess TigerGPUProcess 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep; netstat -m | grep -E 'clusters in use|denied'; true"
+ssh tiger-eth "cd /Users/shg/wk2perf/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV ./$APP '$URL' $SECS -WebKitLogging Process,Loading > /Users/shg/wk2perf/app-$TAG.log 2>&1 &) ; sleep 8; echo == procs at 8s; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep | cut -c1-90; netstat -m | grep 'clusters in use'; sleep $((SECS - 11)); echo == procs late; ps -axo pid,rss,%cpu,time,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep | cut -c1-96; screencapture -x /Users/shg/wk2perf/shot-$TAG.png; sleep 5; ps -axo pid,command | awk '$2 ~ /^\.\/Tiger/ || $2 ~ /\/wk2[a-z]*\// {print $1}' | xargs kill 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep; netstat -m | grep -E 'clusters in use|denied'; true"
 scp -qO tiger-eth:/Users/shg/wk2perf/shot-$TAG.png "$WKT/spike/wk2web/shot-$TAG.png"
 echo "== app.log"; ssh tiger-eth "grep -a -E 'TIGER-SEM|TIGER-CRASH|unrespons|gpuProcessExited|GPUProcessConnection' /Users/shg/wk2perf/app-$TAG.log | head -20"
 echo "screenshot: $WKT/spike/wk2web/shot-$TAG.png"
