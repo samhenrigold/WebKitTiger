@@ -4,8 +4,8 @@
 set -e
 cp /tmp/box-watchdog/sshd-watchdog.sh /Library/Scripts/sshd-watchdog.sh
 chmod 755 /Library/Scripts/sshd-watchdog.sh
-cp /tmp/box-watchdog/ai.portola.sshd-watchdog.plist /Library/LaunchDaemons/
-chown root:wheel /Library/LaunchDaemons/ai.portola.sshd-watchdog.plist /Library/Scripts/sshd-watchdog.sh
-launchctl unload /Library/LaunchDaemons/ai.portola.sshd-watchdog.plist 2>/dev/null || true
-launchctl load /Library/LaunchDaemons/ai.portola.sshd-watchdog.plist
+cp /tmp/box-watchdog/local.sshd-watchdog.plist /Library/LaunchDaemons/
+chown root:wheel /Library/LaunchDaemons/local.sshd-watchdog.plist /Library/Scripts/sshd-watchdog.sh
+launchctl unload /Library/LaunchDaemons/local.sshd-watchdog.plist 2>/dev/null || true
+launchctl load /Library/LaunchDaemons/local.sshd-watchdog.plist
 echo "watchdog installed: resident loop, reboot -q after 90 s without an sshd greeting"

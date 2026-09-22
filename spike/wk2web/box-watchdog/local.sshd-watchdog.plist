@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Label</key><string>ai.portola.sshd-watchdog</string>
+    <key>Label</key><string>local.sshd-watchdog</string>
     <key>ProgramArguments</key><array><string>/Library/Scripts/sshd-watchdog.sh</string></array>
     <key>RunAtLoad</key><true/>
     <key>KeepAlive</key><true/>
