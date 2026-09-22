@@ -8,13 +8,17 @@ WKT=$(cd "$(dirname "$0")/.." && pwd)
 A=$1; B=$2
 for T in "$A" "$B"; do
     N=$(basename "$T")
-    OBJ=$(ninja -C "$WKT/$T" -t targets all 2>/dev/null | grep -o 'Source/WebKit/CMakeFiles/WebKitShared.dir/[^:]*GeneratedSerializersShared.cpp.o' | head -1)
-    CMD=$(cd "$WKT/$T" && ninja -t commands "$OBJ" | tail -1 | sed 's/^: && //; s/ && :$//')
-    SRC=$(echo "$CMD" | grep -oE ' -c [^ ]+$' | awk '{print $2}')
-    PRE=$(echo "$CMD" | sed -E 's/ -o [^ ]+ -c [^ ]+$//; s/ -MD -MT [^ ]+ -MF [^ ]+//; s/-Xclang -include-pch -Xclang [^ ]+//; s/-Xclang -include -Xclang [^ ]+//')
-    (cd "$WKT/$T" && eval "$PRE -E $SRC") 2>/dev/null \
-        | grep -E 'ArgumentCoder<.*>::decode\(|auto [A-Za-z0-9_]+ = decoder\.decode<' \
-        | sed -E 's/^.*std::optional<(.*)> ArgumentCoder<.*>::decode\(.*$/== \1/; s/^\s*auto ([A-Za-z0-9_]+) = decoder\.decode<(.*)>\(\);.*$/  \1 : \2/' > "/tmp/ser-$N.txt"
+    : > "/tmp/ser-$N.txt"
+    # Every generated serializer file the tree compiles, in name order so both sides line up.
+    for OBJ in $(ninja -C "$WKT/$T" -t targets all 2>/dev/null | grep -o 'Source/WebKit/CMakeFiles/[^:]*GeneratedSerializers[A-Za-z]*\.cpp\.o' | sort -t/ -k5 | awk -F/ '!seen[$NF]++'); do
+        CMD=$(cd "$WKT/$T" && ninja -t commands "$OBJ" | tail -1 | sed 's/^: && //; s/ && :$//')
+        SRC=$(echo "$CMD" | grep -oE ' -c [^ ]+$' | awk '{print $2}')
+        PRE=$(echo "$CMD" | sed -E 's/ -o [^ ]+ -c [^ ]+$//; s/ -MD -MT [^ ]+ -MF [^ ]+//; s/-Xclang -include-pch -Xclang [^ ]+//; s/-Xclang -include -Xclang [^ ]+//')
+        echo "#### $(basename "$SRC")" >> "/tmp/ser-$N.txt"
+        (cd "$WKT/$T" && eval "$PRE -E $SRC") 2>/dev/null \
+            | grep -E 'ArgumentCoder<.*>::decode\(|auto [A-Za-z0-9_]+ = decoder\.decode<' \
+            | sed -E 's/^.*std::optional<(.*)> ArgumentCoder<.*>::decode\(.*$/== \1/; s/^\s*auto ([A-Za-z0-9_]+) = decoder\.decode<(.*)>\(\);.*$/  \1 : \2/' >> "/tmp/ser-$N.txt"
+    done
     echo "$T: $(wc -l < "/tmp/ser-$N.txt") decoded members"
 done
 if diff "/tmp/ser-$(basename "$A").txt" "/tmp/ser-$(basename "$B").txt" > /tmp/ser-diff.txt; then
