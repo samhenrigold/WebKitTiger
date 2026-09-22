@@ -4139,3 +4139,16 @@ login flow page renders. Faithful mode still routes canvas remotely; the stream 
 GPU side is the open bug (same family as the semaphore/POLLNVAL work).
 
 Also merged: tiger-fasttext (TigerGlyphFit, integral-ppem vertical fit).
+
+## YouTube home renders; intermittent network-process stall at startup (2026-09-22 17:19)
+
+https://www.youtube.com/ in fast mode: full home page (header, sidebar, Roboto web fonts) at
+~40 s (spike/wk2web/youtube-home.png). Web process ~350 MB RSS, 130% CPU at 8 s.
+
+Open: one run in three had the network process declared unresponsive twice during startup,
+right after "Finished creating connection ... notifying the UI process" and before
+"Handed off connect ..." (the completion handler that sends the ConnectionHandle path back to
+the UI). The UI then handed the web process an empty identifier ("Tiger IPC: cannot connect
+to : No such file or directory") and the page sat at "Loading... 10%". It happened right after a
+collision with another run's killall on the box; the next two clean runs did not reproduce.
+Need a sample of the network process main thread when it recurs (TIGER_SAMPLE_MAIN=100).
