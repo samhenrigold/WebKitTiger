@@ -4107,3 +4107,10 @@ x.com renders in Chirp now (16:28 screenshot). TigerBrowser2 takes TIGER_SCRIPT
 real NSEvents into the view's handlers for clicks and keys, WebPageProxy::scrollBy for
 scrolling (10.4 has no public scroll-wheel NSEvent constructor and WebWheelEvent's is
 protected), screencapture for shots. First use: type into x.com's login field.
+
+### 16:35 — scripted clicks navigate
+
+TIGER_SCRIPT "click 236,204" on example.com followed the "Learn more" link: iana.org
+loaded, title/URL/back button updated in the chrome. Coordinates are view points
+(screen y minus the toolbar; the view is flipped). Typing into x.com's login field
+showed nothing; isolating the keyboard path with a one-input data: URL.
