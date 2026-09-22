@@ -17,25 +17,25 @@ SECS=${2:-30}
 WEBBIN=${WEBBIN:-$WKT/build/tiger-web-jsperf}
 OUT=${OUT:-$WKT/logs/perf/jsperf-last.log}
 APP_ENV=${APP_ENV:-}
-APP_ENV="TIGER_FONT_MANIFEST=/Users/shg/wk2/share/tiger-fonts.json TIGER_CA_BUNDLE=/Users/shg/wk2/share/cacert.pem TIGER_SAMPLE_MAIN=100 WEBKIT_DEBUG=Process,Loading,Layout $APP_ENV"
+APP_ENV="TIGER_FONT_MANIFEST=/Users/shg/wk2jsperf/share/tiger-fonts.json TIGER_CA_BUNDLE=/Users/shg/wk2jsperf/share/cacert.pem TIGER_SAMPLE_MAIN=100 WEBKIT_DEBUG=Process,Loading,Layout $APP_ENV"
 for i in $(seq 1 60); do
     busy=$(ssh tiger-eth "ps -axo pid,command | grep -E '[T]iger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|[p]agedriver' | head -3")
     [ -z "$busy" ] && break
     [ "$i" = 1 ] && echo "stage-jsperf: waiting, already on the box:" && echo "$busy"
     sleep 5
 done
-ssh tiger-eth 'mkdir -p /Users/shg/wk2/bin /Users/shg/wk2/Frameworks /Users/shg/wk2/share'
-rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" tiger-eth:/Users/shg/wk2/share/
+ssh tiger-eth 'mkdir -p /Users/shg/wk2jsperf/bin /Users/shg/wk2jsperf/Frameworks /Users/shg/wk2jsperf/share'
+rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" tiger-eth:/Users/shg/wk2jsperf/share/
 FILES=""
 for f in "$WKT/build/tiger-ui-port/bin/TigerWK2App" "$WEBBIN/bin/TigerWebProcess" "$WEBBIN/bin/TigerNetworkProcess" "$WKT/build/tiger-gpu/bin/TigerGPUProcess"; do
     [ -f "$f" ] && FILES="$FILES $f" || echo "stage-jsperf: missing $f (not copied)"
 done
-rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:/Users/shg/wk2/bin/
-ssh tiger-eth 'test -d /Users/shg/wk2/Frameworks/QuartzCore.framework' 2>/dev/null || rsync -rtl -z --partial --inplace --bwlimit=20000 "$WKT/spike/CAHost/Frameworks/QuartzCore.framework" tiger-eth:/Users/shg/wk2/Frameworks/
+rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:/Users/shg/wk2jsperf/bin/
+ssh tiger-eth 'test -d /Users/shg/wk2jsperf/Frameworks/QuartzCore.framework' 2>/dev/null || rsync -rtl -z --partial --inplace --bwlimit=20000 "$WKT/spike/CAHost/Frameworks/QuartzCore.framework" tiger-eth:/Users/shg/wk2jsperf/Frameworks/
 # Last check right before launch, on the box itself: abort rather than run on top of someone.
-ssh tiger-eth "if ps -axo pid,command | grep -qE '[T]iger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|[p]agedriver'; then echo 'stage-jsperf: box occupied at launch, aborting'; ps -axo pid,command | grep -E '[T]iger|[p]agedriver'; exit 3; fi; cd /Users/shg/wk2/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV ./TigerWK2App '$URL' $SECS -WebKitLogging Process,Loading,Layout 2>&1 | perl -MTime::HiRes=time -ne 'BEGIN{\$t0=time} printf \"%8.3f %s\", time-\$t0, \$_' > /Users/shg/wk2/app.log &) ; sleep 8; echo == procs at 8s; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(WK2App|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep | cut -c1-90; sleep $((SECS - 11)); echo == procs at $((SECS - 3))s; ps -axo pid,rss,%cpu,time,command | grep -E 'Tiger(WK2App|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep | cut -c1-90; screencapture -x /Users/shg/wk2/shot.png; sleep 5; killall TigerWK2App TigerBrowser2 TigerWebProcess TigerNetworkProcess TigerGPUProcess 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep; true"
+ssh tiger-eth "if ps -axo pid,command | grep -qE '[T]iger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|[p]agedriver'; then echo 'stage-jsperf: box occupied at launch, aborting'; ps -axo pid,command | grep -E '[T]iger|[p]agedriver'; exit 3; fi; cd /Users/shg/wk2jsperf/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV ./TigerWK2App '$URL' $SECS -WebKitLogging Process,Loading,Layout 2>&1 | perl -MTime::HiRes=time -ne 'BEGIN{\$t0=time} printf \"%8.3f %s\", time-\$t0, \$_' > /Users/shg/wk2jsperf/app.log &) ; sleep 8; echo == procs at 8s; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(WK2App|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep | cut -c1-90; sleep $((SECS - 11)); echo == procs at $((SECS - 3))s; ps -axo pid,rss,%cpu,time,command | grep -E 'Tiger(WK2App|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep | cut -c1-90; screencapture -x /Users/shg/wk2jsperf/shot.png; sleep 5; killall TigerWK2App TigerBrowser2 TigerWebProcess TigerNetworkProcess TigerGPUProcess 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep; true"
 mkdir -p "$(dirname "$OUT")"
-scp -qO tiger-eth:/Users/shg/wk2/app.log "$OUT"
-scp -qO tiger-eth:/Users/shg/wk2/shot.png "${OUT%.log}.png"
+scp -qO tiger-eth:/Users/shg/wk2jsperf/app.log "$OUT"
+scp -qO tiger-eth:/Users/shg/wk2jsperf/shot.png "${OUT%.log}.png"
 echo "log: $OUT ($(wc -l < "$OUT") lines, $(grep -c TIGER-SAMPLE "$OUT") samples)"
 grep -m1 "milestones=.*DidFirstVisuallyNonEmptyLayout\|dispatching DidFirstVisuallyNonEmptyLayoutForFrame" "$OUT" | cut -c1-12 | sed 's/^/first visually non-empty layout at: /'
