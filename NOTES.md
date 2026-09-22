@@ -3792,3 +3792,17 @@ fix is to stop passing descriptors altogether: connection handles become paths t
 listening SOCK_STREAM sockets (creator listens, sends the path, accepts on first
 activity), shared memory and semaphores are already paths, and out-of-line bodies
 go away (stream sockets have no datagram limit). Zero SCM_RIGHTS on Tiger.
+
+### 11:55 — the first run that did not wedge
+
+With connections by path over SOCK_STREAM, semaphores and shared memory by path, and
+no descriptor on the wire, the four-process run finished, the helpers were killed by
+the harness and the box stayed up. Visible in that run: (1) the GPU process hit its
+second tombstone, `AuxiliaryProcess::registerWithStateDumper` (Cocoa os_state; now a
+Tiger no-op in Shared/tiger/AuxiliaryProcessTiger.cpp); (2) the UI process trapped
+early with EXC_BAD_INSTRUCTION (ud2 = a CRASH()/RELEASE_ASSERT on i386) and the
+catcher's thread_get_state returned KERN_INVALID_ARGUMENT for that thread while the
+same code works in a standalone test and in the GPU sampler -- diagnostics and a
+unified-flavor fallback added, frames next run; (3) the web process wants
+`TIGER_FONT_MANIFEST` and `TIGER_CA_BUNDLE`; stage-app now stages logs/tiger-fonts.json
+and deps/src/cacert.pem under /Users/shg/wk2/share and sets both.
