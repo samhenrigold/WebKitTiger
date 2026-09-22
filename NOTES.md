@@ -3483,3 +3483,157 @@ WebPage::handleEditingKeyboardEvent, which the pagedriver typing test already us
 WindowIsActive stays always-on; doneWithKeyEvent does not re-dispatch to AppKit.
 Parallel tracks running: media inventory + QuickTime decode probe (spike/media32),
 fast-mode text snapping (worktree WebKit-fasttext, build/tiger-web-text).
+
+## 2026-09-21 — media on Tiger: what exists, what it would take (media32 track)
+
+Research plus one new measurement; nothing under WebKit/ was edited. Earlier media findings this section
+leans on: logs/qtkit-plan.md (QTKit 7.6.4 API surface), logs/media64-plan.md + logs/decodebench-tiger.txt
+(ffmpeg x86_64 numbers), logs/mse-demux.md + spike/msescan.c (MSE over libavformat), spike/audiobridge
+(64→32-bit PCM ring). New: spike/media32/icmprobe.c, the raw QuickTime 7 decoder measured without QTKit.
+
+### 1. What WebKit needs from a media backend (2026 tree, GPU-process shape)
+
+The web process never touches a codec. With `UseGPUProcessForMediaEnabled` (our configs already have
+ENABLE_VIDEO=1, ENABLE_MEDIA_SOURCE=1, ENABLE_GPU_PROCESS=1, ENABLE_WEB_AUDIO=0 in both tiger-web-port and
+tiger-gpu cmakeconfig.h) the pieces are:
+
+- **Web process:** `MediaPlayerPrivateRemote` (WebProcess/GPU/media, 1831 LOC, 50 inbound messages) is the
+  `MediaPlayerPrivateInterface` implementation. It is generic: nothing to write except (a) leaving its
+  `PLATFORM(COCOA)` video-layer/CV bits gated off (already done by the wire track: `PLATFORM(COCOA) &&
+  !PLATFORM(TIGER)` in RemoteMediaPlayerProxy.messages.in, RemoteVideoFrameObjectHeap, AudioVideoRendererRemote,
+  RemoteAudioDestinationManager) and (b) `paint()`, which does `videoFrameForCurrentTime()` →
+  `GraphicsContext::drawVideoFrame(VideoFrame)`. `VideoFrame::createBGRA/createRGBA` are nullptr stubs outside
+  the CV/GStreamer ports (platform/VideoFrame.cpp), so the 64-bit side owes a **VideoFrameTiger** (BGRA in
+  shared memory, ~150 LOC) or we skip `paint()` in the web process entirely and have the GPU/UI side put the
+  frame on a CALayer (what CAVideo does). Canvas `drawImage(video)` needs the former.
+- **GPU process (i386):** `RemoteMediaPlayerProxy` (1394 LOC, 78 messages) wraps a real
+  `MediaPlayerPrivateInterface` created through `MediaPlayer`'s engine list
+  (`buildMediaEnginesVector`, MediaPlayer.cpp:326; a `MediaPlayerFactory` subclass with `identifier`,
+  `createMediaEnginePlayer`, `getSupportedTypes`, `supportsTypeAndCodecs`). On Tiger this list is empty
+  today. **This is the one class to write: `MediaPlayerPrivateTiger`.** Pure virtuals (MediaPlayerPrivate.h):
+  `load(URL…)`, `load(URL, MediaSourcePrivateClient&)`, `cancelLoad`, `play/pause/paused`, `naturalSize`,
+  `hasVideo/hasAudio`, `setPageIsVisible`, `seekToTarget → MediaTimePromise`, `networkState/readyState`,
+  `buffered`, `didLoadingProgress`, `paint`, `colorSpace`, `mediaPlayerType`; ~160 more virtuals with
+  defaults (volume, rate, duration/currentTime, tracks, `platformLayer`...). The 2018 MediaPlayerPrivateQTKit
+  (refs/webkit-history/qtkit-mediaplayer/) is the skeleton; logs/qtkit-plan.md §1 lists the vtable delta.
+- **MSE:** `MediaSourcePrivate` (+`addSourceBuffer`, `player`, `platformType`) and `SourceBufferPrivate`
+  (`appendInternal(SharedBuffer) → MediaPromise`, `resetParserStateInternal`, plus feeding
+  `didReceiveInitializationSegment` / `didReceiveSample(MediaSample)` to the port-independent
+  SourceBufferPrivate.cpp, which owns the whole coded-frame-processing algorithm, buffered ranges, eviction).
+  Reference sizes: mock/mediasource 891 LOC total (MockBox parser + player + source + buffer), AVFObjC
+  SourceBufferPrivate 850 + MediaPlayerPrivateMediaSourceAVFObjC 1608, GStreamer mse/ ~4,400. The parser is
+  the real work: on Cocoa it is `SourceBufferParser` (132-line interface; WebM impl 1749 LOC, the MP4 one is
+  AVFoundation's AVStreamDataParser). We already have the fMP4 answer for the 64-bit side (libavformat,
+  logs/mse-demux.md) but **that is x86_64-only**; the i386 GPU process would parse fMP4 with QuickTime's
+  own importer (MovieImportDataRef on a growing handle: unproven for fragmented MP4, QuickTime 7 predates
+  DASH-style moof/mdat streams and is not known to accept them) or with a hand-written ~800-1,200 LOC
+  moov/moof/trun/mdat walker feeding raw AVCC NAL units to the ICM session. The second is the honest plan.
+- **Audio out:** ENABLE_WEB_AUDIO is off, so `AudioDestination` is not needed for `<video>`. For MSE the
+  player owns its own audio clock: decoded PCM → device. On 10.4 that means the HAL/AudioUnit
+  (`DefaultAudioOutput.h`, `kAudioUnitSubType_DefaultOutput` is in the 10.4u SDK) or the Component Manager
+  path spike/audiobridge already uses. AudioQueue does not exist (10.5; zero hits in the 10.4u
+  AudioToolbox headers). `USE(AUDIO_SESSION)` should stay off (AudioSession.cpp is entirely inside it).
+- **Where it runs:** all of the above except `MediaPlayerPrivateRemote` runs in the i386 GPU process. The
+  x86_64 web process cannot load QuickTime/QTKit/CoreAudio/CoreVideo/QuartzCore: every one of them is
+  `ppc i386` only (tiger-lipo on sysroot/System/Library/Frameworks). Only libSystem, libz, libstdc++ have
+  x86_64 slices. So there are exactly two possible decoder homes: QuickTime in the i386 GPU process, or
+  ffmpeg linked into the x86_64 web process with frames/PCM crossing to the 32-bit side (the media64 plan).
+
+### 2. What Tiger 10.4.11 + QuickTime 7.6.4 actually has
+
+Checked in sdk/MacOSX10.4u.sdk (note: the QuickTime headers are CR-terminated ISO-8859 text; `grep` needs
+`LC_ALL=C grep -a` after `tr '\r' '\n'`) and by tiger-nm on the box's mirrored binaries.
+
+| thing | Tiger | notes |
+|---|---|---|
+| QuickTime.framework C API (Movie Toolbox, ICM) | yes, i386 | `ICMDecompressionSessionCreate/DecodeFrame/Flush/SetNonScheduledDisplayTime`, `NewMovieFromProperties`, `GetMediaSample2`, QTVisualContext all exported (7.6.4) |
+| QTKit | yes, i386, 7.6.4 | `QTVideoRendererWebKitOnly` (private) back in 7.6.4; no QTMovieLayer |
+| H.264 decode | QuickTimeH264.component 7.6.4 | Baseline/Main/High confirmed by playback (qtkittest, and icmprobe on High 480p/720p). AppleVAH264HW.component is present but only drives the GeForce 9400M-era VDA; nothing on this 8600M GT |
+| AAC-LC, MP3, MPEG-4 | QuickTimeMPEG4/MPEG components | yes |
+| VP9 / AV1 / Opus / WebM | no | QuickTime 7 never had them; software only |
+| CoreAudio HAL + AudioUnit (DefaultOutput) | yes, i386 | proven by spike/audiobridge (Component Manager API) |
+| AudioQueue | **no** | 10.5 API |
+| CoreVideo CVPixelBuffer / CVOpenGLTexture / CVDisplayLink | yes, i386 (CoreVideo.framework and the QuartzCore umbrella) | `kCVPixelBufferCGBitmapContextCompatibilityKey` present |
+| IOSurface | **no** | 10.6; so no zero-copy handoff, frames cross processes as shm BGRA (spike/ipc32x64: ~900 MB/s memcpy, 1440x900 GL upload ~8 ms) |
+| CoreMedia / AVFoundation / VideoToolbox | no | 10.7+ |
+| any of the above for x86_64 | **no** | only libSystem/libz/libstdc++ |
+
+Software codecs cross-built x86_64 (already in toolchain/sysroot-x86_64/usr via deps/build-ffmpeg64.sh: ffmpeg 8.0
+with h264, vp9, libdav1d, opus, aac): measured on the box (logs/decodebench-tiger.txt, 2 threads):
+H.264 High 480p 255 fps / 720p 112 / 1080p 50; VP9 480p 154 / 720p 76; AV1 480p 194 (dav1d); AAC 261x, Opus 122x
+realtime. **VP9 360p30 would be roughly 250 fps ≈ 12% of the machine**: entirely feasible in software on the
+2.2 GHz Core 2 Duo, and 480p30 (~20%) too. libvpx was not built (ffvp9 is faster on x86 and already in).
+
+### 3. Probe: spike/media32/icmprobe.c — QuickTime 7 ICM H.264 decode, i386, on the box
+
+Movie Toolbox demux (GetMediaSample2 per sample) → `ICMDecompressionSessionDecodeFrame` with non-scheduled
+display times → tracking callback gets a BGRA `CVPixelBufferRef` that `CGBitmapContextCreate` accepts
+(checked on the first frame). Optional per-frame memcpy of the BGRA plane ("copy") stands in for the hand-off
+to CG / a GL texture. Wall, CPU (getrusage) and emitted frames. `make -C spike/media32 run` builds,
+generates the 360p High clip from spike/media64/bbb-src with ffmpeg, copies to tiger:/tmp/media32 and runs.
+
+Results (Core 2 Duo T7500 2.2 GHz, 10.4.11, QuickTime 7.6.4, H.264 High profile 30 fps clips, 300 frames each;
+test.mp4 is the 45-frame Constrained Baseline 320x240 clip). **Single-threaded: every run sat at 98-100% of one
+core**, the H.264 component does not use the second core.
+
+| clip | ICM fps | ms/frame | CPU | +memcpy of BGRA plane | ffmpeg x86_64 1 thread (decodebench) |
+|---|---|---|---|---|---|
+| 320x240 Baseline | 120 | 8.3 | 87% of one core | 166 fps (clip too short to matter) | – |
+| 640x360 High | **37.9** | 26.4 | 100% | 37.3 fps | ~330 (interpolated) |
+| 854x480 High | **21.3** | 46.9 | 99% | 20.5 fps | 177 |
+| 1280x720 High | **10.0** | 99.8 | 98% | 9.9 fps | 73 |
+
+All 300 frames emitted on every run (0 dropped, 0 errors), buffers are 'BGRA' with CG-friendly strides
+(2560/3456/5120) and `CGBitmapContextCreate` accepts them directly, so an i386 GPU-process path can hand ICM
+output to CoreGraphics or a GL texture with no conversion. The memcpy costs nothing measurable.
+
+Reading: **QuickTime 7's H.264 decoder is ~8x slower than ffmpeg on the same CPU and uses one core.** 360p30
+is realtime at ~80% of a core (YouTube's lowest useful tier, with nothing left for audio, page and
+compositor on that core); 480p30 is **below realtime** (21 fps); 720p is a third of realtime. This is in
+line with the QTKit measurements (QTVideoRendererWebKitOnly 320x240 realtime, 720p ~2 fps via drawInRect,
+CAVideo 720p 7-8 fps through the GL visual context) and confirms the earlier "~50x QTKit / ~8x ICM" gap is
+the codec component, not QTKit overhead. Whatever the process layout, the decoder that makes YouTube work on
+this machine is ffmpeg (x86_64, -march=core2, 2 threads: 480p 255 fps, 720p 112 fps), not QuickTime.
+
+### 4. Staged plan, with honest durations
+
+(a) **YouTube loads with a static player area — days (2-3).** No decoder involved. Needs: `MediaSource`
+    present (already, ENABLE_MEDIA_SOURCE=1) with `isTypeSupported` answering from a Tiger
+    `MediaPlayerFactory::supportsTypeAndCodecs` (H.264/AAC yes, VP9/Opus/AV1 **no**, so YouTube serves avc1),
+    `RemoteMediaPlayerProxy` creating a player that reports `HaveNothing`/`NetworkState::Empty` without
+    crashing, poster image drawn by RenderVideo. Risk is entirely in the rest of the page (JS, layout), not
+    media. Register the factory in the GPU process only.
+(b) **Progressive H.264/AAC MP4 in the i386 GPU process — 2-3 weeks.** `MediaPlayerPrivateTiger` over the
+    Movie Toolbox (NewMovieFromProperties on a URL data ref or on a file the network process spools; QuickTime
+    does its own HTTP, which bypasses our curl stack and cookies — use a spooled file + `DataHandler` on a
+    growing handle, or MoviesTask on a `URLDataRef` as a first cut), video via QTVisualContext (spike/CAHost/CAVideo:
+    real-time to 1024x576, 720p 7-8 fps of 15) or the ICM session for canvas/paint, audio via QuickTime's own
+    sound output (free with the Movie API). Plus ~150 LOC VideoFrameTiger/shm hand-off for `paint()`, and the
+    porting of the 2018 QTKit backend's state machine (load states, seeking, rate, buffered ranges) onto the
+    2026 vtable (qtkit-plan §1: registration, seekToTarget promise, ~20 renamed virtuals). Deliverable: `<video
+    src=x.mp4>` plays with sound and controls on the CA host.
+(c) **MSE with H.264/AAC — 4-6 weeks on top of (b), and this is where the i386 path pays for QuickTime 7.**
+    `MediaSourcePrivateTiger`/`SourceBufferPrivateTiger` (~600 LOC, the mock is the template), an fMP4 walker
+    that turns moof/trun/mdat into `MediaSample`s with absolute PTS from tfdt (~1,000 LOC; QuickTime 7's
+    importer is not a DASH demuxer), a decode/render loop that feeds raw AVCC access units into an ICM session
+    (this probe: 360p realtime, 480p NOT realtime, one core) and AAC frames into an AudioConverter → HAL output, with an audio-master clock and frame
+    scheduling replacing what the Movie Toolbox did for free in (b). Seeking = flush ICM session + restart
+    from the nearest sync sample. YouTube also needs `MediaSource.isTypeSupported` to say no to VP9/Opus so it
+    picks avc1/mp4a (itag 134-137 + 140), and the GPU-process player must survive the player's frequent
+    `sourceBuffer.remove()`/quality switches (new init segment = new ICM session).
+    **Alternative for (c) that reuses the finished 64-bit work:** libavformat/libavcodec in the x86_64 web
+    process (msebench + msescan are done and measured; H.264 720p decodes 112 fps there vs. the ICM numbers
+    above), frames to the 32-bit side over the proven shm path, PCM over the audiobridge ring. Same ~4-6
+    weeks but ends with a faster and codec-agnostic pipeline; the media64 plan (7b4bbb3) already chose it.
+    The i386/QuickTime version of (c) is only worth it if the 64-bit content process is abandoned.
+(d) **Software VP9 at 360p — stretch, 1 week after (c) if (c) is ffmpeg-based, not reachable if (c) is
+    QuickTime-based.** ffvp9 is already in the x86_64 ffmpeg build; enabling `video/webm; codecs="vp9"` in
+    `supportsTypeAndCodecs` plus Opus (122x realtime) is the whole change. Budget: ~12% CPU at 360p30, ~20% at
+    480p30, 720p30 ~40%. In an i386 QuickTime pipeline it would mean cross-building libvpx/ffvp9 for i386 and
+    a second decode path; not worth it.
+
+Summary: **days for (a); weeks for (b); (c) is the real project (a month-plus either way) and its
+decoder choice is the fork in the road** — QuickTime 7 in the i386 GPU process keeps everything Apple-native
+but caps at H.264 and makes MSE a from-scratch fMP4 walker on a 2005-era decoder; ffmpeg in the x86_64 web
+process is what the media64 track already proved end to end (demux, scan, decode, PCM ring) and is the only
+route to (d).
