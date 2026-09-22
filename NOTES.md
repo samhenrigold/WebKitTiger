@@ -3755,3 +3755,17 @@ flight can still be opened. Out-of-line message bodies keep a descriptor attachm
 but of a LINKED file (SharedMemory::duplicateFileDescriptor). `TigerCrashCatcher.cpp`
 sweeps `/tmp/webkit-{shm,sem}-<deadpid>-*` at every process start. Only sockets are ever
 in flight now, which the plain repro shows is fine.
+
+### And the second trigger: kqueue on AF_UNIX sockets
+
+With semaphores and shared memory travelling by path the run still wedged, and the
+sampler again showed the GPU process's main thread inside `fcntl(F_SETFL, O_NONBLOCK)`
+on its inherited socket from its first second until the reboot. On 10.4 every AF_UNIX
+socket shares one domain mutex; a thread parked on it forever stalls launchd, syslog
+and sshd, which is the whole symptom set. `box-wedge-repro-kqueue.c` -- the plain
+repro plus a kqueue EVFILT_READ monitor thread on every socket end, exactly what
+`Connection::tigerMonitorSocket` did -- wedges the box; without the monitors the
+plain repro is clean. 10.4's kqueue/socket lock-order inversion on wakeup, presumably.
+`tigerMonitorSocket` is now a `poll()` loop (parent death via getppid() on the 2 s
+timeout instead of EVFILT_PROC). `box-wedge-repro-poll.c` is the same program with
+poll monitors, run after the fix as the control.
