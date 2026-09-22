@@ -4092,3 +4092,10 @@ support FIFOs (or pipes) and reports POLLNVAL immediately. So IPC::Semaphore's F
 implementation never blocked -- every wait was a no-op, which is exactly the "no-op
 semaphore" symptom from the morning (GPU work queue spinning) that the FIFO was
 introduced to fix. The wait now uses select(), which 10.4 implements for pipes.
+
+### 16:27 — web fonts, faithful chrome, quiet GPU
+
+With select() in the semaphore wait: react.dev renders in its own web font (WOFF2
+decoded, Fontconfig bypassed), Wikipedia renders in faithful mode through
+TigerBrowser2 (TIGER_FAITHFUL=1: CA scene in the GPU process, read back), and the GPU
+process sits at 0.0% CPU idle in both modes. No TIGER IPC semaphore reports.
