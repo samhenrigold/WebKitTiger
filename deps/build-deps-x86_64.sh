@@ -71,6 +71,13 @@ EOF
   echo "$name OK"
 }
 build_cmake brotli $WKT/deps/src/brotli-1.1.0 -DBUILD_SHARED_LIBS=OFF -DBROTLI_DISABLE_TESTS=ON
+# --- woff2 (CMake; libraries only -- its tools fail to link libc++ here, and WebCore needs libwoff2dec) ---
+# https://github.com/google/woff2/archive/refs/tags/v1.0.2.tar.gz -> deps/src/woff2-1.0.2
+build_cmake woff2 $WKT/deps/src/woff2-1.0.2 -DBUILD_SHARED_LIBS=OFF -DCANONICAL_PREFIXES=ON -DNOISY_LOGGING=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+  -DBROTLIDEC_INCLUDE_DIRS=$P/include -DBROTLIDEC_LIBRARIES="$P/lib/libbrotlidec.a;$P/lib/libbrotlicommon.a" \
+  -DBROTLIENC_INCLUDE_DIRS=$P/include -DBROTLIENC_LIBRARIES="$P/lib/libbrotlienc.a;$P/lib/libbrotlicommon.a" || true
+( cd $WKT/deps/build/woff2-x86_64 && cp libwoff2dec.a libwoff2common.a libwoff2enc.a $P/lib/ && mkdir -p $P/include/woff2 && cp $WKT/deps/src/woff2-1.0.2/include/woff2/*.h $P/include/woff2/ \
+  && for pc in libwoff2dec libwoff2common; do sed "s,^prefix=.*,prefix=$P," $pc.pc > $P/lib/pkgconfig/$pc.pc; done )
 
 # --- nghttp2 (lib only) ---
 build nghttp2 nghttp2-1.65.0 --enable-lib-only \
