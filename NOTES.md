@@ -4083,3 +4083,12 @@ composites in the GPU process), web fonts build their pattern without
 FcConfigSubstitute (no fontconfig configuration on this port), and the paint probe
 prints the cairo status. The GPU idle spin (a stream work queue waiting on a semaphore
 whose fd reports POLLNVAL) is therefore open again; fix it at the source, not in wait().
+
+### 16:15 — 10.4's poll() does not do FIFOs
+
+The spin detector's `revents=0x20` (POLLNVAL) came from every process, on the stream
+work queue's wake-up semaphore, from its first wait: Mac OS X 10.4's poll() does not
+support FIFOs (or pipes) and reports POLLNVAL immediately. So IPC::Semaphore's FIFO
+implementation never blocked -- every wait was a no-op, which is exactly the "no-op
+semaphore" symptom from the morning (GPU work queue spinning) that the FIFO was
+introduced to fix. The wait now uses select(), which 10.4 implements for pipes.
