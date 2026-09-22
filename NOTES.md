@@ -3859,3 +3859,17 @@ invalidates asynchronously, so poll() returned at once forever on the three
 connections the navigation swap had retired (the first web process's GPU
 connection and its streams). The monitor now leaves its loop as soon as
 `m_isConnected` drops.
+
+### Fast text, measured on the stable box (agent report, 13:30)
+
+The reference had kerning and ligatures on; WebKit turns both off for
+`text-rendering: auto` on every backend, so the CoreText reference now sets kern/liga 0
+(spike/fasttext/ctref32.c). With that, TigerGlyphSnap (1d023af5) scores 1.555 luma /
+17.36 inkluma against Quartz (was 10.9 / 97.8): positions, stem columns, stroke weight
+(0.987), baselines and the 13/11 px Lucida Grande and Hiragino lines are the same
+picture at 8x. Residual: at integer ppem Quartz grid-fits TrueType faces vertically
+(Helvetica 16 cap 11.63->12, x-height 8.49->9; Times 16 x 7.25->8), so x-height tops
+on the 16 px lines read one shade softer. FreeType's v40 bytecode was tried and
+rejected (it also moves x and fattens stems, 17.36 -> 27.42). Next, in progress: render
+hinted-y / unhinted-x and merge outlines point-wise, only at the ppem Apple's
+interpreter fits. Crops: spike/fasttext/out/pagedriver/crop-*.png.
