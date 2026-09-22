@@ -18,6 +18,14 @@ APP=${APP:-TigerWK2App}   # or TigerBrowser2
 APP_ENV=${APP_ENV:-}   # e.g. APP_ENV=TIGER_GPU=0 to keep the GPU process out
 # Font manifest and CA bundle live under the staging dir; the processes read these two env vars.
 APP_ENV="TIGER_FONT_MANIFEST=/Users/shg/wk2/share/tiger-fonts.json TIGER_CA_BUNDLE=/Users/shg/wk2/share/cacert.pem $APP_ENV"
+# Never run on top of someone else's processes: results would be meaningless and the
+# cleanup would kill theirs. Wait up to 5 minutes for the box to be clear.
+for i in $(seq 1 60); do
+    busy=$(ssh tiger-eth "ps -axo pid,command | grep -E '[T]iger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|[p]agedriver' | head -3")
+    [ -z "$busy" ] && break
+    [ "$i" = 1 ] && echo "stage-app: waiting, already on the box:" && echo "$busy"
+    sleep 5
+done
 ssh tiger-eth 'mkdir -p /Users/shg/wk2/bin /Users/shg/wk2/Frameworks /Users/shg/wk2/share'
 rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" tiger-eth:/Users/shg/wk2/share/ 2>/dev/null || echo "stage-app: share files not all copied (cacert.pem present?)"
 # rsync -t skips binaries that have not changed since the last stage.
