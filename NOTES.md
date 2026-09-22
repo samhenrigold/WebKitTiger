@@ -3944,3 +3944,11 @@ the HashMap's empty key -> the proxy now sends the page identifier (047079ae);
 -> CAInternAtom crash: the Tiger GPU scene is now created, updated and destroyed on
 the main thread (db0ec4b5). Open: after a GPU death the UI's relaunch path took the
 whole app down silently.
+
+### 14:50 — TigerBrowser2, the chrome
+
+spike/wk2web/TigerBrowser2.mm: window with back/forward/reload, address field, status
+line and menus around the shared TigerWK2View (spike/wk2web/TigerWK2View.{h,mm}, split
+out of the harness); title, URL, progress and button state come from a
+PageLoadState observer. `APP=TigerBrowser2 spike/wk2web/stage-app.sh URL SECS` runs
+it. Wikipedia shows with the right title and URL (first-window.png at 14:50).
