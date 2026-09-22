@@ -4229,3 +4229,53 @@ hashes identically, so an agent's fresh build dir gets hits from everyone else's
 build dir with `cmake -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache .`
 (the first build after that recompiles everything once). Enabled on build/tiger-web-perf; the
 main dirs (tiger-web-port, tiger-ui-port, tiger-gpu) get it at the next full rebuild.
+
+## x.com onboarding killed the web process: the probe trampoline uses AVX (2026-09-22, WebKit-jsperf a348b934)
+
+Symptom: x.com loads, the scripted click on "Continue with phone" opens the onboarding
+modal, and a couple of seconds later the web process dies. Two "different" signatures were
+reported — `ctiMasmProbeTrampoline+164` and `EXC_BAD_INSTRUCTION in
+WTF::Vector<JSC::JSONRanges::Entry>::~Vector`. **They are the same crash.**
+`_ctiMasmProbeTrampoline` is a *local* symbol (`nm` shows `t`), and the nearest preceding
+*global* in the same build happens to be that Vector destructor, so any symbolizer that
+only considers external symbols renames the trampoline's addresses after it. JSON source
+ranges had nothing to do with it; do not chase a `JSONRanges` frame without checking
+`nm -n` for a local symbol just above it.
+
+Root cause, from the disassembly of the exact pc:
+`MacroAssemblerX86_64.cpp` defines **one** probe trampoline on Darwin and builds it with
+`vmovaps` — "On macOS, all x86_64 CPUs support AVX." That is true of every Mac Apple still
+supports and false of the 2007 Merom Core 2 Duo. pc 0x103320474 in
+build/tiger-web-port is exactly the first `vmovaps %xmm0, 0xb0(%rsp)` of
+`ctiMasmProbeTrampoline` (starts 0x1033203d0), and exception 0x2 code 0x1 is
+EXC_I386_INVOP, an invalid opcode. Every non-Darwin platform already defines both
+`ctiMasmProbeTrampoline` (movaps) and `ctiMasmProbeTrampolineAVX` (vmovaps) and picks with
+`supportsAVX()`; TIGER64 now takes that arm. (`supportsAVX()` itself was already fixed for
+this port — it asks CPUID instead of assuming Darwin.)
+
+Why a *probe* runs in a release build at all: `MacroAssembler::probe()` is not debug-only.
+`WasmBBQJIT.cpp` calls it unconditionally for **Wasm BBQ loop OSR entry**
+(`operationWasmLoopOSREnterBBQJIT`) and for the BBQ OSR-entry tier-up late path
+(`operationWasmTriggerOSREntryNow`). x.com ships wasm, so the first hot wasm loop on the
+onboarding flow killed the process. The crash frames match: the two unsymbolizable frames
+above the trampoline (0x10d51c096, 0x10d4eb4cd) are JIT memory, below them
+`llint_entry+139768` (the wasm interpreter that hit loop_osr), then `vmEntryToJavaScript`,
+`asyncFunctionGeneratorBodyCall`, `MicrotaskQueue::performMicrotaskCheckpoint`.
+
+Evidence, same box, same script (`APP=TigerBrowser2`, `TIGER_SCRIPT` click at 300,236):
+- before (build/tiger-web-port): one `TIGER-CRASH ... exception 0x2 code 0x1 ... pc
+  0x103320474` at 24.48 s, web process gone by 57 s and relaunched —
+  logs/perf/x-avx-before.log, logs/perf/x-avx-before.png
+- after (build/tiger-web-jsperf, fix only): **0 TIGER-CRASH lines**, the same web process
+  pid alive from 8 s to 77 s, and the onboarding flow is usable: the phone step renders and
+  typing gives "555 123 4567" (x.com's own JS reformatting it, Continue enabled) —
+  logs/perf/x-avx-after.log, logs/perf/avx-after-modal.png, logs/perf/avx-after-typed.png
+
+Generalisation worth keeping: **any `#if OS(DARWIN)` that means "modern Mac hardware" is a
+bug on this port.** This is the second one in this file after `s_avxCheckState`. Everything
+else AVX-related (B3/Air, FTL, the SIMD macro assembler) already routes through
+`supportsAVX()`/`isX86_64_AVX()` and is fine.
+
+Still open: wasm SIMD wants SSE4.1 in places and Merom has none (untested — nothing on
+x.com exercised it); and the intermittent EXC_BAD_ACCESS in JIT code on The Verge is a
+separate bug, untouched by this.
