@@ -4071,3 +4071,15 @@ queue) still to fix properly.
 Also: no web fonts anywhere -- USE_WOFF2 is OFF for the x86_64 web process, and
 react.dev / x.com ship .woff2 only. Building libwoff2 (deps/src/woff2-1.0.2, brotli is
 already there) and turning it on for TIGER64.
+
+### 16:07 — the white page was mine
+
+Every page went white from 15:55: not WOFF2, not the offscreen flag -- the
+"treat POLLHUP/POLLNVAL as a timed wait" sleep I put into IPC::Semaphore's FIFO wait
+at 15:25 to kill the GPU idle spin. Reverting the sleep (the diagnostic log line stays)
+brought example.com back at once. Kept from the same hour: PageClientImpl::
+usesOffscreenRendering() is true only under TIGER_FAITHFUL=1 (fast mode never
+composites in the GPU process), web fonts build their pattern without
+FcConfigSubstitute (no fontconfig configuration on this port), and the paint probe
+prints the cairo status. The GPU idle spin (a stream work queue waiting on a semaphore
+whose fd reports POLLNVAL) is therefore open again; fix it at the source, not in wait().
