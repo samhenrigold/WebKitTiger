@@ -3718,3 +3718,20 @@ forwarding the network connection fd to the web process (RELEASE_ASSERT, frames 
 a catcher fix) did not launch the GPU process and did not wedge. GPU-process logging is
 off because AuxiliaryProcess::initialize reads WEBKIT_DEBUG on this arm; stage with
 `APP_ENV=WEBKIT_DEBUG=Process,IPC` to see it.
+
+### Same day — the wedge reproduced with 120 lines of C
+
+`spike/wk2web/box-wedge-repro.c` wedges the box every time (ssh times out, pings
+answer, watchdog reboots it ~3.5 min later): three processes over AF_UNIX SOCK_DGRAM
+socketpairs; the "UI" passes one end of a gpu<->web pair to each child with
+SCM_RIGHTS; the "web" child immediately sends messages carrying unlinked mmap'd
+temp-file fds and unlinked FIFO fds (our SharedMemory and IPC::Semaphore) into its
+end while the GPU's end is still in flight; the "GPU" child fcntl()s its socket after
+400 ms and is SIGKILLed. In the real run the GPU's main thread sat 10 s in that fcntl
+(TIGER_SAMPLE_MAIN showed `IPC::Connection::platformPrepareForOpen` -> libSystem) and
+survived SIGKILL: uninterruptible kernel wait, and every other process that touches
+the file table stalls behind it. `box-wedge-repro-plain.c` (same shape, no
+FIFO/unlinked-file fds, no nesting) runs 40 rounds clean.
+
+The in-process sampler: `TIGER_SAMPLE_MAIN=<n>` in any Tiger process prints the main
+thread's frames every 250 ms as `TIGER-SAMPLE`; `tools/symbolize-tiger.sh` decodes.
