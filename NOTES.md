@@ -4162,3 +4162,45 @@ Harness bugs found the same hour: the box lock in stage-*.sh never held (python 
 private open() and exited; now locks the shell's fd 9), and every track staged into
 /Users/shg/wk2/bin, so one agent's rsync overwrote another run's executables mid-run
 (each script now has its own box directory).
+
+## 2026-09-22 — faithful mode: the GPU stream stall was a Signal with no path (WebKit-perf @978c3048)
+
+Symptom (faithful mode only, `TIGER_FAITHFUL=1`): x.com loads, the scripted click on
+"Continue with phone" navigates, and then the onboarding page sits at "Loading… 89%"
+forever with every process at 0.0% CPU; a few seconds later
+`GPUProcessProxy::didBecomeUnresponsive` kills the GPU process. The web process's main
+thread is in `IPC::StreamClientConnectionBuffer::tryAcquireAll` under
+`RemoteImageBufferProxy::getPixelBuffer` / `flushDrawingContext`. Fast mode dodges it by
+keeping canvas in the web process (`WebPage::updatePreferences`), so it only showed here.
+
+Root cause, one line: `IPC::createEventSignalPair()` (Platform/IPC/IPCEvent.h) built the
+Signal with `Semaphore signal(event.m_fd.duplicate())`. On Darwin this port serializes a
+Semaphore **as its FIFO path** (`IPCSemaphore.serialization.in`; a FIFO descriptor in
+flight in an AF_UNIX socket wedges the 10.4 kernel), and a Semaphore constructed from a
+descriptor has no path. So the encoded path was null, the peer's `Semaphore(String&&)`
+opened nothing, its fd stayed -1, and every `Signal::signal()` in the GPU process was a
+silent `write()` to fd -1. Both waits that matter ran off that pair:
+`StreamClientConnectionBuffer::m_clientWait` (ring-buffer backpressure and the sync
+acquire) and the `RemoteImageBufferProxy` flush fence. The wake-up semaphore in the other
+direction (work queue -> client) was fine: it is a default-constructed Semaphore, which
+does have a path. That asymmetry is why the GPU process looked idle rather than spinning.
+
+Fix: on the Darwin arm build the Signal by opening the same path,
+`Semaphore signal(event.path())`. `Semaphore(String&&)` also prints
+`TIGER-SEM: cannot open semaphore '<path>': <errno>` now instead of failing silently.
+
+Evidence, three runs on the box, same binaries but for that line
+(`spike/wk2web/stage-perf2.sh`, TigerBrowser2, `TIGER_SCRIPT` click at 300,236):
+- before (build/tiger-web-port, the tree as it was): GPU unresponsive at ~30 s, page stuck
+  at "Loading… 89%" — spike/wk2web/x-faithful-before.png
+- fixed: no unresponsive line, web 95% / GPU 74% CPU while the page works, and the
+  onboarding modal ("See what's happening", phone/Google/Apple) renders —
+  spike/wk2web/x-faithful-after.png
+- the one line reverted again, everything else identical: the hang and the unresponsive
+  line are back — spike/wk2web/x-faithful-repro.png
+
+Still open in faithful mode, both after the modal is up and neither fatal (WebKit
+relaunches): the GPU process crashes once mid-run (`gpuProcessExited: reason=Crash`; an
+earlier run caught it in `gliDestroyContext`, i.e. the CGL pbuffer teardown), and the web
+process takes an EXC_BAD_INSTRUCTION in `WTF::Vector<JSC::JSONRanges::Entry>::~Vector`
+(JSON.parse source ranges) on x.com's onboarding payload.
