@@ -3657,3 +3657,40 @@ Also learned: Tiger's mbuf pool is ~2 MB (926 clusters, 447 in use at idle, grow
 1160); `netstat -m` before/after a run is now part of stage-app.sh, which also kills the
 app by alarm and every helper afterwards, and rsyncs with -l (the framework's symlinks
 were being dropped, which made the GPU process fail at launch).
+
+## 2026-09-22 — the box wedges: it was crashdump, not the network or the disk
+
+Symptom: pings and the desktop keep working, TCP to port 22 connects, no sshd banner,
+Sharing pane hangs, nothing in system.log. Recovered only by power cycling.
+
+Ruled out in order: disk (328 GB free, SMART verified), the Wi-Fi driver (same on
+Ethernet), inbound transfer (a 550 MB rsync completed fine on a fresh boot; the wedge
+came when the app ran), mbuf clusters (447/926 in use throughout; pool raised to
+131072 via `nvram boot-args="ncl=131072"` anyway), IPC::Semaphore, POSIX shm
+(SharedMemoryUnix now uses an unlinked temp file on Darwin; kept, it is the
+better-behaved primitive on 10.4).
+
+Found with `ktrace -i -t cs` on the app plus half-second `ps` snapshots synced to
+disk (`/Users/shg/wk2/diag.sh`): every wedge had a *crashed helper* in it. The GPU
+process spent 2.4 s in user space after dyld, then SIGTRAP (a 0xCC tombstone); the web
+process once hit a RELEASE_ASSERT (WTFCrashWithInfoImpl, EXC_BREAKPOINT). On 10.4 the
+kernel hands the crashed task to crashreporterd -> `crashdump -p <pid>`, a 32-bit
+process that reads the whole symbol table; on these 115-160 MB binaries it crashes
+(`/Library/Logs/CrashReporter/crashdump.crash.log`, three times on 09-21) or hangs,
+holding the dead task. Then the parent's `exit()` at 169 s never completed (the trace's
+next event is 125 s later), and everything that walks the proc list — fork, launchd,
+ps, sshd — stalls. That is the wedge.
+
+Fixes: (1) `Shared/tiger/TigerCrashCatcher.cpp`, installed first thing in every
+process (AuxiliaryProcessMain.h, TigerWK2App main): a task-level Mach exception port
+for bad-access/instruction/arithmetic/breakpoint/software; on a message it prints
+`TIGER-CRASH pid exception code pc` and a frame-pointer walk to stderr, then _exit(7x).
+The kernel never reaches the host-level port, so crashdump never runs. Symbolize with
+`tools/symbolize-tiger.sh <binary> <addrs>` (Tiger has no ASLR). (2) Tombstones are
+now stubs that print `TIGER-TOMBSTONE hit: <symbol>` and _exit(69) instead of 0xCC.
+(3) Box watchdog is a resident loop (`local.sshd-watchdog`) that `reboot -q`s after
+90 s without an sshd banner; the earlier StartInterval version needed launchd, which
+was the thing that had wedged. Recovery is now ~3.5 min hands-off.
+
+Still open from the traces: which tombstone the GPU process hits (next run names it),
+and which RELEASE_ASSERT the web process trips at 0x1041ace92 (frames next time).

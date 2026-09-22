@@ -33,6 +33,7 @@
 #include "TigerWebView.h"
 #include "WebPageProxy.h"
 #include "WebPreferences.h"
+#include "TigerCrashCatcher.h"
 #include "WebProcessPool.h"
 #include "WebsiteDataStore.h"
 
@@ -192,6 +193,7 @@ static RefPtr<TigerWebView> createWebView(const String& url, NSView* container)
 
 int main(int argc, const char* argv[])
 {
+    WebKit::installTigerCrashCatcher();
     if (argc < 2) {
         fprintf(stderr, "usage: %s <url> [seconds-before-exit]\n", argv[0]);
         return 2;
