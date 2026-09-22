@@ -21,8 +21,7 @@
 #include "TigerCrashCatcher.h"
 #include "TigerWebView.h"
 #include "NativeWebWheelEvent.h"
-#include "WebWheelEvent.h"
-#include <wtf/MonotonicTime.h>
+#include <WebCore/ScrollTypes.h>
 #include "WebBackForwardList.h"
 #include "WebPageProxy.h"
 #include "WebPreferences.h"
@@ -284,19 +283,11 @@ static unsigned scriptIndex;
             windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:code]];
     } else if ([verb isEqualToString:@"scroll"]) {
         NSArray* xy = [rest componentsSeparatedByString:@","];
-        // No public constructor for scroll-wheel NSEvents on 10.4: build the WebKit event.
+        // No public constructor for scroll-wheel NSEvents on 10.4 and WebWheelEvent's is
+        // protected: scroll the page through the proxy, one page per step.
         if (RefPtr page = _webView ? _webView->page() : nullptr) {
-            NSRect b = [_view bounds];
-            WebCore::IntPoint at(b.size.width / 2, b.size.height / 2);
-            WebCore::FloatSize delta([[xy objectAtIndex:0] floatValue], [[xy objectAtIndex:1] floatValue]);
-            WebWheelEventData wheel;
-            wheel.position = at;
-            wheel.globalPosition = at;
-            wheel.delta = delta;
-            wheel.wheelTicks = WebCore::FloatSize(delta.width() / 40, delta.height() / 40);
-            wheel.granularity = WebWheelEventGranularity::ScrollByPixelWheelEvent;
-            WebWheelEvent event(WebEventData { WebEventType::Wheel, { }, MonotonicTime::now() }, WTF::move(wheel));
-            page->handleNativeWheelEvent(NativeWebWheelEvent::create(event));
+            float dy = [[xy objectAtIndex:1] floatValue];
+            page->scrollBy(dy < 0 ? WebCore::ScrollDirection::ScrollDown : WebCore::ScrollDirection::ScrollUp, WebCore::ScrollGranularity::Page);
         }
     } else if ([verb isEqualToString:@"shot"]) {
         NSString* cmd = [NSString stringWithFormat:@"/usr/sbin/screencapture -x '%@'", rest];
