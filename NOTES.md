@@ -3806,3 +3806,15 @@ same code works in a standalone test and in the GPU sampler -- diagnostics and a
 unified-flavor fallback added, frames next run; (3) the web process wants
 `TIGER_FONT_MANIFEST` and `TIGER_CA_BUNDLE`; stage-app now stages logs/tiger-fonts.json
 and deps/src/cacert.pem under /Users/shg/wk2/share and sets both.
+
+### Exception ports are inherited
+
+The UI process kept "crashing" with EXC_BAD_INSTRUCTION and a thread whose state was
+64-bit: the report was a child's. Mach task exception ports survive fork and exec, so
+a helper that traps before its own catcher runs (dyld, static initializers) reports to
+the parent's port, and the parent's catcher _exit()ed the UI for it. Now the catcher
+installs from a priority-101 constructor (before any WebKit static initializer) and,
+when `pid_for_task` says the report is a child's, prints TIGER-CHILD-CRASH with the
+pc, SIGKILLs the child and carries on. GPU process tombstones fixed so far:
+SandboxInitializationParameters ctor, registerWithStateDumper, SharedVideoFrameWriter
+(RemoteVideoFrameObjectHeap members gated `&& !PLATFORM(TIGER)`).
