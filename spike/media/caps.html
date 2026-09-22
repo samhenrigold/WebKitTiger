@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Tiger media: capability probe</title>
+<style>body{font:12px Monaco;margin:12px;white-space:pre}</style>
+<div id="o"></div>
+<script>
+// What YouTube's player asks before choosing a format. Printed on the page and to the
+// console (TIGER_CONSOLE=1 puts it in app.log).
+var out=[];function L(s){out.push(s);console.log(s)}
+var v=document.createElement('video');
+var types=[
+ 'video/mp4; codecs="avc1.42E01E"','video/mp4; codecs="avc1.4d401f"','video/mp4; codecs="avc1.64001f"','video/mp4; codecs="avc1.640028"',
+ 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"','audio/mp4; codecs="mp4a.40.2"','audio/mp4; codecs="mp4a.40.5"',
+ 'video/webm; codecs="vp9"','video/webm; codecs="vp09.00.10.08"','video/webm; codecs="vp8"','audio/webm; codecs="opus"',
+ 'video/mp4; codecs="av01.0.05M.08"','video/mp4; codecs="hev1.1.6.L93.B0"','video/mp4','audio/mp4','video/webm','application/x-mpegURL'];
+L('MediaSource: '+(typeof MediaSource)+'  ManagedMediaSource: '+(typeof ManagedMediaSource)+'  WebKitMediaSource: '+(typeof WebKitMediaSource));
+types.forEach(function(t){L('isTypeSupported('+t+') = '+(window.MediaSource?MediaSource.isTypeSupported(t):'n/a')+'   canPlayType = "'+v.canPlayType(t)+'"')});
+L('requestMediaKeySystemAccess: '+(typeof navigator.requestMediaKeySystemAccess)+'  MediaKeys: '+(typeof MediaKeys)+'  webkitGenerateKeyRequest: '+(typeof v.webkitGenerateKeyRequest));
+L('mediaCapabilities: '+(typeof navigator.mediaCapabilities)+'  WebAssembly: '+(typeof WebAssembly)+'  SharedArrayBuffer: '+(typeof SharedArrayBuffer));
+L('userAgent: '+navigator.userAgent);
+L('screen '+screen.width+'x'+screen.height+' inner '+innerWidth+'x'+innerHeight+' dpr '+devicePixelRatio);
+if(navigator.mediaCapabilities){navigator.mediaCapabilities.decodingInfo({type:'media-source',video:{contentType:'video/mp4; codecs="avc1.4d401f"',width:640,height:360,bitrate:700000,framerate:30}}).then(function(r){L('decodingInfo avc1 360p: supported='+r.supported+' smooth='+r.smooth+' powerEfficient='+r.powerEfficient);o.textContent=out.join('\n')}).catch(function(e){L('decodingInfo error '+e);o.textContent=out.join('\n')});}
+var o=document.getElementById('o');o.textContent=out.join('\n');
+</script>

@@ -21,6 +21,7 @@ APP_ENV=${APP_ENV:-}
 APP_ENV="TIGER_FONT_MANIFEST=/Users/shg/wk2/share/tiger-fonts.json TIGER_CA_BUNDLE=/Users/shg/wk2/share/cacert.pem $APP_ENV"
 SHOT=${SHOT:-$WKT/spike/media/shot.png}
 SHOT_AT=${SHOT_AT:-12}
+SCRIPT=${SCRIPT:-}   # TIGER_SCRIPT steps, e.g. SCRIPT='wait 25; click 500,357'
 WEBBIN=${WEBBIN:-$WKT/build/tiger-web-media}
 for i in $(seq 1 60); do
     busy=$(ssh tiger-eth "ps -axo pid,command | grep -E '[T]iger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|[p]agedriver|[t]igeraudio32' | head -3")
@@ -36,7 +37,7 @@ for f in "$WKT/build/tiger-ui-port/bin/TigerWK2App" "$WKT/build/tiger-ui-port/bi
 done
 rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:/Users/shg/wk2media/bin/
 rsync -rtl -z --partial --inplace --bwlimit=20000 "$WKT/spike/CAHost/Frameworks/QuartzCore.framework" tiger-eth:/Users/shg/wk2media/Frameworks/
-ssh tiger-eth "cd /Users/shg/wk2media/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV ./$APP '$URL' $SECS -WebKitLogging ${LOGGING:-Process,Loading} ${EXTRA_ARGS:-} > /Users/shg/wk2media/app.log 2>&1 &) ; sleep $SHOT_AT; echo == procs at ${SHOT_AT}s; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep | cut -c1-90; screencapture -x /Users/shg/wk2media/shot.png; sleep $((SECS - SHOT_AT)); sleep 4; killall TigerWK2App TigerBrowser2 TigerWebProcess TigerNetworkProcess TigerGPUProcess tigeraudio32 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep; rm -f /tmp/webkit-audio-*; true"
+ssh tiger-eth "cd /Users/shg/wk2media/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV TIGER_SCRIPT='$SCRIPT' ./$APP '$URL' $SECS -WebKitLogging ${LOGGING:-Process,Loading} ${EXTRA_ARGS:-} > /Users/shg/wk2media/app.log 2>&1 &) ; sleep $SHOT_AT; echo == procs at ${SHOT_AT}s; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep | cut -c1-90; screencapture -x /Users/shg/wk2media/shot.png; sleep $((SECS - SHOT_AT)); sleep 4; killall TigerWK2App TigerBrowser2 TigerWebProcess TigerNetworkProcess TigerGPUProcess tigeraudio32 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep; rm -f /tmp/webkit-audio-*; true"
 scp -qO tiger-eth:/Users/shg/wk2media/shot.png "$SHOT"
 echo "== app.log (media lines)"; ssh tiger-eth 'grep -aE "TIGER-MEDIA|tigeraudio32|TIGER-CRASH|TIGER-TOMBSTONE|TIGER-CHILD" /Users/shg/wk2media/app.log | head -60; echo == tail; tail -15 /Users/shg/wk2media/app.log'
 echo "screenshot: $SHOT"
