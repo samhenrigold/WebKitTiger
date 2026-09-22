@@ -3694,3 +3694,27 @@ was the thing that had wedged. Recovery is now ~3.5 min hands-off.
 
 Still open from the traces: which tombstone the GPU process hits (next run names it),
 and which RELEASE_ASSERT the web process trips at 0x1041ace92 (frames next time).
+
+### Same day, later — the rebundled QuartzCore and the shared region
+
+Every i386 process linking `spike/CAHost/Frameworks/QuartzCore.framework` (the UI app
+and the GPU process) called `shared_region_make_private_np` at launch: the Leopard
+dylib is split-seg and prebound at 0x93c42000, inside 10.4's system-wide shared region,
+and dyld resolved the conflict by making the whole region private for that task.
+Loading it slid instead faulted in dyld's `doRebase` (split-seg relocations are
+`__DATA`-relative; with MH_SPLIT_SEGS cleared dyld read them `__TEXT`-relative and
+wrote into read-only text). `tools/rebase-dylib.py` now rebases the file to
+`__TEXT 0x60000000` (`__DATA 0x70000000`), rewrites the 28461 relocations
+`__TEXT`-relative, slides symbols and the module table, drops MH_SPLIT_SEGS and
+MH_PREBOUND. Verified with a dlopen and a load-time-linked tiny program plus a bare
+run of TigerGPUProcess: zero `shared_region_make_private_np`, `CACurrentMediaTime`
+resolves at 0x601bc36e. The GPU process's tombstone was
+`SandboxInitializationParameters::SandboxInitializationParameters()` (header arm is
+`!PLATFORM(COCOA)`; now `|| PLATFORM(TIGER)`).
+
+Status after that: a run with the GPU process still wedged (no crash, GPU
+"unresponsive" then SIGKILLed). A run where the UI's IPC thread trapped right after
+forwarding the network connection fd to the web process (RELEASE_ASSERT, frames pending
+a catcher fix) did not launch the GPU process and did not wedge. GPU-process logging is
+off because AuxiliaryProcess::initialize reads WEBKIT_DEBUG on this arm; stage with
+`APP_ENV=WEBKIT_DEBUG=Process,IPC` to see it.
