@@ -4219,3 +4219,13 @@ Merged tiger-perf 978c3048: IPC::createEventSignalPair built the Signal from a d
 descriptor, which serializes as a null FIFO path on this port, so every GPU-side
 Signal::signal() wrote to fd -1 and faithful-mode canvas readbacks waited forever
 (GPU "unresponsive", page at Loading... 89%). Signal now carries the FIFO path.
+
+## ccache for the worktree builds (2026-09-22 18:00)
+
+ccache 4.14 installed (brew). Config: base_dir=/Users/shg/Developer/WebKitTiger, hash_dir=false,
+compiler_check=content, sloppiness=include_file_mtime,include_file_ctime,time_macros,pch_defines,
+max_size 60G. With base_dir the same source compiled from WebKit/ and from WebKit-*/ worktrees
+hashes identically, so an agent's fresh build dir gets hits from everyone else's. Enable per
+build dir with `cmake -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache .`
+(the first build after that recompiles everything once). Enabled on build/tiger-web-perf; the
+main dirs (tiger-web-port, tiger-ui-port, tiger-gpu) get it at the next full rebuild.
