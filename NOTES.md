@@ -3769,3 +3769,26 @@ plain repro is clean. 10.4's kqueue/socket lock-order inversion on wakeup, presu
 `tigerMonitorSocket` is now a `poll()` loop (parent death via getppid() on the 2 s
 timeout instead of EVFILT_PROC). `box-wedge-repro-poll.c` is the same program with
 poll monitors, run after the fix as the control.
+
+### The matrix (one reboot per WEDGE; ~1 min per PASS)
+
+| variant | monitors | fds passed | nested sends into an in-flight socket | dead sockets in flight | receiver dies | result |
+|---|---|---|---|---|---|---|
+| plain | no | socket + linked files | no | no | kill | PASS |
+| C | poll | none | no | no | kill | PASS |
+| G | poll | socket + linked files | no | no | kill | PASS |
+| F | poll | socket + linked files | no | no | kill | PASS |
+| H | poll | socket + linked files | YES | no | kill | WEDGE |
+| E | poll | socket + sockets | no | YES (both ends closed after send) | kill | WEDGE |
+| D | poll | socket + sockets | yes | yes | self-exit | WEDGE |
+| kqueue/poll/stream 3-variants | yes | sockets | yes | yes | kill | WEDGE |
+| V1/V2 | no | unlinked file / FIFO | yes | -- | kill | WEDGE |
+
+So on 10.4 a descriptor in flight over AF_UNIX is safe only while nobody touches the
+objects it references: no sends into the peer of an in-flight socket (H), no closing
+both ends (E), no unlinking (V1/V2). Our IPC does H by design -- the web process
+sends into its GPU connection while the GPU is still receiving the other end -- so the
+fix is to stop passing descriptors altogether: connection handles become paths to
+listening SOCK_STREAM sockets (creator listens, sends the path, accepts on first
+activity), shared memory and semaphores are already paths, and out-of-line bodies
+go away (stream sockets have no datagram limit). Zero SCM_RIGHTS on Tiger.
