@@ -65,10 +65,11 @@ static RefPtr<TigerWebView> createWebView(const String& url, NSView* container)
     // cairo and hands over a ShareableBitmap the BackingStore can composite.
     // TIGER_FAITHFUL=1: the "faithful" mode -- compositing on, the GPU process
     // builds the CALayer tree (WCSceneCA) and renders it back into the same
-    // BackingStore bitmap; DOM painting moves to the GPU process too unless
-    // TIGER_GPU_DOM=0.
+    // BackingStore bitmap. TIGER_GPU_DOM=1 additionally moves DOM painting to
+    // the GPU process; 2026-09-22 its tiles arrive blank (TIGER_WC_PROBE=1 in
+    // the GPU process shows 0 inked bytes), so it is opt-in until that is found.
     bool faithful = getenv("TIGER_FAITHFUL") && !strcmp(getenv("TIGER_FAITHFUL"), "1");
-    bool gpuDOM = faithful && !(getenv("TIGER_GPU_DOM") && !strcmp(getenv("TIGER_GPU_DOM"), "0"));
+    bool gpuDOM = faithful && getenv("TIGER_GPU_DOM") && !strcmp(getenv("TIGER_GPU_DOM"), "1");
     pageConfiguration->preferences().setUseGPUProcessForDOMRenderingEnabled(gpuDOM);
     pageConfiguration->preferences().setAcceleratedCompositingEnabled(faithful);
     // TIGER_GPU=0 keeps the GPU process out entirely (media, canvas, WebGL, capture);
