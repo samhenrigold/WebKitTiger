@@ -4559,3 +4559,58 @@ remove() untested. TIGER_CONSOLE=1 prints page console messages to stderr.
 Stable build for the user: tools/make-bundle.sh assembles build/TigerBrowser.app (launcher script
 sets TIGER_FONT_MANIFEST, TIGER_CA_BUNDLE, WEBKIT_TIGER_HELPER_DIR; log at /tmp/TigerBrowser.log)
 and installs it to /Users/shg/Applications on the box.
+
+## 2026-09-22 (evening) — controls, second design: they ARE AppKit controls (WebKit-faithful, branch tiger-faithful)
+
+USER DECISION, after the drawn path above rendered: a `<select>` menu, a push button's
+tracking and a text field's editing are too subtle to repaint. A form control has to BE an
+NSControl. The drawn NSCell-bitmap path is still in the tree behind `TIGER_DRAWN_CONTROLS=1`
+(artwork comparison, and the types with no live widget), off by default.
+
+Shape, KWQ-era but with the two halves in different processes and different word sizes:
+
+    x86_64 web process                                i386 UI process
+    RenderThemeTiger.adjust*Style  ->  registry       WebPageProxy::SetTigerNativeWidgets
+    WebPage::didUpdateRendering walks it, builds      -> PageClientImpl -> TigerNativeWidgetHost
+      Vector<TigerNativeWidget> (type, rect in page      diffs on identifier: reuse / recreate
+      view coords, text, options, value, flags,          on type change / remove when absent
+      control size), sends only when it changed          real NSTextField, NSSecureTextField,
+    WebPage::TigerNativeWidgetChanged  <-----------      NSTextView in NSScrollView, NSButton
+      sets the element and fires input/change            (push/switch/radio), NSPopUpButton,
+                                                         NSSlider, NSProgressIndicator
+
+Why a whole-set snapshot rather than create/destroy messages: there is then no lifecycle
+protocol to keep in sync, and "hidden when clipped out or scrolled away" is just absence from
+the list. The set is rebuilt from the live renderers every rendering update, so the rects
+follow scrolling without needing a repaint, and an unchanged frame sends nothing.
+
+Things that bit, in order:
+
+- **Every process has to be rebuilt after a .messages.in change, not just the one you edited.**
+  A stale TigerNetworkProcess and then a stale TigerGPUProcess each produced
+  `IPC: <SomeUnrelatedMessage> rejected after dispatch: decoderValid=0` and a blank page. The
+  message-name enum is numbered per compile (NOTES above); `ninja -C <dir>` with no target.
+- **The message generator wants a header named after any enum it sees on the wire.**
+  `enum:uint8_t WebKit::TigerNativeWidgetAction` made it look for `TigerNativeWidgetAction.h`.
+  The action crosses as a plain `uint8_t` instead.
+- **A `Vector<uint8_t>` reply needs a justification line** in
+  `Source/WebKit/Scripts/webkit/opaque_ipc_types.tracking.in`.
+- **Not every WebCore header is exported to WebKit on this port.** `HTMLProgressElement.h`,
+  `RenderProgress.h` and `RenderStyleInlines.h` are not; the progress position is read from the
+  content attributes instead.
+- **The label is page content.** A push button's and a popup's title is painted by the page
+  under the hosted NSView, which draws its own title on top: everything came out twice, a pixel
+  apart. The page keeps the box, AppKit keeps the text (used colour goes transparent), and a
+  push button gets 8px of horizontal padding because a rounded 10.4 bezel insets its title
+  further than a web button insets its text.
+- TigerWK2View is flipped and is the same NSView in both rendering modes (faithful composites
+  offscreen into the same BackingStore), so the hosted controls are not fast-mode-only.
+
+Fast-mode screenshot with the live controls: spike/wk2web/controls-fast-live.png.
+Test page spike/wk2web/controls-test.html echoes every input/change event into document.title.
+
+Not done yet: the interaction pass (Tab, typing, picking a popup item, checking document.title)
+was not run -- the box became busy. Page<->control Tab traversal needs the host to drive
+WebCore's FocusController and is out of scope so far; `<select>` uses NSPopUpButton's own menu
+rather than WebPopupMenuProxy; list boxes, spin buttons and the search field glyphs have no
+live widget and fall back to nothing being drawn.
