@@ -4379,3 +4379,60 @@ over shared memory, CG draw. Next: a direct video frame path (frames in their ow
 ring, page paints a hole, UI or GPU process draws the rect; YUV planes with a GL shader in the
 GPU process later), damage-driven repaints in faithful mode, and the YouTube player selecting
 avc1/mp4a (media track, in progress). Test asset: spike/media/bbb-480p.mp4 + video480.html.
+
+## 2026-09-22 — Aqua form controls: the web process asks the UI process for a bitmap (WebKit-faithful, branch tiger-faithful)
+
+The design already in the tree (Source/WebCore/PlatformTigerControls.cmake, platform/tiger/
+ControlFactoryTiger.mm + ControlTiger.mm) remoted a ControlPart to the i386 GPU process and
+replayed it there with real NSCells. Measuring what actually reaches pixels on this port killed
+that plan:
+
+- `DrawControlPart` has exactly one producer (`RemoteGraphicsContextProxy::drawControlPart`) and
+  one consumer (`RemoteGraphicsContext`), i.e. it only exists on the display-list path, which
+  this port builds only with `TIGER_GPU_DOM=1` and which still paints blank tiles.
+- In BOTH shipping modes the **x86_64 web process is the rasterizer**. Fast mode:
+  `DrawingAreaWC::sendUpdateNonAC` paints the dirty rect into one cairo ImageBuffer and ships a
+  ShareableBitmap. Faithful mode: `GraphicsLayerWC::paint` paints each tile into a cairo
+  ImageBuffer, ships it as a `WCBackingStore`, and the GPU process only composites them with
+  CoreAnimation. Neither mode sends drawing commands anywhere.
+
+So the artefact that serves both modes is an **image**, and there is exactly one path:
+
+    web process (x86_64)                       UI process (i386, AppKit)
+    RenderThemeTiger          metrics
+    ControlFactoryTiger64  -> ControlTiger64
+      tigerControlBitmap(request)  --sync-->   WebProcessProxy::GetTigerControlBitmap
+        HashMap cache, keyed on the              TigerRenderControlBitmap (compat/aquacontrols.m)
+        quantized request                        real NSCell into a CGBitmapContext
+      NativeImage <-- premultiplied BGRA <---    premultiplied BGRA, row 0 = top
+      context.drawNativeImage(...)
+
+One round trip per distinct (kind, state, size, value); everything after is a blit. That is what
+a pre-rasterized atlas would have bought, without a fixed list of states and without nine-slicing
+artwork whose end caps do not slice (spike/aquaatlas: a control at its natural size is all end
+cap). `rectForBounds`/`sizeForBounds` are answered from the same cache entry.
+
+Things that had to be got right:
+
+- **No extra CTM flip in TigerRenderControlBitmap.** `beginDrawing` already wraps the port in an
+  `NSGraphicsContext` with `flipped:YES`, which is the setup spike/aquaatlas draws its atlas
+  through and whose output was byte-identical to live 10.4 controls. The control is translated
+  instead of the context, so its drawing bounds land on the buffer.
+- **The message is unguarded in WebProcessProxy.messages.in on purpose.** A `#if PLATFORM(...)`
+  there shifts every later message's id, and the i386 and x86_64 builds must agree on the wire.
+  The `#if PLATFORM(TIGER)` is inside the handler body only.
+- `Vector<uint8_t>` replies need a justification line in
+  `Source/WebKit/Scripts/webkit/opaque_ipc_types.tracking.in` or the message generator refuses
+  to run (this is what "Justification needed in opaque_ipc_types.tracking.in" means).
+- `RenderThemeTiger.mm` was always plain C++ and is now `RenderThemeTiger.cpp` on the TIGER64
+  arm. The two edits its header asked for are made: RenderThemeAdwaita's thirteen metric
+  functions are `override` not `final`, and `RenderTheme.h` plus `rendering/PlatformRenderTheme.h`
+  get a `PLATFORM(TIGER64)` branch above `USE(THEME_ADWAITA)`; RenderThemeAdwaita.cpp's own
+  `RenderTheme::singleton()` is `#if !PLATFORM(TIGER64)`.
+- `ColorSpace::SRGB()` (a static returning a reference), not `DestinationColorSpace` — this
+  checkout renamed it. `RenderStyleInlines.h` does not exist here; it is
+  `StyleComputedStyle+GettersInlines.h` and friends.
+
+New build dir: `build/tiger-web-faithful` (source WebKit-faithful, USE_WOFF2=ON, ccache).
+Test page spike/wk2web/controls-test.html, runner spike/wk2web/stage-controls.sh
+(`MODE=fast|faithful`).
