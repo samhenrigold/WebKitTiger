@@ -4614,3 +4614,66 @@ was not run -- the box became busy. Page<->control Tab traversal needs the host 
 WebCore's FocusController and is out of scope so far; `<select>` uses NSPopUpButton's own menu
 rather than WebPopupMenuProxy; list boxes, spin buttons and the search field glyphs have no
 live widget and fall back to nothing being drawn.
+
+## 2026-09-22 — a direct path for video frames in fast mode (WebKit-video, branch tiger-video)
+
+Today's player decoded in the web process, swscaled to BGRA and then *painted the
+frame into the page*: cairo blit into the WC tile, tile across shared memory, CG draw
+of the tile. Three full-frame copies and a tile dirty per frame, and at 480p that is
+what the UI process was spending its time on (before numbers below).
+
+The direct path takes the frame out of the page:
+
+    web process (x86_64)                          UI process (i386)
+    FFmpegPlayback decode thread
+      swscale yuv420p -> BGRA, at the size the video is SHOWN at
+      TigerVideoSink::publishFrame -> slot (seq+1) % 4 of
+        /tmp/webkit-video-<pid>-<n>   (a LINKED file, opened by path)
+      currentSlot = slot; sequence++
+    RenderVideo::paintReplaced
+      reports the video rect in view coordinates, paints a BLACK HOLE
+    WebPage -> WebPageProxy::TigerVideoSinkUpdate
+        (sinkID, ring path, rect, frame size, sequence)   ------>  PageClientImpl
+                                                                   TigerWebView
+                                                                     mmap by path
+                                                                     setNeedsDisplayInRect(rect)
+                                                                   -drawRect:
+                                                                     CGImage over the shared
+                                                                     page (no copy), drawn
+                                                                     into the video rect
+
+- New: `Source/WebCore/platform/graphics/tiger64/TigerVideoSink.{h,cpp}` (producer +
+  the rect/sequence reporting) and `spike/media/tigervideoring.h` (the layout, 4-byte
+  fields only so i386 and x86_64 agree on every offset, like tigeraudioring.h).
+- The player's own diff is four places: the sink member, the sink handed to
+  FFmpegPlayback, `publishFrame` where the frame is presented, and `requestRepaint`
+  falling back to `player->repaint()` only when the sink is not up. `paint()` is
+  untouched, so canvas `drawImage(video)` and faithful mode still work.
+- **swscale converts to the displayed size** when that is smaller than the video
+  (854x480 shown at 640x360 is 44% fewer bytes) so the UI's draw is a 1:1 blit and not
+  a resample per frame. Scaling belongs in the idle x86_64 process, not the busy UI one.
+- Drawing happens inside the same `-drawRect:` that paints the page, so the frame and
+  the page cannot tear against each other. When a frame update covers the whole dirty
+  rect the backing store is not painted at all (the page under it is the black hole).
+- Lifetime: the sink drops on `visibleInViewportStateChanged` (scrolled away, removed
+  from the tree), on navigation and on web-process exit (`PageClientImpl`), and
+  `TigerCrashCatcher` sweeps `/tmp/webkit-video-<deadpid>-*` with shm/sem/ipc.
+- Faithful mode is untouched: `TigerVideoSink::enabled()` is false under
+  TIGER_FAITHFUL=1 and the player keeps blitting into the page.
+- Two traps worth remembering: the web process compiles with WTF_PLATFORM_TIGER64
+  *only*, so anything shared with the UI side must say `PLATFORM(TIGER) ||
+  PLATFORM(TIGER64)` (a `PLATFORM(TIGER)`-only message declaration compiles on one side
+  and not the other); and `String::utf8()` returns a char8_t-typed CString subclass, so
+  `open()`/`unlink()` need `CString(s.utf8()).data()`.
+
+Wire checks on build/tiger-{ui,web}-video: 3253 message names, identical both sides;
+the only serializer difference is PlatformColorSpace, pre-existing in tiger-web-port.
+
+**Before (the old in-page path), 480p bbb, 60 s, looping:** TIGER-MEDIA 30.0 fps,
+0 dropped, clock lag 0-12 ms; at 30 s **TigerBrowser2 45.4% CPU**, TigerWebProcess 76.9%,
+audio helper 3.5%. Screenshot spike/media/shot-480p-before.png. The after run is not
+measured yet: the box is in use.
+
+Harness: `spike/wk2web/stage-video.sh URL SECS` (stages build/tiger-{web,ui}-video into
+/Users/shg/wk2video, ps at 8 s and 30 s, screenshot mid-play; `WEBDIR=`/`UIDIR=` point it
+at the old build for a before number). Test page spike/media/video480loop.html.
