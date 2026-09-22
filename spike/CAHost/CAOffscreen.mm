@@ -23,7 +23,36 @@
 - (void)setGeometryFlipped:(BOOL)b;
 @end
 
+#include <signal.h>
+#include <dlfcn.h>
+#include <sys/ucontext.h>
+
 static const int W = 400, H = 300;
+
+// Tiger's gdb cannot read this binary's load commands, so symbolize by hand:
+// eip and a frame-pointer walk, each through dladdr.
+static void where(const char* tag, uintptr_t pc)
+{
+    Dl_info info;
+    if (dladdr((void*)pc, &info) && info.dli_sname)
+        fprintf(stderr, "  %s %#lx %s+%#lx (%s)\n", tag, (unsigned long)pc, info.dli_sname, (unsigned long)(pc - (uintptr_t)info.dli_saddr), info.dli_fname ? strrchr(info.dli_fname, '/') + 1 : "?");
+    else
+        fprintf(stderr, "  %s %#lx ?\n", tag, (unsigned long)pc);
+}
+static void onCrash(int sig, siginfo_t* si, void* uap)
+{
+    ucontext_t* uc = (ucontext_t*)uap;
+    fprintf(stderr, "CRASH signal %d addr %p\n", sig, si->si_addr);
+    where("pc", uc->uc_mcontext->ss.eip);
+    uintptr_t* fp = (uintptr_t*)uc->uc_mcontext->ss.ebp;
+    for (int i = 0; i < 20 && fp && (uintptr_t)fp > 0x1000; i++) {
+        where("fr", fp[1]);
+        uintptr_t* next = (uintptr_t*)fp[0];
+        if (next <= fp) break;
+        fp = next;
+    }
+    _exit(70);
+}
 
 static void* run(void*)
 {
@@ -96,6 +125,9 @@ static void* run(void*)
     if (!r) exit(5);
     [r setLayer:host];
     [r setBounds:CGRectMake(0, 0, W, H)];
+    // The render tree only sees the layers after a flush that follows the
+    // attachment; a flush before setLayer: renders nothing.
+    [CATransaction flush];
 
     glViewport(0, 0, W, H);
     glMatrixMode(GL_PROJECTION); glLoadIdentity(); glOrtho(0, W, 0, H, -1, 1);
@@ -128,6 +160,9 @@ static void* run(void*)
 
 int main()
 {
+    struct sigaction sa; memset(&sa, 0, sizeof sa);
+    sa.sa_sigaction = onCrash; sa.sa_flags = SA_SIGINFO;
+    sigaction(SIGSEGV, &sa, NULL); sigaction(SIGBUS, &sa, NULL); sigaction(SIGILL, &sa, NULL);
     if (getenv("CAOFFSCREEN_MAIN"))
         run(NULL);
     pthread_t t;

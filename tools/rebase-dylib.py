@@ -101,6 +101,25 @@ for i in range(nextrel):
     n_ext += 1
 print(f"external relocs: {n_ext} made addend-only (prebound value subtracted)")
 
+# Pass 2c: non-lazy symbol pointers whose indirect-table entry is INDIRECT_SYMBOL_LOCAL.
+# ld emits no relocation for a pointer to a symbol inside the same image; dyld adds its
+# runtime slide to them instead (doRebase), and our slide is baked into the file, so
+# dyld's is zero and they would keep the old address. Slide them here.
+S_NON_LAZY_SYMBOL_POINTERS, INDIRECT_SYMBOL_LOCAL = 0x6, 0x80000000
+indoff = dysymtab[12]
+n_nl = 0
+for off, name, vmaddr, vmsize, fileoff, filesize, nsects, _ in segs:
+    so = off + 56
+    for _ in range(nsects):
+        addr, size, sfo, _, _, _, sflags, reserved1 = struct.unpack_from("<8I", b, so + 32)
+        if (sflags & 0xff) == S_NON_LAZY_SYMBOL_POINTERS:
+            for i in range(size // 4):
+                ind, = struct.unpack_from("<I", b, indoff + 4*(reserved1 + i))
+                if ind & INDIRECT_SYMBOL_LOCAL:
+                    add32(sfo + 4*i, slide); n_nl += 1
+        so += 68
+print(f"non-lazy pointers to local symbols: {n_nl} slid")
+
 # Pass 3: segment and section addresses in the load commands.
 for off, name, vmaddr, vmsize, fileoff, filesize, nsects, _ in segs:
     add32(off + 24, slide)
