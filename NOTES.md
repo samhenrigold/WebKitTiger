@@ -3447,3 +3447,27 @@ of WebProcessCreationParameters. `ENABLE_RELEASE_LOG=ON` is now a shared feature
 every Tiger tree (OptionsTigerProcesses.cmake; it was cached OFF, so the three trees were
 re-configured with -DENABLE_RELEASE_LOG=ON), which gives the x86_64 processes release
 logging on stderr through Assertions.h's LOGF fallback as a side benefit.
+
+## 2026-09-21 — tools/check-serializers.sh: the preprocessed member diff
+
+With names numbered alike, the first real message (InitializeWebProcess) still failed at
+argument index 91 (an unconditional String) -- the stream was out of step by then. Same
+class of bug as the names: a serialized FIELD whose `#if` evaluates differently on the two
+sides, invisible to the text compare. `tools/check-serializers.sh` preprocesses
+GeneratedSerializersShared.cpp with each tree's real flags and diffs the decoded member
+lists; it found 25 lines / 13 sites: EditorState caret rect, NavigationActionData hit
+test, AppKitControlSystemImage (type, SystemImage subclass list, SystemImageType enum
+entry), ScreenData scaleFactor, MediaUsageInfo isInViewport, KeypressCommand +
+WebKeyboardEvent commands/handledByInputMethod, WebWheelEvent phase/momentumPhase/
+hasPreciseScrollingDeltas, WebProcessCreationParameters screenProperties and
+launchServicesExtensionHandle, ShareableBitmapConfiguration m_bitmapInfo, and the
+TextCheckerState AppKit bits (an OptionSet, so the enum values are the wire). Each got the
+Tiger exclusion in the .in AND in the header; the Tiger event constructors dropped the
+fields; ShareableBitmapConfiguration derives bitmapInfo from the pixel format on this
+side (calculateBitmapInfo) since the recording side has no CG to send it.
+
+The wire check is now three commands, all of which must pass between every pair of trees:
+tiger-check-ipc (flags + generated text), tools/check-message-names.sh (preprocessed
+MessageName enum), tools/check-serializers.sh (preprocessed decoder member lists).
+Still open: WebEvent's `uintptr_t signpostIdentifier` is GTK/WPE-only and not on this wire,
+but any `long`/`CGFloat`/`NSInteger` that ever lands in a shared .in will be the same bug.
