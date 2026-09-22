@@ -3841,3 +3841,10 @@ is now treated as the peer closing (it was logged as "Error sending IPC message:
 Broken pipe" whenever the first web process went away after the process swap to the
 page's own process -- the second web process, core identifier 6, is that swap, not a
 bug). Next: a real HTTPS page with sampling on, and the GPU process's 130% CPU.
+
+### 12:55 — Wikipedia over HTTPS renders
+
+`https://en.wikipedia.org/wiki/Mac_OS_X_Tiger` in the four-process app: fonts,
+images, layout, links, all right side up; CA bundle via TIGER_CA_BUNDLE. 8 s in: UI
+0%, web 0.1% (106 MB), network 0%, GPU 100% CPU -- the GPU process spins at idle;
+sampled, see next entry.
