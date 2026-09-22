@@ -4352,3 +4352,16 @@ appending while playing (this test appends everything up front), quality switche
 playback, the audio helper per player (one process per <video> with sound), 720p (decode is
 112 fps but the paint path is a 3.7 MB BGRA blit per frame through cairo + the UI), VP9/Opus
 off by policy (ffvp9 is in the build if wanted), and ended/seek edge cases.
+
+## Media merged; faithful-mode typing on x.com open (2026-09-22 18:10)
+
+Merged tiger-media 4cb39305: MediaPlayerPrivateFFmpeg (<video src> H.264/AAC, 30 fps at 360p,
+audio through the i386 helper build/tigeraudio32 over a ring file) and the MSE backend
+(MediaSourcePrivateFFmpeg; DASH fMP4 test plays to the end). stage-app.sh now stages the audio
+helper and kills it. Details in the media section above and spike/media/.
+
+Open: in faithful mode (TIGER_FAITHFUL=1) typing into x.com's phone field shows the caret but
+no text and Continue stays grey; the same script in fast mode works, and typing into a plain
+textarea, including one inside a composited (will-change: transform) layer, works in faithful
+mode. The web process main thread was idle while the keys were sent (TIGER_SAMPLE_MAIN), so the
+keys either never reached the page or were dropped by x.com's handlers. Page-specific; not chased.
