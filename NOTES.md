@@ -3961,3 +3961,19 @@ opacity, rotateY, an overflow:hidden text layer -- drawn by the GPU process's CA
 scene. Details in that agent's report when it lands. The react.dev page itself was
 blank: its GPU process vanished with no crash line; confounded by the overlap (their
 killall), rerunning on a quiet box.
+
+### 15:20 — fast text: Quartz's vertical fit reproduced (agent, merged)
+
+TigerGlyphFit (Source/WebCore/platform/graphics/tiger64/TigerGlyphFit.{h,cpp}, hooked
+from CairoOperations drawGlyphsToContext): when a TrueType face's device ppem is
+integral, the outline is scaled about the baseline so the x-height lands on a whole
+row, stems and descender kept, rasterised by FreeType's exact-area scan converter into
+cached A8 masks. Quartz turned out to do a vertical SCALE with the x-height as the knot,
+not TrueType hinting (host model spike/fasttext/yfit64.c reproduces the box to the
+decimal); "hinted y / unhinted x" was built, measured and rejected (worse on every
+line). Fit only where cvt rounding and FreeType agree: Helvetica, Helvetica Bold,
+Lucida Grande now match the reference band at 8x; Times/Times Italic are left unfitted
+on purpose (Apple's cvt rounding rule for them not derived). TigerGlyphSnap now snaps
+under any axis-aligned CTM (zoom page 44.15 -> 10.78 inkluma). Sample page 17.36 ->
+10.73. Merged into tiger-fontcache as 69e6dca6 + 9e2719a9. Crops and method:
+spike/fasttext/README.md, out/pagedriver, out/zoom.
