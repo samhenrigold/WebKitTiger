@@ -113,8 +113,15 @@ int main(int argc, char** argv)
         CFStringRef name = CFStringCreateWithCString(NULL, s->psName, kCFStringEncodingUTF8);
         CTFontRef font = CTFontCreateWithName(name, s->size, NULL);
         CFStringRef text = CFStringCreateWithCString(NULL, s->utf8, kCFStringEncodingUTF8);
-        CFStringRef key = kCTFontAttributeName;
-        CFDictionaryRef attrs = CFDictionaryCreate(NULL, (const void**)&key, (const void**)&font, 1,
+        /* WebKit disables kerning and ligatures with text-rendering: auto on every backend
+         * (SimpleFontDataCoreText.cpp sets kCTKern/kCTLigature to 0); CTLine's defaults are
+         * on. Match WebKit, or the Times lines drift by whole pixels for a layout reason. */
+        float zero = 0; int one = 0;
+        CFNumberRef kern = CFNumberCreate(NULL, kCFNumberFloatType, &zero);
+        CFNumberRef liga = CFNumberCreate(NULL, kCFNumberIntType, &one);
+        CFStringRef keys[3] = { kCTFontAttributeName, kCTKernAttributeName, kCTLigatureAttributeName };
+        const void* vals[3] = { font, kern, liga };
+        CFDictionaryRef attrs = CFDictionaryCreate(NULL, (const void**)keys, vals, 3,
             &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
         CFAttributedStringRef as = CFAttributedStringCreate(NULL, text, attrs);
         CTLineRef line = CTLineCreateWithAttributedString(as);
