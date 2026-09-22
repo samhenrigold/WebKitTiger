@@ -11,8 +11,12 @@
 #include "TigerWebView.h"
 #include <wtf/RefPtr.h>
 
-@interface TigerWK2View : NSView {
+@interface TigerWK2View : NSView <NSTextInput> {
     RefPtr<WebKit::TigerWebView> _webView;
+    // Filled in by -insertText:/-doCommandBySelector: while -interpretKeyEvents: runs.
+    NSString* _interpretedText;
+    NSMutableArray* _interpretedCommands;
+    BOOL _interpreting;
 }
 - (void)attachWebView:(WebKit::TigerWebView*)view;
 - (WebKit::TigerWebView*)webView;

@@ -222,7 +222,8 @@ void ChromeLoadObserver::update()
 }
 
 // ------------------------------------------------------ scripted interaction --
-// TIGER_SCRIPT="wait 5; click 300,400; type hello; key return; scroll 0,-300; shot /path.png; load URL"
+// TIGER_SCRIPT="wait 5; click 300,400; type hello; key return; keymod cmd a;
+//              keymod opt left; keymod shift opt right; scroll 0,-300; shot /path.png; load URL"
 // Coordinates are view points, y down, as the page sees them. Events are real NSEvents
 // posted to the view's handlers, so they take the same path as the user's. This is how
 // login flows and scrolling get exercised from a harness with nobody at the keyboard.
@@ -236,20 +237,91 @@ static unsigned scriptIndex;
         windowNumber:[_window windowNumber] context:[_window graphicsContext] eventNumber:0 clickCount:1 pressure:0];
 }
 
+// One place where a scripted key becomes an NSEvent. Command combinations go to
+// the main menu first, exactly as NSApplication does for a real key press, so the
+// Edit menu's key equivalents (and the responder chain behind them) are what the
+// script exercises.
+static BOOL keyForName(NSString* name, unichar* character, unsigned short* code, unsigned* extraFlags)
+{
+    struct { const char* name; unichar character; unsigned short code; unsigned flags; } keys[] = {
+        { "return", '\r', 36, 0 },
+        { "enter", '\r', 36, 0 },
+        { "tab", '\t', 48, 0 },
+        { "space", ' ', 49, 0 },
+        { "backspace", 0x7f, 51, 0 },
+        { "escape", 0x1b, 53, 0 },
+        { "delete", NSDeleteFunctionKey, 117, NSFunctionKeyMask },
+        { "left", NSLeftArrowFunctionKey, 123, NSFunctionKeyMask | NSNumericPadKeyMask },
+        { "right", NSRightArrowFunctionKey, 124, NSFunctionKeyMask | NSNumericPadKeyMask },
+        { "down", NSDownArrowFunctionKey, 125, NSFunctionKeyMask | NSNumericPadKeyMask },
+        { "up", NSUpArrowFunctionKey, 126, NSFunctionKeyMask | NSNumericPadKeyMask },
+        { "home", NSHomeFunctionKey, 115, NSFunctionKeyMask },
+        { "end", NSEndFunctionKey, 119, NSFunctionKeyMask },
+        { "pageup", NSPageUpFunctionKey, 116, NSFunctionKeyMask },
+        { "pagedown", NSPageDownFunctionKey, 121, NSFunctionKeyMask },
+    };
+    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]); ++i) {
+        if ([name isEqualToString:[NSString stringWithUTF8String:keys[i].name]]) {
+            *character = keys[i].character;
+            *code = keys[i].code;
+            *extraFlags = keys[i].flags;
+            return YES;
+        }
+    }
+    if (![name length])
+        return NO;
+    *character = [name characterAtIndex:0];
+    *code = 0; // the binding manager and the page both read characters, not codes
+    *extraFlags = 0;
+    return YES;
+}
+
+- (void)sendKey:(NSString*)characters flags:(unsigned)flags code:(unsigned short)code
+{
+    NSEvent* down = [NSEvent keyEventWithType:NSKeyDown location:NSZeroPoint modifierFlags:flags
+        timestamp:[NSDate timeIntervalSinceReferenceDate] windowNumber:[_window windowNumber] context:nil
+        characters:characters charactersIgnoringModifiers:characters isARepeat:NO keyCode:code];
+    if ((flags & NSCommandKeyMask) && [[NSApp mainMenu] performKeyEquivalent:down])
+        return;
+    [_view keyDown:down];
+    [_view keyUp:[NSEvent keyEventWithType:NSKeyUp location:NSZeroPoint modifierFlags:flags
+        timestamp:[NSDate timeIntervalSinceReferenceDate] windowNumber:[_window windowNumber] context:nil
+        characters:characters charactersIgnoringModifiers:characters isARepeat:NO keyCode:code]];
+}
+
+// "cmd a", "opt left", "shift opt right", "cmd shift z": modifiers then one key name.
+- (void)sendKeyCombination:(NSString*)spec
+{
+    NSArray* words = [spec componentsSeparatedByString:@" "];
+    if (![words count])
+        return;
+    unsigned flags = 0;
+    for (unsigned i = 0; i + 1 < [words count]; ++i) {
+        NSString* word = [[words objectAtIndex:i] lowercaseString];
+        if ([word isEqualToString:@"cmd"] || [word isEqualToString:@"command"])
+            flags |= NSCommandKeyMask;
+        else if ([word isEqualToString:@"opt"] || [word isEqualToString:@"alt"] || [word isEqualToString:@"option"])
+            flags |= NSAlternateKeyMask;
+        else if ([word isEqualToString:@"shift"])
+            flags |= NSShiftKeyMask;
+        else if ([word isEqualToString:@"ctrl"] || [word isEqualToString:@"control"])
+            flags |= NSControlKeyMask;
+    }
+    unichar character = 0;
+    unsigned short code = 0;
+    unsigned extraFlags = 0;
+    if (!keyForName([words objectAtIndex:[words count] - 1], &character, &code, &extraFlags))
+        return;
+    // -characters and -charactersIgnoringModifiers are both the bare key: the key
+    // bindings and the menu match on the bare one, and no verb here wants the
+    // glyph Option would actually type.
+    [self sendKey:[NSString stringWithCharacters:&character length:1] flags:(flags | extraFlags) code:code];
+}
+
 - (void)typeString:(NSString*)text
 {
-    for (NSUInteger i = 0; i < [text length]; ++i) {
-        NSString* ch = [text substringWithRange:NSMakeRange(i, 1)];
-        unichar c = [ch characterAtIndex:0];
-        unsigned short keyCode = 0; // not looked up: the page path reads characters, not codes
-        NSEvent* down = [NSEvent keyEventWithType:NSKeyDown location:NSZeroPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
-            windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:keyCode];
-        NSEvent* up = [NSEvent keyEventWithType:NSKeyUp location:NSZeroPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
-            windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:keyCode];
-        (void)c;
-        [_view keyDown:down];
-        [_view keyUp:up];
-    }
+    for (NSUInteger i = 0; i < [text length]; ++i)
+        [self sendKey:[text substringWithRange:NSMakeRange(i, 1)] flags:0 code:0];
 }
 
 - (void)runScriptStep:(NSTimer*)timer
@@ -273,15 +345,9 @@ static unsigned scriptIndex;
         [_view mouseUp:[self mouseEventOfType:NSLeftMouseUp at:p]];
     } else if ([verb isEqualToString:@"type"])
         [self typeString:rest];
-    else if ([verb isEqualToString:@"key"]) {
-        unichar c = [rest isEqualToString:@"return"] ? '\r' : [rest isEqualToString:@"tab"] ? '\t' : [rest isEqualToString:@"backspace"] ? 0x7f : [rest characterAtIndex:0];
-        unsigned short code = [rest isEqualToString:@"return"] ? 36 : [rest isEqualToString:@"tab"] ? 48 : [rest isEqualToString:@"backspace"] ? 51 : 0;
-        NSString* ch = [NSString stringWithCharacters:&c length:1];
-        [_view keyDown:[NSEvent keyEventWithType:NSKeyDown location:NSZeroPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
-            windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:code]];
-        [_view keyUp:[NSEvent keyEventWithType:NSKeyUp location:NSZeroPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
-            windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:code]];
-    } else if ([verb isEqualToString:@"scroll"]) {
+    else if ([verb isEqualToString:@"key"] || [verb isEqualToString:@"keymod"])
+        [self sendKeyCombination:rest];
+    else if ([verb isEqualToString:@"scroll"]) {
         NSArray* xy = [rest componentsSeparatedByString:@","];
         // No public constructor for scroll-wheel NSEvents on 10.4 and WebWheelEvent's is
         // protected: scroll the page through the proxy, one page per step.
@@ -321,6 +387,34 @@ static void buildMenus(TigerBrowserWindow* browser)
     [fileMenu addItem:openLocation];
     [fileItem setSubmenu:fileMenu];
     [menubar addItem:fileItem];
+    // Edit. Every item targets the first responder (target nil), so Cmd-Z/X/C/V/A
+    // reach TigerWK2View through the responder chain, the same route a real Cocoa
+    // text view takes.
+    NSMenuItem* editItem = [[NSMenuItem alloc] initWithTitle:@"Edit" action:NULL keyEquivalent:@""];
+    NSMenu* editMenu = [[NSMenu alloc] initWithTitle:@"Edit"];
+    struct { NSString* title; SEL action; NSString* key; unsigned mask; } editItems[] = {
+        { @"Undo", @selector(undo:), @"z", NSCommandKeyMask },
+        { @"Redo", @selector(redo:), @"z", NSCommandKeyMask | NSShiftKeyMask },
+        { nil, NULL, nil, 0 },
+        { @"Cut", @selector(cut:), @"x", NSCommandKeyMask },
+        { @"Copy", @selector(copy:), @"c", NSCommandKeyMask },
+        { @"Paste", @selector(paste:), @"v", NSCommandKeyMask },
+        { @"Delete", @selector(delete:), @"", 0 },
+        { @"Select All", @selector(selectAll:), @"a", NSCommandKeyMask },
+    };
+    for (unsigned i = 0; i < sizeof(editItems) / sizeof(editItems[0]); ++i) {
+        if (!editItems[i].title) {
+            [editMenu addItem:[NSMenuItem separatorItem]];
+            continue;
+        }
+        NSMenuItem* item = [[[NSMenuItem alloc] initWithTitle:editItems[i].title
+            action:editItems[i].action keyEquivalent:editItems[i].key] autorelease];
+        [item setKeyEquivalentModifierMask:editItems[i].mask];
+        [editMenu addItem:item];
+    }
+    [editItem setSubmenu:editMenu];
+    [menubar addItem:editItem];
+
     NSMenuItem* historyItem = [[NSMenuItem alloc] initWithTitle:@"History" action:NULL keyEquivalent:@""];
     NSMenu* historyMenu = [[NSMenu alloc] initWithTitle:@"History"];
     NSMenuItem* back = [[NSMenuItem alloc] initWithTitle:@"Back" action:@selector(goBack:) keyEquivalent:@"["];
