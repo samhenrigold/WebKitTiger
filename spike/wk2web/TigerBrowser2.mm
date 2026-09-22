@@ -20,6 +20,9 @@
 #include "PageLoadState.h"
 #include "TigerCrashCatcher.h"
 #include "TigerWebView.h"
+#include "NativeWebWheelEvent.h"
+#include "WebWheelEvent.h"
+#include <wtf/MonotonicTime.h>
 #include "WebBackForwardList.h"
 #include "WebPageProxy.h"
 #include "WebPreferences.h"
@@ -85,6 +88,7 @@ private:
 }
 - (id)initWithURL:(NSString*)url;
 - (void)updateChrome;
+- (void)runScriptStep:(NSTimer*)timer;
 @end
 
 void ChromeLoadObserver::update()
@@ -218,6 +222,92 @@ void ChromeLoadObserver::update()
     [_window makeFirstResponder:_view];
 }
 
+// ------------------------------------------------------ scripted interaction --
+// TIGER_SCRIPT="wait 5; click 300,400; type hello; key return; scroll 0,-300; shot /path.png; load URL"
+// Coordinates are view points, y down, as the page sees them. Events are real NSEvents
+// posted to the view's handlers, so they take the same path as the user's. This is how
+// login flows and scrolling get exercised from a harness with nobody at the keyboard.
+static NSMutableArray* scriptSteps;
+static unsigned scriptIndex;
+
+- (NSEvent*)mouseEventOfType:(NSEventType)type at:(NSPoint)viewPoint
+{
+    NSPoint windowPoint = [_view convertPoint:viewPoint toView:nil];
+    return [NSEvent mouseEventWithType:type location:windowPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
+        windowNumber:[_window windowNumber] context:[_window graphicsContext] eventNumber:0 clickCount:1 pressure:0];
+}
+
+- (void)typeString:(NSString*)text
+{
+    for (NSUInteger i = 0; i < [text length]; ++i) {
+        NSString* ch = [text substringWithRange:NSMakeRange(i, 1)];
+        unichar c = [ch characterAtIndex:0];
+        unsigned short keyCode = 0; // not looked up: the page path reads characters, not codes
+        NSEvent* down = [NSEvent keyEventWithType:NSKeyDown location:NSZeroPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
+            windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:keyCode];
+        NSEvent* up = [NSEvent keyEventWithType:NSKeyUp location:NSZeroPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
+            windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:keyCode];
+        (void)c;
+        [_view keyDown:down];
+        [_view keyUp:up];
+    }
+}
+
+- (void)runScriptStep:(NSTimer*)timer
+{
+    if (scriptIndex >= [scriptSteps count])
+        return;
+    NSString* step = [[scriptSteps objectAtIndex:scriptIndex++] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    NSArray* parts = [step componentsSeparatedByString:@" "];
+    NSString* verb = [parts objectAtIndex:0];
+    NSString* rest = [parts count] > 1 ? [step substringFromIndex:[verb length] + 1] : @"";
+    double delay = 0.3;
+    fprintf(stderr, "TIGER script: %s\n", [step UTF8String]);
+    if ([verb isEqualToString:@"wait"])
+        delay = [rest doubleValue];
+    else if ([verb isEqualToString:@"click"]) {
+        NSArray* xy = [rest componentsSeparatedByString:@","];
+        NSPoint p = NSMakePoint([[xy objectAtIndex:0] floatValue], [[xy objectAtIndex:1] floatValue]);
+        [_window makeFirstResponder:_view];
+        [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:p]];
+        [_view mouseDown:[self mouseEventOfType:NSLeftMouseDown at:p]];
+        [_view mouseUp:[self mouseEventOfType:NSLeftMouseUp at:p]];
+    } else if ([verb isEqualToString:@"type"])
+        [self typeString:rest];
+    else if ([verb isEqualToString:@"key"]) {
+        unichar c = [rest isEqualToString:@"return"] ? '\r' : [rest isEqualToString:@"tab"] ? '\t' : [rest isEqualToString:@"backspace"] ? 0x7f : [rest characterAtIndex:0];
+        unsigned short code = [rest isEqualToString:@"return"] ? 36 : [rest isEqualToString:@"tab"] ? 48 : [rest isEqualToString:@"backspace"] ? 51 : 0;
+        NSString* ch = [NSString stringWithCharacters:&c length:1];
+        [_view keyDown:[NSEvent keyEventWithType:NSKeyDown location:NSZeroPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
+            windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:code]];
+        [_view keyUp:[NSEvent keyEventWithType:NSKeyUp location:NSZeroPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
+            windowNumber:[_window windowNumber] context:nil characters:ch charactersIgnoringModifiers:ch isARepeat:NO keyCode:code]];
+    } else if ([verb isEqualToString:@"scroll"]) {
+        NSArray* xy = [rest componentsSeparatedByString:@","];
+        // No public constructor for scroll-wheel NSEvents on 10.4: build the WebKit event.
+        if (RefPtr page = _webView ? _webView->page() : nullptr) {
+            NSRect b = [_view bounds];
+            WebCore::IntPoint at(b.size.width / 2, b.size.height / 2);
+            WebCore::FloatSize delta([[xy objectAtIndex:0] floatValue], [[xy objectAtIndex:1] floatValue]);
+            WebWheelEventData wheel;
+            wheel.position = at;
+            wheel.globalPosition = at;
+            wheel.delta = delta;
+            wheel.wheelTicks = WebCore::FloatSize(delta.width() / 40, delta.height() / 40);
+            wheel.granularity = WebWheelEventGranularity::ScrollByPixelWheelEvent;
+            WebWheelEvent event(WebEventData { WebEventType::Wheel, { }, MonotonicTime::now() }, WTF::move(wheel));
+            page->handleNativeWheelEvent(NativeWebWheelEvent::create(event));
+        }
+    } else if ([verb isEqualToString:@"shot"]) {
+        NSString* cmd = [NSString stringWithFormat:@"/usr/sbin/screencapture -x '%@'", rest];
+        system([cmd UTF8String]);
+    } else if ([verb isEqualToString:@"load"]) {
+        if (RefPtr page = _webView ? _webView->page() : nullptr)
+            page->loadRequest(URL { String::fromUTF8([rest UTF8String]) });
+    }
+    [NSTimer scheduledTimerWithTimeInterval:delay target:self selector:@selector(runScriptStep:) userInfo:nil repeats:NO];
+}
+
 - (void)goBack:(id)sender { if (RefPtr page = _webView ? _webView->page() : nullptr) page->goBack(); }
 - (void)goForward:(id)sender { if (RefPtr page = _webView ? _webView->page() : nullptr) page->goForward(); }
 - (void)reload:(id)sender { if (RefPtr page = _webView ? _webView->page() : nullptr) page->reload({ }); }
@@ -268,6 +358,11 @@ int main(int argc, const char* argv[])
     TransformProcessType(&psn, kProcessTransformToForegroundApplication);
     TigerBrowserWindow* browser = [[TigerBrowserWindow alloc] initWithURL:url];
     buildMenus(browser);
+    if (const char* script = getenv("TIGER_SCRIPT")) {
+        scriptSteps = [[[NSString stringWithUTF8String:script] componentsSeparatedByString:@";"] mutableCopy];
+        scriptIndex = 0;
+        [NSTimer scheduledTimerWithTimeInterval:0.5 target:browser selector:@selector(runScriptStep:) userInfo:nil repeats:NO];
+    }
     if (secondsBeforeExit > 0) {
         [NSTimer scheduledTimerWithTimeInterval:secondsBeforeExit target:NSApp
             selector:@selector(terminate:) userInfo:nil repeats:NO];
