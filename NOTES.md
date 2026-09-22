@@ -4279,3 +4279,14 @@ else AVX-related (B3/Air, FTL, the SIMD macro assembler) already routes through
 Still open: wasm SIMD wants SSE4.1 in places and Merom has none (untested — nothing on
 x.com exercised it); and the intermittent EXC_BAD_ACCESS in JIT code on The Verge is a
 separate bug, untouched by this.
+
+## x.com onboarding crash was AVX in the JIT probe trampoline (2026-09-22 18:05)
+
+Merged tiger-jsperf a348b934. MacroAssemblerX86_64.cpp's Darwin arm built the single probe
+trampoline with vmovaps ("all macOS x86_64 CPUs support AVX"); Merom raises #UD (EXC_BAD_INSTRUCTION,
+code EXC_I386_INVOP). The trampoline is reached in release builds from Wasm BBQ loop OSR entry,
+which x.com's onboarding wasm hits. TIGER64 now takes the non-Darwin arm: both trampolines built,
+chosen by supportsAVX(). The "JSONRanges Vector destructor" signature was a symbolizer artifact:
+_ctiMasmProbeTrampoline is a local symbol, and the nearest global before it is that destructor.
+tools/symbolize-tiger.sh should include local symbols (nm without -g) to avoid this.
+Verified fast and faithful modes: modal opens, no TIGER-CRASH over 60 s.
