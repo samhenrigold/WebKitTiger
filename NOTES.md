@@ -3637,3 +3637,23 @@ decoder choice is the fork in the road** — QuickTime 7 in the i386 GPU process
 but caps at H.264 and makes MSE a from-scratch fMP4 walker on a 2005-era decoder; ffmpeg in the x86_64 web
 process is what the media64 track already proved end to end (demux, scan, decode, PCM ring) and is the only
 route to (d).
+
+## 2026-09-21 — the box "wedges": IPC::Semaphore was a no-op on Darwin
+
+Three times tonight the box stopped answering ssh (banner-exchange timeout, pings fine,
+Finder fine, System Preferences' Sharing pane hung) within seconds of a four-process run.
+Not kernel panics: panic.log's only record is the 13:20 ldt probe; the restarts were the
+user's. Cause: Platform/IPC/unix/IPCSemaphoreUnix.cpp is `#if OS(LINUX)` (eventfd) all
+the way down, so on Darwin signal() did nothing and wait()/waitFor() returned false at
+once. The first run in which the web process survived initialisation (22:43) was the
+first with a real GPU-process stream connection, whose work queues wait on that
+semaphore: both processes spun, and the machine starved. (The pagedriver harness never
+had a stream connection, which is why it never showed.) Fix (bc51d3b4): a FIFO opened
+O_RDWR -- one descriptor every holder can write and read, duplicated over the socket
+exactly like the eventfd, kernel memory bounded by the pipe buffer, one byte per signal.
+createEventSignalPair() is built on Semaphore and inherits it.
+
+Also learned: Tiger's mbuf pool is ~2 MB (926 clusters, 447 in use at idle, grows to
+1160); `netstat -m` before/after a run is now part of stage-app.sh, which also kills the
+app by alarm and every helper afterwards, and rsyncs with -l (the framework's symlinks
+were being dropped, which made the GPU process fail at launch).
