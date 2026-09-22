@@ -1,0 +1,1 @@
+Helvetica=/tmp/tfonts/Helvetica.dfont:0 Helvetica-Bold=/tmp/tfonts/Helvetica.dfont:1 LucidaGrande=/tmp/tfonts/LucidaGrande.dfont:0 LucidaGrande-Bold=/tmp/tfonts/LucidaGrande.dfont:1 Times-Roman=/tmp/tfonts/Times.dfont:0 Times-Italic=/tmp/tfonts/Times.dfont:2

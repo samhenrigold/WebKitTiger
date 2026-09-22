@@ -22,7 +22,7 @@ def load_ref(path):
 
 def best_dy(refL, imgL, rows):
     best = None
-    for dy in range(-4, 5):
+    for dy in range(-8, 9):
         a = np.roll(imgL, dy, 0)[rows]; r = refL[rows]
         ink = (a < 253) | (r < 253)
         e = np.abs(a - r)[ink].mean() if ink.any() else 0

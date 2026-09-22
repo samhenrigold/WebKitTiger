@@ -24,7 +24,7 @@ def bands(line0, leading):
     ys = np.arange(H)
     return np.floor((ys - (line0 - leading * 0.7)) / leading).astype(int)
 
-def align(ref, img, line0, leading, nlines, search=6):
+def align(ref, img, line0, leading, nlines, search=8):
     """Per line, pick the integer dy that minimises |diff| within the band; return aligned img."""
     out = np.full_like(img, 255.0)
     band = bands(line0, leading)

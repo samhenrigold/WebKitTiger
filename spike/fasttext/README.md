@@ -274,3 +274,50 @@ is not in the build. Closing it needs y-only bytecode, which FreeType does not o
 option: render once hinted for y, once unhinted for x, and merge the outlines point-wise before
 rasterising (~60 lines in a custom glyph path bypassing cairo's glyph cache), and even then
 Apple's interpreter leaves 13/19/20/24 ppem unhinted where FreeType's does not.
+
+## 2026-09-22 — what Quartz does vertically at integral ppem, and TigerGlyphFit
+
+`yfit64.c` replays `ref.glyphs` through FreeType alone on the host (homebrew freetype; `make`
+is not involved: `cc yfit64.c $(pkg-config --cflags --libs freetype2)`), one vertical rule per
+run, scored per line by `score-pgm.py`. It reproduces the box to the decimal (`ftY` = the box's
+bytecode build on every line), so hypotheses cost seconds instead of a build.
+
+Per-glyph row profiles of the CoreText bitmap against unhinted and bytecode-hinted renders
+(Helvetica 16: H, T, i, n, x, u; Times 16: T, n, x, o, l, d) say: Quartz is **not** running the
+glyph programs the way FreeType does. Cap and ascender land on 12.0 as FreeType puts them, but
+the x-height lands on ~8.9 where FreeType rounds to 9.0, and the H and e crossbars keep their
+1.4 px thickness where FreeType's interpreter thins them to one pixel. Times 16 puts its x-height
+on 8.0 exactly and its cap on 11.0. The picture that fits every glyph is a piecewise-linear
+vertical map about the baseline with the x-height as its knot: stretch or squeeze below the
+x-height so it lands on a pixel row, translate everything above by the same amount, leave the
+descender alone. A sweep of one uniform factor per line confirms it (Helvetica 16 best 1.040,
+Bold 1.020, Lucida Grande 13 1.0, Bold 0.972, Times Italic 0.964).
+
+Which row the x-height goes to is the part we cannot compute: it comes from the font's control
+values through Apple's interpreter. `round('o' top)` and FreeType's hinted 'o' agree for Helvetica,
+Helvetica Bold and Lucida Grande, and then they are right; for Times they disagree (round 7,
+bytecode 8, Quartz 8) and for Times Italic they disagree the other way (round 7, bytecode 8,
+Quartz 7). TigerGlyphFit applies the fit only where they agree. Host model, inkluma per line:
+
+```
+rule       LG13  LGB13  LG11  Helv16  HelvB16  Times16  TimesIt16   mean
+none        5.8   13.8   6.6    20.7     10.4     25.6      12.7    13.66
+ftY        18.9   26.9  19.6    24.7     14.7     30.9      55.2    27.27  (bytecode y, unhinted x)
+capY       26.4   33.9   6.6     6.4      8.6     13.0      28.8    17.66  (uniform, cap-based)
+zones       8.5    6.4   6.6    13.5      4.1     31.8       5.5    10.92  (x-height+cap knots, round)
+zonesXF     5.1    9.1   6.6     7.1      5.7     11.4      47.0    13.13  (x-height knot, bytecode target)
+quartz      5.1    9.1   6.6     7.1      5.7     25.6      12.7    10.26  (shipped: agree-or-leave)
+```
+
+On the box, through the web process (`run-box.sh`, `out/pagedriver`): **17.36 -> 10.73** overall,
+per line 5.1 / 9.1 / 6.6 / 7.1 / 5.7 / 28.4 / 17.2 / 7.1. The 1.125x page (`sample-zoom.html`,
+reference `ctref32zoom`, `out/zoom`): **44.15 -> 10.78**; the old build did not snap under a
+non-integral CTM at all, which is where most of that comes from, and the fit itself carries
+Helvetica 18 to 8.0 and Bold to 4.0. Times 18 is the one line where the agree rule fires and
+Quartz disagrees (32.6).
+
+**Residual, honestly:** Times and Times Italic at integral ppem (28 / 17 on the sample page) are
+left unhinted on purpose; getting them needs Apple's cvt rounding. The Helvetica exclusion list
+(13, 19, 20, 24 unfitted) is still a measured table, not a rule. Lucida Grande 13 regular is
+unfitted in Quartz while Bold 13 is squeezed 3%; the agree rule happens to be a near no-op for
+both. Everything else the eye can pick out of the 8x crops is now edge-coverage noise.

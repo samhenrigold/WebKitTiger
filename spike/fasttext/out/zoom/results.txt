@@ -1,0 +1,5 @@
+variant                          luma  inkluma      ink  per-line ink                              dy per line
+snap-only                       5.131    44.15    0.992  1.00 1.00 1.01 0.99 1.00 0.96 1.00 1.00  -5 -4 -2 -7 -7 -7 -7 -3
+snap+fit                        1.149    10.78    0.996  1.00 1.00 1.01 1.01 1.01 0.93 1.01 1.00  -5 -4 -2 -7 -7 -6 -7 -2
+sheet out/zoom/contact.png
+zoom out/zoom/zoom.png
