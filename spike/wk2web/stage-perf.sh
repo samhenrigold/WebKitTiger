@@ -7,7 +7,7 @@ set -e
 WKT=/Users/shg/Developer/WebKitTiger
 exec 9>"$WKT/spike/wk2web/box.lock"
 python3 -c 'import fcntl,sys,time
-f=open(sys.argv[1],"w")
+f=9  # the shell holds fd 9 for the whole run; locking a private open() would release on exit
 for _ in range(600):
     try: fcntl.flock(f, fcntl.LOCK_EX|fcntl.LOCK_NB); sys.exit(0)
     except OSError: time.sleep(1)
