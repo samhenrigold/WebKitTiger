@@ -4145,10 +4145,20 @@ Also merged: tiger-fasttext (TigerGlyphFit, integral-ppem vertical fit).
 https://www.youtube.com/ in fast mode: full home page (header, sidebar, Roboto web fonts) at
 ~40 s (spike/wk2web/youtube-home.png). Web process ~350 MB RSS, 130% CPU at 8 s.
 
-Open: one run in three had the network process declared unresponsive twice during startup,
-right after "Finished creating connection ... notifying the UI process" and before
-"Handed off connect ..." (the completion handler that sends the ConnectionHandle path back to
-the UI). The UI then handed the web process an empty identifier ("Tiger IPC: cannot connect
-to : No such file or directory") and the page sat at "Loading... 10%". It happened right after a
-collision with another run's killall on the box; the next two clean runs did not reproduce.
-Need a sample of the network process main thread when it recurs (TIGER_SAMPLE_MAIN=100).
+Fixed (17:50): the network process deadlocked in initializeSQLiteIfNecessary. The main thread,
+answering CreateNetworkConnectionToWebProcess, opened CookieJarDB (curl port cookies live in
+SQLite) and blocked on the std::once_flag; a storage thread had entered the once first
+(SWRegistrationDatabase::importOrigins) and its Darwin arm does callOnMainThreadAndWait
+(sqlite3_initialize) -- waiting on the blocked main thread. The UI killed the process after
+the 6 s network responsiveness timeout, relaunched it (same deadlock), then handed the web
+process an empty identifier ("Tiger IPC: cannot connect to :"). Sampled with
+TIGER_SAMPLE_MAIN=200 and symbolized with tools/symbolize-tiger.sh. Fix: on TIGER/TIGER64
+call sqlite3_initialize() directly, like the non-Darwin ports (the Darwin hop exists for a
+confstr() race that upstream's network process has; ours never opens SQLite on the main
+thread otherwise). Also the network process now gets the 30 s Tiger responsiveness timeout
+instead of 6 s. Three clean YouTube launches in a row afterwards.
+
+Harness bugs found the same hour: the box lock in stage-*.sh never held (python locked a
+private open() and exited; now locks the shell's fd 9), and every track staged into
+/Users/shg/wk2/bin, so one agent's rsync overwrote another run's executables mid-run
+(each script now has its own box directory).
