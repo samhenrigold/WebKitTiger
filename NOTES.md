@@ -3412,3 +3412,30 @@ run without the rebundled QuartzCore beside it, not a real crash.
 
 tiger-check-ipc UI vs WEB: flags agree (four deliberate divergences), generated
 serializers agree. Pass the trees as absolute paths; relative ones skip the file compare.
+
+## 2026-09-21 — the message-name enum is per-compile; tools/check-message-names.sh
+
+Second cause of the blank first window, found from the children's stderr (which the app
+inherits): both helpers crashed on "Received invalid message" for names the UI never
+sends them at startup. A hex dump of the rejected body (kept before dispatch; the decoder
+drops its buffer on failure) showed the process-creation parameters -- the UI had sent
+InitializeNetworkProcess and the x86_64 side read the name as IsGrandfathered.
+
+`MessageName` is a `uint16_t` enum generated with `#if` conditions INSIDE it, numbered
+sequentially. Any message whose condition differs between the two compiles shifts every
+later name. tiger-check-ipc compared the generated header's TEXT, which was identical;
+the PREPROCESSED enumerator lists differed by 33 names: USE(CG)-only pattern messages,
+PLATFORM(COCOA)-only video-frame messages, USE(APPKIT) editing commands,
+`PLATFORM(MAC) || GTK || WPE` theme colour, `!PLATFORM(COCOA)` curl-side messages the
+Cocoa UI process also needs (AllowSpecificHTTPSCertificateForHost,
+SetTextForActivePopupMenu), and the generator's built-in InitializeConnection
+(Scripts/webkit/model.py, "PLATFORM(COCOA)": the Mach bootstrap message, now
+`&& !USE(UNIX_DOMAIN_SOCKETS)`; model.py is not a tracked input, delete
+MessageNames.h to regenerate). Each condition now says the same thing on both ends.
+
+`tools/check-message-names.sh <treeA> <treeB>` preprocesses MessageNames.h with each
+tree's real compile flags and diffs the enumerator lists. Run it with tiger-check-ipc;
+the two together are the wire check.
+
+Diagnostics left in (they only fire on a rejected message): AuxiliaryProcess prints the
+failing argument indices; Connection.cpp prints the reason and a hex dump.
