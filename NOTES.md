@@ -4506,3 +4506,39 @@ shift-click extending a selection.
 Build dirs: build/tiger-ui-perf (i386 UI, ccache, same options as tiger-ui-port)
 and build/tiger-web-perf. stage-perf2.sh stages the UI binaries from
 build/tiger-ui-perf.
+
+## 2026-09-22 — YouTube plays in TigerBrowser2 (tiger-media, build/tiger-web-media)
+
+https://www.youtube.com/watch?v=f7NwyBnIRTE autoplays through MSE at **30.0 fps, 0-1
+dropped per 2 s window, for the whole 90 s measured**, 360p then YouTube's own switch to
+854x480 (both avc1 + mp4a.40.2, 44.1 kHz), the `l` (+10 s) seek resumes at 30 fps, the
+page's pause/play toggles work. spike/media/shot-yt12-early.png (0:55, seek bar, "+10"
+overlay), shot-yt10.png. Logs logs/media-yt*.log.
+
+What the player probe rejected: nothing in isTypeSupported/canPlayType (spike/media/caps.html:
+avc1/mp4a true, vp9/opus/av1/hevc false, EME absent, WebAssembly present) --
+**navigator.mediaCapabilities.decodingInfo() said supported=false for everything** because
+TIGER64 had no PlatformMediaEngineConfigurationFactory; `createMediaPlayerDecodingConfigurationTiger`
+(MediaPlayerPrivateFFmpeg.cpp) answers with the supportsType policy, smooth up to 720p/31 fps.
+That was the whole "Your browser can't play this video".
+
+Then four real player bugs, each found with the new diagnostics (`TIGER_CONSOLE=1` prints
+the page console as TIGER-CONSOLE; `TIGER-MEDIA stall:` state line when no frame shows for
+2 s; `tigeraudio32: t=Ns read= write= paused=` heartbeat):
+1. Clicking the video in TIGER_SCRIPT paused it -- YouTube autoplays here; "click; wait 1;
+   click" keeps it playing and focuses the player for `key l`.
+2. Audio push blocked the decode thread (ring lead cap) and a page pause left it there
+   forever; audio is now pushed from the loop as the ring drains, gated like video.
+3. Quality switch: queued 360p samples were decoded by the freshly opened 480p decoder
+   (grey garbage for ~1 s, shot-yt8-early.png); samples now carry their init segment's
+   config index, the decoder reopens per sample and waits for a sync sample.
+4. Ring flush at seek raced the consumer (readIndex past writeIndex, occupancy wrapped,
+   ring "full" forever): pause -> 15 ms -> align -> unpause.
+Also: the i386 helper is forked lazily (YouTube's idle <video>s spawned five); the
+low-water flag latch (reset on enqueue; readyForMoreSamples always provides).
+
+Costs on the box: web process 45-140% CPU while playing 480p (paint of 1.6 MB BGRA
+frames through cairo + YouTube JS), helper 3%. Open: the switch shows a ~2.7 s freeze
+(new frames start 2.7 s past the clock after the re-enqueue), startup stutter at 3-8 s
+(fps 5-15 while the first segments arrive), 720p untested, remove() during playback not
+seen in these runs (YouTube did not call it in 90 s), audio-only/`<audio>` untested.

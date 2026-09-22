@@ -81,8 +81,12 @@ int main(int argc, char** argv)
     fprintf(stderr, "tigeraudio32: playing %u Hz from %s\n", ring->sampleRate, argv[1]);
 
     pid_t parent = getppid();
-    while (ring->magic == TAR_MAGIC && getppid() == parent)
+    unsigned ticks = 0;
+    while (ring->magic == TAR_MAGIC && getppid() == parent) {
         usleep(200000);
+        if (++ticks % 25 == 0) // every 5 s: is the HAL still calling us?
+            fprintf(stderr, "tigeraudio32: t=%us read=%u write=%u paused=%u underruns=%u\n", ticks / 5, ring->readIndex, ring->writeIndex, ring->paused, ring->underrunCount);
+    }
 
     AudioOutputUnitStop(unit);
     AudioUnitUninitialize(unit);

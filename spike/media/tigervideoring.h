@@ -15,7 +15,7 @@
 #define TVR_HEADER_BYTES 64u
 
 // Pixels are BGRA (premultiplied-irrelevant: opaque), row 0 = top, stride = width * 4.
-typedef struct {
+typedef struct TigerVideoRing {
     uint32_t magic;
     uint32_t width;
     uint32_t height;
