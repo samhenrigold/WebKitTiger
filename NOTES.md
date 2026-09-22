@@ -3831,3 +3831,13 @@ and the GPU process's Cocoa-only video-frame members are gated. The page is draw
 upside down: a y-flip between the WC bitmap and the CA scene (spike/wk2web/first-window.png).
 Also seen: a second web process (core identifier 6, its own GPU connection) and two
 "Error sending IPC message: Broken pipe" lines -- to look at.
+
+### 12:48 — right side up
+
+`BackingStore::paint` now counter-flips around the backing store rect: the view is
+flipped (`TigerWK2View isFlipped`), and CGContextDrawImage in a flipped context puts
+the image's first row at the rect's mathematical bottom. EPIPE on the stream socket
+is now treated as the peer closing (it was logged as "Error sending IPC message:
+Broken pipe" whenever the first web process went away after the process swap to the
+page's own process -- the second web process, core identifier 6, is that swap, not a
+bug). Next: a real HTTPS page with sampling on, and the GPU process's 130% CPU.
