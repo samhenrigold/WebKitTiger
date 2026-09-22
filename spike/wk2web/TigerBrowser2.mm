@@ -155,6 +155,9 @@ void ChromeLoadObserver::update()
     [_view setAutoresizingMask:(NSViewWidthSizable | NSViewHeightSizable)];
     [content addSubview:_view];
 
+    // Key, not just front: -interpretKeyEvents: goes through NSInputManager, which
+    // wants a key window with a first responder before it will call back.
+    [_window makeKeyAndOrderFront:nil];
     [_window orderFrontRegardless];
     [NSApp activateIgnoringOtherApps:YES];
 
@@ -222,7 +225,8 @@ void ChromeLoadObserver::update()
 }
 
 // ------------------------------------------------------ scripted interaction --
-// TIGER_SCRIPT="wait 5; click 300,400; type hello; key return; keymod cmd a;
+// TIGER_SCRIPT="wait 5; click 300,400; click shift 400,400; drag 20,20 300,20;
+//              type hello; key return; keymod cmd a;
 //              keymod opt left; keymod shift opt right; scroll 0,-300; shot /path.png; load URL"
 // Coordinates are view points, y down, as the page sees them. Events are real NSEvents
 // posted to the view's handlers, so they take the same path as the user's. This is how
@@ -230,11 +234,72 @@ void ChromeLoadObserver::update()
 static NSMutableArray* scriptSteps;
 static unsigned scriptIndex;
 
-- (NSEvent*)mouseEventOfType:(NSEventType)type at:(NSPoint)viewPoint
+static unsigned modifierMaskFromWords(NSArray* words, unsigned upTo)
+{
+    unsigned flags = 0;
+    for (unsigned i = 0; i < upTo; ++i) {
+        NSString* word = [[words objectAtIndex:i] lowercaseString];
+        if ([word isEqualToString:@"cmd"] || [word isEqualToString:@"command"])
+            flags |= NSCommandKeyMask;
+        else if ([word isEqualToString:@"opt"] || [word isEqualToString:@"alt"] || [word isEqualToString:@"option"])
+            flags |= NSAlternateKeyMask;
+        else if ([word isEqualToString:@"shift"])
+            flags |= NSShiftKeyMask;
+        else if ([word isEqualToString:@"ctrl"] || [word isEqualToString:@"control"])
+            flags |= NSControlKeyMask;
+    }
+    return flags;
+}
+
+static NSPoint pointFromString(NSString* spec)
+{
+    NSArray* xy = [spec componentsSeparatedByString:@","];
+    if ([xy count] < 2)
+        return NSZeroPoint;
+    return NSMakePoint([[xy objectAtIndex:0] floatValue], [[xy objectAtIndex:1] floatValue]);
+}
+
+- (NSEvent*)mouseEventOfType:(NSEventType)type at:(NSPoint)viewPoint flags:(unsigned)flags
 {
     NSPoint windowPoint = [_view convertPoint:viewPoint toView:nil];
-    return [NSEvent mouseEventWithType:type location:windowPoint modifierFlags:0 timestamp:[NSDate timeIntervalSinceReferenceDate]
+    return [NSEvent mouseEventWithType:type location:windowPoint modifierFlags:flags timestamp:[NSDate timeIntervalSinceReferenceDate]
         windowNumber:[_window windowNumber] context:[_window graphicsContext] eventNumber:0 clickCount:1 pressure:0];
+}
+
+- (NSEvent*)mouseEventOfType:(NSEventType)type at:(NSPoint)viewPoint
+{
+    return [self mouseEventOfType:type at:viewPoint flags:0];
+}
+
+// "click 100,40", "click shift 300,40": modifiers then one point.
+- (void)clickAt:(NSString*)spec
+{
+    NSArray* words = [spec componentsSeparatedByString:@" "];
+    if (![words count])
+        return;
+    unsigned flags = modifierMaskFromWords(words, [words count] - 1);
+    NSPoint p = pointFromString([words objectAtIndex:[words count] - 1]);
+    [_window makeFirstResponder:_view];
+    [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:p flags:flags]];
+    [_view mouseDown:[self mouseEventOfType:NSLeftMouseDown at:p flags:flags]];
+    [_view mouseUp:[self mouseEventOfType:NSLeftMouseUp at:p flags:flags]];
+}
+
+// "drag 20,20 300,20": press, a few intermediate drags, release.
+- (void)dragFromTo:(NSString*)spec
+{
+    NSArray* words = [spec componentsSeparatedByString:@" "];
+    if ([words count] < 2)
+        return;
+    NSPoint from = pointFromString([words objectAtIndex:0]);
+    NSPoint to = pointFromString([words objectAtIndex:1]);
+    [_window makeFirstResponder:_view];
+    [_view mouseDown:[self mouseEventOfType:NSLeftMouseDown at:from]];
+    for (unsigned step = 1; step <= 8; ++step) {
+        NSPoint p = NSMakePoint(from.x + (to.x - from.x) * step / 8, from.y + (to.y - from.y) * step / 8);
+        [_view mouseDragged:[self mouseEventOfType:NSLeftMouseDragged at:p]];
+    }
+    [_view mouseUp:[self mouseEventOfType:NSLeftMouseUp at:to]];
 }
 
 // One place where a scripted key becomes an NSEvent. Command combinations go to
@@ -295,18 +360,7 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
     NSArray* words = [spec componentsSeparatedByString:@" "];
     if (![words count])
         return;
-    unsigned flags = 0;
-    for (unsigned i = 0; i + 1 < [words count]; ++i) {
-        NSString* word = [[words objectAtIndex:i] lowercaseString];
-        if ([word isEqualToString:@"cmd"] || [word isEqualToString:@"command"])
-            flags |= NSCommandKeyMask;
-        else if ([word isEqualToString:@"opt"] || [word isEqualToString:@"alt"] || [word isEqualToString:@"option"])
-            flags |= NSAlternateKeyMask;
-        else if ([word isEqualToString:@"shift"])
-            flags |= NSShiftKeyMask;
-        else if ([word isEqualToString:@"ctrl"] || [word isEqualToString:@"control"])
-            flags |= NSControlKeyMask;
-    }
+    unsigned flags = modifierMaskFromWords(words, [words count] - 1);
     unichar character = 0;
     unsigned short code = 0;
     unsigned extraFlags = 0;
@@ -336,14 +390,11 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
     fprintf(stderr, "TIGER script: %s\n", [step UTF8String]);
     if ([verb isEqualToString:@"wait"])
         delay = [rest doubleValue];
-    else if ([verb isEqualToString:@"click"]) {
-        NSArray* xy = [rest componentsSeparatedByString:@","];
-        NSPoint p = NSMakePoint([[xy objectAtIndex:0] floatValue], [[xy objectAtIndex:1] floatValue]);
-        [_window makeFirstResponder:_view];
-        [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:p]];
-        [_view mouseDown:[self mouseEventOfType:NSLeftMouseDown at:p]];
-        [_view mouseUp:[self mouseEventOfType:NSLeftMouseUp at:p]];
-    } else if ([verb isEqualToString:@"type"])
+    else if ([verb isEqualToString:@"click"])
+        [self clickAt:rest];
+    else if ([verb isEqualToString:@"drag"])
+        [self dragFromTo:rest];
+    else if ([verb isEqualToString:@"type"])
         [self typeString:rest];
     else if ([verb isEqualToString:@"key"] || [verb isEqualToString:@"keymod"])
         [self sendKeyCombination:rest];

@@ -194,6 +194,33 @@ static NSString* commandNameForSelector(SEL selector)
 // ponytail: plain text only, and the page's own Copy/Paste editor commands and the
 // JavaScript clipboard API still see an empty pasteboard. Upgrade path: the
 // PasteboardStrategy -> WebPasteboardProxy wiring the GTK and WPE ports use.
+// 10.4 hands a process launched outside the console session no pasteboard server
+// at all ([NSPasteboard generalPasteboard] is nil, and pbcopy/pbpaste are just as
+// dead there), so the clipboard falls back to one held in this process. A window
+// opened from the Finder gets the real system pasteboard.
+// ponytail: the fallback is per-process, so copy between two of these windows
+// only works through the real pasteboard. It is the same ceiling every app on the
+// box has when pbs is unreachable.
+static NSString* sFallbackPasteboardText;
+
+static void writePlainTextToPasteboard(NSString* text)
+{
+    NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];
+    if (pasteboard) {
+        [pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
+        [pasteboard setString:text forType:NSStringPboardType];
+        return;
+    }
+    [sFallbackPasteboardText release];
+    sFallbackPasteboardText = [text copy];
+}
+
+static NSString* plainTextFromPasteboard()
+{
+    NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];
+    return pasteboard ? [pasteboard stringForType:NSStringPboardType] : sFallbackPasteboardText;
+}
+
 - (void)copy:(id)sender
 {
     RefPtr page = [self page];
@@ -202,9 +229,7 @@ static NSString* commandNameForSelector(SEL selector)
     page->getSelectionOrContentsAsString([](const String& selection) {
         if (selection.isEmpty())
             return;
-        NSPasteboard* pasteboard = [NSPasteboard generalPasteboard];
-        [pasteboard declareTypes:[NSArray arrayWithObject:NSStringPboardType] owner:nil];
-        [pasteboard setString:selection.createNSString().get() forType:NSStringPboardType];
+        writePlainTextToPasteboard(selection.createNSString().get());
     });
 }
 
@@ -220,7 +245,7 @@ static NSString* commandNameForSelector(SEL selector)
 
 - (void)paste:(id)sender
 {
-    NSString* text = [[NSPasteboard generalPasteboard] stringForType:NSStringPboardType];
+    NSString* text = plainTextFromPasteboard();
     if ([text length])
         [self executeEditCommand:@"InsertText" argument:text];
 }
@@ -248,6 +273,14 @@ static NSString* commandNameForSelector(SEL selector)
     _interpreting = YES;
     [self interpretKeyEvents:[NSArray arrayWithObject:event]];
     _interpreting = NO;
+
+    if (getenv("TIGER_KEYLOG")) {
+        fprintf(stderr, "TIGER-KEY: chars=%s flags=0x%x key=%s -> text=%s commands=%s\n",
+            [[event characters] UTF8String], (unsigned)[event modifierFlags],
+            [[NSApp keyWindow] isEqual:[self window]] ? "yes" : "no",
+            _interpretedText ? [_interpretedText UTF8String] : "(none)",
+            [[_interpretedCommands componentsJoinedByString:@","] UTF8String]);
+    }
 
     // A dead-key composition ends with text the event itself does not carry, so
     // the raw event would insert nothing (or the wrong thing) in the page.
