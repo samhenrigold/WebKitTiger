@@ -4,6 +4,14 @@
 #   spike/wk2web/stage-app.sh [url] [seconds]
 set -e
 WKT=/Users/shg/Developer/WebKitTiger
+# One user of the box at a time: several agents share it. Waits up to 10 minutes.
+exec 9>"$WKT/spike/wk2web/box.lock"
+python3 -c 'import fcntl,sys,time
+f=open(sys.argv[1],"w")
+for _ in range(600):
+    try: fcntl.flock(f, fcntl.LOCK_EX|fcntl.LOCK_NB); sys.exit(0)
+    except OSError: time.sleep(1)
+sys.exit(1)' "$WKT/spike/wk2web/box.lock" || { echo "stage-app: box busy for 10 min, giving up"; exit 1; }
 URL=${1:-http://example.com/}
 SECS=${2:-15}
 APP_ENV=${APP_ENV:-}   # e.g. APP_ENV=TIGER_GPU=0 to keep the GPU process out
