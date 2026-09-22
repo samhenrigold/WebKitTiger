@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>hover latency</title>
+<style>
+  body { font: 16px/1.4 Helvetica, sans-serif; margin: 0; }
+  .band { height: 60px; padding: 8px 20px; border-bottom: 1px solid #ccc; }
+  a { display: inline-block; width: 300px; }
+  #filler { height: 4000px; background: linear-gradient(#fff, #eee); }
+</style>
+<div class=band><a href="#1">link one (hover me)</a></div>
+<div class=band>plain text, no link here</div>
+<div class=band><a href="#2">link two (hover me)</a></div>
+<div id=filler>scroll filler</div>
+<script>
+// TIGER_BUSY=<ms>: burn this much main-thread time every 16 ms, to stand in for an
+// ad iframe's timer storm without loading one.
+var busy = +(location.hash.replace('#busy=', '')) || 0;
+if (busy) setInterval(function () { var end = Date.now() + busy; while (Date.now() < end); }, 16);
+</script>

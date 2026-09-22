@@ -21,7 +21,9 @@
 #include "TigerCrashCatcher.h"
 #include "TigerWebView.h"
 #include "NativeWebWheelEvent.h"
+#include "WebWheelEvent.h"
 #include <WebCore/ScrollTypes.h>
+#include <WebCore/Scrollbar.h>
 #include "WebBackForwardList.h"
 #include "WebPageProxy.h"
 #include "WebPreferences.h"
@@ -227,7 +229,8 @@ void ChromeLoadObserver::update()
 // ------------------------------------------------------ scripted interaction --
 // TIGER_SCRIPT="wait 5; click 300,400; click shift 400,400; drag 20,20 300,20;
 //              type hello; key return; keymod cmd a;
-//              keymod opt left; keymod shift opt right; scroll 0,-300; shot /path.png; load URL"
+//              keymod opt left; keymod shift opt right; scroll 0,-300; shot /path.png; load URL;
+//              move 200,150; wheel 400,300 0,-3"
 // Coordinates are view points, y down, as the page sees them. Events are real NSEvents
 // posted to the view's handlers, so they take the same path as the user's. This is how
 // login flows and scrolling get exercised from a harness with nobody at the keyboard.
@@ -283,6 +286,34 @@ static NSPoint pointFromString(NSString* spec)
     [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:p flags:flags]];
     [_view mouseDown:[self mouseEventOfType:NSLeftMouseDown at:p flags:flags]];
     [_view mouseUp:[self mouseEventOfType:NSLeftMouseUp at:p flags:flags]];
+}
+
+// "wheel 400,300 0,-3": a wheel tick at a point, deltas in lines. 10.4 has no public
+// constructor for a scroll-wheel NSEvent, so the WebWheelEvent is built here and fed to
+// the same WebPageProxy entry point -[TigerWK2View scrollWheel:] uses, coalescer included.
+- (void)wheelAt:(NSString*)spec
+{
+    NSArray* words = [spec componentsSeparatedByString:@" "];
+    if ([words count] < 2)
+        return;
+    NSPoint p = pointFromString([words objectAtIndex:0]);
+    NSPoint ticks = pointFromString([words objectAtIndex:1]);
+    RefPtr page = _webView ? _webView->page() : nullptr;
+    if (!page)
+        return;
+    float perLine = static_cast<float>(WebCore::Scrollbar::pixelsPerLineStep());
+    if (getenv("TIGER_INPUTLOG"))
+        fprintf(stderr, "TIGER-INPUT: wheel dy=%.1f at %.0f,%.0f\n", (double)ticks.y, p.x, p.y);
+    auto wheelEvent = WebWheelEvent::create(
+        { WebEventType::Wheel, { }, MonotonicTime::now() },
+        {
+            .position = WebCore::IntPoint(p.x, p.y),
+            .globalPosition = WebCore::IntPoint(p.x, p.y),
+            .delta = WebCore::FloatSize(ticks.x * perLine, ticks.y * perLine),
+            .wheelTicks = WebCore::FloatSize(ticks.x, ticks.y),
+            .granularity = WebWheelEvent::Granularity::ScrollByPixelWheelEvent,
+        });
+    page->handleNativeWheelEvent(NativeWebWheelEvent::create(wheelEvent.get()));
 }
 
 // "drag 20,20 300,20": press, a few intermediate drags, release.
@@ -398,6 +429,10 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
         [self typeString:rest];
     else if ([verb isEqualToString:@"key"] || [verb isEqualToString:@"keymod"])
         [self sendKeyCombination:rest];
+    else if ([verb isEqualToString:@"move"])
+        [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:pointFromString(rest)]];
+    else if ([verb isEqualToString:@"wheel"])
+        [self wheelAt:rest];
     else if ([verb isEqualToString:@"scroll"]) {
         NSArray* xy = [rest componentsSeparatedByString:@","];
         // No public constructor for scroll-wheel NSEvents on 10.4 and WebWheelEvent's is

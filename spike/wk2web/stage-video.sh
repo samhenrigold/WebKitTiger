@@ -44,7 +44,7 @@ ssh tiger-eth "cd $DEST/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env
   sleep 8; echo '== procs at 8s'; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep | cut -c1-80; \
   sleep 12; screencapture -x $DEST/shot.png; \
   sleep 10; echo '== procs at 30s'; ps -axo pid,rss,%cpu,command | grep -E 'Tiger(Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep | cut -c1-80; \
-  sleep $((SECS - 30)); ps -axo pid,command | awk '$2 ~ /^\.\/Tiger/ || $2 ~ /\/wk2[a-z]*\// {print $1}' | xargs kill 2>/dev/null; rm -f /tmp/webkit-audio-* /tmp/webkit-video-*; sleep 1; \
+  sleep $((SECS - 30)); ps -axo pid,command | awk '\$2 ~ /^\.\/Tiger/ || \$2 ~ /\/wk2[a-z]*\// {print \$1}' | xargs kill 2>/dev/null; rm -f /tmp/webkit-audio-* /tmp/webkit-video-*; sleep 1; \
   echo '== after'; ps -axo pid,command | grep -E 'Tiger(Browser2|WebProcess|NetworkProcess|GPUProcess)' | grep -v grep; true"
 scp -qO tiger-eth:$DEST/shot.png "$SHOT"
 ssh tiger-eth "cat $DEST/app.log" > "$LOG"

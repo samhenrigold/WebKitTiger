@@ -40,7 +40,7 @@ done
 rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:$DIR/bin/
 ssh tiger-eth "test -d $DIR/Frameworks/QuartzCore.framework" 2>/dev/null || rsync -rtl -z --partial --inplace --bwlimit=20000 "$WKT/spike/CAHost/Frameworks/QuartzCore.framework" tiger-eth:$DIR/Frameworks/
 
-ssh tiger-eth "cd $DIR/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV ./TigerBrowser2 '$URL' $SECS > $DIR/app-$MODE.log 2>&1 &) ; sleep $((SECS - 4)); screencapture -x $DIR/shot-$MODE.png; sleep 3; ps -axo pid,command | awk '$2 ~ /^\.\/Tiger/ || $2 ~ /\/wk2[a-z]*\// {print $1}' | xargs kill 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E '[T]iger(Browser2|WebProcess|NetworkProcess|GPUProcess)'; true"
+ssh tiger-eth "cd $DIR/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV ./TigerBrowser2 '$URL' $SECS > $DIR/app-$MODE.log 2>&1 &) ; sleep $((SECS - 4)); screencapture -x $DIR/shot-$MODE.png; sleep 3; ps -axo pid,command | awk '\$2 ~ /^\.\/Tiger/ || \$2 ~ /\/wk2[a-z]*\// {print \$1}' | xargs kill 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E '[T]iger(Browser2|WebProcess|NetworkProcess|GPUProcess)'; true"
 scp -qO tiger-eth:$DIR/shot-$MODE.png "$WKT/spike/wk2web/controls-$MODE.png"
 echo "== app.log"; ssh tiger-eth "tail -25 $DIR/app-$MODE.log"
 echo "screenshot: $WKT/spike/wk2web/controls-$MODE.png"

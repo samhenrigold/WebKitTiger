@@ -62,10 +62,25 @@ using namespace WebKit;
     [[self window] makeFirstResponder:self];
 }
 
+// TIGER_INPUTLOG=1 prints one line as each input event leaves the UI process. The
+// matching TIGER-INPUT: cursor line comes from TigerWebView::setCursor, so hover
+// latency is the gap between the two in the timestamped app.log.
+static bool inputLoggingEnabled()
+{
+    static int enabled = -1;
+    if (enabled < 0)
+        enabled = getenv("TIGER_INPUTLOG") ? 1 : 0;
+    return enabled;
+}
+
 - (void)mouseEvent:(NSEvent*)event
 {
     if (!_webView || !_webView->page())
         return;
+    if (inputLoggingEnabled()) {
+        NSPoint p = [self convertPoint:[event locationInWindow] fromView:nil];
+        fprintf(stderr, "TIGER-INPUT: mouse type=%d at %.0f,%.0f\n", (int)[event type], p.x, p.y);
+    }
     _webView->page()->handleMouseEvent(NativeWebMouseEvent::create(event, nil, self, WebEventInputSource::UserDriven));
 }
 - (void)mouseDown:(NSEvent*)event { [self mouseEvent:event]; }
@@ -83,6 +98,8 @@ using namespace WebKit;
 {
     if (!_webView || !_webView->page())
         return;
+    if (inputLoggingEnabled())
+        fprintf(stderr, "TIGER-INPUT: wheel dy=%.1f\n", (double)[event deltaY]);
     _webView->page()->handleNativeWheelEvent(NativeWebWheelEvent::create(event, self));
 }
 
