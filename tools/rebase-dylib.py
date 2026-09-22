@@ -98,6 +98,23 @@ for i in range(nsyms):
         n_syms += 1
 print(f"symbols: {n_syms} slid")
 
+# Pass 4b: make the relocation table __TEXT-relative and drop MH_SPLIT_SEGS. With the flag
+# set dyld still tries shared_region_map_file_np first (EINVAL outside the region) and
+# then makes the whole shared region private. Without it dyld maps the image normally and,
+# should it ever have to slide, reads r_address relative to __TEXT -- so rewrite them.
+text_base = segs[0][2]
+delta = (base - text_base) & 0xffffffff
+n_rewritten = n_scattered = 0
+for reloff, nrel in ((dysymtab[16], dysymtab[17]), (dysymtab[14], dysymtab[15])):
+    for i in range(nrel):
+        r_address, = struct.unpack_from("<I", b, reloff + 8*i)
+        if r_address & 0x80000000:
+            n_scattered += 1; continue  # 24-bit field, cannot hold the offset
+        struct.pack_into("<I", b, reloff + 8*i, (r_address + delta) & 0xffffffff); n_rewritten += 1
+print(f"relocs rewritten __TEXT-relative: {n_rewritten}, scattered (left): {n_scattered}")
+assert n_scattered == 0, "scattered relocations cannot be made __TEXT-relative; keep MH_SPLIT_SEGS"
+flags &= ~MH_SPLIT_SEGS
+
 # Pass 5: module table objc_module_info_addr (absolute, in __OBJC).
 modtaboff, nmodtab = dysymtab[8], dysymtab[9]
 n_mod = 0
@@ -107,8 +124,6 @@ for i in range(nmodtab):
         struct.pack_into("<I", b, modtaboff + 52*i + 44, (addr + slide) & 0xffffffff); n_mod += 1
 print(f"module table: {n_mod} objc_module_info_addr slid")
 
-# Keep MH_SPLIT_SEGS: it is what tells dyld the relocations are __DATA-relative, and with
-# every segment outside the shared-region range dyld maps the image normally anyway.
 # Prebinding is stale on 10.4 (Leopard dependents), so drop it and let dyld bind.
 struct.pack_into("<I", b, 24, flags & ~MH_PREBOUND)
 open(dst, "wb").write(b)

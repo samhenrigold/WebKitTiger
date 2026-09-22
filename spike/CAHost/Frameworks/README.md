@@ -1,8 +1,8 @@
 # Rebundled QuartzCore
 
 `QuartzCore.framework/Versions/A/QuartzCore` is Leopard's i386 QuartzCore (1.6.0) rebased on
-disk with `tools/rebase-dylib.py` to `__TEXT 0x60000000` (`__DATA 0x70000000`), prebinding
-cleared. `QuartzCore.leopard-original` is the untouched input.
+disk with `tools/rebase-dylib.py` to `__TEXT 0x60000000` (`__DATA 0x70000000`), relocations rewritten
+`__TEXT`-relative, MH_SPLIT_SEGS and prebinding cleared. `QuartzCore.leopard-original` is the untouched input.
 
 Why: the original is a split-seg dylib prebound into the 10.4 shared-region range
 (0x93c42000). Loading it there made dyld either map it into the system-wide shared region
@@ -10,7 +10,7 @@ Why: the original is a split-seg dylib prebound into the 10.4 shared-region rang
 and fault in `doRebase` (split-seg relocations are `__DATA`-relative; see the tool).
 At a fixed address below the shared region dyld maps it like any dylib: no shared
 region, no runtime rebase. Verified 2026-09-22 with a load-time-linked and a dlopen test
-program on the box.
+program on the box: no `shared_region_make_private_np`, `CACurrentMediaTime` resolves at 0x601bc36e.
 
 Regenerate:
 
