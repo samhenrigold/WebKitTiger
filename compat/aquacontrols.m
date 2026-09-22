@@ -13,6 +13,8 @@
 #import <Carbon/Carbon.h>
 #import <TigerCompat/AquaControls.h>
 
+#include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* NSControlSize is 0 regular, 1 small, 2 mini on 10.4; 3 (large) is 10.16 and
@@ -449,6 +451,74 @@ void TigerDrawFocusRing(CGContextRef context, CGRect rect, float cornerRadius)
 }
 
 /* ------------------------------------------------------------------ entry */
+
+/* Render a control into a fresh premultiplied-BGRA buffer, for a caller that has no
+ * AppKit of its own. The x86_64 web process paints its own pixels in fast mode and
+ * its own tiles in faithful mode, so a bitmap -- not a replayed draw -- is the one
+ * artefact that serves both; it asks the 32-bit UI process for this and blits it.
+ *
+ * style->rect should be at the origin: the cell paints outside the border box, so the
+ * buffer covers TigerControlDrawingBounds and *outOriginX/Y report where its top-left
+ * sits relative to style->rect.origin (usually negative). Row 0 is the top row and the
+ * byte order is CAIRO_FORMAT_ARGB32's on a little-endian machine. free() the result.
+ */
+void *TigerRenderControlBitmap(TigerControlKind kind, const TigerControlStyle *style,
+                               int *outWidth, int *outHeight,
+                               int *outOriginX, int *outOriginY)
+{
+    CGRect bounds;
+    int x, y, w, h;
+    size_t stride, bytes;
+    void *data;
+    CGColorSpaceRef space;
+    CGContextRef ctx;
+
+    if (!style || kind >= TigerControlKindCount)
+        return NULL;
+
+    bounds = TigerControlDrawingBounds(kind, style);
+    x = (int)floorf(bounds.origin.x);
+    y = (int)floorf(bounds.origin.y);
+    w = (int)ceilf(bounds.origin.x + bounds.size.width) - x;
+    h = (int)ceilf(bounds.origin.y + bounds.size.height) - y;
+    /* A control larger than this is not a control; refuse rather than allocate it. */
+    if (w <= 0 || h <= 0 || w > 4096 || h > 4096)
+        return NULL;
+
+    stride = (size_t)w * 4;
+    bytes = stride * (size_t)h;
+    /* CGBitmapContextGetData is NULL on 10.4 for a context CoreGraphics allocated
+     * itself (spike/aquaatlas), so the buffer is ours. calloc: transparent backdrop,
+     * so whatever the cell does not cover keeps showing the page. */
+    data = calloc(1, bytes);
+    if (!data)
+        return NULL;
+
+    space = CGColorSpaceCreateDeviceRGB();
+    ctx = CGBitmapContextCreate(data, w, h, 8, stride, space,
+                                kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+    CGColorSpaceRelease(space);
+    if (!ctx) {
+        free(data);
+        return NULL;
+    }
+
+    /* TigerDrawControl wants WebCore's y-down space (beginDrawing wraps the port in a
+     * flipped NSGraphicsContext). Flipping here also puts user-space y=0 on memory row
+     * 0, which is the row order cairo and every image format expect. */
+    CGContextTranslateCTM(ctx, 0, h);
+    CGContextScaleCTM(ctx, 1, -1);
+    CGContextTranslateCTM(ctx, -x, -y);
+    TigerDrawControl(ctx, kind, style);
+    CGContextRelease(ctx);
+
+    if (outWidth) *outWidth = w;
+    if (outHeight) *outHeight = h;
+    if (outOriginX) *outOriginX = x;
+    if (outOriginY) *outOriginY = y;
+    return data;
+}
+
 
 void TigerControlStyleInit(TigerControlStyle *style, CGRect rect)
 {

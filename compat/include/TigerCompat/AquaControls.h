@@ -22,60 +22,11 @@
 #define TIGERCOMPAT_AQUACONTROLS_H
 
 #include <ApplicationServices/ApplicationServices.h>
+#include <TigerCompat/AquaControlKinds.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Mirrors the StyleAppearance cases that have a Mac control class. */
-typedef enum {
-    TigerControlButton = 0,
-    TigerControlDefaultButton,
-    TigerControlSquareButton,
-    TigerControlCheckbox,
-    TigerControlRadio,
-    TigerControlMenuList,
-    TigerControlMenuListButton,
-    TigerControlTextField,
-    TigerControlTextArea,
-    TigerControlSearchField,
-    TigerControlSliderTrackHorizontal,
-    TigerControlSliderTrackVertical,
-    TigerControlSliderThumbHorizontal,
-    TigerControlSliderThumbVertical,
-    TigerControlProgressBar,
-    TigerControlMeter,
-    TigerControlInnerSpinButton,
-    TigerControlScrollbarVertical,
-    TigerControlScrollbarHorizontal,
-    TigerControlFocusRing,
-    TigerControlKindCount
-} TigerControlKind;
-
-/* Bit-for-bit the values of WebCore::ControlStyle::State, so the content
- * process can pass its OptionSet straight through without a translation table
- * that could drift. The states with no meaning on Tiger are listed for that
- * reason and ignored. */
-enum {
-    TigerControlStateHovered                  = 1 << 0,
-    TigerControlStatePressed                  = 1 << 1,
-    TigerControlStateFocused                  = 1 << 2,
-    TigerControlStateEnabled                  = 1 << 3,
-    TigerControlStateChecked                  = 1 << 4,
-    TigerControlStateDefault                  = 1 << 5,
-    TigerControlStateWindowActive             = 1 << 6,
-    TigerControlStateIndeterminate            = 1 << 7,
-    TigerControlStateSpinUp                   = 1 << 8,
-    TigerControlStatePresenting               = 1 << 9,
-    TigerControlStateFormSemanticContext      = 1 << 10,
-    TigerControlStateDarkAppearance           = 1 << 11,  /* no dark Aqua on 10.4 */
-    TigerControlStateInlineFlippedWritingMode = 1 << 12,
-    TigerControlStateLargeControls            = 1 << 13,  /* 10.16 size class */
-    TigerControlStateReadOnly                 = 1 << 14,
-    TigerControlStateListButton               = 1 << 15,
-    TigerControlStateListButtonPressed        = 1 << 16,
-    TigerControlStateVerticalWritingMode      = 1 << 17
-};
 
 typedef struct {
     unsigned states;        /* the bits above */
@@ -99,6 +50,16 @@ void TigerControlStyleInit(TigerControlStyle *style, CGRect rect);
 /* Draws into the context's current coordinate system. The context is left as it
  * was found. */
 void TigerDrawControl(CGContextRef context, TigerControlKind kind, const TigerControlStyle *style);
+
+/* Render a control into a fresh premultiplied-BGRA buffer (row 0 is the top row,
+ * CAIRO_FORMAT_ARGB32's byte order on a little-endian machine), for a caller with no
+ * AppKit: the x86_64 web process asks the 32-bit UI process for this and blits it,
+ * which is the one artefact that works in both of this port's rendering modes.
+ * style->rect should be at the origin; the buffer covers TigerControlDrawingBounds and
+ * *outOriginX/Y report its top-left relative to style->rect.origin. free() the result. */
+void *TigerRenderControlBitmap(TigerControlKind kind, const TigerControlStyle *style,
+                               int *outWidth, int *outHeight,
+                               int *outOriginX, int *outOriginY);
 
 /* The focus ring WebCore draws for a control it painted itself, such as a text
  * field. Separate because the ring lives outside the control's border box and
