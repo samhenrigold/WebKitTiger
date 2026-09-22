@@ -4,7 +4,7 @@
 <dict>
     <key>Label</key><string>ai.portola.sshd-watchdog</string>
     <key>ProgramArguments</key><array><string>/Library/Scripts/sshd-watchdog.sh</string></array>
-    <key>StartInterval</key><integer>30</integer>
     <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
 </dict>
 </plist>

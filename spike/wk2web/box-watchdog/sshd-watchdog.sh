@@ -1,16 +1,22 @@
 #!/bin/sh
-# Tiger box watchdog: if the local ssh daemon stops greeting, the machine has wedged the
-# way it did on 2026-09-21 (pings fine, Finder fine, sshd and the Sharing pane hung).
-# Three consecutive failures, 30 s apart, and it reboots. Runs from launchd every 30 s.
-STATE=/var/run/sshd-watchdog.fails
-# A banner within 8 s means sshd is alive. nc on 10.4 has no -w banner read; use perl.
-if perl -e 'use IO::Socket::INET; $s=IO::Socket::INET->new(PeerAddr=>"127.0.0.1:22",Timeout=>8) or exit 1; $SIG{ALRM}=sub{exit 1}; alarm 8; $l=<$s>; exit(($l=~/^SSH-/)?0:1)'; then
-    rm -f "$STATE"; exit 0
-fi
-n=$(( $(cat "$STATE" 2>/dev/null || echo 0) + 1 )); echo $n > "$STATE"
-logger -t sshd-watchdog "sshd not greeting, failure $n/3"
-if [ "$n" -ge 3 ]; then
-    logger -t sshd-watchdog "rebooting"
-    rm -f "$STATE"
-    sync; /sbin/reboot
-fi
+# Tiger box watchdog. On 10.4 launchd owns port 22 and forks sshd per connection, so
+# "connect works, no SSH- banner" means launchd itself is wedged (2026-09-21/22: pings fine,
+# Finder fine, sshd and the Sharing pane hung). The first version of this was a launchd
+# StartInterval job, which a wedged launchd never runs. Now: one resident loop, started
+# once at boot, that never asks launchd for anything again. Three misses 30 s apart and it
+# calls reboot -q, the raw syscall path that skips the launchd/process-teardown dance.
+fails=0
+while :; do
+    if perl -e 'use IO::Socket::INET; $SIG{ALRM}=sub{exit 1}; alarm 8; $s=IO::Socket::INET->new(PeerAddr=>"127.0.0.1:22",Timeout=>8) or exit 1; $l=<$s>; exit(($l=~/^SSH-/)?0:1)'; then
+        fails=0
+    else
+        fails=$((fails + 1))
+        logger -t sshd-watchdog "sshd not greeting, failure $fails/3" &
+        if [ "$fails" -ge 3 ]; then
+            logger -t sshd-watchdog "rebooting" &
+            sleep 1
+            /sbin/reboot -q
+        fi
+    fi
+    sleep 30
+done
