@@ -1,0 +1,173 @@
+-- The C compiler identification is Clang 21.1.8
+-- The CXX compiler identification is Clang 21.1.8
+-- The CMake build type is: Release
+-- Found Perl: /usr/bin/perl (found suitable version "5.34.1", minimum required is "5.10.0")
+-- Found PerlModules: TRUE  found components: English FindBin JSON::PP
+-- Found Python: /opt/homebrew/Frameworks/Python.framework/Versions/3.14/bin/python3.14 (found version "3.14.7") found components: Interpreter
+-- Ruby interpreter executable
+-- Ruby interpreter executable - /Users/shg/.rbenv/shims/ruby (version: 2.6.10)
+-- Enabling ccache: Couldn't find ccache program. Not enabling it.
+-- Performing Test C_COMPILER_SUPPORTS_-gsimple-template-names
+-- Performing Test C_COMPILER_SUPPORTS_-gsimple-template-names - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-gsimple-template-names
+-- Performing Test CXX_COMPILER_SUPPORTS_-gsimple-template-names - Success
+-- Performing Test C_COMPILER_SUPPORTS_-mllvm -dwarf-linkage-names__Abstract
+-- Performing Test C_COMPILER_SUPPORTS_-mllvm -dwarf-linkage-names__Abstract - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-mllvm -dwarf-linkage-names__Abstract
+-- Performing Test CXX_COMPILER_SUPPORTS_-mllvm -dwarf-linkage-names__Abstract - Success
+-- Performing Test C_COMPILER_SUPPORTS_-fno-strict-aliasing
+-- Performing Test C_COMPILER_SUPPORTS_-fno-strict-aliasing - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-fno-strict-aliasing
+-- Performing Test CXX_COMPILER_SUPPORTS_-fno-strict-aliasing - Success
+-- Performing Test C_COMPILER_SUPPORTS_-fwrapv
+-- Performing Test C_COMPILER_SUPPORTS_-fwrapv - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-fwrapv
+-- Performing Test CXX_COMPILER_SUPPORTS_-fwrapv - Success
+-- Performing Test C_COMPILER_SUPPORTS_-fno-exceptions
+-- Performing Test C_COMPILER_SUPPORTS_-fno-exceptions - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-fno-exceptions
+-- Performing Test CXX_COMPILER_SUPPORTS_-fno-exceptions - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-fno-rtti
+-- Performing Test CXX_COMPILER_SUPPORTS_-fno-rtti - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-fcoroutines
+-- Performing Test CXX_COMPILER_SUPPORTS_-fcoroutines - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-tautological-compare
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-tautological-compare - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-tautological-compare
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-tautological-compare - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wcast-align
+-- Performing Test C_COMPILER_SUPPORTS_-Wcast-align - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wcast-align
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wcast-align - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wformat-security
+-- Performing Test C_COMPILER_SUPPORTS_-Wformat-security - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wmissing-format-attribute
+-- Performing Test C_COMPILER_SUPPORTS_-Wmissing-format-attribute - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wpointer-arith
+-- Performing Test C_COMPILER_SUPPORTS_-Wpointer-arith - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wundef
+-- Performing Test C_COMPILER_SUPPORTS_-Wundef - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wformat-security
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wformat-security - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wmissing-format-attribute
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wmissing-format-attribute - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wpointer-arith
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wpointer-arith - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wundef
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wundef - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Qunused-arguments
+-- Performing Test C_COMPILER_SUPPORTS_-Qunused-arguments - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-parentheses-equality
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-parentheses-equality - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-misleading-indentation
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-misleading-indentation - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-psabi
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-psabi - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-nullability-completeness
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-nullability-completeness - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Qunused-arguments
+-- Performing Test CXX_COMPILER_SUPPORTS_-Qunused-arguments - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-parentheses-equality
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-parentheses-equality - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-misleading-indentation
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-misleading-indentation - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-psabi
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-psabi - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-nullability-completeness
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-nullability-completeness - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-noexcept-type
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-noexcept-type - Success
+-- Performing Test C_COMPILER_SUPPORTS_-pipe
+-- Performing Test C_COMPILER_SUPPORTS_-pipe - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-pipe
+-- Performing Test CXX_COMPILER_SUPPORTS_-pipe - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Werror__undefined-inline
+-- Performing Test C_COMPILER_SUPPORTS_-Werror__undefined-inline - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Werror__undefined-internal
+-- Performing Test C_COMPILER_SUPPORTS_-Werror__undefined-internal - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Werror__undefined-inline
+-- Performing Test CXX_COMPILER_SUPPORTS_-Werror__undefined-inline - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Werror__undefined-internal
+-- Performing Test CXX_COMPILER_SUPPORTS_-Werror__undefined-internal - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-character-conversion
+-- Performing Test C_COMPILER_SUPPORTS_-Wno-character-conversion - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-character-conversion
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-character-conversion - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wall
+-- Performing Test C_COMPILER_SUPPORTS_-Wall - Success
+-- Performing Test C_COMPILER_SUPPORTS_-Wextra
+-- Performing Test C_COMPILER_SUPPORTS_-Wextra - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wall
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wall - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wextra
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wextra - Success
+-- Performing Test C_COMPILER_SUPPORTS_-fcolor-diagnostics
+-- Performing Test C_COMPILER_SUPPORTS_-fcolor-diagnostics - Success
+-- Performing Test C_COMPILER_SUPPORTS_-fdiagnostics-color__always
+-- Performing Test C_COMPILER_SUPPORTS_-fdiagnostics-color__always - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-fcolor-diagnostics
+-- Performing Test CXX_COMPILER_SUPPORTS_-fcolor-diagnostics - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-fdiagnostics-color__always
+-- Performing Test CXX_COMPILER_SUPPORTS_-fdiagnostics-color__always - Success
+-- Linker variant in use: UNKNOWN 
+--   Linker supports thin archives - FALSE
+--   Linker supports split debug info - FALSE
+--   Linker supports --gdb-index - FALSE
+--   Linker supports --disable-new-dtags - FALSE
+--   Linker supports --gc-sections - FALSE
+-- Archiver variant in use: 
+--   Archiver supports thin archives - FALSE
+-- C++ standard library in use: LIBCPP 19+
+--   Assertions enabled, _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
+-- Linker variant in use: UNKNOWN 
+--   Linker supports thin archives - FALSE
+--   Linker supports split debug info - FALSE
+--   Linker supports --gdb-index - FALSE
+--   Linker supports --disable-new-dtags - FALSE
+--   Linker supports --gc-sections - FALSE
+-- Archiver variant in use: 
+--   Archiver supports thin archives - FALSE
+-- C++ standard library in use: LIBCPP 19+
+--   Assertions enabled, _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- TIGER: configuring the WEB process
+-- TIGER: 64 of the shared features are compile-time macros, not CMake options: ENABLE_ROUTING_ARBITRATION;ENABLE_DOM_AUDIO_SESSION;ENABLE_MEDIA_USAGE;ENABLE_WEBASSEMBLY_DEBUGGER;ENABLE_GPU_PROCESS_MODEL;ENABLE_MODEL_PROCESS;ENABLE_RE_DYNAMIC_CONTENT_SCALING;ENABLE_THREADED_ANIMATIONS;ENABLE_SCROLLING_THREAD;ENABLE_UI_SIDE_COMPOSITING;ENABLE_TILED_CA_DRAWING_AREA;ENABLE_MACH_PORT_LAYER_HOSTING;ENABLE_INTERACTION_REGIONS_IN_EVENT_REGION;ENABLE_DATA_DETECTION;ENABLE_IMAGE_ANALYSIS;ENABLE_REVEAL;ENABLE_APP_HIGHLIGHTS;ENABLE_SCREEN_TIME;ENABLE_MULTI_REPRESENTATION_HEIC;ENABLE_ADVANCED_PRIVACY_PROTECTIONS;ENABLE_MANAGED_DOMAINS;ENABLE_APP_BOUND_DOMAINS;ENABLE_QUICKLOOK_FULLSCREEN;ENABLE_SEC_ITEM_SHIM;ENABLE_CFPREFS_DIRECT_MODE;ENABLE_EXTENSION_CAPABILITIES;ENABLE_NOTIFY_BLOCKING;ENABLE_LOGD_BLOCKING_IN_WEBCONTENT;ENABLE_TRUSTD_BLOCKING_IN_WEBCONTENT;ENABLE_LAUNCHSERVICES_SANDBOX_EXTENSION_BLOCKING;ENABLE_REMOVE_XPC_AND_MACH_SANDBOX_EXTENSIONS_IN_WEBCONTENT;ENABLE_CORE_IPC_SIGNPOSTS;ENABLE_LEGACY_PDFKIT_PLUGIN;ENABLE_PDF_PAGE_NUMBER_INDICATOR;ENABLE_AX_PDF_SUPPORT;ENABLE_ACCESSIBILITY_LOCAL_FRAME;ENABLE_INITIALIZE_ACCESSIBILITY_ON_DEMAND;ENABLE_COORDINATED_TOUCH_EVENTS;ENABLE_TOUCH_ACTION_REGIONS;ENABLE_TOUCH_EVENT_REGIONS;ENABLE_TWO_PHASE_CLICKS;ENABLE_MOMENTUM_EVENT_DISPATCHER;ENABLE_PLATFORM_DRIVEN_TEXT_CHECKING;ENABLE_NOTIFICATION_EVENT;ENABLE_WEB_PUSH_NOTIFICATIONS;ENABLE_DECLARATIVE_WEB_PUSH;ENABLE_SCROLL_POCKET_IN_FULLSCREEN;ENABLE_INSPECTOR_NETWORK_THROTTLING;ENABLE_IPC_TESTING_API;ENABLE_OPT_IN_PARTITIONED_COOKIES;ENABLE_NETWORK_ISSUE_REPORTING;ENABLE_EDITABLE_REGION;ENABLE_ACCESSIBILITY_ANIMATION_CONTROL;ENABLE_APPLE_PAY_NEW_BUTTON_TYPES;ENABLE_APPLE_PAY_UPDATE_SHIPPING_METHODS_WHEN_CHANGING_LINE_ITEMS;ENABLE_CONTEXT_MENU_QR_CODE_DETECTION;ENABLE_DESTINATION_COLOR_SPACE_DISPLAY_P3;ENABLE_OPUS;ENABLE_REMOTE_INSPECTOR_SERVICE_WORKER_AUTO_INSPECTION;ENABLE_VORBIS;ENABLE_VP9;ENABLE_WHEEL_EVENT_REGIONS;HAVE_AUDIO_COMPONENT_SERVER_REGISTRATIONS;ENABLE_ALL_LEGACY_REGISTERED_SPECIAL_URL_SCHEMES
+-- Disabling USE_SKIA_ENCODERS since USE_SKIA is disabled.
+-- Found the following WOFF2 libraries:
+--  WOFF2 (required): /Users/shg/Developer/WebKitTiger/WebKit-jsperf/../toolchain/sysroot-x86_64/usr/lib/libwoff2common.a
+--  dec (required): /Users/shg/Developer/WebKitTiger/WebKit-jsperf/../toolchain/sysroot-x86_64/usr/lib/libwoff2dec.a
+-- Found WOFF2: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/../toolchain/sysroot-x86_64/usr/lib/libwoff2common.a (found version "1.0.2")
+-- TIGER: recorded 218 IPC-relevant feature values
+-- Found Gperf: /Applications/Xcode-27.0.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/gperf (Required is at least version "3.0.1")
+-- Not recording the build settings: /Users/shg/Developer/WebKitTiger/build/tiger-web-jsperf is not in /Users/shg/Developer/WebKitTiger/WebKit-jsperf/WebKitBuild
+-- Using platform-specific CMakeLists: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Source/bmalloc/PlatformTiger.cmake
+-- Using platform-specific CMakeLists: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Source/WTF/wtf/PlatformTiger.cmake
+-- Copying generate-unified-source-bundles.py to: /Users/shg/Developer/WebKitTiger/build/tiger-web-jsperf/WTF/Scripts
+-- Using platform-specific CMakeLists: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Source/JavaScriptCore/PlatformTiger.cmake
+-- Performing Test CXX_COMPILER_SUPPORTS_-ffp-contract__off
+-- Performing Test CXX_COMPILER_SUPPORTS_-ffp-contract__off - Success
+-- Performing Test CXX_COMPILER_SUPPORTS_-fno-slp-vectorize
+-- Performing Test CXX_COMPILER_SUPPORTS_-fno-slp-vectorize - Success
+-- Using source list file: Sources.txt
+-- Platform-specific CMakeLists not found: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Source/JavaScriptCore/shell/PlatformTiger.cmake
+-- Using platform-specific CMakeLists: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Source/WebCore/PAL/pal/PlatformTiger.cmake
+-- Using source list file: Sources.txt
+-- Using platform-specific CMakeLists: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Source/WebCore/PlatformTiger.cmake
+-- Using source list file: Sources.txt
+-- Using source list file: platform/SourcesAdwaita.txt
+-- Using source list file: platform/SourcesCairo.txt
+-- Using source list file: SourcesTiger.txt
+-- Using platform-specific CMakeLists: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Source/WebKit/PlatformTiger.cmake
+-- Using source list file: Sources.txt
+-- Using source list file: Platform/Sources.txt
+-- Using source list file: SourcesMessageReceivers.txt
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-unused-parameter
+-- Performing Test CXX_COMPILER_SUPPORTS_-Wno-unused-parameter - Success
+-- Platform-specific CMakeLists not found: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Source/PlatformTiger.cmake
+-- Platform-specific CMakeLists not found: /Users/shg/Developer/WebKitTiger/WebKit-jsperf/Tools/PlatformTiger.cmake
+-- Enabled features:
+-- Configuring done (10.3s)
+-- Generating done (1.2s)
+-- Build files have been written to: /Users/shg/Developer/WebKitTiger/build/tiger-web-jsperf

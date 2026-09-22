@@ -1,0 +1,41 @@
+== procs at 8s
+ 8587  32180   0.7 ./TigerWK2App https://react.dev/ 30 -WebKitLogging Process,Lo
+ 8590 111464   1.7 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8591  27132   0.5 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8592  16840   1.2 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== procs at 27s
+ 8587  30364   0.0   0:00.88 ./TigerWK2App https://react.dev/ 30 -WebKitLogging 
+ 8590 110548   0.3   0:04.33 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8591  27136   0.0   0:01.09 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8592  16836   0.0   0:00.47 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== after
+log: logs/perf/react-jsafter.log (    4985 lines, 4805 samples)
+first visually non-empty layout at:    1.894 [co
+== procs at 8s
+ 8654  35932   1.0 ./TigerWK2App https://www.theverge.com/ 30 -WebKitLogging Pro
+ 8657 213332  150.7 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8658  31944   5.5 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8659  16840   1.2 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== procs at 27s
+ 8654  30832   2.3   0:02.24 ./TigerWK2App https://www.theverge.com/ 30 -WebKitL
+ 8657      0   0.0   0:00.00 (TigerWebProcess)
+ 8658  37108  92.7   0:05.83 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8659  16928   0.0   0:00.50 /Users/shg/wk2/bin/TigerGPUProcess s 5
+ 8669  58424  75.3   0:00.67 /Users/shg/wk2/bin/./TigerWebProcess 6 7
+ 8670  36056   4.7   0:00.20 /Users/shg/wk2/bin/./TigerWebProcess 7 7
+== after
+log: logs/perf/verge-jsafter.log (    7041 lines, 5935 samples)
+first visually non-empty layout at:    2.031 [co
+== procs at 8s
+ 8723  30288   1.9 ./TigerWK2App https://www.theverge.com/ 30 -WebKitLogging Pro
+ 8726 209316  149.7 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8727  34712   5.9 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8728  16884   1.0 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== procs at 27s
+ 8723  42200   2.7   0:02.32 ./TigerWK2App https://www.theverge.com/ 30 -WebKitL
+ 8726 484308  133.6   0:31.28 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8727  36200   7.8   0:05.55 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8728  16884   0.0   0:00.48 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== after
+log: logs/perf/verge-jit1.log (    6271 lines, 5408 samples)
+first visually non-empty layout at:    1.992 [co

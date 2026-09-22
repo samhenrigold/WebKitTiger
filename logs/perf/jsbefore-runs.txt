@@ -1,0 +1,36 @@
+stage-jsperf: waiting, already on the box:
+ 7931 ./TigerBrowser2 data:text/html,<input style="font-size:40px;width:600px;m
+== procs at 8s
+ 8007  30248   0.7 ./TigerWK2App https://react.dev/ 30 -WebKitLogging Process,Lo
+ 8014 111236   1.1 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8015  26208   1.0 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8020  16840   0.7 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== procs at 27s
+ 8007  28436   0.0   0:00.88 ./TigerWK2App https://react.dev/ 30 -WebKitLogging 
+ 8014 110308   0.4   0:04.32 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8015  26212   0.0   0:01.05 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8020  16836   0.0   0:00.47 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== after
+log: logs/perf/react-jsbefore.log (    4980 lines, 4808 samples)
+first visually non-empty layout at:    2.154 [co
+== procs at 8s
+ 8109      0   0.0 (TigerWebProcess)
+ 8110  27616   0.0 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8116  17728   0.0 /Users/shg/wk2/bin/TigerGPUProcess s 5
+ 8121 137192   0.2 /Users/shg/wk2/bin/./TigerWebProcess 6 10
+ 8125  30180   2.6 ./TigerWK2App https://www.theverge.com/ 30 -WebKitLogging Pro
+ 8128 177584  145.1 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8129  28592   0.9 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8130  16832   0.7 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== procs at 27s
+ 8109      0   0.0   0:00.00 (TigerWebProcess)
+ 8110  27628   0.0   0:01.84 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8116      0   0.0   0:00.00 (TigerGPUProcess)
+ 8121 139352   0.0   0:04.43 /Users/shg/wk2/bin/./TigerWebProcess 6 10
+ 8125  30624   0.1   0:01.92 ./TigerWK2App https://www.theverge.com/ 30 -WebKitL
+ 8128 439520  89.0   0:29.25 /Users/shg/wk2/bin/./TigerWebProcess 3 6
+ 8129  31744   9.0   0:05.44 /Users/shg/wk2/bin/./TigerNetworkProcess 4 6
+ 8130  16824   0.0   0:00.46 /Users/shg/wk2/bin/TigerGPUProcess s 5
+== after
+log: logs/perf/verge-jsbefore.log (    6607 lines, 5392 samples)
+first visually non-empty layout at:    2.824 [co

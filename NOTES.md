@@ -4121,3 +4121,21 @@ data: page with one <input>: click, "type hello tiger", "key return" -> text, ca
 focus ring, and onchange set the title. Keyboard path (NativeWebKeyboardEventTiger ->
 WebPage editing) is fine; x.com's login field not taking the click is a page-timing
 (hydration) matter to sort out with a later click.
+
+## x.com interaction: canvas readback stalled the main thread (2026-09-22)
+
+x.com's inputs and buttons ignored clicks, and its login flow page spun forever, not because
+events were wrong (clicks and typing were proven on example.com and a data: page) but because
+the web process main thread never ran the page's JS. The JS perf track sampled it: 80 of 98
+main-thread samples sat in IPC::StreamClientConnectionBuffer::tryAcquireAll under
+RemoteImageBufferProxy::getPixelBuffer / flushDrawingContext, i.e. canvas getImageData and
+toDataURL (fingerprinting scripts) round-tripping to a GPU process that never drained the stream.
+Fast mode had turned off DOM rendering in the GPU process but left canvas remote.
+
+Fix (WebPage::updatePreferences, TIGER/TIGER64): when accelerated compositing is off, clear
+m_shouldRenderCanvasInGPUProcess. x.com first visually non-empty layout 2.72 s -> 1.91 s, main
+thread idle from ~8 s, and the onboarding modal now opens on "Continue with phone" and the
+login flow page renders. Faithful mode still routes canvas remotely; the stream wake-up on the
+GPU side is the open bug (same family as the semaphore/POLLNVAL work).
+
+Also merged: tiger-fasttext (TigerGlyphFit, integral-ppem vertical fit).

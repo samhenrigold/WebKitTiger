@@ -1,0 +1,61 @@
+   0.404 TigerWK2App: loading https://en.wikipedia.org/wiki/Mac_OS_X_Tiger
+   0.561 [com.apple.WebKit:Process:4] 0x109a011a0 - NetworkProcess::initializeNetworkProcess: Presenting processPID=3564
+   0.562 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 3
+   0.563 [com.apple.WebKit:Process:4] 0x109a011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.564 [com.apple.WebKit:Process:4] 0x109a12960 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.564 [com.apple.WebKit:Process:4] 0x109a12960 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+   0.564 [com.apple.WebKit:Process:4] 0x109a12960 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+   0.564 [com.apple.WebKit:Process:4] 0x109a011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+   0.578 [com.apple.WebKit:Process:4] 0x109a011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+   0.639 [com.apple.WebKit:Process:4] 0x109c011a0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=3560
+   0.641 [com.apple.WebKit:Loading:4] 0x10c024400 - [webPageID=5] WebPage::constructor:
+   0.645 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+   0.673 [com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+   0.684 [com.apple.WebKit:Process:4] GPUProcessConnection::create(12)
+   0.693 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13, existingLoaderToResume=0)
+   0.693 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+   0.693 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13, existingLoaderToResume=0)
+   0.693 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13)
+   0.940 [com.apple.WebKit:Process:4] GPUProcessConnection::didInitialize(12)
+   1.025 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=20, existingLoaderToResume=0)
+   1.025 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=20)
+   1.025 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=21, existingLoaderToResume=0)
+   1.026 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=21)
+   1.026 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=22, existingLoaderToResume=0)
+   1.026 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=22)
+   1.031 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=23, existingLoaderToResume=0)
+   1.031 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=23)
+   1.032 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=24, existingLoaderToResume=0)
+   1.032 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=24)
+   1.032 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=25, existingLoaderToResume=0)
+   1.032 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=25)
+   1.097 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=26, existingLoaderToResume=0)
+   1.097 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=26)
+   1.501 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=36, existingLoaderToResume=0)
+   1.501 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=36)
+   1.503 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=37, existingLoaderToResume=0)
+   1.503 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=37)
+   1.505 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=38, existingLoaderToResume=0)
+   1.505 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=38)
+   1.507 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=41, existingLoaderToResume=0)
+   1.507 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=41)
+   1.508 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=42, existingLoaderToResume=0)
+   1.508 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=42)
+   1.510 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=43, existingLoaderToResume=0)
+   1.510 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=43)
+   1.515 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=44, existingLoaderToResume=0)
+   1.515 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=44)
+   1.538 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=45, existingLoaderToResume=0)
+   1.538 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=45)
+   1.666 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=70, existingLoaderToResume=0)
+   1.666 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=70)
+   1.830 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=71, existingLoaderToResume=0)
+   1.830 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=71)
+   1.831 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=72, existingLoaderToResume=0)
+   1.831 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=72)
+   2.233 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=83, existingLoaderToResume=0)
+   2.233 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=83)
+   3.164 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=92, existingLoaderToResume=0)
+   3.164 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3560, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=92)
+   6.087 [com.apple.WebKit:Loading:4] 0x109a12960 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::didClose: WebProcess closed its connection. Aborting related loaders.
+   6.087 [com.apple.WebKit:Process:4] 0x109a011a0 - NetworkProcess::removeNetworkConnectionToWebProcess: Removing process 3
