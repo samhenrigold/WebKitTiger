@@ -3366,3 +3366,49 @@ Also fixed while here: `IsAXAuthenticated` in WebProcessProxy.messages.in was
 `PLATFORM(MAC) || PLATFORM(MACCATALYST)`, a live wire divergence (the x86_64 peer is
 not MAC); now `(PLATFORM(MAC) && !PLATFORM(TIGER)) || PLATFORM(MACCATALYST)`.
 HAVE_SEC_KEY_PROXY and HAVE_APP_SSO are off for Tiger (10.14 / 10.15 frameworks).
+
+## 2026-09-21 — the UI process links, the first window, and the wire patch that was never applied
+
+`build/tiger-ui-port/bin/TigerWK2App` links (i386, 116 MB) after UI passes 1–13
+(`logs/ui32-pass-*.log`). Same census rule as the GPU side plus three new pieces:
+
+* **UIProcess/tiger/UIProcessTiger.mm**: the hooks the shared UI-process code calls
+  unconditionally and the Cocoa port implements in its ObjC-API files. Panels, speech
+  and defaults go through Tiger's public AppKit (NSColorPanel, NSFontManager,
+  NSSpeechSynthesizer, NSUserDefaults keys the Cocoa arm reads); sandbox, quarantine,
+  ITP, Lockdown Mode, capture permission answer honestly "no". Inspector target IDs are
+  copied verbatim from WebProcess/Inspector so both processes agree.
+* **104 generic arms enabled**: `#if !PLATFORM(COCOA)` → `(!PLATFORM(COCOA) || PLATFORM(TIGER))`
+  at each non-Cocoa definition site (TextChecker, WebPreferences, WebsiteDataStore
+  defaults, WebInspectorUIProxy platform*, WebPasteboardProxy, …). The Internals
+  destructor is the WebPageProxy::Internals vtable key function and was one of these.
+* **WebPageProxy.cpp**: 45 Cocoa blocks off under the rule (their WebPage messages are
+  not on this wire), found by compiling the object alone with -ferror-limit=0 and
+  gating the innermost PLATFORM(COCOA)/MAC/USE(APPKIT) `#if` of each error
+  (/tmp/gate.py in the session; the idea is worth a tools/ script).
+* Wire divergences fixed on both ends: IsAXAuthenticated, Show/HideValidationMessage,
+  SetObscuredContentInsets, PropagateDragAndDrop/StartDrag/SetPromisedDataForImage.
+* HAVE_SEC_KEY_PROXY, HAVE_APP_SSO, HAVE_GROUP_ACTIVITIES, HAVE_CGSTYLE_*,
+  HAVE_CG_PATH_CONTINUOUS_ROUNDED_RECT off for Tiger.
+* 300 app tombstones (`logs/ui32-tombstones.txt`, tools/tombstones-from-link.py) --
+  the same excluded WebCore Cocoa files as the GPU process plus the JSC ObjC API.
+* PAL: SleepDisablerTiger (no assertion yet; UpdateSystemActivity is the Tiger route),
+  LockdownModeTiger. compat: sandbox_check, SANDBOX_CHECK_NO_REPORT,
+  _CFStringGetUserDefaultEncoding, plus the earlier AXS/os_feature/CFWebServices.
+
+**First window** (`spike/wk2web/first-window.png`, `spike/wk2web/stage-app.sh`): a real
+Aqua window titled TigerWK2 from the i386 UI process; TigerWebProcess and
+TigerNetworkProcess spawn beside it (the launcher finds them next to the app). The page
+stayed blank and the web process was reported unresponsive at 0% CPU: a deadlocked
+handshake. Cause: `toolchain/patches/webkit-ipc-cross-abi.patch` (wireAlignmentOf,
+proven on the box in spike/ipcabi) had been applied to the WebKit-ipc worktree and
+never to this tree, so Encoder/Decoder still padded 64-bit scalars by alignof(T) --
+4 on i386, 8 on x86_64. Applied (6d066b5a); both ends rebuilding.
+
+Also learned: DrawingAreaWC composites in the GPU process, so this port needs all
+four processes even with UseGPUProcessForDOMRendering off; stage-app.sh stages
+TigerGPUProcess too. `TigerGPUProcess.crash.log` on the box is the first no-arg smoke
+run without the rebundled QuartzCore beside it, not a real crash.
+
+tiger-check-ipc UI vs WEB: flags agree (four deliberate divergences), generated
+serializers agree. Pass the trees as absolute paths; relative ones skip the file compare.
