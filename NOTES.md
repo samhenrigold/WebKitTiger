@@ -3977,3 +3977,13 @@ on purpose (Apple's cvt rounding rule for them not derived). TigerGlyphSnap now 
 under any axis-aligned CTM (zoom page 44.15 -> 10.78 inkluma). Sample page 17.36 ->
 10.73. Merged into tiger-fontcache as 69e6dca6 + 9e2719a9. Crops and method:
 spike/fasttext/README.md, out/pagedriver, out/zoom.
+
+### 15:11 — react.dev renders (fast mode is software again)
+
+`WebPage::updatePreferences` forces acceleratedCompositingEnabled back to true on every
+platform but GTK/Win/PlayStation/WPE, so any page with composited layers went to the
+GPU process's CA scene -- which has no read-back yet -- and the window stayed white
+(react.dev, The Verge). Tiger/Tiger64 are now in the exclusion list: fast mode keeps
+the WC drawing area in software (three TIGER paint probes, composited=0, contents
+960x9983) and react.dev shows fonts, SVG logo and buttons in TigerBrowser2. The
+faithful mode (GPU DOM rendering on) is the read-back agent's track.
