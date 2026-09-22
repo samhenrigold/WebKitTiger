@@ -4099,3 +4099,11 @@ With select() in the semaphore wait: react.dev renders in its own web font (WOFF
 decoded, Fontconfig bypassed), Wikipedia renders in faithful mode through
 TigerBrowser2 (TIGER_FAITHFUL=1: CA scene in the GPU process, read back), and the GPU
 process sits at 0.0% CPU idle in both modes. No TIGER IPC semaphore reports.
+
+### 16:40 — x.com in its own font; scripted interaction
+
+x.com renders in Chirp now (16:28 screenshot). TigerBrowser2 takes TIGER_SCRIPT
+("wait 5; click X,Y; type text; key return; scroll 0,-400; shot /path.png; load URL"):
+real NSEvents into the view's handlers for clicks and keys, WebPageProxy::scrollBy for
+scrolling (10.4 has no public scroll-wheel NSEvent constructor and WebWheelEvent's is
+protected), screencapture for shots. First use: type into x.com's login field.
