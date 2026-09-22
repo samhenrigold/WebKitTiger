@@ -3952,3 +3952,12 @@ line and menus around the shared TigerWK2View (spike/wk2web/TigerWK2View.{h,mm},
 out of the harness); title, URL, progress and button state come from a
 PageLoadState observer. `APP=TigerBrowser2 spike/wk2web/stage-app.sh URL SECS` runs
 it. Wikipedia shows with the right title and URL (first-window.png at 14:50).
+
+### 15:04 — glimpsed: the faithful path composites
+
+A screenshot of a react.dev chrome run caught the faithful-path agent's test page on
+the box at the same time: "Faithful composited layers" -- translateZ, rotate with
+opacity, rotateY, an overflow:hidden text layer -- drawn by the GPU process's CA
+scene. Details in that agent's report when it lands. The react.dev page itself was
+blank: its GPU process vanished with no crash line; confounded by the overlap (their
+killall), rerunning on a quiet box.
