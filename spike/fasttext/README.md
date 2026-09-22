@@ -237,3 +237,40 @@ integer. The existing harness tests this by moving `FT_LINE0`/`FT_LEADING` off i
 ## Recommendation
 
 See `NOTES.md`, "Fast mode's font options".
+
+## 2026-09-22 — run on the box through the real web process (run-box.sh)
+
+`run-box.sh` renders `sample.html` with `pagedriver` + the `build/tiger-web-text` web process
+(worktree `WebKit-fasttext`, commit 1d023af5: TigerGlyphSnap in FontCairo.cpp, TIGER64 font
+options) and scores it against `ctref32int`. Two things about the reference had to change first:
+
+* **The reference kerned and ligated; WebKit does not.** CTLine's defaults are kern on, liga on.
+  WebKit with `text-rendering: auto` turns both off on every backend (its own CoreText path sets
+  `kCTKernAttributeName` 0 and `kCTLigatureAttributeName` 0, SimpleFontDataCoreText.cpp). Against
+  the kerned reference the Times line drifted 3 px by its end and scored 82; against the fair
+  reference it is 28. `ctref32.c` now passes both attributes as 0.
+* `pkill` does not exist on 10.4; `killall` does.
+
+```
+                        inkluma   per line: LG13 LGB13 LG11 Helv16 HelvB16 Times16 TimesIt16 Hira16
+no snap (1d023af5^)      97.84
+snap (1d023af5)          17.36     12.7  16.8  6.6   24.5   14.2    28.4    17.2      7.1
+snap + TT bytecode at
+  integral ppem (v40)    27.42     24.1  29.7  19.6  28.9   19.0    49.5    34.0      7.1   <- reverted
+```
+
+The web process now lands where `fast64`'s replay of CoreText's own layout predicted (17.95), i.e.
+layout is no longer part of the difference. `out/pagedriver/crop-*.png` are 8x, reference over
+each variant; `crops.py` makes them.
+
+**What still differs, by eye:** at integer ppem Quartz puts a TrueType face's cap top and
+x-height on whole pixel rows (Helvetica 16: cap 11.63 -> 12, x-height 8.49 -> 9; Times 16:
+x-height 7.25 -> 8) and we do not, so the tops of x-height letters read one shade softer on the
+16 px lines. Lucida Grande 13 and 11 and Hiragino 16 are not fitted by Quartz either and match.
+Running FreeType's v40 interpreter at integral ppem does put those rows where Quartz has them
+(see `crop-Helv16.png`, third band) but this font's prep runs v40 in backward-compatibility mode,
+which also snaps stems in x and fattens them (ink 1.05-1.16); worse on every TrueType line, so it
+is not in the build. Closing it needs y-only bytecode, which FreeType does not offer as an
+option: render once hinted for y, once unhinted for x, and merge the outlines point-wise before
+rasterising (~60 lines in a custom glyph path bypassing cairo's glyph cache), and even then
+Apple's interpreter leaves 13/19/20/24 ppem unhinted where FreeType's does not.

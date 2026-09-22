@@ -1,0 +1,5 @@
+variant                          luma  inkluma      ink  per-line ink                              dy per line
+before                          1.555    17.36    0.987  1.00 1.03 1.01 0.96 0.98 0.95 1.04 1.00  -2 -2 -1 -3 -3 -3 -3 -1
+after                           2.457    27.42    1.002  1.02 0.97 1.05 0.93 1.00 1.03 1.16 1.00  -2 -2 -1 -3 -3 -3 -3 -1
+sheet /Users/shg/Developer/WebKitTiger/spike/fasttext/out/pagedriver/contact.png
+zoom /Users/shg/Developer/WebKitTiger/spike/fasttext/out/pagedriver/zoom.png
