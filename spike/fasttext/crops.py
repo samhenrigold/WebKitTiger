@@ -2,7 +2,7 @@
 """Zoomed side-by-side crops for looking at, not scoring: the CoreText reference on top,
 then each named PNG under it, per-line aligned by the same integer dy score.py picks.
 
-usage: crops.py <ref-smooth.bin> <outdir> <name=png> ...
+usage: crops.py [--lines line0 leading] <ref-smooth.bin> <outdir> <name=png> ...
 Writes <outdir>/crop-<line>.png (8x, ref over each variant) and a per-line score table.
 """
 import struct, sys
@@ -30,6 +30,9 @@ def best_dy(refL, imgL, rows):
     return best
 
 def main():
+    line0, leading = 17.0, 30.0
+    if sys.argv[1] == '--lines':
+        line0, leading = float(sys.argv[2]), float(sys.argv[3]); del sys.argv[1:4]
     ref = load_ref(sys.argv[1]); outdir = sys.argv[2]
     refL = ref.astype(float) @ LUMA
     variants = []
@@ -39,7 +42,7 @@ def main():
         variants.append((name, im, np.asarray(im, float)[:H, :W] @ LUMA))
     print('%-10s ' % 'line' + ' '.join('%12s' % v[0] for v in variants))
     for i, lname in enumerate(LINES):
-        base = 17 + 30 * i; rows = slice(base - 16, base + 6)
+        base = int(round(line0 + leading * i)); rows = slice(base - 16, base + 6)
         scores = [best_dy(refL, v[2], rows) for v in variants]
         print('%-10s ' % lname + ' '.join('%8.1f(%+d)' % s for s in scores))
         if i not in WINDOWS: continue

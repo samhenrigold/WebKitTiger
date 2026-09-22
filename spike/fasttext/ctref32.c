@@ -109,9 +109,9 @@ int main(int argc, char** argv)
 
     for (i = 0; i < FT_LINES; ++i) {
         const SampleLine* s = &kSample[i];
-        double baseline = FT_LINE0 + i * FT_LEADING;      /* from the top */
+        double baseline = (FT_LINE0 + i * FT_LEADING) * FT_SCALE;      /* from the top */
         CFStringRef name = CFStringCreateWithCString(NULL, s->psName, kCFStringEncodingUTF8);
-        CTFontRef font = CTFontCreateWithName(name, s->size, NULL);
+        CTFontRef font = CTFontCreateWithName(name, s->size * FT_SCALE, NULL);
         CFStringRef text = CFStringCreateWithCString(NULL, s->utf8, kCFStringEncodingUTF8);
         /* WebKit disables kerning and ligatures with text-rendering: auto on every backend
          * (SimpleFontDataCoreText.cpp sets kCTKern/kCTLigature to 0); CTLine's defaults are
@@ -127,9 +127,9 @@ int main(int argc, char** argv)
         CTLineRef line = CTLineCreateWithAttributedString(as);
         CFArrayRef runs = CTLineGetGlyphRuns(line);
         CFIndex r;
-        double pen = FT_X0;
+        double pen = FT_X0 * FT_SCALE;
 
-        CGContextSetTextPosition(ctx, FT_X0, FT_H - baseline);
+        CGContextSetTextPosition(ctx, FT_X0 * FT_SCALE, FT_H - baseline);
         CTLineDraw(line, ctx);
 
         for (r = 0; r < CFArrayGetCount(runs); ++r) {

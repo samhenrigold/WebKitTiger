@@ -6,6 +6,9 @@
 #define FT_W 720
 #define FT_H 264
 #define FT_X0 12.0          /* left margin, in points */
+#ifndef FT_SCALE
+#define FT_SCALE 1.0        /* ctref32zoom: a CTM scale, applied to size, pen and baseline alike */
+#endif
 #ifndef FT_LINE0
 #define FT_LINE0 17.25      /* first baseline, from the top -- deliberately NOT an integer */
 #endif
