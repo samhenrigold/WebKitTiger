@@ -24,6 +24,7 @@
 
 #include "config.h"
 
+#include "APINavigation.h"
 #include "APIPageConfiguration.h"
 #include "APIProcessPoolConfiguration.h"
 #include "TigerWebView.h"
@@ -132,7 +133,10 @@ int main(int argc, const char* argv[])
     WTF::initializeMainThread();
 
     [NSApplication sharedApplication];
-    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+    // TIGER: setActivationPolicy: is 10.6. TransformProcessType is the 10.3+ public way
+    // to make a bare executable a foreground app with a menu bar and Dock tile.
+    ProcessSerialNumber psn = { 0, kCurrentProcess };
+    TransformProcessType(&psn, kProcessTransformToForegroundApplication);
 
     NSRect frame = NSMakeRect(80, 80, 800, 600);
     NSWindow* window = [[NSWindow alloc] initWithContentRect:frame

@@ -3324,3 +3324,45 @@ processes' `_CodeSign` ALL targets leave the i386 build.
 at `/tmp/gpu/Frameworks` (install name `@executable_path/../Frameworks/...`) launches,
 dyld resolves everything, and it exits cleanly with no arguments. Not yet driven over
 a socket: the natural driver is the real UI process, which is the next gate.
+
+## 2026-09-21 — the system-symbol tombstones, sorted by the order of operations
+
+Of the 288 tombstones behind bin/TigerGPUProcess, 50 were system symbols rather
+than excluded WebKit files. Checked against Tiger's own binaries on the box
+(`nm -g` on CoreGraphics, AppKit, CoreFoundation, CFNetwork, HIToolbox):
+
+**Public Tiger API, routed to.** Web fonts: FontParser (10.13) is skipped on Tiger
+and the SFNT bytes go to compat's `CTFontManagerCreateFontDescriptorFromData`
+(ATSFontActivateFromMemory underneath; `CGFontCreateWithDataProvider` returns NULL
+for .ttf on 10.4, see ctcompat.c). Focus rings: `NSSetFocusRingStyle(NSFocusRingOnly)`
+with the target context made current, instead of the 10.7 `NSInitializeCGFocusRingStyleForTime`
+(ControlMac.mm). Popup-menu background colour: `HIThemeDrawMenuBackground`
+instead of the 10.5 `NSDrawMenuBackground` (RenderThemeMac.mm). `_Float16`
+conversions: compiler-rt builtins linked (`build/builtins-i386`). Search provider
+name and the accessibility bold-text switch: `compat/sysapi-polyfill.c` (NULL / false,
+which the callers already treat as "Google" / off). `_os_feature_enabled_impl`: false.
+
+**Private Tiger API available, not yet used.** `CGStyleCreateShadow[WithColor]`,
+`CGStyleCreateFocusRing[WithColor]`, `CGContextSetStyle`, `CGContextDelegateCreate`
+all exist in 10.4's CoreGraphics. The 10.15 `CGStyleCreateGaussianBlur` /
+`CGStyleCreateColorMatrix` do not, so HAVE_CGSTYLE_COLORMATRIX_BLUR is off and filters
+take WebCore's software path (FEGaussianBlur / FEColorMatrix have it). The 10.7
+`CGContextCreateWithDelegate` (DrawGlyphsRecorder) stays a tombstone: the i386
+side replays, it does not record. Tiger has `CGContextCreate` + `CGContextDelegateCreate`
+if it ever needs to.
+
+**Re-implement from disassembly, later.** `CGPathAddContinuousRoundedRect` (10.15
+squircle): HAVE_CG_PATH_CONTINUOUS_ROUNDED_RECT off, plain rounded rect for now.
+Public suffix: `_CFHostIsDomainTopLevel` is absent everywhere on 10.4; the i386 side
+now uses platform/tiger64/PublicSuffixStoreTiger64.cpp like the x86_64 side (its
+ponytail note about libpsl applies to both).
+
+**Not worth it.** 33 `kCUI*` CoreUI keys (Leopard): the HITheme/NSCell controls in
+platform/tiger (TIGER_AQUA_CONTROLS) retire them. `NSScrollerImp` /
+`_NSScrollingMomentumCalculator` are Lion overlay scrollers. `JSContext` / `JSValue`
+are the JSC ObjC API. `WebArchiveResourceFromNSAttributedString` is web archives.
+
+Also fixed while here: `IsAXAuthenticated` in WebProcessProxy.messages.in was
+`PLATFORM(MAC) || PLATFORM(MACCATALYST)`, a live wire divergence (the x86_64 peer is
+not MAC); now `(PLATFORM(MAC) && !PLATFORM(TIGER)) || PLATFORM(MACCATALYST)`.
+HAVE_SEC_KEY_PROXY and HAVE_APP_SSO are off for Tiger (10.14 / 10.15 frameworks).
