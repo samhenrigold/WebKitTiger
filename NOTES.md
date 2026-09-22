@@ -3818,3 +3818,16 @@ when `pid_for_task` says the report is a child's, prints TIGER-CHILD-CRASH with 
 pc, SIGKILLs the child and carries on. GPU process tombstones fixed so far:
 SandboxInitializationParameters ctor, registerWithStateDumper, SharedVideoFrameWriter
 (RemoteVideoFrameObjectHeap members gated `&& !PLATFORM(TIGER)`).
+
+### 12:45 — example.com renders through all four processes
+
+UI (i386), web (x86_64), network (x86_64), GPU (i386) all alive at 8 s,
+`GPUProcessConnection::didInitialize`, page text rendered from the staged font
+manifest, box stayed up, harness cleaned up. Fixes since the first surviving run: the
+64-bit helpers now have the crash catcher (the hook was `PLATFORM(TIGER)` only; they
+are `PLATFORM(TIGER64)`), `NetworkCache::fileTimes` got a 10.4 arm (no st_birthtime;
+the function fell off its end into a trap and killed the network process at startup),
+and the GPU process's Cocoa-only video-frame members are gated. The page is drawn
+upside down: a y-flip between the WC bitmap and the CA scene (spike/wk2web/first-window.png).
+Also seen: a second web process (core identifier 6, its own GPU connection) and two
+"Error sending IPC message: Broken pipe" lines -- to look at.
