@@ -4114,3 +4114,10 @@ TIGER_SCRIPT "click 236,204" on example.com followed the "Learn more" link: iana
 loaded, title/URL/back button updated in the chrome. Coordinates are view points
 (screen y minus the toolbar; the view is flipped). Typing into x.com's login field
 showed nothing; isolating the keyboard path with a one-input data: URL.
+
+### 16:36 — scripted typing works
+
+data: page with one <input>: click, "type hello tiger", "key return" -> text, caret,
+focus ring, and onchange set the title. Keyboard path (NativeWebKeyboardEventTiger ->
+WebPage editing) is fine; x.com's login field not taking the click is a page-timing
+(hydration) matter to sort out with a later click.
