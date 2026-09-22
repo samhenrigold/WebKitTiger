@@ -3987,3 +3987,47 @@ GPU process's CA scene -- which has no read-back yet -- and the window stayed wh
 the WC drawing area in software (three TIGER paint probes, composited=0, contents
 960x9983) and react.dev shows fonts, SVG logo and buttons in TigerBrowser2. The
 faithful mode (GPU DOM rendering on) is the read-back agent's track.
+
+## 2026-09-22 — faithful mode: the GPU process composites with Core Animation and reads it back (WebKit-faithful, branch tiger-faithful)
+
+`TIGER_FAITHFUL=1` (TigerWK2App) turns AcceleratedCompositingEnabled on. The web
+process keeps painting tiles with cairo; its WC layer deltas go to the i386 GPU
+process, WCSceneCA applies them to real CALayers and, because
+`PageClientImpl::usesOffscreenRendering()` is now true, renders the tree with a
+CARenderer over a CGL pbuffer (kCGLPFAPBuffer, one context per scene, pbuffer
+resized to the viewport) and returns the pixels in the UpdateInfo bitmap, so
+DrawingAreaProxyWC's BackingStore paints them unchanged. Host layer is
+geometryFlipped; glReadPixels rows are reversed into the ShareableBitmap. The
+tree must be `[CATransaction flush]`ed AFTER it is attached to the renderer.
+Verified on the box: spike/wk2web/faithful-composited.png (translateZ, rotate,
+rotateY, overflow:hidden layers, text) and faithful-wikipedia.png.
+`spike/wk2web/stage-app-faithful.sh` stages build/tiger-{ui,gpu}-faithful and
+refuses to start while another Tiger* process is alive on the box.
+
+Three things were in the way:
+
+1. The rebased QuartzCore's external relocations. With MH_PREBOUND cleared dyld
+   binds `*loc += symbolAddress` without subtracting the prebound value the word
+   still held, so every CFString constant's isa (kCATransactionDisableActions
+   first) was garbage: objc_msgSend crashed in CAInternAtom at the first
+   CATransaction. `rebase-dylib.py` pass 2b subtracts the undefined symbol's
+   n_value at the 4820 sites. Pass 2c slides the 80 `__IMPORT,__pointers` to
+   INDIRECT_SYMBOL_LOCAL symbols (dyld relies on its runtime slide for those;
+   ours is zero) -- CARenderer creation faulted at 0xa3c5c5d0 without it.
+   spike/CAHost/CAOffscreen.mm is the headless check (a tile and a box from a
+   worker thread; caoffscreen.png). Rebundled framework redeployed to the box.
+2. Tile updates carry only the dirty sub-rect (WCTiledBacking paints
+   tile.dirtyRect(); TextureMapperTile blits it at dirtyRect - tileRect.origin).
+   Setting the sub-image as the CALayer's contents stretched it across the tile.
+   Each GPU-side tile now owns a CGBitmapContext the size of its first
+   dirtyRect, blits updates into it and re-snapshots.
+3. `ScopedRenderingResourcesRequest::scheduleFreeRenderingResources` was a
+   tombstone (`!PLATFORM(COCOA)` arm); now `|| PLATFORM(TIGER)`.
+
+Open: (a) `TIGER_GPU_DOM=1` (UseGPUProcessForDOMRendering, display lists
+replayed in the GPU process) -- the tiles arrive with 0 inked bytes
+(`TIGER_WC_PROBE=1` in the GPU process logs each tile), page paints blank;
+mapping is not copy-on-write, so it is ordering or the replay path. (b) The GPU
+process sits at 100-200% CPU during the run (sampler: gld*/poll/semaphore
+leaves; unresolved). (c) One full-viewport bitmap per commit, no damage rects.
+(d) Filters, masks, replica layers, WebGL layers not applied (unchanged).
