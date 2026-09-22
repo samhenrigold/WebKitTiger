@@ -3924,3 +3924,23 @@ Net: Wikipedia unchanged (1.57 s / 2.8 s before and after). On heavy pages the w
 own work is JS-bound (Verge: 80% JS, half of it parsing and bytecode generation), the box
 has two cores, and the biggest waste was the spin, which is gone in the web and network
 processes. Nothing on the wire changed; no .messages.in/.serialization.in touched.
+
+### Perf track (agent report, 13:50) and what it found for the other tracks
+
+Web-process main thread, 250 ms samples: Wikipedia first visually non-empty layout
+1.57 s, 2.8 s of work then idle; react.dev 2.0 s / ~3 s; The Verge 1.9 s but busy the
+whole run, 80% JavaScript (half of it parse + bytecode generation on the main thread),
+JIT engaged (2370 baseline / 1235 DFG / 40 FTL compiles in 27 s). Do not set
+JSC_reportCompileTimes on pages (crashes the web process off-main). The next web-side
+lever is JSC-level. Harness: spike/wk2web/stage-perf.sh, tools/tiger-profile.py,
+logs/perf/.
+
+What was NOT page work: `readyReadHandler`'s zero-read branch was empty, so every
+dead stream connection cost a core (web, UI, network, GPU alike) -- cherry-picked as
+047079ae. The GPU process died on the first compositing page twice over: (1)
+`WCSharedSceneContextHolder::ensureHolderForWindow(0)` -- Tiger's viewWidget() is 0,
+the HashMap's empty key -> the proxy now sends the page identifier (047079ae);
+(2) `WCScene::update` on the stream work queue -> CATransaction off the main thread
+-> CAInternAtom crash: the Tiger GPU scene is now created, updated and destroyed on
+the main thread (db0ec4b5). Open: after a GPU death the UI's relaunch path took the
+whole app down silently.
