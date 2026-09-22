@@ -4290,3 +4290,65 @@ chosen by supportsAVX(). The "JSONRanges Vector destructor" signature was a symb
 _ctiMasmProbeTrampoline is a local symbol, and the nearest global before it is that destructor.
 tools/symbolize-tiger.sh should include local symbols (nm without -g) to avoid this.
 Verified fast and faithful modes: modal opens, no TIGER-CRASH over 60 s.
+
+## 2026-09-22 — media: ffmpeg plays <video> and MSE in the web process (WebKit-media, branch tiger-media, build/tiger-web-media)
+
+`MediaPlayerPrivateFFmpeg` (Source/WebCore/platform/graphics/tiger64/) is the x86_64 web
+process's media engine, registered from MediaPlayer.cpp under PLATFORM(TIGER64); WebPage
+forces shouldPlayMediaInGPUProcess=false on TIGER64 (the UI's Cocoa default says GPU), so
+nothing changes on the wire and the engine identifier reuses GStreamer's enum value
+(MediaEngineIdentifier is serialized; MediaPlayerType/MediaPlatformType are not and got
+FFmpeg values). Codec policy in supportsType: avc1/avc3 + mp4a.40/mp3 yes, VP9/AV1/Opus no.
+
+Two packet sources feed one decode thread (FFmpegPlayback):
+- `<video src>`: PlatformMediaResourceLoader (network process, cookies) into memory, a
+  custom AVIO that blocks the decode thread until bytes arrive; whole file kept
+  (ponytail: range requests when a progressive file bigger than RAM matters).
+- MSE: `FFmpegMediaSourcePrivate`/`FFmpegSourceBufferPrivate` (MediaSourcePrivateFFmpeg.cpp),
+  the mock-mediasource shape: init segment kept per SourceBuffer, each complete fragment
+  (spike/msescan.c, compiled into WebCore) parsed by a throwaway AVFormatContext over
+  init||fragment exactly as logs/mse-demux.md prescribed, AVPackets become
+  FFmpegMediaSamples for the port-independent SourceBufferPrivate, enqueued samples go to
+  per-track queues (24 video / 60 audio) with a microsecond packet timebase. Player tracks
+  are keyed (SourceBuffer number << 32 | track id): YouTube-style separate video/audio
+  buffers both carry track 1. Two traps: (1) SourceBufferPrivate asks
+  isReadyForMoreSamples() BEFORE the first enqueueSample(), so tracks must be registered
+  with the player when the init segment parses, not lazily; (2) the last packet of a
+  fragment can have duration 0 from libavformat and TrackBuffer then sees an "unbuffered
+  gap" and stops enqueueing -- fall back to frame_size/sample_rate or 1/avg_frame_rate.
+Video: yuv420p -> BGRA with swscale into a pending deque (max 3), presented when the
+clock reaches the pts and painted in paint() via cairo_image_surface_create_for_data ->
+NativeImage -> drawNativeImage (software WC drawing area, repaint() per frame). Decoding
+never blocks on the clock: with MSE the audio that drives the clock arrives on its own
+queue, and a thread parked on a video frame starved the clock (stall at 4.07 s, every run).
+Audio: x86_64 has no CoreAudio (spike/audiobridge), so PCM (f32 stereo, source rate) goes to
+spike/media/tigeraudio32 (i386, DefaultOutput AudioUnit via the Component Manager, built by
+`make -C spike/media`, staged next to TigerWebProcess and fork/execv'd by it) over a LINKED
+ring file /tmp/webkit-audio-<pid>-<n> (spike/media/tigeraudioring.h; paused flag, consumer
+advances readIndex only by real frames). The ring's read position is the master clock;
+ring lead capped at 0.5 s; wall clock when there is no audio. Seek: flush codecs +
+av_seek_frame (file) or waitForTarget/reenqueueMediaForTime (MSE), drop until target.
+
+Measured on the box (TigerBrowser2, fast mode, 640x360 H.264 High 30 fps + AAC 48 kHz,
+spike/media/video.html and mse.html served from this Mac): `TIGER-MEDIA` stats every 2 s:
+**30.0 fps, 0 dropped, clock lag 0-18 ms** for the whole 10 s clip on both paths; web
+process 3-5% CPU (UI ~10-70% painting the frames), audio helper 4%; plays to the end and
+fires ended. Screenshots: spike/media/shot-video.png, shot-mse.png. Logs: logs/media-*.log.
+Harness: `spike/media/stage-media.sh URL SECS` (same lock/wait/killall as stage-app.sh, but
+stages into /Users/shg/wk2media so a concurrent stage-app cannot swap the binaries
+underneath -- it did once; WEBBIN=, APP_ENV=, LOGGING=, EXTRA_ARGS="-WebCoreLogging
+MediaSource=debug" for the SourceBufferPrivate decisions, TIGER_MSE_PROBE=1 for per-sample
+lines). TigerCrashCatcher now also names abort() (TIGER-ABORT) and exit() (TIGER-EXIT) with
+frames; those were silent deaths.
+
+Also seen: with `<video controls>` an earlier (stalled) run logged 35 HTMLMediaElement::fastSeek
+calls nobody made (values walking 0.9 -> 0.3 s); gone once playback ran, not chased.
+Wire checks: message names identical; the one serializer diff (PlatformColorSpace) is
+pre-existing in tiger-web-port too.
+
+Remaining for YouTube: the page itself (react/polymer JS on the box), its MSE player
+appending while playing (this test appends everything up front), quality switches
+(changeType / new init segment reopens the decoder: coded, untested), remove() during
+playback, the audio helper per player (one process per <video> with sound), 720p (decode is
+112 fps but the paint path is a 3.7 MB BGRA blit per frame through cairo + the UI), VP9/Opus
+off by policy (ffvp9 is in the build if wanted), and ended/seek edge cases.
