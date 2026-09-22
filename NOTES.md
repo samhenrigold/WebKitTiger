@@ -3735,3 +3735,23 @@ FIFO/unlinked-file fds, no nesting) runs 40 rounds clean.
 
 The in-process sampler: `TIGER_SAMPLE_MAIN=<n>` in any Tiger process prints the main
 thread's frames every 250 ms as `TIGER-SAMPLE`; `tools/symbolize-tiger.sh` decodes.
+
+### Isolated: an UNLINKED vnode's descriptor in flight is what wedges 10.4
+
+Variants of `box-wedge-repro.c`, one reboot each: FIFO-only (unlinked FIFOs in flight)
+wedges; unlinked-mmap'd-file-only wedges; the plain variant with a linked regular file
+in flight (and nested socket ends in flight) runs clean. So the kernel's in-flight fd
+garbage collection tears down an unlinked vnode while holding the file-table lock and
+never comes back. Everything we passed by descriptor and unlinked -- IPC::Semaphore's
+FIFOs, SharedMemory's temp files -- was a live grenade; crashdump was only the most
+frequent way of dropping it (a dead peer with fds queued).
+
+Fix (in the tree now): on Darwin+UNIX_DOMAIN_SOCKETS the wire carries PATHS.
+`IPC::Semaphore` serializes its FIFO path (`String path()`), the receiver opens it; the
+creator unlinks in destroy(). `SharedMemoryHandle` serializes the backing file's path;
+files are `/tmp/webkit-shm-<pid>-<n>`, stay linked while alive, and the creator unlinks
+5 s after its last mapping dies (RunLoop::mainSingleton().dispatchAfter) so a handle in
+flight can still be opened. Out-of-line message bodies keep a descriptor attachment,
+but of a LINKED file (SharedMemory::duplicateFileDescriptor). `TigerCrashCatcher.cpp`
+sweeps `/tmp/webkit-{shm,sem}-<deadpid>-*` at every process start. Only sockets are ever
+in flight now, which the plain repro shows is fine.
