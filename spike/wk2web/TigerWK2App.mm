@@ -166,6 +166,14 @@ static RefPtr<TigerWebView> createWebView(const String& url, NSView* container)
     // cairo and hands over a ShareableBitmap the BackingStore can composite.
     pageConfiguration->preferences().setUseGPUProcessForDOMRenderingEnabled(false);
     pageConfiguration->preferences().setAcceleratedCompositingEnabled(false);
+    // TIGER_GPU=0 keeps the GPU process out entirely (media, canvas, WebGL, capture);
+    // 2026-09-22: the box wedged within 10 s of launch each time the GPU process ran.
+    if (const char* gpu = getenv("TIGER_GPU"); gpu && !strcmp(gpu, "0")) {
+        pageConfiguration->preferences().setUseGPUProcessForMediaEnabled(false);
+        pageConfiguration->preferences().setUseGPUProcessForCanvasRenderingEnabled(false);
+        pageConfiguration->preferences().setUseGPUProcessForWebGLEnabled(false);
+        pageConfiguration->preferences().setUseGPUProcessForDisplayCapture(false);
+    }
 
     auto webView = TigerWebView::create(pageConfiguration.get());
     if (!webView)
