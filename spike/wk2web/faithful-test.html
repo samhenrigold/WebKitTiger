@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>faithful</title>
+<style>
+body { margin: 0; font: 24px Helvetica; background: #eef; }
+h1 { margin: 20px; }
+.box { position: absolute; width: 200px; height: 120px; color: white; font-size: 20px; padding: 10px; box-sizing: border-box; }
+#a { left: 40px; top: 120px; background: #c33; transform: translateZ(0); }
+#b { left: 300px; top: 140px; background: #393; transform: translateZ(0) rotate(15deg); opacity: 0.8; }
+#c { left: 560px; top: 120px; background: #33c; transform: rotateY(40deg); }
+#d { left: 40px; top: 320px; width: 500px; height: 150px; background: #fc3; color: #000; overflow: hidden; transform: translateZ(0); }
+#d div { width: 900px; }
+</style>
+<h1>Faithful mode: CA-composited layers</h1>
+<div class="box" id="a">translateZ(0)</div>
+<div class="box" id="b">rotate(15deg) opacity .8</div>
+<div class="box" id="c">rotateY(40deg)</div>
+<div class="box" id="d"><div>overflow:hidden layer with text that runs past the clip edge, tiles behind children: lorem ipsum dolor sit amet</div></div>
