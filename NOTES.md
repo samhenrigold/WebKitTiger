@@ -3439,3 +3439,11 @@ the two together are the wire check.
 
 Diagnostics left in (they only fire on a rejected message): AuxiliaryProcess prints the
 failing argument indices; Connection.cpp prints the reason and a hex dump.
+
+Third finding in the same pass: the generator does not carry a `messages ->` block's
+file-level condition into the enum, only per-message ones, and `#if !RELEASE_LOG_DISABLED`
+is one of those -- true on i386 (USE(OS_LOG)) and false on x86_64. It also guards a FIELD
+of WebProcessCreationParameters. `ENABLE_RELEASE_LOG=ON` is now a shared feature for
+every Tiger tree (OptionsTigerProcesses.cmake; it was cached OFF, so the three trees were
+re-configured with -DENABLE_RELEASE_LOG=ON), which gives the x86_64 processes release
+logging on stderr through Assertions.h's LOGF fallback as a side benefit.
