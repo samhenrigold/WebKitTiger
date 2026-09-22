@@ -4677,3 +4677,26 @@ measured yet: the box is in use.
 Harness: `spike/wk2web/stage-video.sh URL SECS` (stages build/tiger-{web,ui}-video into
 /Users/shg/wk2video, ps at 8 s and 30 s, screenshot mid-play; `WEBDIR=`/`UIDIR=` point it
 at the old build for a before number). Test page spike/media/video480loop.html.
+
+## Direct video frame path merged (2026-09-22 20:40)
+
+tiger-video 9505580b merged. Frames go from the decoder into a 4-slot ring at
+/tmp/webkit-video-<pid>-<n>, swscaled to the displayed size; RenderVideo paints a black hole and
+reports the rect; the UI draws the current slot in drawRect with a no-copy CGImage. 480p looping
+clip, 60 s, fast mode:
+
+| path            | fps  | dropped | UI %CPU @30 s | web %CPU @30 s |
+|-----------------|------|---------|---------------|----------------|
+| in-page (before)| 30.0 | 0       | 45.4          | 76.9           |
+| direct (after)  | 30.0 | 0       | 8.5           | 38.4           |
+
+Faithful mode keeps the in-page blit. Left: GL YUV path, subframe video, scroll lag of one paint.
+
+User session 19:25-20:30 (logs/user/session-2026-09-22-1925.log): three web-process crashes in
+JIT code on real sites (llint_entry -> JIT pc, EXC_BAD_ACCESS), upside-down partial updates and
+progressive repaints on apple.com/iphone-duo, glacial hover/scroll on nytimes/theverge, x.com
+2FA code rejected (clock is correct; cause unknown). Three agents dispatched: JIT crash
+(tiger-jsperf), paint pipeline (tiger-perf), responsiveness (tiger-media).
+
+Harness: the new cleanup line in the stage scripts had its awk $1/$2 expanded by the outer shell
+for ~40 min (kill step hung on awk, processes left behind); escaped now.
