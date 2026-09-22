@@ -4365,3 +4365,17 @@ no text and Continue stays grey; the same script in fast mode works, and typing 
 textarea, including one inside a composited (will-change: transform) layer, works in faithful
 mode. The web process main thread was idle while the keys were sent (TIGER_SAMPLE_MAIN), so the
 keys either never reached the page or were dropped by x.com's handlers. Page-specific; not chased.
+
+## Main build plays video (2026-09-22 18:33)
+
+build/tiger-web-port rebuilt with the media merge (the ffmpeg cmake options forced a full
+rebuild). spike/media/video.html on the box through stage-app.sh: TIGER-MEDIA fps=30.0
+dropped=0 lag 5-9 ms, audio helper started and exited cleanly, page reaches ended
+(spike/media/shot-video-main.png).
+
+480p plan (user target: YouTube 480p at 30 fps): decode is not the limit (720p decodes at
+112 fps); the per-frame path is: swscale to BGRA, cairo blit into the WC tile, tile to the UI
+over shared memory, CG draw. Next: a direct video frame path (frames in their own shared-memory
+ring, page paints a hole, UI or GPU process draws the rect; YUV planes with a GL shader in the
+GPU process later), damage-driven repaints in faithful mode, and the YouTube player selecting
+avc1/mp4a (media track, in progress). Test asset: spike/media/bbb-480p.mp4 + video480.html.
