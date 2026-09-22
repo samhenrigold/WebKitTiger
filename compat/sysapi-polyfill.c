@@ -33,3 +33,19 @@ CFDictionaryRef _CFWebServicesCopyProviderInfo(CFStringRef type, void *reserved)
     (void)type; (void)reserved;
     return NULL;
 }
+
+/* ---- libsandbox (10.5+). Tiger has no App Sandbox; "allowed" is the truth. */
+#include <sys/types.h>
+int sandbox_check(pid_t pid, const char *operation, int type, ...)
+{
+    (void)pid; (void)operation; (void)type;
+    return 0;
+}
+const int SANDBOX_CHECK_NO_REPORT = 0x40000000;
+
+/* ---- CoreFoundation private (10.5+): the user's default C string encoding.
+   Tiger's public CFStringGetSystemEncoding is the same answer for one user. */
+uint32_t _CFStringGetUserDefaultEncoding(void)
+{
+    return (uint32_t)CFStringGetSystemEncoding();
+}
