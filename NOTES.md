@@ -4542,3 +4542,20 @@ frames through cairo + YouTube JS), helper 3%. Open: the switch shows a ~2.7 s f
 (new frames start 2.7 s past the clock after the re-enqueue), startup stutter at 3-8 s
 (fps 5-15 while the first segments arrive), 720p untested, remove() during playback not
 seen in these runs (YouTube did not call it in 90 s), audio-only/`<audio>` untested.
+
+## Merged: Cocoa text editing (tiger-perf) and YouTube playback (tiger-media) (2026-09-22 19:05)
+
+Editing: keyDown runs interpretKeyEvents; selectors become editor commands; Edit menu; Aqua
+selection colour; undo stack; the window must be key or NSInputManager does nothing. Verified on
+the box (spike/wk2web/edit-*.png). Copy/paste to other apps needs a Finder launch: an ssh-launched
+process has no pasteboard server on 10.4.
+
+YouTube: the blocker was navigator.mediaCapabilities.decodingInfo() saying unsupported for
+everything (no PlatformMediaEngineConfigurationFactory on TIGER64). With it, watch pages pick
+avc1/mp4a over MSE: 30 fps, 0-1 drops per 2 s, 360p then YouTube's own switch to 480p, seek and
+pause work. Open: ~2.7 s freeze at a quality switch, startup stutter in the first 8 s, 720p and
+remove() untested. TIGER_CONSOLE=1 prints page console messages to stderr.
+
+Stable build for the user: tools/make-bundle.sh assembles build/TigerBrowser.app (launcher script
+sets TIGER_FONT_MANIFEST, TIGER_CA_BUNDLE, WEBKIT_TIGER_HELPER_DIR; log at /tmp/TigerBrowser.log)
+and installs it to /Users/shg/Applications on the box.
