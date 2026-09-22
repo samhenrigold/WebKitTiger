@@ -4436,3 +4436,73 @@ Things that had to be got right:
 New build dir: `build/tiger-web-faithful` (source WebKit-faithful, USE_WOFF2=ON, ccache).
 Test page spike/wk2web/controls-test.html, runner spike/wk2web/stage-controls.sh
 (`MODE=fast|faithful`).
+
+## Text editing is Cocoa's now (2026-09-22 19:30, perf track)
+
+TigerWK2View used to hand raw NSEvents to the page and nothing else, so the only
+editing that existed was a ten-entry table in `WebPage::handleEditingKeyboardEvent`
+(WebPageTiger.cpp) with no modifier support. The UI process now runs
+`-interpretKeyEvents:`, so the system's StandardKeyBinding.dict decides every
+motion, selection and deletion, and each NSResponder selector becomes a WebKit
+editor command by upstream's rule (strip the trailing colon, names are not case
+sensitive, plus WebViewImpl's nine-entry exception table for pageDown: and
+friends). `WebPageProxy::executeEditCommand` sends them. The web-process table is
+gone -- keeping it would apply every command twice -- and what is left there is the
+text-insertion path, which is what the comment in that file always predicted.
+
+The raw event is still forwarded, so the page keeps seeing keydown/keypress, and
+WebCore keeps inserting plain text and doing its own defaults (Tab moves focus).
+Only a dead-key composition, where `-insertText:` delivers text the NSEvent does
+not carry, suppresses the raw event and sends `InsertText` instead.
+
+Three things had to be true before any of it worked:
+- **The window must be key.** `[_window orderFrontRegardless]` alone leaves
+  `[NSApp keyWindow]` nil, `-interpretKeyEvents:` reaches NSInputManager, and the
+  input manager does nothing at all -- no `-insertText:`, no
+  `-doCommandBySelector:`. `makeKeyAndOrderFront:` fixed it; the TIGER_KEYLOG env
+  var prints what Cocoa made of each key, which is how this was found.
+- **The view must conform to NSTextInput.** The input manager will not call back
+  otherwise. Marked text is stubbed (no IME UI in the page yet); a dead key still
+  works because the composition ends with `-insertText:`.
+- **`WebPageProxy::willPerformPasteCommand` needs the generic arm.**
+  `executeEditCommand` is its first caller on this port and WebPageProxyMac.mm is
+  not built for the UI process, so `#if !PLATFORM(COCOA)` became
+  `|| PLATFORM(TIGER)`, the same shape as the context-menu guard above it.
+
+Also: an unhandled Left Arrow used to insert U+F702 into the page once the
+web-process table stopped consuming it. `handleEditingKeyboardEvent` now rejects
+the 0xF700-0xF8FF private-use range as well as control characters.
+
+Undo and redo: PageClientImpl's four stubs now forward to
+`DefaultUndoController`, which PlatformTiger.cmake already compiles. Nothing else
+was needed.
+
+Selection colour: the TIGER64 web process paints with RenderThemeAdwaita, whose
+active selection is the GTK accent at 30% alpha. It has no AppKit to ask for
+`selectedTextBackgroundColor`, so `PLATFORM(TIGER)` returns Aqua's 0xB5D5FF with
+black text.
+
+Clipboard: plain text through the UI process's NSPasteboard
+(`platform/tiger64/PasteboardTiger64.cpp` is inert and giving the web process a
+real one means a WebPasteboardProxy and three serialization inputs). **10.4 gives
+a process launched over ssh no pasteboard server at all**: `generalPasteboard` is
+nil and `pbcopy`/`pbpaste`/`osascript "the clipboard"` (-4960) are equally dead in
+that bootstrap namespace. So copy and paste fall back to a string held in the UI
+process; a window opened from the Finder gets the real system pasteboard. TextEdit
+interop therefore cannot be tested headlessly.
+
+Script verbs added to TigerBrowser2: `keymod cmd a` / `keymod shift opt right`
+(command combinations go to `[[NSApp mainMenu] performKeyEquivalent:]` first, as
+NSApplication does, which is what exercises the new Edit menu), `drag x,y x,y`,
+and modifiers on `click` ("click shift 250,20"). `type` and `key` go through the
+same sendKey: path.
+
+Evidence, all TigerBrowser2 on the box against a textarea + input data: URL,
+spike/wk2web/edit-*.png: typing, Cmd-A with the Aqua highlight, Option-Left then
+Shift-Option-Right selecting one word, Cmd-C then Cmd-V duplicating it,
+Option-Backspace deleting a word, Cmd-Z putting it back, click-drag selection,
+shift-click extending a selection.
+
+Build dirs: build/tiger-ui-perf (i386 UI, ccache, same options as tiger-ui-port)
+and build/tiger-web-perf. stage-perf2.sh stages the UI binaries from
+build/tiger-ui-perf.
