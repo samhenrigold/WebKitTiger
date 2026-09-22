@@ -4057,3 +4057,17 @@ buttons with vendor logos, focused input, QR code -- 33 paints in 40 s, web proc
 at 67% CPU, box up. The GPU process was declared unresponsive after 30 s and killed
 (it was at 116% CPU idle: the remaining spin), the page kept working. Twitter is now a
 sign-in-and-performance problem, not a rendering one.
+
+### 15:25 — the GPU process's last idle spin
+
+The spin detector in IPC::Semaphore's FIFO wait fired at once: `semaphore fd 11 reports
+revents=0x20` (POLLNVAL) -- a StreamConnectionWorkQueue keeps waiting on a semaphore
+whose descriptor is already closed (destroyed or moved-from while the queue thread
+still holds the old fd number), and poll() on an invalid fd returns immediately. With
+the wait now taking the caller's time on POLLHUP/POLLNVAL/POLLERR the GPU process sits
+at 0.0% CPU idle (was 100-190%). Root cause (who destroys the semaphore under the
+queue) still to fix properly.
+
+Also: no web fonts anywhere -- USE_WOFF2 is OFF for the x86_64 web process, and
+react.dev / x.com ship .woff2 only. Building libwoff2 (deps/src/woff2-1.0.2, brotli is
+already there) and turning it on for TIGER64.
