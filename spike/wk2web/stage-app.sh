@@ -34,7 +34,8 @@ for f in "$WKT/build/tiger-ui-port/bin/TigerWK2App" "$WKT/build/tiger-ui-port/bi
     [ -f "$f" ] && FILES="$FILES $f" || echo "stage-app: missing $f (not copied)"
 done
 rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:/Users/shg/wk2/bin/
-ssh tiger-eth 'test -d /Users/shg/wk2/Frameworks/QuartzCore.framework' 2>/dev/null || rsync -rtl -z --partial --inplace --bwlimit=20000 "$WKT/spike/CAHost/Frameworks/QuartzCore.framework" tiger-eth:/Users/shg/wk2/Frameworks/
+# Always sync the framework: the rebased QuartzCore changed twice today (rebase-dylib passes).
+rsync -rtl -z --partial --inplace --bwlimit=20000 "$WKT/spike/CAHost/Frameworks/QuartzCore.framework" tiger-eth:/Users/shg/wk2/Frameworks/
 # One ssh invocation: launch, wait, capture. The app looks for its helpers next to itself.
 # Safety net: the app is killed by alarm 3 s after it would have exited on its own, and
 # every helper is killed after the run, so nothing can sit on the socket pool if the run
