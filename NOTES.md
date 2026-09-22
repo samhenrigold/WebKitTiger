@@ -4049,3 +4049,11 @@ stage-app now always syncs the framework. Open: TIGER_GPU_DOM=1 (display-list re
 in the GPU process) gives zero-inked tiles; GPU at 100-200% CPU during faithful runs
 (gld*, poll, semaphore leaves); one full-viewport bitmap per commit; filters/masks/
 replica/WebGL/preserve-3d not applied.
+
+### 15:17 — x.com renders
+
+`https://x.com/` in TigerBrowser2 (fast mode): the full login page -- headline, X mark,
+buttons with vendor logos, focused input, QR code -- 33 paints in 40 s, web process
+at 67% CPU, box up. The GPU process was declared unresponsive after 30 s and killed
+(it was at 116% CPU idle: the remaining spin), the page kept working. Twitter is now a
+sign-in-and-performance problem, not a rendering one.
