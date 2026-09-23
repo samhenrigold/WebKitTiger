@@ -6431,3 +6431,21 @@ addAllowedFirstPartyForCookies would give exactly this). Next: repro with a copy
 IsolatedSites + ServiceWorkers (never Cookies) into a scratch HOME, then add the `ytwatch`
 row. Separately, one run hit TIGER-CRASH in JSC::sanitizeStackForVM from VM::VM at web
 process start (also seen in round 1 on the main build).
+
+## Handoff before a Claude Code restart (2026-09-23 18:45)
+
+tiger-fontcache HEAD 46ce7e847 has merged but NOT yet shipped: cookie round 2 (Safari cookie
+policy, WebCookieCache; wire change), faithful video via CALayer (wire change, ~20 fps, option
+(a) two-frames-in-flight assigned to the paint track), JSC fullGCTimerMaxDelay=10 s. A chain
+was rebuilding all four processes -> harness -> install when the restart came; check
+build/*/bin timestamps and logs/regress/ for the newest run, then rerun:
+  ninja in build/tiger-gpu, tiger-web-port, tiger-ui-port; tools/check-message-names.sh
+  (ui vs web, ui vs gpu); tools/regress.sh; tools/make-bundle.sh only if the app is closed.
+Installed on the box: release 2.7 (or 2.8 if the cookie chain finished; Info.plist
+CFBundleVersion shows the build stamp).
+Open items by track (branches): tiger-regress (youtube watch page "does not have cookie access",
+Storage Access API), tiger-perf (faithful video 30 fps), tiger-faithful (Aqua scrollbars),
+tiger-ime (IME/spellcheck, guarded by TIGER_HAS_IME), tiger-features (API stubs), WebKit-recover
+(relaunch recovery, memory pressure), tiger-tests (nightly stress, WKTR phase 1), benchmark
+(tools/bench.sh, logs/bench). Agents were told to commit WIP and stop; check each worktree's
+`git status` and `git log` for WIP commits. Build on the mini with tools/mini-build.sh.
