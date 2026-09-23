@@ -5618,3 +5618,53 @@ submit, keyboard focus for every hosted control). Harness: the original 8 checks
 faithful "fscroll" row fails only because it looks for the "TIGER gpu: frame" probe that lives
 in the unmerged paint tree (screenshot check itself OK); "cookies" row is a stub so far.
 Installed while the app was not running.
+
+## 2026-09-23 — cookies: the jar never stored anything; x.com login (WebKit-regress, tiger-regress)
+
+User report: x.com 2FA codes always "incorrect"; a backup code worked once, then the page
+refreshed back to the login page. Root cause, found mechanically (no account used):
+
+1. **Every cookie was refused.** `platform/tiger64/PublicSuffixStoreTiger64.cpp` was a stub
+   that called every non-empty domain a public suffix ("conservative"), and
+   `CookieJarDB::canAcceptCookie` rejects cookies whose domain is a public suffix. So nothing
+   was ever stored, from HTTP or from `document.cookie`: the installed app's `/cookie.jar.db`
+   on the box had 0 rows. x.com's flow ran cookieless (att, ct0, auth_token all dropped) --
+   codes rejected, and a login that did succeed was logged out on the next navigation.
+   Now a real matcher over the compiled-in list (`PublicSuffixData.h`, regenerate with
+   `tools/gen-public-suffix.py`; same answers as the libpsl arm). That also makes api.x.com
+   and x.com one site again for `searchCookies`' `*.<registrable>` GLOB and for third-party
+   cookie blocking.
+2. **The jar lived at `/cookie.jar.db`.** The UI gave the network process no cookie file and
+   the curl fallback is the relative `cookie.jar.db`, i.e. the cwd: `/` for a Finder launch,
+   `bin/` for staged runs. Now `~/Library/Application Support/WebKitTiger/Cookies/Cookies.db`
+   (WAL, SyncNormal; session cookies deleted at open; survives quit and relaunch, checked).
+3. `CookieJarDB::setCookie` compared a wall-clock expiry with MonotonicTime.
+4. **Hosted text fields lost keystrokes** (found on the x.com username field). A page that
+   restyles a focused input so it loses its native appearance -- x.com's floating-label
+   inputs add a border on the first keystroke -- makes the host remove the NSTextField
+   while its field editor is first responder; AppKit then makes the window first responder
+   and every later key is dropped. `spike/wk2web/typetest.html`, React floating-label
+   field, "123456" at human pace: DOM value "1" before, "123456" after
+   (`TigerNativeWidgetHost -removeEntry:` hands first responder to the page view first).
+   TigerBrowser2's scripted keys used to be sent straight to the page view when the window
+   was first responder, which hid exactly this; they are now posted like a user's.
+
+Tools: `tools/cookie-server.py serve|report LOG` (two sites from this Mac,
+https://shg-mbp.local:8443 + http :8480 and https://192.168.1.253:8443, self-signed cert
+appended to a copy of cacert.pem; the server is the oracle), regress check `cookies` (two
+launches, HOME=/Users/shg/wk2/cookiehome so the jar is never the user's; the block was
+committed with 3ec9122), `spike/wk2web/stage-cookies.sh` (stage-app.sh for
+/Users/shg/wk2regress and the regress build dirs, HOME=$BOXDIR/home, FROM_INSTALLED=1 runs
+copies of the installed app's binaries), `TIGER_COOKIE_LOG=1` (every cookie write with its
+outcome, the cookie names each request and document.cookie read got, and each response's
+status; names and attributes only, never values, URLs without their query).
+
+Conformance, 18 cases: release 2.3 6/18 (only the "must be absent" cases pass), tiger-regress
+18/18. INFO, not enforced by the curl jar and left as is: SameSite (Lax/Strict are sent on
+cross-site requests), third-party iframe cookies (accepted; Safari blocks them), Secure set
+over http (accepted). x.com, fresh profile: guest_id*, personalization_id, gt, __cf_bm,
+cf_clearance, __cuid, g_state stored and sent to x.com and api.x.com; document.cookie sees
+the non-HttpOnly ones; ct0 is only cleared (empty, expired) before login. The login flow is
+now `x.com/i/jfapi/onboarding/web/actions/begin_login` (not task.json): 200 for a nonsense
+username, no 403 anywhere. Main build (tiger-web-port 11:17) crashed a new web process in
+`JSC::sanitizeStackForVM` from `VM::VM` during the cookie run; not seen on tiger-regress.
