@@ -227,7 +227,7 @@ void ChromeLoadObserver::update()
 }
 
 // ------------------------------------------------------ scripted interaction --
-// TIGER_SCRIPT="wait 5; click 300,400; click shift 400,400; drag 20,20 300,20;
+// TIGER_SCRIPT="wait 5; click 300,400; realclick 79,242; click shift 400,400; drag 20,20 300,20;
 //              type hello; key return; keymod cmd a;
 //              keymod opt left; keymod shift opt right; scroll 0,-300; shot /path.png; load URL;
 //              move 200,150; wheel 400,300 0,-3"
@@ -278,6 +278,34 @@ static NSPoint pointFromString(NSString* spec)
 - (void)postQueuedEvent:(NSEvent*)event
 {
     [NSApp postEvent:event atStart:NO];
+}
+
+// "realclick 79,242": the hardware cursor, not a synthesized NSEvent.
+//
+// -[NSPopUpButtonCell trackMouse:...] positions its menu from the REAL cursor and then runs
+// its own event loop reading the REAL event stream, so a posted NSEvent opens nothing. This
+// warps the cursor and injects a press through the window server, which is indistinguishable
+// from a hand. The release lags, in the common run loop modes, because a press and release in
+// the same instant opens an Aqua menu and closes it again on the item already selected.
+- (void)realClickAt:(NSString*)spec
+{
+    NSPoint viewPoint = pointFromString(spec);
+    NSPoint screenPoint = [_window convertBaseToScreen:[_view convertPoint:viewPoint toView:nil]];
+    // Cocoa screen coordinates are y-up from the bottom of the main screen; CG's are y-down
+    // from the top of it.
+    float screenHeight = NSMaxY([[[NSScreen screens] objectAtIndex:0] frame]);
+    CGPoint global = CGPointMake(screenPoint.x, screenHeight - screenPoint.y);
+
+    CGWarpMouseCursorPosition(global);
+    CGPostMouseEvent(global, TRUE, 1, TRUE);
+    [self performSelector:@selector(postRealMouseUp:) withObject:[NSValue valueWithPoint:NSMakePoint(global.x, global.y)]
+        afterDelay:0.35 inModes:[NSArray arrayWithObject:(NSString*)kCFRunLoopCommonModes]];
+}
+
+- (void)postRealMouseUp:(NSValue*)point
+{
+    NSPoint p = [point pointValue];
+    CGPostMouseEvent(CGPointMake(p.x, p.y), TRUE, 1, FALSE);
 }
 
 - (void)clickAt:(NSString*)spec
@@ -474,6 +502,8 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
         [self typeString:rest];
     else if ([verb isEqualToString:@"key"] || [verb isEqualToString:@"keymod"])
         [self sendKeyCombination:rest];
+    else if ([verb isEqualToString:@"realclick"])
+        [self realClickAt:rest];
     else if ([verb isEqualToString:@"move"])
         [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:pointFromString(rest)]];
     else if ([verb isEqualToString:@"wheel"])

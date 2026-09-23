@@ -50,6 +50,25 @@
   <select class="small"><option>Small</option></select>
 </div>
 
+<h2>list box, number, search</h2>
+<div class="row">
+  <select multiple size="4">
+    <option>alpha</option><option selected>beta</option><option>gamma</option>
+    <option>delta</option><option>epsilon</option>
+  </select>
+  <input type="number" value="3" min="0" max="10" step="1">
+  <input type="search" value="find me" size="12">
+</div>
+
+<h2>a form with a default button</h2>
+<form onsubmit="document.title = 'submit ' + this.q.value; return false;">
+  <div class="row">
+    <input type="text" name="q" value="query" size="14">
+    <input type="submit" value="Search">
+    <button type="button">Not default</button>
+  </div>
+</form>
+
 <h2>sliders, progress, meter</h2>
 <div class="row">
   <input type="range" value="40">
