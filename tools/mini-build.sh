@@ -18,6 +18,7 @@ case "$BUILD" in *ui*|*gpu*) OPTS=ui-opts.txt; TC=tiger.cmake;; *) OPTS=web-opts
 echo "mini-build: syncing $WT"
 rsync -a --delete --exclude '.git' --exclude LayoutTests --exclude WebKitBuild --exclude PerformanceTests --exclude Websites "$WKT/$WT/" "$MINI:$WKT/$WT/"
 rsync -a --exclude '.git' "$WKT/spike/" "$MINI:$WKT/spike/"; rsync -a "$WKT/compat/" "$MINI:$WKT/compat/"
+rsync -a "$WKT/build/builtins-i386" "$MINI:$WKT/build/"   # prebuilt compiler-rt the ninja files reference
 ssh "$MINI" "set -e; cd $WKT; export PATH=$WKT/bin:$WKT/cmake/bin:\$PATH; mkdir -p build/$BUILD; cd build/$BUILD
 if [ ! -f CMakeCache.txt ]; then
   cmake -G Ninja -DCMAKE_MAKE_PROGRAM=$WKT/bin/ninja -DPKG_CONFIG_EXECUTABLE=$WKT/bin/pkg-config -DPython_EXECUTABLE=/usr/bin/python3 -DRUBY_EXECUTABLE=/usr/bin/ruby \$(grep -v '_EXECUTABLE:' ../$OPTS | grep -v '^-DTIGER_PROCESS:' | tr '\n' ' ') -DTIGER_PROCESS:STRING=$TIGER_PROCESS $WKT/$WT > configure.log 2>&1 || { tail -20 configure.log; exit 1; }
