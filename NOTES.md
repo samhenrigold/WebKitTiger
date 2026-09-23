@@ -6459,3 +6459,8 @@ no-llint 5008/1, mozilla 1124/1; WKTR phase 1 written, stops on AccessibilityUIE
 Recovery, features, scrollbars, benchmark agents were stopped by the user mid-task: check their
 worktrees (WebKit-recover or WebKit-video, WebKit-features, WebKit-faithful) and the uncommitted
 tools/regress.sh rows (relaunch/features/scrollbars) on master. Box left clean.
+Scrollbars (tiger-faithful e4e7e0c2e, 99c456740): main-frame scrollbars are hosted NSScrollers,
+inner ones HIThemeDrawTrack bitmaps via ScrollbarThemeTiger; fast-mode `scrollbars` row passes,
+faithful unverified (needs a GPU built from that tree; build/tiger-gpu-faithful has one).
+Serialization change: rebuild all four on merge; long-page goldens need re-blessing (15 px
+narrower layout). Not merged yet.
