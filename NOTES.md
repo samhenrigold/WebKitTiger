@@ -5202,3 +5202,103 @@ logs/perf/scroll/app-f-ctrl.log (faithful) and app-fast-video.log (fast).
 Also confirmed here: the flush fence gating is right. Faithful mode reports
 `remote rendering DOM=0 canvas=1 media=0 -> flush fence on` and the fence returns in
 18 ms, so the fence is taken exactly when the GPU process really has something to flush.
+
+## tools/regress.sh: the box regression harness (2026-09-23)
+
+One command that runs the main build dirs on the box and says pass or fail per page.
+It builds nothing: it takes `build/tiger-ui-port` (TigerBrowser2), `build/tiger-web-port`
+(web + network), `build/tiger-gpu` and `build/tigeraudio32` exactly as they are, because
+what it is checking is the thing that would be installed.
+
+```
+tools/regress.sh                 # all eight pages, ~4.5 min of box time
+tools/regress.sh example scroll  # only the named checks
+tools/regress.sh --list          # the names
+BLESS=1 tools/regress.sh boxtest # run it, then make its shot the new golden
+```
+
+Staging is `spike/wk2web/stage-app.sh` once per page: it takes the shared box lock on
+fd 9, waits for a clear box, aborts rather than killing anything it did not stage, and
+kills only its own processes afterwards. Before every page the harness also checks
+`ps | grep -c '[/]Applications/TigerBrowser.app'` is 0 and waits up to two minutes if
+the user's installed browser is up. Three additions to stage-app.sh for this: `SHOT=`
+and `LOG=` (where the screenshot and the whole app.log land here, instead of always
+clobbering `spike/wk2web/first-window.png`) and `spike/wk2web/*.html` added to the share
+rsync, so the test pages are in `/Users/shg/wk2/share` as part of staging. Scripted
+interaction goes through `APP_ENV="TIGER_SCRIPT='...'"`, which survives into the remote
+shell because the single quotes are passed through verbatim.
+
+The pages and what each one is for:
+
+| check | page | acceptance |
+| --- | --- | --- |
+| example | http://example.com/ | non-blank, then a golden compare |
+| scroll | scrolltest.html, two `scroll 0,-300` | `spike/wk2web/check-scrollshot.py` says OK |
+| controls | controls-test.html | golden over the control column |
+| boxtest | boxtest.html, shot at 9 s | two goldens, the frame's top and left bands |
+| textarea | a `data:` page, click/type/`keymod cmd a` | golden of the selection highlight |
+| xcom | https://x.com/ onboarding, phone typed | no crash, dark text in the phone field |
+| video | video480loop.html over the LAN, 25 s | TIGER-MEDIA fps >= 29, dropped == 0, last two windows |
+| youtube | https://www.youtube.com/, 40 s | no crash, non-blank |
+
+Plus, on every run: no TIGER-CRASH, no TIGER-ABORT, no "unresponsive", no "cannot connect
+to :", no "Autoplay blocked", and at least one "TIGER ui: incorporate" -- `TIGER_PAINT_PROBE=1`
+is set for all eight, so a run that paints nothing at all fails even when the screenshot
+happens to look right (the 21:30 white-page shape).
+
+`tools/regress-compare.py` does the image side with PIL: it crops to the TigerBrowser2
+window content rect (`80,152,1040,812` in the 1440x900 screenshot, `--crop` to change it),
+counts a pixel as different when any channel is off by more than `--tol` (24), passes when
+at most `--max-frac` of the crop differs, and always prints the fraction -- that number is
+what to look at when a check fails. It also does `--nonblank` (grey stddev over the crop,
+a blank page is flat) and `--dark-text L,T,R,B` (ink where ink is expected, for the live
+sites that cannot have a golden).
+
+Two things the goldens had to work around. controls-test.html has an indeterminate
+progress bar whose stripes animate, which is under the 2% tolerance. boxtest.html changes
+the box's colour and caption every 1.5 s, so its interior can never be a golden -- but the
+static 12 px black frame around it can, and a misplaced partial update spills colour over
+that frame, so the golden is two bands outside the box: the top band (full width, grey
+margin plus top border) and the left band (full height). A purely vertical shift *inside*
+the frame is the one case these bands do not see; the shift that was actually seen
+(x.com, ~150 px left) puts colour straight into both.
+
+Goldens are in `tests/regress/golden/*.png`, blessed from a run that was looked at by eye:
+example.png, controls.png, boxtest-top.png, boxtest-left.png, textarea.png. Results go to
+`logs/regress/<timestamp>/` -- per page a .png, the box's app.log, the stage log, and
+summary.md with the table.
+
+Timing: each page costs about its own seconds plus ten, so a whole run is ~4.5 minutes of
+box time. Wall clock can be much longer, because stage-app.sh queues on the box lock behind
+the other agents; a 6-minute wait for one page is the lock, not the harness.
+
+## The IPC message-table handshake (2026-09-23, tiger-regress)
+
+The wanted-loud-failure from "Blank pages after the merges = stale GPU process message
+table". `IPC::MessageName` is one global `uint16_t` enum with `#if`s inside it: a message
+added anywhere renumbers everything after it, and a condition that differs between two
+compiles shifts every later name. Either way the two ends disagree about what a name means,
+and the failure is silent -- messages go nowhere and the page just never finishes.
+
+`Source/WebKit/Shared/tiger/TigerMessageTable.cpp`, under `PLATFORM(TIGER) ||
+PLATFORM(TIGER64)`:
+
+- `tigerMessageTableHash()` is FNV-1a over the message names in enum order. It does not
+  need a generator change: `messages.py` already emits `IPC::Detail::messageDescriptions`
+  from the same `#if`-guarded list, in the same order, with each name as a string, so
+  hashing that array is hashing the enum as this compile actually produced it. One
+  hand-written file instead of a patch to MessageNames.cpp that every rebase would fight.
+- `tigerPublishMessageTableHash()` is called by `ProcessLauncherTiger::launchProcess()`
+  before the fork and `setenv`s `WEBKIT_TIGER_MESSAGE_TABLE=<8 hex digits>`, which the
+  child inherits through `execve(..., environ)`. No wire change, so nothing about the
+  connection setup had to move.
+- `tigerCheckMessageTableHash()` runs in `AuxiliaryProcessMain::run()`, right after the
+  crash catcher and before `platformInitialize()`, in every auxiliary process (web,
+  network and GPU all come through that one template). On a mismatch it prints
+  `TIGER IPC: message table mismatch: ui=<hash> me=<hash>` and a `TIGER-CRASH:` line the
+  harness's log check already greps for, and `_exit(70)`.
+
+`setenv` does not overwrite, deliberately: `WEBKIT_TIGER_MESSAGE_TABLE=deadbeef` in the
+environment is how the refusal gets exercised by hand without building a stale binary.
+An empty or absent value skips the check, so a helper driven by hand on the box, or one
+launched by a UI process older than this, still runs.
