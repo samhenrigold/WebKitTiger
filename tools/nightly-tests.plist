@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- tools/nightly-tests.sh at 02:00 every night. Install (on this Mac, not the box):
+       cp tools/nightly-tests.plist ~/Library/LaunchAgents/local.webkittiger.nightly-tests.plist
+       launchctl load ~/Library/LaunchAgents/local.webkittiger.nightly-tests.plist
+     Needs the Mac awake at 02:00 (pmset repeat wakeorpoweron MTWRFSU 01:55:00) and ssh keys
+     usable without a prompt. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>local.webkittiger.nightly-tests</string>
+    <key>ProgramArguments</key>
+    <array><string>/Users/shg/Developer/WebKitTiger/tools/nightly-tests.sh</string></array>
+    <key>StartCalendarInterval</key>
+    <dict><key>Hour</key><integer>2</integer><key>Minute</key><integer>0</integer></dict>
+    <key>StandardOutPath</key><string>/Users/shg/Developer/WebKitTiger/logs/jsc-tests/nightly.log</string>
+    <key>StandardErrorPath</key><string>/Users/shg/Developer/WebKitTiger/logs/jsc-tests/nightly.log</string>
+</dict>
+</plist>

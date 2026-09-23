@@ -3,7 +3,8 @@
 #
 #   tools/run-jsc-tests-box.sh [--suite stress|mozilla|chakra] [--modes default,no-llint,...]
 #                              [--filter REGEX] [--timeout SECS] [--jobs N] [--jsc PATH]
-#                              [--memory-hogs]
+#                              [--memory-hogs | --memory-hogs-only]
+# RUNROOT / RUNNAME override the result directory (tools/nightly-tests.sh).
 #
 # Upstream's run-jsc-stress-tests does the planning (the //@ directives, the tier variants,
 # the output checks) and writes a bundle of one shell script per test and mode; this script
@@ -37,6 +38,7 @@ while [ $# -gt 0 ]; do
         --jobs) JOBS=$2; shift ;;
         --jsc) JSC=$2; shift ;;
         --memory-hogs) MEMHOGS=1 ;;
+        --memory-hogs-only) MEMHOGS=only ;;
         *) sed -n '2,20p' "$0"; exit 1 ;;
     esac
     shift
@@ -48,7 +50,7 @@ case "$SUITE" in
     *) echo "unknown suite $SUITE"; exit 1 ;;
 esac
 
-RUN=$WKT/logs/jsc-tests/$(date +%Y%m%d-%H%M%S)-$SUITE-$(echo "$MODES" | tr , +)
+RUN=${RUNROOT:-$WKT/logs/jsc-tests}/${RUNNAME:-$(date +%Y%m%d-%H%M%S)-$SUITE-$(echo "$MODES" | tr , +)}
 BUNDLE=$WKT/build/tiger-web-tests/jsc-bundle-$SUITE
 mkdir -p "$RUN/out"
 
@@ -63,19 +65,20 @@ ln "$BUNDLE/.vm/JavaScriptCore.framework/Helpers/jsc" "$RUN/jsc"   # for symboli
 ( cd "$BUNDLE/.runner" && find . -name 'test_script_*' -print0 | xargs -0 grep -H -m1 '^echo Running' ) |
     python3 -c '
 import os, sys
-modes, jstests, hogs = sys.argv[1].split(","), sys.argv[2], sys.argv[3] == "1"
+modes, jstests, hogs = sys.argv[1].split(","), sys.argv[2], sys.argv[3]
 skipped = open(sys.argv[4], "w")
 for line in sys.stdin:
     path, _, name = line.strip().partition(":echo Running ")
     if not any(name.endswith("." + m) for m in modes):
         continue
     source = os.path.join(jstests, name.rsplit(".", 1)[0])
-    if not hogs and os.path.exists(source) and "//@ memoryHog" in open(source, errors="replace").read(4096):
+    hog = os.path.exists(source) and "//@ memoryHog" in open(source, errors="replace").read(4096)
+    if (hogs == "0" and hog) or (hogs == "only" and not hog):
         skipped.write(name + "\n")
         continue
     print(path[2:])
 ' "$MODES" "$SRC/JSTests" "$MEMHOGS" "$RUN/skipped-memoryhog.txt" | sort -t_ -k3n > "$RUN/list.txt"
-echo "run-jsc-tests-box: $(wc -l < "$RUN/list.txt" | tr -d ' ') tests ($SUITE, modes $MODES; $(wc -l < "$RUN/skipped-memoryhog.txt" | tr -d ' ') memoryHog skipped) -> $RUN"
+echo "run-jsc-tests-box: $(wc -l < "$RUN/list.txt" | tr -d ' ') tests ($SUITE, modes $MODES; $(wc -l < "$RUN/skipped-memoryhog.txt" | tr -d ' ') skipped by the memoryHog rule) -> $RUN"
 
 # 3. Ship: the bundle by checksum (a regenerated bundle has fresh mtimes), minus the
 #    scripts, then only the chosen scripts.
