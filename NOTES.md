@@ -5609,3 +5609,12 @@ tiger-video), not the allocator.
 Recommendation: keep libpas + Gigacage as the TIGER64 default (merge tiger-video; reconfigure
 each x86_64 tree). Next levers: OSAllocator decommit (same remap), libpas scavenger tuning if
 the nytimes RSS matters.
+
+## Release 2.4 to the box (2026-09-23 12:10)
+
+tiger-fontcache 5f810d01: libpas allocator on the x86_64 side (Gigacage on, TZone off; 10.4
+decommit via MAP_FIXED remap), controls round 3 (multi-select indices on the wire, implicit
+submit, keyboard focus for every hosted control). Harness: the original 8 checks pass; the
+faithful "fscroll" row fails only because it looks for the "TIGER gpu: frame" probe that lives
+in the unmerged paint tree (screenshot check itself OK); "cookies" row is a stub so far.
+Installed while the app was not running.
