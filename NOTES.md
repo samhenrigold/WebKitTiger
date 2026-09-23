@@ -6141,3 +6141,16 @@ cairo raster); second worker only once N=1 is stable. Cleanup kills only its own
 release the lock. Results stay on the Mac; only box-side logs come back to logs/wktr/<date>/.
 Guess (not measured): 0.5-1 s per text test on the box, 1-2 h for the first ~4,000.
 The JSC tier (tools/run-jsc-tests-box.sh, no lock, no GUI) can run in the same night before it.
+
+## Upstream test suites: first baseline (2026-09-23 17:30)
+
+tiger-tests merged. tools/run-jsc-tests-box.sh + tools/jsc-box-driver.pl (2 jobs, nice 10,
+pauses above load 4), tools/jsc-results.py, tools/run-api-tests-box.sh; build/tiger-web-tests
+builds jsc, TestWTF, TestJavaScriptCore, testmasm (ENABLE_API_TESTS=ON). Baseline: stress
+default 5488/5493 (remaining are expectations), 4 other tiers on a sample 4907/4910, mozilla
+1124/1125, TestWTF 2014/2018 (expectations), TestJavaScriptCore 135/135, testmasm 392/392,
+libpas test_pas 1720/1725 (3 upstream test bugs). Port bugs fixed: main-thread stack split
+(same as the libpas track's StackBounds fix; that version kept), 10.4 trunc(-0.5) -> -0,
+realpath(p, NULL) crash, O_NOFOLLOW ignored, libpas PGM MADV_FREE, crash catcher in the test
+tools. WKTR/LayoutTests port assessed at 14-20 agent-days; plan in the tests section. Full
+stress across all 17 tiers is 8-14 h: overnight, one or two tiers a night.
