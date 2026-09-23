@@ -5302,3 +5302,22 @@ PLATFORM(TIGER64)`:
 environment is how the refusal gets exercised by hand without building a stale binary.
 An empty or absent value skips the check, so a helper driven by hand on the box, or one
 launched by a UI process older than this, still runs.
+
+### Verified on the box (2026-09-23 04:07)
+
+`build/tiger-ui-regress` (i386) + `build/tiger-web-regress` (x86_64), staged to
+`/Users/shg/wk2ipc`, GPU process from `build/tiger-gpu` as it is:
+
+- `WEBKIT_TIGER_MESSAGE_TABLE=deadbeef` in the environment: both children refuse at once,
+  `TIGER IPC: message table mismatch: ui=deadbeef me=4c52c5eb` plus the TIGER-CRASH line,
+  and the UI reports `processDidTerminateOrFailedToLaunch: reason=Crash` -- a loud failure
+  in the first second instead of a 15 s fence and a white page.
+- Without it: both children come up, example.com renders, no mismatch line. So the i386 UI
+  and the x86_64 web and network processes do compute the same hash, which is the other
+  half of the check working (the three wire checks -- tiger-check-ipc,
+  tools/check-message-names.sh, tools/check-serializers.sh -- keep the conditions equal;
+  this makes a stale *binary* as loud as they make a mismatched *condition*).
+
+`build/tiger-gpu`'s TigerGPUProcess predates this and has no check: an old child simply
+ignores the variable and runs, which is the intended compatibility direction. It gets the
+check on its next rebuild, and it is the process this was written for.
