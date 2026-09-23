@@ -3,6 +3,8 @@
 import argparse
 import contextlib
 import fcntl
+import hashlib
+import json
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -269,6 +271,23 @@ def provenance(payload, destination):
         target.mkdir(parents=True, exist_ok=True)
         for filename in ("build-manifest.json", "wire-messages.txt", "wire-serializers.txt"):
             shutil.copy2(binary.parent.parent / filename, target / filename)
+    # These runtime assets are frozen too, but are not engine build products.
+    # Record their exact delivered bytes without claiming source/build provenance.
+    assets = {}
+    binaries, resources, framework = payload
+    paths = [(path.name, path) for path in [binaries[-1]] + resources]
+    paths += [(framework.name + "/" + str(path.relative_to(framework)), path)
+              for path in sorted(framework.rglob("*")) if path.is_file() or path.is_symlink()]
+    for name, path in paths:
+        if path.is_symlink():
+            assets[name] = {"symlink": os.readlink(path)}
+            continue
+        fingerprint = hashlib.sha256()
+        with path.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                fingerprint.update(block)
+        assets[name] = {"sha256": fingerprint.hexdigest()}
+    (destination / "runtime-assets.json").write_text(json.dumps(assets, sort_keys=True, indent=2) + "\n")
 
 
 def stage(root, env, url, seconds, remote, verifier=checked):
