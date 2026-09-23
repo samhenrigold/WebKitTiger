@@ -4896,3 +4896,128 @@ Measured, tiger-jsperf @921420c2 (+ the tiger-fontcache merge, build/tiger-web-j
 | apple.com/iphone-duo 90 s scrolled, fixed   | 0, one web process pid from start to 87 s |
 
 logs/perf/{jitround,verge,apple}-{before,after}.{log,png}.
+
+## 2026-09-22 — input latency and main-thread load on ad-heavy pages (WebKit-media @58f51365, build/tiger-web-media + build/tiger-ui-media)
+
+Report: nytimes.com and theverge.com "extraordinarily glacial", and "when I mouse over a
+link it takes several seconds for the cursor to go from normal to a pointer".
+
+### Measuring it
+
+`TIGER_INPUTLOG=1` prints a `TIGER-INPUT:` line as each event leaves the UI process
+(TigerWK2View), as `TigerWebView::setCursor` applies a cursor, and as a finished frame
+arrives in `DrawingAreaProxyWC::update`. `spike/media/stage-media.sh` now takes `UIBIN=`
+and `OUT=` and timestamps the whole log the way stage-perf.sh does, so hover latency is
+the gap between two lines in `OUT`. Two new TIGER_SCRIPT verbs drive it: `move x,y` and
+`wheel x,y dx,dy` (10.4 has no public scroll-wheel NSEvent constructor, so the wheel verb
+builds a WebWheelEvent and hands it to `handleNativeWheelEvent` -- the UI-side coalescer
+included). Test page: spike/media/hover.html. Logs: logs/perf/{nyt,verge}-*.log.
+
+On an idle local page a hover is **1 ms** from the move to the cursor change. Nothing in
+the port's own cursor path is slow: the UI process was 97% idle in every run, mouse moves
+are coalesced upstream-style in WebPageProxy (one in flight, the rest merged), and
+`TigerWebView::setCursor` applies the NSCursor without waiting for a paint. Everything the
+user sees is the web process's main thread being unavailable.
+
+### nytimes.com, 90 s scripted (16 hovers, ~45 wheel ticks), before
+
+| where | number |
+| hover -> cursor | median 2.5 s, max 11.8 s |
+| web process main thread | 97% busy |
+| ... JS execute / layout / JS parse+bytecodegen / images / GC / style | 48 / 22 / 14 / 8 / 3.5 / 1.3 % |
+| ... inside a DOM timer callback (`ThreadTimers::sharedTimerFiredInternal`) | 63% |
+| ... blocked in a synchronous IPC | 23.6%, 53 of 54 samples `NetworkConnectionToWebProcess::CookiesForDOM` |
+| network process main thread | 43% busy, 112 of 231 samples in `SharedBufferBuilder::append` |
+| UI process main thread | 3% busy |
+
+theverge.com is the same shape without the network half: web process 98% busy (JS execute
+51, parse 19.5, layout 10, GC 9.5), 60% of samples inside a DOM timer, network process 97%
+idle, hover median 0.37 s.
+
+### The network process was burning a core in WTF::Vector
+
+`Vector::appendContainerWithMapping` and `appendRange` sized the buffer with
+`reserveCapacity()`, which is an **exact** reserve -- so appending a one-element container
+n times grew the capacity by exactly one and moved every element on every append: O(n^2),
+not the amortised O(1) that `append()` gives. `NetworkResourceLoader::didReceiveBuffer`
+does exactly that: every curl write callback becomes a one-segment SharedBuffer that goes
+through `SharedBufferBuilder::append` into `m_bufferedDataForCache` and `m_bufferedData`.
+Not a Tiger bug -- upstream code -- but on a two-core 2007 laptop it cost a whole core, and
+every synchronous `document.cookie` from the web process was queued behind it.
+
+Fix (58f51365): use `expandCapacity()`, which is the same reserve with the geometric floor,
+**and only when the append does not already fit**. The first attempt called it
+unconditionally; expandCapacity always reallocates (it asks for at least `nextCapacity()`),
+so capacity then grew geometrically per append instead of per overflow and the allocation
+overflowed -- the network process died 1.4 s into the page. Every other caller of
+expandCapacity guards it the same way.
+
+Measured on nytimes.com, same script:
+
+| | before | after |
+| network process main thread busy | 43% (~25 s of 58 s) | 2.6-5% (~1.5-3 s) |
+| web process main thread in `waitForSyncReply` | 23.6% | 0.6-1.6% |
+| hover -> cursor, median | 2.5 s | 0.86-1.0 s |
+
+### Low-power throttling: on, unproven
+
+The box is a 2007 two-core laptop, permanently the machine WebKit's low-power mode exists
+for, and `ThrottlingReason::LowPowerMode` is the port's own machinery for it: the rendering
+update falls from 60 to 30 fps (`Page::preferredRenderingUpdateInterval` -- and on this port
+`RenderingUpdateScheduler` has no display link, so that interval *is* the timer) and DOM
+timers align to 30 ms instead of firing free (`Page::updateDOMTimerAlignmentInterval`).
+`LowPowerModeNotifier::isLowPowerModeEnabled()` now returns true on TIGER64;
+`TIGER_LOW_POWER=0` turns it off, so one binary measures both sides.
+
+No reliable win yet: run-to-run variance on nytimes.com is dominated by the web process
+crashing (the JIT crashes another track fixed in its own tree, not merged here), and a run
+where the web process dies at 30 s looks *faster* because the ad workload is reset. Wheel
+tick -> frame medians ranged 0.5-2.7 s with it off and 1.3-1.5 s with it on, overlapping.
+Re-measure once the JIT fix lands here.
+
+### What is left on these pages
+
+With the network process idle and the sync stall gone, a clean nytimes.com run (no crash,
+all fixes on) still has the web process main thread 98% busy: JS execute 44%, layout 26%,
+JS parse 11%, images 9%, GC 4%, style 3%; 43% of samples anywhere in `Document::resolveStyle`
+and the top stacks are CSS custom-property substitution
+(`Style::Builder::applyCustomProperty` -> `SubstitutionResolver::substituteVarFunction` ->
+`CSSVariableData`). Hover median in that run was 2.6 s. That is the page's own work, and
+the next lever is style/JS, not input plumbing.
+
+Not attempted, and deliberately: no ad blocking or content filtering. WebKit's own
+frame-visibility throttling is already working here -- `LocalFrameView::
+updateScriptedAnimationsAndTimersThrottlingState` (1 s timer alignment for off-screen
+subframes) and `ThrottlingReason::NonInteractedCrossOriginFrame` (30 ms) are unmodified by
+this port and not gated by any setting it turns off. The two mechanisms that key off
+`ActivityState::IsVisuallyIdle` (hidden-page DOM timer throttling, App-Nap-style process
+suppression) are enabled by preference but dead at runtime, because
+`TigerWebView`'s view state is a fixed `{WindowIsActive, IsFocused, IsVisible, IsInWindow}`
+and nothing (miniaturise, app-hide, order-out) ever removes `IsVisible`. That only matters
+for a background window, not for the page the user is looking at.
+
+### Scroll, and one thing for the paint track
+
+`ENABLE_ASYNC_SCROLLING`/`SCROLLING_THREAD` are off (OptionsTigerProcesses.cmake), so a
+wheel tick is `WebWheelEventCoalescer` in the UI (one sequence in flight, the rest summed)
+-> `EventDispatcher` -> the web process main thread -> `ScrollView::scrollContents`. A plain
+wheel scroll does **not** relayout or re-resolve style
+(`LocalFrameView::scrollPositionChanged` does neither), and `useSlowRepaints()`'s
+fixed-position clause is gated on `platformWidget()`, which is always null in the web
+process -- so position:fixed alone does not force a full repaint here;
+`background-attachment: fixed`, a transparent/transformed ancestor and compositing mode do.
+`DrawingAreaWC::scroll` dirties only the exposed strip and sends it.
+
+But `DrawingAreaProxyWC::incorporateUpdate` (UIProcess/wc/DrawingAreaProxyWC.cpp) throws
+that away: when `updateInfo.scrollRect` is non-empty it sets
+`damageRegion = IntRect({ }, page->viewSize())` -- the whole view is invalidated on every
+wheel tick even though the web process sent a strip. Moving the already-drawn pixels with
+`-[NSView scrollRect:by:]` and invalidating only the strip is the obvious fix and belongs
+to the backing-store track; not touched here.
+
+### Also
+
+`ProcessLauncherTiger` never reaped its children -- death is noticed when the connection
+closes -- so every exited helper stayed a zombie ("(TigerWebProcess)" in ps). There is a
+SIGCHLD handler now. Not `SIG_IGN`: that auto-reaps but also makes the `system()`
+TigerBrowser2 uses for `screencapture` return before the child.
