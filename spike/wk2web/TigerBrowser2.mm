@@ -490,6 +490,10 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
     // -characters and -charactersIgnoringModifiers are both the bare key: the key
     // bindings and the menu match on the bare one, and no verb here wants the
     // glyph Option would actually type.
+    // Shift-Tab from a real keyboard is U+0019 (backtab), not a shifted U+0009; the key
+    // bindings map only the former to insertBacktab:, so a shifted tab tabbed FORWARD.
+    if (character == '\t' && (flags & NSShiftKeyMask))
+        character = 0x19;
     [self sendKey:[NSString stringWithCharacters:&character length:1] flags:(flags | extraFlags) code:code];
 }
 
