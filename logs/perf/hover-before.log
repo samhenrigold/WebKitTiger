@@ -1,0 +1,59 @@
+   0.220 2026-09-22 20:05:35.467 TigerBrowser2[17984] *** _NSAutoreleaseNoPool(): Object 0x7c09130 of class NSCFString autoreleased with no pool in place - just leaking
+   0.721 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::initializeNetworkProcess: Presenting processPID=17988
+   0.721 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.787 [com.apple.WebKit:Process:4] 0x10c612880 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.788 [com.apple.WebKit:Process:4] 0x10c612880 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+   0.788 [com.apple.WebKit:Process:4] 0x10c612880 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+   0.788 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+   0.795 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+   0.841 [com.apple.WebKit:Process:4] 0x10c6011a0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=17984
+   0.842 [com.apple.WebKit:Loading:4] 0x10d032800 - [webPageID=5] WebPage::constructor:
+   0.847 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+   0.877 [com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+   0.892 [com.apple.WebKit:Process:4] GPUProcessConnection::create(12)
+   0.899 [com.apple.WebKit:Loading:4] 0x10c612880 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=17984, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13, existingLoaderToResume=0)
+   0.899 [com.apple.WebKit:Loading:4] 0x10c612880 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+   0.899 [com.apple.WebKit:Loading:4] 0x10c612880 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=17984, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13, existingLoaderToResume=0)
+   0.899 [com.apple.WebKit:Loading:4] 0x10c612880 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=17984, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13)
+   0.969 TIGER script: wait 8
+   1.031 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 6
+   1.032 [com.apple.WebKit:Process:4] 0x10c61dee0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 6
+   1.032 [com.apple.WebKit:Process:4] 0x10c61dee0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 6 established service worker server connection
+   1.032 [com.apple.WebKit:Process:4] 0x10c61dee0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 6 established shared worker connection
+   1.032 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 6, notifying the UI process
+   1.033 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 6 to the UI process
+   1.081 [com.apple.WebKit:Process:4] 0x10c6011a0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=17984
+   1.083 [com.apple.WebKit:Loading:4] 0x10d024c00 - [webPageID=13] WebPage::constructor:
+   1.088 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: AcceleratedCompositingEnabled=false, UseGPUProcessForDOMRenderingEnabled=false
+   1.128 [com.apple.WebKit:Loading:4] [webPageID=13] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=2, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=1
+   1.131 [com.apple.WebKit:Loading:4] 0x10c61dee0 - [webProcessIdentifier=6] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=17984, pageProxyID=4, webPageID=13, frameID=4294967298, resourceID=9, existingLoaderToResume=1)
+   1.131 [com.apple.WebKit:Loading:4] 0x10c61dee0 - [webProcessIdentifier=6] NetworkConnectionToWebProcess::scheduleResourceLoad: Resuming existing NetworkResourceLoader
+   1.178 [com.apple.WebKit:Loading:4] 0x10c612880 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::didClose: WebProcess closed its connection. Aborting related loaders.
+   1.178 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::removeNetworkConnectionToWebProcess: Removing process 3
+   1.244 Tiger IPC: cannot connect to /tmp/webkit-ipc-17987-1: No such file or directory
+   1.289 [com.apple.WebKit:Process:4] GPUProcessConnection::create(18)
+   1.290 [com.apple.WebKit:Process:4] GPUProcessConnection::didInitialize(18)
+   8.969 TIGER script: move 100,20
+   8.969 TIGER-INPUT: mouse type=5 at 100,20
+   8.971 TIGER-INPUT: cursor type=3
+   9.270 TIGER script: wait 2
+  11.271 TIGER script: move 100,110
+  11.271 TIGER-INPUT: mouse type=5 at 100,110
+  11.272 TIGER-INPUT: cursor type=1
+  11.571 TIGER script: wait 2
+  13.571 TIGER script: move 100,175
+  13.571 TIGER-INPUT: mouse type=5 at 100,175
+  13.572 TIGER-INPUT: cursor type=3
+  13.872 TIGER script: wait 2
+  15.872 TIGER script: move 100,110
+  15.872 TIGER-INPUT: mouse type=5 at 100,110
+  15.873 TIGER-INPUT: cursor type=1
+  16.173 TIGER script: wait 2
+  18.173 TIGER script: move 100,20
+  18.173 TIGER-INPUT: mouse type=5 at 100,20
+  18.174 TIGER-INPUT: cursor type=3
+  18.474 TIGER script: wait 2
+  28.482 TIGER-EXIT pid 0x4640
+  28.482  thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2d4145
+  28.502 TIGER-EXIT pid 0x4644
+  28.502  thread 0xd03 state-kr 0x0 pc 0x10ae66e4e leaf mach_msg_trap+0xa frames: 0x10ae66e4e 0x10ae1c11d 0x10032899d 0x10ae0bc75 0x10ae0ba0c 0x100001993 0x1000018a1 0x3
