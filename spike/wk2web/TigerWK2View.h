@@ -17,6 +17,11 @@
     NSString* _interpretedText;
     NSMutableArray* _interpretedCommands;
     BOOL _interpreting;
+    // An input method's composition (a dead key's accent, Kotoeri's kana) is in the page.
+    BOOL _hasMarkedText;
+    // Set by -setMarkedText: or a commit while -interpretKeyEvents: runs: the input method
+    // took this key, so the raw event must not insert its characters as well.
+    BOOL _inputMethodHandledKey;
 }
 - (void)attachWebView:(WebKit::TigerWebView*)view;
 - (WebKit::TigerWebView*)webView;

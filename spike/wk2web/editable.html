@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Text input into page content that is not a hosted control: a contenteditable region,
+     a CSS-styled textarea (so WebCore renders it, not AppKit) and a hosted input for
+     comparison. document.title echoes the editable's committed text and the last
+     composition event, so the window title says what the page received. -->
+<html><head><meta charset="utf-8"><title>editable</title>
+<style>
+body { font: 18px "Lucida Grande", Helvetica; margin: 20px; }
+#ed { width: 560px; min-height: 60px; border: 1px solid #888; padding: 6px; }
+#ta { width: 560px; height: 60px; border: 1px solid #888; font: 18px "Lucida Grande"; padding: 6px; }
+#in { width: 300px; font-size: 16px; }
+p { margin: 6px 0 2px; font-size: 12px; color: #555; }
+</style></head><body>
+<p>contenteditable</p>
+<div id=ed contenteditable></div>
+<p>styled textarea (rendered by WebCore)</p>
+<textarea id=ta></textarea>
+<p>hosted input</p>
+<input id=in>
+<script>
+let last = '';
+function show() {
+  document.title = 'ed=' + ed.textContent + ' | ta=' + ta.value + ' | in=' + in_.value + (last ? ' | ' + last : '');
+}
+const in_ = document.getElementById('in');
+for (const t of ['compositionstart', 'compositionupdate', 'compositionend'])
+  document.addEventListener(t, e => { last = t + ':' + e.data; show(); console.log('EDITABLE ' + last); });
+document.addEventListener('input', e => { show(); console.log('EDITABLE input ' + e.target.id + ' composing=' + e.isComposing); });
+ed.focus();
+show();
+</script>
+</body></html>

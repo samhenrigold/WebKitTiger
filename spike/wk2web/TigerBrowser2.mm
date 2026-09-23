@@ -319,6 +319,76 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
     CGPostKeyboardEvent((CGCharCode)character, (CGKeyCode)code, FALSE);
 }
 
+// "realtype opt+e e", "realtype n i h o n return": keys through the window server, each
+// token optionally prefixed with modifiers ("shift+", "opt+", "cmd+", "ctrl+"). Unlike
+// "type", these reach the Text Services Manager as a hand's would, which is the only way a
+// dead key or an input method (Kotoeri) sees them. Letters, digits and space map to their
+// US ANSI key codes; everything else goes through keyForName.
+static unsigned short ansiKeyCode(unichar c)
+{
+    static const char* const letters = "asdfhgzxcv?bqweryt123465=97-80]ou[ip?lj'k;\\,/nm.";
+    for (unsigned i = 0; letters[i]; ++i) {
+        if (letters[i] == c && c != '?')
+            return i;
+    }
+    return 0xFFFF;
+}
+
+- (void)realType:(NSString*)spec
+{
+    NSArray* tokens = [spec componentsSeparatedByString:@" "];
+    for (unsigned t = 0; t < [tokens count]; ++t) {
+        NSArray* parts = [[tokens objectAtIndex:t] componentsSeparatedByString:@"+"];
+        NSString* name = [parts lastObject];
+        if (![name length])
+            continue;
+        unsigned flags = modifierMaskFromWords(parts, [parts count] - 1);
+        unichar character = 0;
+        unsigned short code = 0;
+        unsigned extraFlags = 0;
+        if ([name length] == 1 && ansiKeyCode([name characterAtIndex:0]) != 0xFFFF) {
+            character = [name characterAtIndex:0];
+            code = ansiKeyCode(character);
+        } else if (!keyForName(name, &character, &code, &extraFlags) || !code)
+            continue;
+        struct { unsigned mask; CGKeyCode code; } modifiers[] = {
+            { NSShiftKeyMask, 56 }, { NSAlternateKeyMask, 58 }, { NSControlKeyMask, 59 }, { NSCommandKeyMask, 55 },
+        };
+        for (unsigned m = 0; m < 4; ++m) {
+            if (flags & modifiers[m].mask)
+                CGPostKeyboardEvent(0, modifiers[m].code, TRUE);
+        }
+        CGPostKeyboardEvent((CGCharCode)character, (CGKeyCode)code, TRUE);
+        CGPostKeyboardEvent((CGCharCode)character, (CGKeyCode)code, FALSE);
+        for (unsigned m = 0; m < 4; ++m) {
+            if (flags & modifiers[m].mask)
+                CGPostKeyboardEvent(0, modifiers[m].code, FALSE);
+        }
+    }
+}
+
+// "inputsource ja" / "inputsource roman": the keyboard script, which on 10.4 is what the
+// input menu switches (Japanese is Kotoeri). The input source is the whole login's, so a
+// script that switches to Japanese must switch back before it ends -- the app does it at
+// exit as well.
+static bool switchedInputSource;
+
+static void restoreRomanInputSource()
+{
+    if (switchedInputSource)
+        KeyScript(smRoman);
+}
+
+static void selectInputSource(NSString* which)
+{
+    static bool registered;
+    if (!registered)
+        registered = !atexit(restoreRomanInputSource); // -terminate: ends in exit()
+    KeyScript([which isEqualToString:@"ja"] ? smJapanese : smRoman);
+    switchedInputSource = [which isEqualToString:@"ja"];
+    fprintf(stderr, "TIGER script: keyboard script now %d\n", (int)GetScriptManagerVariable(smKeyScript));
+}
+
 - (void)postRealMouseUp:(NSValue*)point
 {
     NSPoint p = [point pointValue];
@@ -528,6 +598,10 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
         [self realClickAt:rest];
     else if ([verb isEqualToString:@"realkey"])
         [self realKey:rest];
+    else if ([verb isEqualToString:@"realtype"])
+        [self realType:rest];
+    else if ([verb isEqualToString:@"inputsource"])
+        selectInputSource(rest);
     else if ([verb isEqualToString:@"move"])
         [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:pointFromString(rest)]];
     else if ([verb isEqualToString:@"wheel"])
@@ -591,6 +665,9 @@ static void buildMenus(TigerBrowserWindow* browser)
         { @"Paste", @selector(paste:), @"v", NSCommandKeyMask },
         { @"Delete", @selector(delete:), @"", 0 },
         { @"Select All", @selector(selectAll:), @"a", NSCommandKeyMask },
+        { nil, NULL, nil, 0 },
+        // TigerWK2View -toggleContinuousSpellChecking:, or the field editor's while a hosted field has focus.
+        { @"Check Spelling While Typing", @selector(toggleContinuousSpellChecking:), @"", 0 },
     };
     for (unsigned i = 0; i < sizeof(editItems) / sizeof(editItems[0]); ++i) {
         if (!editItems[i].title) {

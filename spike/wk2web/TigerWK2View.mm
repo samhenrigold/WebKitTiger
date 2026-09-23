@@ -9,6 +9,14 @@
 #include "NativeWebMouseEvent.h"
 #include "NativeWebWheelEvent.h"
 #include "WebPageProxy.h"
+#if TIGER_HAS_IME
+#include "EditingRange.h"
+#include "TextChecker.h"
+#include "TextCheckerState.h"
+#include "WebProcessPool.h"
+#include "WebProcessProxy.h"
+#include <WebCore/CompositionUnderline.h>
+#endif
 #include <wtf/text/WTFString.h>
 #include <WebCore/IntRect.h>
 
@@ -60,6 +68,7 @@ using namespace WebKit;
     [super viewDidMoveToWindow];
     [[self window] setAcceptsMouseMovedEvents:YES];
     [[self window] makeFirstResponder:self];
+    [self applyContinuousSpellChecking];
 }
 
 // TIGER_INPUTLOG=1 prints one line as each input event leaves the UI process. The
@@ -83,7 +92,7 @@ static bool inputLoggingEnabled()
     }
     _webView->page()->handleMouseEvent(NativeWebMouseEvent::create(event, nil, self, WebEventInputSource::UserDriven));
 }
-- (void)mouseDown:(NSEvent*)event { [self mouseEvent:event]; }
+- (void)mouseDown:(NSEvent*)event { [self abandonMarkedText]; [self mouseEvent:event]; }
 - (void)mouseUp:(NSEvent*)event { [self mouseEvent:event]; }
 - (void)mouseMoved:(NSEvent*)event { [self mouseEvent:event]; }
 - (void)mouseDragged:(NSEvent*)event { [self mouseEvent:event]; }
@@ -156,6 +165,214 @@ static NSString* commandNameForSelector(SEL selector)
         argument ? String::fromUTF8([argument UTF8String]) : String());
 }
 
+// TIGER_HAS_IME: the worktree whose WebPageProxy has the tiger* text-input calls
+// (branch tiger-ime) defines it for the apps; every other tree keeps the stubs.
+#if TIGER_HAS_IME
+// ---------------------------------------------------------------- NSTextInput --
+// 10.4's input manager is synchronous: it calls -markedRange or
+// -firstRectForCharacterRange: and uses the answer before its own call returns, so
+// those block on the web process (WebPageProxy::tiger*, 100 ms at most). The
+// composition itself goes as WebCore's Editor::setComposition / confirmComposition,
+// the same calls upstream's WebViewImpl makes through setCompositionAsync.
+
+- (void)insertText:(id)string
+{
+    NSString* text = [string isKindOfClass:[NSAttributedString class]] ? [string string] : string;
+    if (_hasMarkedText) {
+        // The input method commits: a dead key's second key, Kotoeri's Return.
+        _hasMarkedText = NO;
+        _inputMethodHandledKey = YES;
+        if (RefPtr page = [self page])
+            page->tigerConfirmComposition(String(text));
+        return;
+    }
+    if (_interpreting) {
+        [_interpretedText release];
+        _interpretedText = [text copy];
+        return;
+    }
+    [self executeEditCommand:@"InsertText" argument:text];
+}
+
+- (void)doCommandBySelector:(SEL)selector
+{
+    NSString* name = commandNameForSelector(selector);
+    if (!name)
+        return;
+    if (_interpreting) {
+        [_interpretedCommands addObject:name];
+        return;
+    }
+    [self executeEditCommand:name argument:nil];
+}
+
+// WebViewImpl's compositionUnderlines, the pre-inline-predictions arm: one underline
+// per run the input method underlined, thick where it asked for more than a single
+// line (Kotoeri's clause being converted). Text with no underline at all still gets
+// one thin line, as -[WebHTMLView setMarkedText:] did, so a dead key's accent shows.
+static Vector<WebCore::CompositionUnderline> compositionUnderlines(id string, unsigned length)
+{
+    Vector<WebCore::CompositionUnderline> underlines;
+    if ([string isKindOfClass:[NSAttributedString class]]) {
+        for (unsigned i = 0; i < length;) {
+            NSRange range;
+            NSDictionary* attributes = [string attributesAtIndex:i longestEffectiveRange:&range inRange:NSMakeRange(i, length - i)];
+            if (NSNumber* style = [attributes objectForKey:NSUnderlineStyleAttributeName]) {
+                if ([style intValue])
+                    underlines.append(WebCore::CompositionUnderline(range.location, NSMaxRange(range), WebCore::CompositionUnderlineColor::TextColor, WebCore::Color::black, [style intValue] > 1));
+            }
+            i = NSMaxRange(range);
+        }
+    }
+    if (underlines.isEmpty() && length)
+        underlines.append(WebCore::CompositionUnderline(0, length, WebCore::CompositionUnderlineColor::TextColor, WebCore::Color::black, false));
+    return underlines;
+}
+
+- (void)setMarkedText:(id)string selectedRange:(NSRange)selectedRange
+{
+    NSString* text = [string isKindOfClass:[NSAttributedString class]] ? [string string] : string;
+    RefPtr page = [self page];
+    if (!page)
+        return;
+    if (_interpreting)
+        _inputMethodHandledKey = YES;
+    _hasMarkedText = [text length] > 0;
+    // Empty marked text is the input method cancelling: Editor::setComposition
+    // with an empty string removes the composition.
+    page->tigerSetComposition(String(text), compositionUnderlines(string, [text length]), EditingRange(selectedRange));
+}
+
+- (void)unmarkText
+{
+    if (!_hasMarkedText)
+        return;
+    _hasMarkedText = NO;
+    if (RefPtr page = [self page])
+        page->tigerConfirmComposition(String());
+}
+
+// A click ends a composition where it stands, as in any Cocoa text view.
+- (void)abandonMarkedText
+{
+    if (!_hasMarkedText)
+        return;
+    [[NSInputManager currentInputManager] markedTextAbandoned:self];
+    [self unmarkText];
+}
+
+- (BOOL)hasMarkedText { return _hasMarkedText; }
+
+- (NSRange)markedRange
+{
+    RefPtr page = [self page];
+    if (!page || !_hasMarkedText)
+        return NSMakeRange(NSNotFound, 0);
+    return page->tigerSelectedAndMarkedRanges().second;
+}
+
+- (NSRange)selectedRange
+{
+    RefPtr page = [self page];
+    if (!page)
+        return NSMakeRange(NSNotFound, 0);
+    return page->tigerSelectedAndMarkedRanges().first;
+}
+
+- (long)conversationIdentifier { return (long)self; }
+
+- (NSAttributedString*)attributedSubstringFromRange:(NSRange)range
+{
+    RefPtr page = [self page];
+    if (!page || range.location == NSNotFound)
+        return nil;
+    String string = page->tigerStringForCharacterRange(EditingRange(range));
+    if (string.isEmpty())
+        return nil;
+    return [[[NSAttributedString alloc] initWithString:string.createNSString().get()] autorelease];
+}
+
+// Page rects are root-view coordinates, which in this flipped view are view coordinates.
+- (NSRect)firstRectForCharacterRange:(NSRange)range
+{
+    RefPtr page = [self page];
+    if (!page || range.location == NSNotFound || ![self window])
+        return NSZeroRect;
+    auto rect = page->tigerFirstRectForCharacterRange(EditingRange(range)).first;
+    NSRect inWindow = [self convertRect:NSMakeRect(rect.x(), rect.y(), rect.width(), rect.height()) toView:nil];
+    inWindow.origin = [[self window] convertBaseToScreen:inWindow.origin];
+    return inWindow;
+}
+
+- (unsigned int)characterIndexForPoint:(NSPoint)screenPoint
+{
+    RefPtr page = [self page];
+    if (!page || ![self window])
+        return NSNotFound;
+    NSPoint point = [self convertPoint:[[self window] convertScreenToBase:screenPoint] fromView:nil];
+    uint64_t location = page->tigerCharacterIndexForPoint(WebCore::IntPoint(point.x, point.y));
+    return location == notFound ? NSNotFound : (unsigned)location;
+}
+
+- (NSArray*)validAttributesForMarkedText
+{
+    return [NSArray arrayWithObjects:NSUnderlineStyleAttributeName, NSUnderlineColorAttributeName, nil];
+}
+
+// ------------------------------------------------------------------ spelling --
+// "Check Spelling While Typing". The page's markers come from TextChecker
+// (UIProcess/tiger/TextCheckerTiger.mm) once every web process knows the new
+// state; hosted fields are AppKit's own NSTextViews and get the flag directly.
+
+static BOOL continuousSpellCheckingEnabled()
+{
+    return TextChecker::state().contains(TextCheckerState::ContinuousSpellCheckingEnabled);
+}
+
+static void setContinuousSpellCheckingOnHostedEditors(NSView* view, BOOL enabled)
+{
+    if ([view isKindOfClass:[NSTextView class]])
+        [(NSTextView*)view setContinuousSpellCheckingEnabled:enabled];
+    NSArray* subviews = [view subviews];
+    for (unsigned i = 0; i < [subviews count]; ++i)
+        setContinuousSpellCheckingOnHostedEditors([subviews objectAtIndex:i], enabled);
+}
+
+- (void)applyContinuousSpellChecking
+{
+    BOOL enabled = continuousSpellCheckingEnabled();
+    // The window's field editor is what edits every hosted NSTextField.
+    NSText* fieldEditor = [[self window] fieldEditor:YES forObject:nil];
+    if ([fieldEditor isKindOfClass:[NSTextView class]])
+        [(NSTextView*)fieldEditor setContinuousSpellCheckingEnabled:enabled];
+    setContinuousSpellCheckingOnHostedEditors(self, enabled);
+}
+
+// A hosted text area arrives as an NSScrollView around its NSTextView.
+- (void)didAddSubview:(NSView*)subview
+{
+    [super didAddSubview:subview];
+    setContinuousSpellCheckingOnHostedEditors(subview, continuousSpellCheckingEnabled());
+}
+
+- (void)toggleContinuousSpellChecking:(id)sender
+{
+    RefPtr page = [self page];
+    if (!page)
+        return;
+    TextChecker::setContinuousSpellCheckingEnabled(!continuousSpellCheckingEnabled());
+    page->legacyMainFrameProcess().processPool().textCheckerStateChanged();
+    [self applyContinuousSpellChecking];
+}
+
+- (BOOL)validateMenuItem:(NSMenuItem*)item
+{
+    if ([item action] == @selector(toggleContinuousSpellChecking:))
+        [item setState:continuousSpellCheckingEnabled() ? NSOnState : NSOffState];
+    return YES;
+}
+
+#else
 // ---------------------------------------------------------------- NSTextInput --
 
 - (void)insertText:(id)string
@@ -195,6 +412,11 @@ static NSString* commandNameForSelector(SEL selector)
 - (NSRect)firstRectForCharacterRange:(NSRange)range { return NSZeroRect; }
 - (unsigned int)characterIndexForPoint:(NSPoint)point { return NSNotFound; }
 - (NSArray*)validAttributesForMarkedText { return [NSArray array]; }
+
+// Nothing is ever marked in this arm.
+- (void)abandonMarkedText { }
+- (void)applyContinuousSpellChecking { }
+#endif // TIGER_HAS_IME
 
 // ------------------------------------------------------- responder-chain edits --
 // Cmd-A/C/V/X/Z arrive here from the Edit menu's key equivalents.
@@ -287,16 +509,34 @@ static NSString* plainTextFromPasteboard()
     [_interpretedText release];
     _interpretedText = nil;
 
+    // An input method that is composing owns every key until it commits or cancels.
+    BOOL wasComposing = _hasMarkedText;
+    _inputMethodHandledKey = NO;
     _interpreting = YES;
     [self interpretKeyEvents:[NSArray arrayWithObject:event]];
     _interpreting = NO;
 
     if (getenv("TIGER_KEYLOG")) {
-        fprintf(stderr, "TIGER-KEY: chars=%s flags=0x%x key=%s -> text=%s commands=%s\n",
+        fprintf(stderr, "TIGER-KEY: chars=%s flags=0x%x key=%s -> text=%s commands=%s marked=%d im=%d\n",
             [[event characters] UTF8String], (unsigned)[event modifierFlags],
             [[NSApp keyWindow] isEqual:[self window]] ? "yes" : "no",
             _interpretedText ? [_interpretedText UTF8String] : "(none)",
-            [[_interpretedCommands componentsJoinedByString:@","] UTF8String]);
+            [[_interpretedCommands componentsJoinedByString:@","] UTF8String], _hasMarkedText, _inputMethodHandledKey);
+    }
+
+    // The input method took the key (marked text set, changed or committed), so the
+    // raw event must not reach the page as well: it would insert the romaji, or the
+    // key under a dead key's accent, next to the composition.
+    // ponytail: upstream sends such a keydown as keyCode 229 (handledByInputMethod),
+    // which this port's WebKeyboardEvent does not carry; the page sees no keydown for
+    // composition keys at all. Upgrade path: the flag in WebEvent.serialization.in.
+    if (wasComposing || _inputMethodHandledKey) {
+        unsigned count = [_interpretedCommands count];
+        for (unsigned i = 0; i < count; ++i)
+            [self executeEditCommand:[_interpretedCommands objectAtIndex:i] argument:nil];
+        if (_interpretedText)
+            [self executeEditCommand:@"InsertText" argument:_interpretedText];
+        return;
     }
 
     // A dead-key composition ends with text the event itself does not carry, so
