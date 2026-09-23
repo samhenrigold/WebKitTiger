@@ -34,7 +34,10 @@ ssh tiger-eth 'mkdir -p /Users/shg/wk2/bin /Users/shg/wk2/Frameworks /Users/shg/
 rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" "$WKT"/spike/wk2web/*.html tiger-eth:/Users/shg/wk2/share/ 2>/dev/null || echo "stage-app: share files not all copied (cacert.pem present?)"
 # rsync -t skips binaries that have not changed since the last stage.
 FILES=""
-for f in "$WKT/build/tiger-ui-port/bin/TigerWK2App" "$WKT/build/tiger-ui-port/bin/TigerBrowser2" "$WKT/build/tiger-web-port/bin/TigerWebProcess" "$WKT/build/tiger-web-port/bin/TigerNetworkProcess" "$WKT/build/tiger-gpu/bin/TigerGPUProcess" "$WKT/build/tigeraudio32"; do
+# UIDIR/WEBDIR/GPUDIR let a track's own build dirs through the same harness (tools/regress.sh
+# on build/tiger-*-faithful, say); the defaults are the main dirs.
+UIDIR=${UIDIR:-build/tiger-ui-port}; WEBDIR=${WEBDIR:-build/tiger-web-port}; GPUDIR=${GPUDIR:-build/tiger-gpu}
+for f in "$WKT/$UIDIR/bin/TigerWK2App" "$WKT/$UIDIR/bin/TigerBrowser2" "$WKT/$WEBDIR/bin/TigerWebProcess" "$WKT/$WEBDIR/bin/TigerNetworkProcess" "$WKT/$GPUDIR/bin/TigerGPUProcess" "$WKT/build/tigeraudio32"; do
     [ -f "$f" ] && FILES="$FILES $f" || echo "stage-app: missing $f (not copied)"
 done
 rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:/Users/shg/wk2/bin/

@@ -35,7 +35,7 @@ SHARE=/Users/shg/wk2/share
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost"
 case "${1:-}" in --list) echo $ALL; exit 0;; esac
 WANTED=${*:-$ALL}
 
@@ -133,7 +133,7 @@ wants() { case " $WANTED " in *" $1 "*) return 0;; *) return 1;; esac; }
 
 note "# regress $(date '+%Y-%m-%d %H:%M:%S')"
 note ""
-note "UI \`build/tiger-ui-port\`, web/network \`build/tiger-web-port\`, GPU \`build/tiger-gpu\`, audio \`build/tigeraudio32\`."
+note "UI \`${UIDIR:-build/tiger-ui-port}\`, web/network \`${WEBDIR:-build/tiger-web-port}\`, GPU \`${GPUDIR:-build/tiger-gpu}\`, audio \`build/tigeraudio32\`. (UIDIR/WEBDIR/GPUDIR pick a track's own dirs.)"
 note ""
 note '| check | verdict | detail |'
 note '| --- | --- | --- |'
@@ -259,6 +259,19 @@ fi
 if wants fcontrols; then
     run fcontrols "file://$SHARE/controls-test.html" 14 'wait 8' TIGER_FAITHFUL=1
     check fcontrols "$(BLESS=; golden controls fcontrols --crop 80,152,640,700 --max-frac 0.02)"
+fi
+
+# 13. Hosted controls must not outlive their document: load the controls page, then
+#    navigate to example.com in the same window. Every native control is a live NSView over
+#    the page view, so one left behind shows up as Aqua artwork on top of example.com; the
+#    shot must match the plain example golden. Fast and faithful.
+if wants ghost; then
+    run ghost "file://$SHARE/controls-test.html" 22 'wait 8; load http://example.com/; wait 8'
+    check ghost "$(BLESS=; golden example ghost --max-frac 0.02)"
+fi
+if wants fghost; then
+    run fghost "file://$SHARE/controls-test.html" 22 'wait 8; load http://example.com/; wait 8' TIGER_FAITHFUL=1
+    check fghost "$(BLESS=; golden example fghost --max-frac 0.02)"
 fi
 
 # 12. Cookies: tools/cookie-server.py on this Mac is the oracle (it logs every Cookie
