@@ -6154,3 +6154,12 @@ libpas test_pas 1720/1725 (3 upstream test bugs). Port bugs fixed: main-thread s
 realpath(p, NULL) crash, O_NOFOLLOW ignored, libpas PGM MADV_FREE, crash catcher in the test
 tools. WKTR/LayoutTests port assessed at 14-20 agent-days; plan in the tests section. Full
 stress across all 17 tiers is 8-14 h: overnight, one or two tiers a night.
+
+## Build concurrency rule (2026-09-23 17:45)
+
+Load average reached 500 with eight build dirs compiling (three full new ones from one track) and
+44 background shells. Rule for every track: one ninja at a time, -j2, start only when this Mac's
+1-minute load is under 12, no new i386/GPU build dir unless the task changes that process (stage
+build/tiger-gpu as-is), one waiter per job. Spotlight indexes the build trees (mds at 118%);
+excluding /Users/shg/Developer/WebKitTiger/build in System Settings > Spotlight > Privacy would
+help and is the user's call.
