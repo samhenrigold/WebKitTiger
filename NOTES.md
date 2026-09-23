@@ -5474,3 +5474,39 @@ Verge alone, all 90 s scrolled: release-2-era binaries 2 asserts in 7 runs (plus
 session and the media track's scroll2 log); fixed build 0 in 4. No TIGER-CRASH-SIGNAL or
 TIGER-ABORT anywhere; TIGER-EXIT 2 per run is the normal teardown pair. Every run's web
 process was alive at 87 s.
+
+## 2026-09-23 — controls: list box, stepper, search field, meter; real-cursor select; Tab; default button (tiger-faithful)
+
+All verified on the box in fast mode through TIGER_SCRIPT, the page's own `document.title` event
+log as the assertion (spike/wk2web/step-*.png, controls-fast-release3.png):
+
+- `<select>` pick with the hardware cursor (`realclick`, `realkey`): a real Aqua menu opens and
+  down, down, Return gives `change SELECT/select-one=2:Third`. Keyboard path too: Tab into the
+  select through WebCore, down, Return gives `select-one=1:Second`.
+- Tab and Shift-Tab: text field -> search (the disabled field skipped by WebCore) -> password,
+  and back. WebCore's FocusController owns the order; a Focused flag arriving from the page
+  makes the live control first responder.
+- `<select multiple>` as NSTableView: click gamma gives `change SELECT/select-multiple=2:gamma`.
+- `<input type=number>`'s spin button as NSStepper: up, down, down gives `number=2`.
+- The form's default submit button is Aqua's pulsing blue button while the form has focus, and
+  Return in its text field submits (`submit querys`).
+- NSSearchField (magnifier + cancel X), NSLevelIndicator for `<meter>`, cell placeholder text.
+
+Traps worth keeping:
+
+- A click into a text field gives NO delegate callback until the first edit. Hosted text
+  controls are subclasses whose -becomeFirstResponder reports Focus; without it the page never
+  knew which field had the focus.
+- A focused NSTextField is not the first responder -- its field editor is. The Focused
+  round trip must not makeFirstResponder: it again (that selects all under the first keystroke).
+- A text field with a target/action takes Return for itself, and the field editor takes it even
+  without one; the host presses the window's default button cell on insertNewline:.
+- Harness: a posted NSEvent never opens an NSPopUpButton menu (it tracks the real cursor); a
+  350 ms real press is press-drag-release on the current item; a 50 ms click leaves the menu
+  open. Shift-Tab must be U+0019. The step timer must run in the common modes.
+- TIGER_WIDGET_LOG=1 prints every hosted widget per change -- it is how the invisible stepper
+  (hosted, but under its own field) was found.
+
+Not done: multi-select of more than one row reaches the page as a single index; implicit
+submission of a form with no submit button; a non-text hosted control does not yet hand its
+Tab to WebCore; faithful mode not re-verified.
