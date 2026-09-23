@@ -1,0 +1,654 @@
+   0.205 2026-09-23 09:22:02.272 TigerBrowser2[11429] *** _NSAutoreleaseNoPool(): Object 0x7c09150 of class NSCFString autoreleased with no pool in place - just leaking
+   0.602 Unknown logging channel: Loading
+   0.602 Unknown logging channel: Layout
+   0.624 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::initializeNetworkProcess: Presenting processPID=11433
+   0.696 Unknown logging channel: Loading
+   0.696 Unknown logging channel: Layout
+   0.698 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 3
+   0.699 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.699 [com.apple.WebKit:Process:4] 0x10c6123e0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.700 [com.apple.WebKit:Process:4] 0x10c6123e0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+   0.700 [com.apple.WebKit:Process:4] 0x10c6123e0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+   0.700 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+   0.705 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+   0.753 [com.apple.WebKit:Process:4] 0x10c601220 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=11429
+   0.754 [com.apple.WebKit:Loading:4] 0x10d024400 - [webPageID=5] WebPage::constructor:
+   0.760 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: AcceleratedCompositingEnabled=false, UseGPUProcessForDOMRenderingEnabled=false
+   0.787 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   0.790 [com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+   0.825 [com.apple.WebKit:Loading:4] [pageID=5, frameID=4294967297] PolicyChecker::checkNavigationPolicy: continuing because this policyAction from dispatchDecidePolicyForNavigationAction is Use
+   0.829 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   0.829 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+   0.831 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   0.831 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9)
+   0.884 TIGER script: wait 30
+   1.056 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=16, existingLoaderToResume=0)
+   1.056 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=16)
+   1.056 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=17, existingLoaderToResume=0)
+   1.056 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=17)
+   1.057 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=18, existingLoaderToResume=0)
+   1.057 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=18)
+   1.057 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=19, existingLoaderToResume=0)
+   1.057 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=19)
+   1.057 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=20, existingLoaderToResume=0)
+   1.057 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=20)
+   1.058 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=21, existingLoaderToResume=0)
+   1.058 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=21)
+   1.059 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=22, existingLoaderToResume=0)
+   1.059 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=22)
+   1.059 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=23, existingLoaderToResume=0)
+   1.059 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=23)
+   1.093 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=24, existingLoaderToResume=0)
+   1.093 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=24)
+   1.094 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=25, existingLoaderToResume=0)
+   1.094 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=25)
+   1.094 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=26, existingLoaderToResume=0)
+   1.094 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=26)
+   1.094 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=27, existingLoaderToResume=0)
+   1.094 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=27)
+   1.094 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=28, existingLoaderToResume=0)
+   1.094 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=28)
+   1.095 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=29, existingLoaderToResume=0)
+   1.095 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=29)
+   1.096 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=30, existingLoaderToResume=0)
+   1.096 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=30)
+   1.096 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=31, existingLoaderToResume=0)
+   1.096 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=31)
+   1.664 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=34, existingLoaderToResume=0)
+   1.664 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=34)
+   2.673 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=35, existingLoaderToResume=0)
+   2.673 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=35)
+   2.673 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=36, existingLoaderToResume=0)
+   2.673 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=36)
+   3.342 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::removeLoadIdentifier: Removing identifier 9 and aborting corresponding loader
+   3.411 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.411 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(1FAABCD3DEA5CDEB) state = Idle
+   3.412 [com.apple.WebKit:Media:-] MediaElementSession::setState(1FAABCD3DEA5CDEB) Autoplaying, canProduceAudio=false
+   3.592 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=49, existingLoaderToResume=0)
+   3.592 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=49)
+   3.601 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.601 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(967E03F16B117AD5) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.601 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(967E03F16B117AD5) state = Idle
+   3.601 [com.apple.WebKit:Media:-] MediaElementSession::setState(967E03F16B117AD5) Autoplaying, canProduceAudio=false
+   3.601 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.610 [com.apple.WebKit:Media:-] HTMLMediaElement::setControls(967E03F16B117AD5) false
+   3.611 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(967E03F16B117AD5) state = Autoplaying
+   3.633 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(967E03F16B117AD5) state = Autoplaying
+   3.735 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=50, existingLoaderToResume=0)
+   3.735 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=50)
+   3.750 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=51, existingLoaderToResume=0)
+   3.750 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=51)
+   3.752 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=52, existingLoaderToResume=0)
+   3.752 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=52)
+   3.758 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=53, existingLoaderToResume=0)
+   3.758 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=53)
+   3.762 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=54, existingLoaderToResume=0)
+   3.762 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=54)
+   3.766 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.766 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.783 [com.apple.WebKit:Media:-] HTMLMediaElement::setControls(967E03F16B117AD5) false
+   3.792 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.793 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.795 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(967E03F16B117AD5) state = Autoplaying
+   3.798 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(967E03F16B117AD5) state = Autoplaying
+   3.801 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginPlayback(967E03F16B117AD5) state = Autoplaying
+   4.038 [com.apple.WebKit:Layout:4] [pageID=5, frameID=4294967297, isMainFrame=1] LocalFrameView::fireLayoutRelatedMilestonesIfNeeded: Firing first visually non-empty layout milestone on the main frame
+   4.038 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidFirstLayoutForFrame
+   4.038 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstLayout, DidFirstVisuallyNonEmptyLayout)
+   4.038 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidFirstVisuallyNonEmptyLayoutForFrame
+   4.038 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   4.198 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=13, webPageID=14, frameID=12884901890, resourceID=58, existingLoaderToResume=0)
+   4.198 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=13, webPageID=14, frameID=12884901890, resourceID=58)
+   4.202 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::startSessionAdmission(0) 10844109288173042389
+   4.203 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::setCurrentSession(0) 10844109288173042389, size = 1
+   4.203 [com.apple.WebKit:Media:-] MediaElementSession::setState(967E03F16B117AD5) Playing, canProduceAudio=false
+   4.203 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::startSessionAdmission(0) 10844109288173042389 returning true
+   4.213 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(967E03F16B117AD5) 2
+   4.213 [com.apple.WebKit:Media:-] HTMLMediaElement::loadResource(967E03F16B117AD5) loading MSE blob
+   4.213 [com.apple.WebKit:MediaSource:-] MediaSource::setLogIdentifier(967E03F16B117AD5) 
+   4.213 [com.apple.WebKit:MediaSource:-] MediaSource::onReadyStateChange(967E03F16B117AD5) old state = closed, new state = open
+   4.213 [com.apple.WebKit:MediaSource:-] MediaSource::openIfDeferredOpen(967E03F16B117AD5) 
+   4.272 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=59, existingLoaderToResume=0)
+   4.272 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=59)
+   4.289 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   4.289 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   4.311 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=61, existingLoaderToResume=0)
+   4.311 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=61)
+   4.349 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstMeaningfulPaint)
+   4.359 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=103, existingLoaderToResume=0)
+   4.359 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=103)
+   4.378 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=104, existingLoaderToResume=0)
+   4.378 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=104)
+   4.405 [com.apple.WebKit:MediaSource:-] MediaSource::setDuration(967E03F16B117AD5) 635
+   4.405 [com.apple.WebKit:MediaSource:-] MediaSource::setDurationInternal(967E03F16B117AD5) {"value":635}
+   4.408 [com.apple.WebKit:MediaSource:-] SourceBuffer::SourceBuffer(0) 
+   4.408 [com.apple.WebKit:MediaSource:-] SourceBuffer::SourceBuffer(0) 
+   4.410 [com.apple.WebKit:MediaSource:-] MediaSource::setDuration(967E03F16B117AD5) 634.6245804988662
+   4.410 [com.apple.WebKit:MediaSource:-] MediaSource::setDurationInternal(967E03F16B117AD5) {"value":634.6245804988662}
+   4.417 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 741 maximumBufferSize = 15938355 buffered =  streaming = false
+   4.419 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 632 maximumBufferSize = 15938355 buffered =  streaming = false
+   8.123 [com.apple.WebKit:Loading:4] [pageID=5, frameID=12884901891] PolicyChecker::checkNavigationPolicy: continuing because this policyAction from dispatchDecidePolicyForNavigationAction is Use
+   8.125 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=12884901891, resourceID=127, existingLoaderToResume=0)
+   8.125 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=12884901891, resourceID=127)
+   8.128 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   8.128 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+   8.336 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=186, existingLoaderToResume=0)
+   8.337 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=186)
+   8.398 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=12884901891, resourceID=190, existingLoaderToResume=0)
+   8.398 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=12884901891, resourceID=190)
+   8.654 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::dumpSessionStates(0)  Sessions:
+   8.654 (967E03F16B117AD5): Video, Playing, MediaSource (Media Element Source Type)
+   8.654 
+   9.123 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=206, existingLoaderToResume=0)
+   9.123 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=206)
+   9.423 [com.apple.WebKit:Loading:4] [pageID=5, frameID=12884901892] PolicyChecker::checkNavigationPolicy: continuing because this is an initial empty document
+   9.725 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=267, existingLoaderToResume=0)
+   9.725 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=267)
+   9.726 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=268, existingLoaderToResume=0)
+   9.726 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=268)
+   9.891 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=272, existingLoaderToResume=0)
+   9.891 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=272)
+   9.931 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = , totalBufferSize: 0
+   9.931 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = , totalBufferSize: 0
+  10.019 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 33872 maximumBufferSize = 15938355 buffered =  streaming = false
+  10.022 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161986 maximumBufferSize = 15938355 buffered =  streaming = false
+  10.138 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateDidReceiveInitializationSegment(0) 
+  10.138 [com.apple.WebKit:MediaSource:-] FFmpegSourceBufferPrivate::operator()(0) true
+  10.138 [com.apple.WebKit:MediaSource:-] TrackBuffer::setLogger(F102) 
+  10.139 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateDidReceiveInitializationSegment(0) 
+  10.139 [com.apple.WebKit:MediaSource:-] FFmpegSourceBufferPrivate::operator()(0) true
+  10.139 [com.apple.WebKit:MediaSource:-] TrackBuffer::setLogger(6B75) 
+  10.305 [com.apple.WebKit:Media:-] HTMLMediaElement::setReadyState(967E03F16B117AD5) Autoplay blocked with reason: PageConsentRequired: !paused
+  10.305 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginPlayback(967E03F16B117AD5) state = Playing
+  10.305 TIGER-MEDIA starved: both queues empty, waiting for the SourceBuffers (clock=0.00)
+  10.339 [com.apple.WebKit:Media:-] HTMLMediaElement::setControls(967E03F16B117AD5) false
+  10.405 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{73728/15360 = 4.8}] , totalBufferSize: 32044
+  10.406 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{440320/44100 = 9.984580498866213}] , totalBufferSize: 160162
+  10.964 tigeraudio32: playing 44100 Hz from /tmp/webkit-audio-11432-1
+  11.554 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 57315 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{73728/15360 = 4.8}]  streaming = false
+  11.556 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161471 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{440320/44100 = 9.984580498866213}]  streaming = false
+  12.440 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=570, existingLoaderToResume=0)
+  12.440 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=570)
+  12.448 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=571, existingLoaderToResume=0)
+  12.448 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=571)
+  12.449 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=572, existingLoaderToResume=0)
+  12.449 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=572)
+  12.571 TIGER-MEDIA fps=24.2 shown=49 dropped=0 lag=2ms pts=1.60
+  12.870 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(63557F49A093EA80) state = Idle
+  12.870 [com.apple.WebKit:Media:-] MediaElementSession::setState(63557F49A093EA80) Autoplaying, canProduceAudio=false
+  12.870 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(63557F49A093EA80) state = Autoplaying
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(63557F49A093EA80) state = Autoplaying
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(E520B7340449DD0D) state = Idle
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::setState(E520B7340449DD0D) Autoplaying, canProduceAudio=false
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(E520B7340449DD0D) state = Autoplaying
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(E520B7340449DD0D) state = Autoplaying
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(639C7243FF57615) state = Idle
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::setState(639C7243FF57615) Autoplaying, canProduceAudio=false
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(639C7243FF57615) state = Autoplaying
+  12.871 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(639C7243FF57615) state = Autoplaying
+  12.872 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(4BAC90FAC43C376D) state = Idle
+  12.872 [com.apple.WebKit:Media:-] MediaElementSession::setState(4BAC90FAC43C376D) Autoplaying, canProduceAudio=false
+  12.872 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(4BAC90FAC43C376D) state = Autoplaying
+  12.872 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(4BAC90FAC43C376D) state = Autoplaying
+  13.996 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(63557F49A093EA80) 2
+  13.997 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=643, existingLoaderToResume=0)
+  13.997 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=643)
+  13.999 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(E520B7340449DD0D) 2
+  13.999 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=644, existingLoaderToResume=0)
+  13.999 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=644)
+  14.000 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(639C7243FF57615) 2
+  14.000 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(4BAC90FAC43C376D) 2
+  14.000 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=645, existingLoaderToResume=0)
+  14.000 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=645)
+  14.002 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=646, existingLoaderToResume=0)
+  14.002 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=646)
+  14.002 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=647, existingLoaderToResume=0)
+  14.002 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=647)
+  14.003 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{120832/15360 = 7.866666666666666}] , totalBufferSize: 88155
+  14.003 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{880640/44100 = 19.969160997732427}] , totalBufferSize: 319809
+  14.607 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=1ms pts=3.63
+  15.966 tigeraudio32: t=5s read=194082 write=194082 paused=0 underruns=51
+  15.992 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+  15.992 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(1FAABCD3DEA5CDEB) autoplay blocked with reason: PageConsentRequired: Not enough data
+  16.189 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=648, existingLoaderToResume=0)
+  16.189 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=648)
+  16.760 TIGER-MEDIA fps=4.2 shown=9 dropped=0 lag=468ms pts=3.93
+  17.038 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=663, existingLoaderToResume=0)
+  17.039 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=663)
+  17.418 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 219118 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{120832/15360 = 7.866666666666666}]  streaming = false
+  17.423 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161693 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{880640/44100 = 19.969160997732427}]  streaming = false
+  17.471 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=754, existingLoaderToResume=0)
+  17.471 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=754)
+  17.485 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=755, existingLoaderToResume=0)
+  17.485 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=755)
+  17.681 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=757, existingLoaderToResume=0)
+  17.682 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=757)
+  17.684 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=758, existingLoaderToResume=0)
+  17.684 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=758)
+  18.500 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::dumpSessionStates(0)  Sessions:
+  18.500 (967E03F16B117AD5): VideoAudio, Playing, MediaSource (Media Element Source Type), 0x0, 
+  18.500 (63557F49A093EA80): Audio, Autoplaying, 
+  18.500 (E520B7340449DD0D): Audio, Autoplaying, 
+  18.500 (639C7243FF57615): Audio, Autoplaying, 
+  18.500 (4BAC90FAC43C376D): Audio, Autoplaying, 
+  18.500 
+  18.515 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{206848/15360 = 13.466666666666667}] , totalBufferSize: 305157
+  18.515 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{1320960/44100 = 29.95374149659864}] , totalBufferSize: 479678
+  18.560 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 410267 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{206848/15360 = 13.466666666666667}]  streaming = false
+  18.587 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161624 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{1320960/44100 = 29.95374149659864}]  streaming = false
+  18.769 TIGER-MEDIA fps=36.8 shown=74 dropped=0 lag=9ms pts=6.40
+  19.673 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{309248/15360 = 20.133333333333333}] , totalBufferSize: 712924
+  19.673 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{1761280/44100 = 39.938321995464854}] , totalBufferSize: 639478
+  19.689 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 90040 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{309248/15360 = 20.133333333333333}]  streaming = false
+  19.691 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161535 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{1761280/44100 = 39.938321995464854}]  streaming = false
+  19.698 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=873, existingLoaderToResume=0)
+  19.698 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=873)
+  19.853 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=874, existingLoaderToResume=0)
+  19.854 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=874)
+  20.418 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{374272/15360 = 24.366666666666667}] , totalBufferSize: 801340
+  20.418 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{2201600/44100 = 49.92290249433107}] , totalBufferSize: 799189
+  20.504 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 71786 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{374272/15360 = 24.366666666666667}]  streaming = false
+  20.652 [com.apple.WebKit:Loading:4] [pageID=5, frameID=12884901894] PolicyChecker::checkNavigationPolicy: continuing because this is an initial empty document
+  20.771 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=6ms pts=8.40
+  20.781 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{421376/15360 = 27.433333333333334}] , totalBufferSize: 871922
+  20.786 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 435486 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{421376/15360 = 27.433333333333334}]  streaming = false
+  20.972 tigeraudio32: t=10s read=379938 write=401476 paused=0 underruns=120
+  21.082 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{528896/15360 = 34.43333333333333}] , totalBufferSize: 1304788
+  21.105 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 318389 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{528896/15360 = 34.43333333333333}]  streaming = false
+  21.310 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{608256/15360 = 39.6}] , totalBufferSize: 1621217
+  21.349 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 207840 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{608256/15360 = 39.6}]  streaming = false
+  21.579 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}] , totalBufferSize: 1826641
+  21.850 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=929, existingLoaderToResume=0)
+  21.850 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=929)
+  22.088 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=941, existingLoaderToResume=0)
+  22.088 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=941)
+  22.090 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=942, existingLoaderToResume=0)
+  22.090 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=942)
+  22.802 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=5ms pts=10.43
+  22.878 [com.apple.WebKit:Media:-] HTMLMediaElement::handleAutoplayEvent(967E03F16B117AD5) hasAudio = true wasPlaybackPrevented = false hasMainContent = false
+  23.057 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=982, existingLoaderToResume=0)
+  23.057 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=982)
+  23.115 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=984, existingLoaderToResume=0)
+  23.115 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=984)
+  23.275 WARNING: trying to load platform resource 'missingImage'
+  23.385 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=992, existingLoaderToResume=0)
+  23.385 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=992)
+  24.430 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1026, existingLoaderToResume=0)
+  24.430 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1026)
+  24.645 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1056, existingLoaderToResume=0)
+  24.645 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1056)
+  24.779 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1084, existingLoaderToResume=0)
+  24.779 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1084)
+  24.835 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=3ms pts=12.47
+  25.647 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1199, existingLoaderToResume=0)
+  25.647 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1199)
+  25.885 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1213, existingLoaderToResume=0)
+  25.885 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1213)
+  25.979 tigeraudio32: t=15s read=600610 write=622148 paused=0 underruns=120
+  26.549 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1228, existingLoaderToResume=0)
+  26.549 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1228)
+  26.860 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=2ms pts=14.50
+  26.884 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1231, existingLoaderToResume=0)
+  26.884 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1231)
+  27.478 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1270, existingLoaderToResume=0)
+  27.478 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1270)
+  27.526 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}]  streaming = false
+  27.557 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{2201600/44100 = 49.92290249433107}]  streaming = false
+  27.575 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}] , totalBufferSize: 1826641
+  27.581 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 144500 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}]  streaming = false
+  27.646 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{2201600/44100 = 49.92290249433107}] , totalBufferSize: 799189
+  27.662 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 145190 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{2201600/44100 = 49.92290249433107}]  streaming = false
+  27.716 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{800256/15360 = 52.1}] , totalBufferSize: 1985241
+  27.750 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 280292 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{800256/15360 = 52.1}]  streaming = false
+  27.757 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1271, existingLoaderToResume=0)
+  27.757 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1271)
+  27.791 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{2641920/44100 = 59.90748299319728}] , totalBufferSize: 958939
+  27.793 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161620 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{2641920/44100 = 59.90748299319728}]  streaming = false
+  27.876 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2262913
+  27.881 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3082240/44100 = 69.89206349206349}] , totalBufferSize: 1118735
+  28.893 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=0ms pts=16.53
+  30.884 TIGER script: scroll 0,-400
+  30.903 TIGER-MEDIA fps=29.9 shown=60 dropped=0 lag=9ms pts=18.53
+  30.956 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1273, existingLoaderToResume=0)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1273)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1274, existingLoaderToResume=0)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1274)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1275, existingLoaderToResume=0)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1275)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1276, existingLoaderToResume=0)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1276)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1277, existingLoaderToResume=0)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1277)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1278, existingLoaderToResume=0)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1278)
+  30.982 tigeraudio32: t=20s read=821282 write=842308 paused=0 underruns=120
+  31.185 TIGER script: wait 10
+  32.933 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=7ms pts=20.57
+  33.586 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1319, existingLoaderToResume=0)
+  33.586 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1319)
+  33.615 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  33.619 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2262913
+  33.620 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  33.623 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2262913
+  33.623 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  33.626 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2262913
+  33.626 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  33.630 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2262913
+  33.637 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  33.654 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2262913
+  33.655 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 25858 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  33.677 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3082240/44100 = 69.89206349206349}]  streaming = false
+  33.699 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{955392/15360 = 62.2}] , totalBufferSize: 2385859
+  33.706 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 111360 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{955392/15360 = 62.2}]  streaming = false
+  33.713 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1321, existingLoaderToResume=0)
+  33.713 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1321)
+  33.713 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3082240/44100 = 69.89206349206349}] , totalBufferSize: 1118735
+  33.729 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 145179 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3082240/44100 = 69.89206349206349}]  streaming = false
+  33.837 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2494959
+  33.839 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 98304 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  33.845 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}] , totalBufferSize: 1278474
+  33.846 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2494959
+  33.847 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 160516 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  33.851 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1322, existingLoaderToResume=0)
+  33.851 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1322)
+  33.880 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1111552/15360 = 72.36666666666666}] , totalBufferSize: 2752179
+  34.935 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=4ms pts=22.57
+  35.587 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1323, existingLoaderToResume=0)
+  35.587 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1323)
+  35.984 tigeraudio32: t=25s read=1041442 write=1063492 paused=0 underruns=120
+  36.967 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=2ms pts=24.60
+  39.006 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=1ms pts=26.63
+  40.222 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1324, existingLoaderToResume=0)
+  40.222 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1324)
+  40.255 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1111552/15360 = 72.36666666666666}]  streaming = false
+  40.278 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1111552/15360 = 72.36666666666666}] , totalBufferSize: 2752179
+  40.281 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 100803 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1111552/15360 = 72.36666666666666}]  streaming = false
+  40.312 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1162752/15360 = 75.7}] , totalBufferSize: 2868066
+  40.317 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 135358 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1162752/15360 = 75.7}]  streaming = false
+  40.356 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}]  streaming = false
+  40.361 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1220096/15360 = 79.43333333333334}] , totalBufferSize: 3001980
+  40.373 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 262144 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1220096/15360 = 79.43333333333334}]  streaming = false
+  40.394 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}] , totalBufferSize: 1278474
+  40.395 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 145063 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}]  streaming = false
+  40.432 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1220096/15360 = 79.43333333333334}] , totalBufferSize: 3001980
+  40.434 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 114688 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1220096/15360 = 79.43333333333334}]  streaming = false
+  40.477 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3962880/44100 = 89.86122448979592}] , totalBufferSize: 1438097
+  40.478 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1220096/15360 = 79.43333333333334}] , totalBufferSize: 3001980
+  40.479 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 41270 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1220096/15360 = 79.43333333333334}]  streaming = false
+  40.485 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1325, existingLoaderToResume=0)
+  40.485 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1325)
+  40.634 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1295872/15360 = 84.36666666666666}] , totalBufferSize: 3418206
+  40.987 tigeraudio32: t=30s read=1262114 write=1284164 paused=0 underruns=120
+  41.002 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=9ms pts=28.63
+  41.185 TIGER script: scroll 0,-400
+  41.317 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1334, existingLoaderToResume=0)
+  41.317 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1334)
+  41.317 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1335, existingLoaderToResume=0)
+  41.317 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1335)
+  41.317 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1336, existingLoaderToResume=0)
+  41.317 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1336)
+  41.320 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1337, existingLoaderToResume=0)
+  41.320 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1337)
+  41.486 TIGER script: wait 30
+  41.734 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1353, existingLoaderToResume=0)
+  41.734 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1353)
+  42.443 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1354, existingLoaderToResume=0)
+  42.443 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1354)
+  42.445 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1355, existingLoaderToResume=0)
+  42.445 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1355)
+  42.445 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1356, existingLoaderToResume=0)
+  42.445 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1356)
+  42.449 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1357, existingLoaderToResume=0)
+  42.449 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1357)
+  43.027 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1362, existingLoaderToResume=0)
+  43.028 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1362)
+  43.037 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=8ms pts=30.67
+  45.068 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=6ms pts=32.70
+  45.928 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1371, existingLoaderToResume=0)
+  45.928 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1371)
+  45.990 tigeraudio32: t=35s read=1482786 write=1504836 paused=0 underruns=120
+  46.132 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 170713 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1295872/15360 = 84.36666666666666}]  streaming = false
+  46.133 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 162083 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3962880/44100 = 89.86122448979592}]  streaming = false
+  46.147 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1372, existingLoaderToResume=0)
+  46.147 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1372)
+  46.451 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1403392/15360 = 91.36666666666666}] , totalBufferSize: 3586299
+  46.451 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4403200/44100 = 99.84580498866214}] , totalBufferSize: 1598356
+  46.780 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 117170 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1403392/15360 = 91.36666666666666}]  streaming = false
+  47.068 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=3ms pts=34.70
+  47.388 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}] , totalBufferSize: 3701773
+  49.094 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=1ms pts=36.73
+  50.992 tigeraudio32: t=40s read=1703458 write=1724996 paused=0 underruns=120
+  51.096 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=-2ms pts=38.73
+  51.384 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1381, existingLoaderToResume=0)
+  51.384 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1381)
+  51.414 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}]  streaming = false
+  51.418 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}] , totalBufferSize: 3701773
+  51.419 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}]  streaming = false
+  51.422 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}] , totalBufferSize: 3701773
+  51.425 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}]  streaming = false
+  51.427 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}] , totalBufferSize: 3701773
+  51.432 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 1527 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}]  streaming = false
+  51.432 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4403200/44100 = 99.84580498866214}]  streaming = false
+  51.474 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4403200/44100 = 99.84580498866214}] , totalBufferSize: 1598356
+  51.477 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 144766 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4403200/44100 = 99.84580498866214}]  streaming = false
+  51.484 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1382, existingLoaderToResume=0)
+  51.484 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1382)
+  51.484 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1553408/15360 = 101.13333333333334}] , totalBufferSize: 3783200
+  51.513 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 51227 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1553408/15360 = 101.13333333333334}]  streaming = false
+  51.559 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}] , totalBufferSize: 1757682
+  51.562 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3833247
+  53.102 TIGER-MEDIA fps=29.9 shown=60 dropped=0 lag=7ms pts=40.73
+  54.626 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1383, existingLoaderToResume=0)
+  54.626 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1383)
+  54.737 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1384, existingLoaderToResume=0)
+  54.737 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1384)
+  54.761 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.768 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3833247
+  54.770 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.778 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3833247
+  54.780 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.790 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3833247
+  54.791 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 18661 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.820 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}]  streaming = false
+  54.842 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1663488/15360 = 108.3}] , totalBufferSize: 3948612
+  54.843 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 162817 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1663488/15360 = 108.3}]  streaming = false
+  54.854 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1385, existingLoaderToResume=0)
+  54.855 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1385)
+  54.867 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}] , totalBufferSize: 1757682
+  54.873 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 128972 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}]  streaming = false
+  54.948 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}] , totalBufferSize: 4109409
+  54.952 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}] , totalBufferSize: 1917598
+  55.135 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=5ms pts=42.77
+  55.994 tigeraudio32: t=45s read=1924130 write=1946180 paused=0 underruns=120
+  57.135 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=2ms pts=44.77
+  59.167 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=1ms pts=46.80
+  60.704 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1386, existingLoaderToResume=0)
+  60.704 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1386)
+  60.787 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}]  streaming = false
+  60.791 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}] , totalBufferSize: 4109409
+  60.791 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 23034 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}]  streaming = false
+  60.797 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}] , totalBufferSize: 4109409
+  60.797 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}]  streaming = false
+  60.808 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}] , totalBufferSize: 4109409
+  60.808 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 23347 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}]  streaming = false
+  60.834 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}] , totalBufferSize: 4203762
+  60.835 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 147456 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}]  streaming = false
+  60.841 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}] , totalBufferSize: 4203762
+  60.844 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}]  streaming = false
+  60.851 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}] , totalBufferSize: 4203762
+  60.851 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}]  streaming = false
+  60.853 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}]  streaming = false
+  60.861 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}] , totalBufferSize: 4203762
+  60.862 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 23342 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}]  streaming = false
+  60.864 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}] , totalBufferSize: 1917598
+  60.881 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 65536 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}]  streaming = false
+  60.902 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1387, existingLoaderToResume=0)
+  60.902 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1387)
+  60.946 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}] , totalBufferSize: 4421548
+  60.950 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}]  streaming = false
+  60.951 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}] , totalBufferSize: 1917598
+  60.952 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 79588 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}]  streaming = false
+  61.009 tigeraudio32: t=50s read=2145314 write=2166852 paused=0 underruns=120
+  61.061 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1388, existingLoaderToResume=0)
+  61.061 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1388)
+  61.067 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}] , totalBufferSize: 4421548
+  61.074 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 302565 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}]  streaming = false
+  61.075 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}] , totalBufferSize: 2077282
+  61.107 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}] , totalBufferSize: 4754801
+  61.168 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=9ms pts=48.80
+  63.200 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=8ms pts=50.83
+  64.588 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1389, existingLoaderToResume=0)
+  64.588 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1389)
+  65.237 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=6ms pts=52.87
+  66.012 tigeraudio32: t=55s read=2365986 write=2387524 paused=0 underruns=120
+  67.268 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=4ms pts=54.90
+  68.249 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1390, existingLoaderToResume=0)
+  68.249 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1390)
+  68.286 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}]  streaming = false
+  68.291 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}] , totalBufferSize: 4754801
+  68.291 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}]  streaming = false
+  68.297 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}] , totalBufferSize: 4754801
+  68.298 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}]  streaming = false
+  68.308 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}]  streaming = false
+  68.321 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}] , totalBufferSize: 4754801
+  68.324 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 15761 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}]  streaming = false
+  68.325 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}] , totalBufferSize: 2077282
+  68.327 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 114688 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}]  streaming = false
+  68.377 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2016256/15360 = 131.26666666666668}] , totalBufferSize: 4834774
+  68.379 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 147456 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2016256/15360 = 131.26666666666668}]  streaming = false
+  68.380 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}] , totalBufferSize: 2077282
+  68.382 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 30318 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}]  streaming = false
+  68.473 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2016256/15360 = 131.26666666666668}] , totalBufferSize: 4834774
+  68.479 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 45702 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2016256/15360 = 131.26666666666668}]  streaming = false
+  68.482 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{6164480/44100 = 139.78412698412697}] , totalBufferSize: 2236848
+  68.483 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1392, existingLoaderToResume=0)
+  68.483 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1392)
+  68.505 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161789 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{6164480/44100 = 139.78412698412697}]  streaming = false
+  68.632 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 5025312
+  68.640 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}] , totalBufferSize: 2396813
+  69.296 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=3ms pts=56.93
+  71.014 tigeraudio32: t=60s read=2586658 write=2608196 paused=0 underruns=120
+  71.298 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=-0ms pts=58.93
+  71.326 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1393, existingLoaderToResume=0)
+  71.326 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1393)
+  71.358 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.358 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 5025312
+  71.361 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.373 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 5025312
+  71.380 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.380 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 5025312
+  71.383 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.391 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 5025312
+  71.392 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 87464 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.396 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1394, existingLoaderToResume=0)
+  71.396 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1394)
+  71.431 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  73.303 TIGER-MEDIA fps=29.9 shown=60 dropped=0 lag=8ms pts=60.93
+  74.389 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1395, existingLoaderToResume=0)
+  74.389 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1395)
+  74.415 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.418 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  74.419 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.424 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  74.425 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.431 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  74.431 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.438 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  74.439 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.446 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  74.447 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 65536 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.452 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  74.456 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.458 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  74.459 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.465 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5209000
+  74.473 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 27190 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  74.495 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5463966
+  74.496 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 147456 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  74.497 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}]  streaming = false
+  74.511 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5463966
+  74.511 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 2448 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  74.511 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}] , totalBufferSize: 2396813
+  74.511 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}]  streaming = false
+  74.550 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1396, existingLoaderToResume=0)
+  74.550 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1396)
+  74.560 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  74.561 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}] , totalBufferSize: 2396813
+  74.562 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 112234 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}]  streaming = false
+  74.638 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7045120/44100 = 159.75328798185942}] , totalBufferSize: 2556375
+  75.335 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=7ms pts=62.97
+  76.017 tigeraudio32: t=65s read=2807330 write=2828868 paused=0 underruns=120
+  77.371 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=5ms pts=65.00
+  79.404 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=3ms pts=67.03
+  80.677 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1397, existingLoaderToResume=0)
+  80.677 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1397)
+  80.711 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.713 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.714 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.720 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.721 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.726 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.726 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.734 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.734 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.741 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.745 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.749 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.750 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 65536 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.756 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.757 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.763 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.764 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.774 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.776 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.786 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.786 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 65536 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.794 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5611766
+  80.795 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 35899 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  80.795 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7045120/44100 = 159.75328798185942}]  streaming = false
+  80.870 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7045120/44100 = 159.75328798185942}] , totalBufferSize: 2556375
+  80.871 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 145230 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7045120/44100 = 159.75328798185942}]  streaming = false
+  80.876 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1398, existingLoaderToResume=0)
+  80.876 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1398)
+  80.877 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}] , totalBufferSize: 6038297
+  80.909 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 153926 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}]  streaming = false
+  80.984 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7485440/44100 = 169.73786848072564}] , totalBufferSize: 2716165
+  80.989 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}] , totalBufferSize: 6189855
+  81.020 tigeraudio32: t=70s read=3028002 write=3049540 paused=0 underruns=120
+  81.437 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=2ms pts=69.07
+  83.466 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=0ms pts=71.10
+  84.743 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1399, existingLoaderToResume=0)
+  84.743 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1399)
+  85.470 TIGER-MEDIA fps=29.9 shown=60 dropped=0 lag=9ms pts=73.10
+  86.023 tigeraudio32: t=75s read=3248162 write=3270212 paused=0 underruns=120
+  87.491 TIGER-MEDIA fps=29.8 shown=60 dropped=0 lag=6ms pts=75.10
+  87.543 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1400, existingLoaderToResume=0)
+  87.543 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1400)
+  87.644 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}]  streaming = false
+  87.644 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}] , totalBufferSize: 6189855
+  87.663 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}]  streaming = false
+  87.663 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}] , totalBufferSize: 6189855
+  87.663 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 3236 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}]  streaming = false
+  87.751 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}] , totalBufferSize: 6189855
+  87.752 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}]  streaming = false
+  87.757 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 81920 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7485440/44100 = 169.73786848072564}]  streaming = false
+  87.829 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}] , totalBufferSize: 6189855
+  87.830 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 99155 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}]  streaming = false
+  87.833 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7485440/44100 = 169.73786848072564}] , totalBufferSize: 2716165
+  87.834 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 79686 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7485440/44100 = 169.73786848072564}]  streaming = false
+  88.108 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}] , totalBufferSize: 6339882
+  88.121 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 107343 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}]  streaming = false
+  88.122 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7925760/44100 = 179.72244897959183}] , totalBufferSize: 2875947
+  88.123 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161613 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7925760/44100 = 179.72244897959183}]  streaming = false
+  88.139 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1401, existingLoaderToResume=0)
+  88.139 [com.apple.WebKit:Loading:4] 0x10c6123e0 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=11429, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=1401)
+  88.351 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2672128/15360 = 173.96666666666667}] , totalBufferSize: 6445925
+  88.362 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 130846 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2672128/15360 = 173.96666666666667}]  streaming = false
+  88.363 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{8366080/44100 = 189.70702947845805}] , totalBufferSize: 3035736
+  88.527 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2772992/15360 = 180.53333333333333}] , totalBufferSize: 6574307
+  89.513 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=4ms pts=77.13
+  90.399 TIGER-EXIT pid 0x2ca5
+  90.399  thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2dacd5
+  90.436 TIGER-EXIT pid 0x2ca9
+  90.436  thread 0xd03 state-kr 0x0 pc 0x10ae5ae4e leaf mach_msg_trap+0xa frames: 0x10ae5ae4e 0x10ae1011d 0x10032913d 0x10adffc75 0x10adffa0c 0x100001ad3 0x1000019e1 0x3
+  90.655 tigeraudio32: exit, underruns 120

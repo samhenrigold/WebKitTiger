@@ -1,0 +1,1554 @@
+   0.210 2026-09-23 08:53:30.924 TigerBrowser2[9475] *** _NSAutoreleaseNoPool(): Object 0x7c09150 of class NSCFString autoreleased with no pool in place - just leaking
+   0.604 Unknown logging channel: Loading
+   0.604 Unknown logging channel: Layout
+   0.609 Unknown logging channel: Loading
+   0.609 Unknown logging channel: Layout
+   0.612 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 3
+   0.616 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::initializeNetworkProcess: Presenting processPID=9479
+   0.699 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.699 [com.apple.WebKit:Process:4] 0x10c612460 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.700 [com.apple.WebKit:Process:4] 0x10c612460 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+   0.700 [com.apple.WebKit:Process:4] 0x10c612460 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+   0.700 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+   0.705 [com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+   0.752 [com.apple.WebKit:Process:4] 0x10c6011a0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=9475
+   0.753 [com.apple.WebKit:Loading:4] 0x10d024400 - [webPageID=5] WebPage::constructor:
+   0.758 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: AcceleratedCompositingEnabled=false, UseGPUProcessForDOMRenderingEnabled=false
+   0.786 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   0.789 [com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+   0.805 [com.apple.WebKit:Loading:4] [pageID=5, frameID=4294967297] PolicyChecker::checkNavigationPolicy: continuing because this policyAction from dispatchDecidePolicyForNavigationAction is Use
+   0.809 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   0.809 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+   0.812 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   0.812 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9)
+   0.893 TIGER script: wait 30
+   1.046 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=16, existingLoaderToResume=0)
+   1.046 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=16)
+   1.046 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=17, existingLoaderToResume=0)
+   1.047 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=17)
+   1.047 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=18, existingLoaderToResume=0)
+   1.047 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=18)
+   1.047 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=19, existingLoaderToResume=0)
+   1.047 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=19)
+   1.048 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=20, existingLoaderToResume=0)
+   1.048 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=20)
+   1.048 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=21, existingLoaderToResume=0)
+   1.048 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=21)
+   1.048 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=22, existingLoaderToResume=0)
+   1.048 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=22)
+   1.048 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=23, existingLoaderToResume=0)
+   1.049 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=23)
+   1.083 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=24, existingLoaderToResume=0)
+   1.083 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=24)
+   1.083 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=25, existingLoaderToResume=0)
+   1.083 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=25)
+   1.083 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=26, existingLoaderToResume=0)
+   1.083 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=26)
+   1.084 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=27, existingLoaderToResume=0)
+   1.084 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=27)
+   1.084 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=28, existingLoaderToResume=0)
+   1.084 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=28)
+   1.084 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=29, existingLoaderToResume=0)
+   1.084 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=29)
+   1.086 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=30, existingLoaderToResume=0)
+   1.086 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=30)
+   1.086 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=31, existingLoaderToResume=0)
+   1.086 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=31)
+   1.845 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=34, existingLoaderToResume=0)
+   1.845 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=34)
+   1.846 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=35, existingLoaderToResume=0)
+   1.846 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=35)
+   1.849 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=36, existingLoaderToResume=0)
+   1.849 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=36)
+   1.851 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=37, existingLoaderToResume=0)
+   1.851 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=37)
+   1.888 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::removeLoadIdentifier: Removing identifier 9 and aborting corresponding loader
+   2.895 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=13, webPageID=14, frameID=12884901890, resourceID=40, existingLoaderToResume=0)
+   2.895 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=13, webPageID=14, frameID=12884901890, resourceID=40)
+   2.957 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=41, existingLoaderToResume=0)
+   2.957 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=41)
+   3.593 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.593 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(CD97116B12CFC9C7) state = Idle
+   3.593 [com.apple.WebKit:Media:-] MediaElementSession::setState(CD97116B12CFC9C7) Autoplaying, canProduceAudio=false
+   3.772 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=52, existingLoaderToResume=0)
+   3.772 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=52)
+   3.783 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.783 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(3323CD30C1F5C751) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.783 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(3323CD30C1F5C751) state = Idle
+   3.783 [com.apple.WebKit:Media:-] MediaElementSession::setState(3323CD30C1F5C751) Autoplaying, canProduceAudio=false
+   3.783 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.788 [com.apple.WebKit:Media:-] HTMLMediaElement::setControls(3323CD30C1F5C751) false
+   3.789 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(3323CD30C1F5C751) state = Autoplaying
+   3.811 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(3323CD30C1F5C751) state = Autoplaying
+   3.914 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=53, existingLoaderToResume=0)
+   3.914 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=53)
+   3.924 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=54, existingLoaderToResume=0)
+   3.924 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=54)
+   3.925 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=55, existingLoaderToResume=0)
+   3.925 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=55)
+   3.944 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.944 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.944 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=56, existingLoaderToResume=0)
+   3.944 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=56)
+   3.945 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=57, existingLoaderToResume=0)
+   3.945 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=57)
+   3.952 [com.apple.WebKit:Media:-] HTMLMediaElement::setControls(3323CD30C1F5C751) false
+   3.962 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.962 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   3.964 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(3323CD30C1F5C751) state = Autoplaying
+   3.967 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(3323CD30C1F5C751) state = Autoplaying
+   3.970 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginPlayback(3323CD30C1F5C751) state = Autoplaying
+   4.194 [com.apple.WebKit:Layout:4] [pageID=5, frameID=4294967297, isMainFrame=1] LocalFrameView::fireLayoutRelatedMilestonesIfNeeded: Firing first visually non-empty layout milestone on the main frame
+   4.194 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidFirstLayoutForFrame
+   4.194 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstLayout, DidFirstVisuallyNonEmptyLayout)
+   4.194 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidFirstVisuallyNonEmptyLayoutForFrame
+   4.194 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   4.355 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::startSessionAdmission(0) 3685014529415432017
+   4.355 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::setCurrentSession(0) 3685014529415432017, size = 1
+   4.356 [com.apple.WebKit:Media:-] MediaElementSession::setState(3323CD30C1F5C751) Playing, canProduceAudio=false
+   4.356 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::startSessionAdmission(0) 3685014529415432017 returning true
+   4.364 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(3323CD30C1F5C751) 2
+   4.364 [com.apple.WebKit:Media:-] HTMLMediaElement::loadResource(3323CD30C1F5C751) loading MSE blob
+   4.364 [com.apple.WebKit:MediaSource:-] MediaSource::setLogIdentifier(3323CD30C1F5C751) 
+   4.364 [com.apple.WebKit:MediaSource:-] MediaSource::onReadyStateChange(3323CD30C1F5C751) old state = closed, new state = open
+   4.365 [com.apple.WebKit:MediaSource:-] MediaSource::openIfDeferredOpen(3323CD30C1F5C751) 
+   4.420 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=62, existingLoaderToResume=0)
+   4.420 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=62)
+   4.437 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   4.437 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   4.456 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=64, existingLoaderToResume=0)
+   4.456 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=64)
+   4.483 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstMeaningfulPaint)
+   8.143 [com.apple.WebKit:Loading:4] [pageID=5, frameID=12884901891] PolicyChecker::checkNavigationPolicy: continuing because this policyAction from dispatchDecidePolicyForNavigationAction is Use
+   8.146 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=12884901891, resourceID=127, existingLoaderToResume=0)
+   8.146 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=12884901891, resourceID=127)
+   8.166 [com.apple.WebKit:MediaSource:-] MediaSource::setDuration(3323CD30C1F5C751) 635
+   8.166 [com.apple.WebKit:MediaSource:-] MediaSource::setDurationInternal(3323CD30C1F5C751) {"value":635}
+   8.166 [com.apple.WebKit:MediaSource:-] SourceBuffer::SourceBuffer(0) 
+   8.166 [com.apple.WebKit:MediaSource:-] SourceBuffer::SourceBuffer(0) 
+   8.166 [com.apple.WebKit:MediaSource:-] MediaSource::setDuration(3323CD30C1F5C751) 634.6245804988662
+   8.166 [com.apple.WebKit:MediaSource:-] MediaSource::setDurationInternal(3323CD30C1F5C751) {"value":634.6245804988662}
+   8.176 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 741 maximumBufferSize = 15938355 buffered =  streaming = false
+   8.179 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 632 maximumBufferSize = 15938355 buffered =  streaming = false
+   8.316 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=131, existingLoaderToResume=0)
+   8.316 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=131)
+   8.373 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   8.373 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+   8.498 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=12884901891, resourceID=135, existingLoaderToResume=0)
+   8.498 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=12884901891, resourceID=135)
+   8.673 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = , totalBufferSize: 0
+   8.673 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = , totalBufferSize: 0
+   8.684 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 22910 maximumBufferSize = 15938355 buffered =  streaming = false
+   8.691 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161986 maximumBufferSize = 15938355 buffered =  streaming = false
+   8.707 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::dumpSessionStates(0)  Sessions:
+   8.708 (3323CD30C1F5C751): Video, Playing, MediaSource (Media Element Source Type)
+   8.708 
+   8.783 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateDidReceiveInitializationSegment(0) 
+   8.789 [com.apple.WebKit:MediaSource:-] FFmpegSourceBufferPrivate::operator()(0) true
+   8.789 [com.apple.WebKit:MediaSource:-] TrackBuffer::setLogger(8AF9) 
+   8.790 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateDidReceiveInitializationSegment(0) 
+   8.790 [com.apple.WebKit:MediaSource:-] FFmpegSourceBufferPrivate::operator()(0) true
+   8.790 [com.apple.WebKit:MediaSource:-] TrackBuffer::setLogger(7F30) 
+   9.056 [com.apple.WebKit:Media:-] HTMLMediaElement::setReadyState(3323CD30C1F5C751) Autoplay blocked with reason: PageConsentRequired: !paused
+   9.056 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginPlayback(3323CD30C1F5C751) state = Playing
+   9.056 TIGER-MEDIA starved: both queues empty, waiting for the SourceBuffers (clock=0.00)
+   9.090 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=251, existingLoaderToResume=0)
+   9.090 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=251)
+   9.090 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=252, existingLoaderToResume=0)
+   9.090 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=252)
+   9.211 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=253, existingLoaderToResume=0)
+   9.211 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=253)
+   9.242 [com.apple.WebKit:Media:-] HTMLMediaElement::setControls(3323CD30C1F5C751) false
+   9.329 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=299, existingLoaderToResume=0)
+   9.329 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=299)
+   9.332 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=300, existingLoaderToResume=0)
+   9.332 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=300)
+   9.333 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=301, existingLoaderToResume=0)
+   9.333 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=301)
+   9.413 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{73728/15360 = 4.8}] , totalBufferSize: 21082
+   9.414 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{440320/44100 = 9.984580498866213}] , totalBufferSize: 160162
+   9.712 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 40171 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{73728/15360 = 4.8}]  streaming = false
+   9.714 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161471 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{440320/44100 = 9.984580498866213}]  streaming = false
+   9.896 tigeraudio32: playing 44100 Hz from /tmp/webkit-audio-9478-1
+  10.193 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=355, existingLoaderToResume=0)
+  10.193 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=355)
+  10.602 [com.apple.WebKit:Loading:4] [pageID=5, frameID=12884901892] PolicyChecker::checkNavigationPolicy: continuing because this is an initial empty document
+  11.042 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{120832/15360 = 7.866666666666666}] , totalBufferSize: 60049
+  11.042 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{880640/44100 = 19.969160997732427}] , totalBufferSize: 319809
+  11.067 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 153469 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{120832/15360 = 7.866666666666666}]  streaming = false
+  11.068 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161693 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{880640/44100 = 19.969160997732427}]  streaming = false
+  11.088 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=449, existingLoaderToResume=0)
+  11.088 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=449)
+  11.292 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=456, existingLoaderToResume=0)
+  11.292 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=456)
+  11.431 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{206848/15360 = 13.466666666666667}] , totalBufferSize: 211402
+  11.431 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{1320960/44100 = 29.95374149659864}] , totalBufferSize: 479678
+  11.535 TIGER-MEDIA fps=24.7 shown=50 dropped=0 lag=4ms pts=1.63
+  11.647 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 313728 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{206848/15360 = 13.466666666666667}]  streaming = false
+  11.649 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161624 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{1320960/44100 = 29.95374149659864}]  streaming = false
+  11.658 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=467, existingLoaderToResume=0)
+  11.658 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=467)
+  12.802 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{309248/15360 = 20.133333333333333}] , totalBufferSize: 522630
+  12.805 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{1761280/44100 = 39.938321995464854}] , totalBufferSize: 639478
+  13.374 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=551, existingLoaderToResume=0)
+  13.374 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=551)
+  13.566 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=2ms pts=3.67
+  13.648 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 741 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{309248/15360 = 20.133333333333333}]  streaming = false
+  14.899 tigeraudio32: t=5s read=213538 write=213538 paused=0 underruns=13
+  15.496 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+  15.496 [com.apple.WebKit:Media:-] HTMLMediaElement::updateShouldPlay(CD97116B12CFC9C7) autoplay blocked with reason: PageConsentRequired: Not enough data
+  15.715 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=559, existingLoaderToResume=0)
+  15.715 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=559)
+  16.242 TIGER-MEDIA stall: clock=4.84 pendingVideo=0 untilDue=-1.000 pendingAudio=23006 ring=0/213538 basePts=1 eof=0 mseEnded=0 queues: a:34 v:0L
+  16.488 TIGER-MEDIA fps=7.2 shown=21 dropped=0 lag=475ms pts=4.37
+  16.488 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(C267DE9B5298C81C) state = Idle
+  16.488 [com.apple.WebKit:Media:-] MediaElementSession::setState(C267DE9B5298C81C) Autoplaying, canProduceAudio=false
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(C267DE9B5298C81C) state = Autoplaying
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(C267DE9B5298C81C) state = Autoplaying
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(2A7CCF83DDC02B07) state = Idle
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::setState(2A7CCF83DDC02B07) Autoplaying, canProduceAudio=false
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(2A7CCF83DDC02B07) state = Autoplaying
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(2A7CCF83DDC02B07) state = Autoplaying
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(139B8F054BE8460B) state = Idle
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::setState(139B8F054BE8460B) Autoplaying, canProduceAudio=false
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(139B8F054BE8460B) state = Autoplaying
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(139B8F054BE8460B) state = Autoplaying
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(6F3F3BD891AAB898) state = Idle
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::setState(6F3F3BD891AAB898) Autoplaying, canProduceAudio=false
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(6F3F3BD891AAB898) state = Autoplaying
+  16.489 [com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(6F3F3BD891AAB898) state = Autoplaying
+  17.055 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=588, existingLoaderToResume=0)
+  17.055 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=588)
+  17.315 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(C267DE9B5298C81C) 2
+  17.316 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=597, existingLoaderToResume=0)
+  17.316 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=597)
+  17.316 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(2A7CCF83DDC02B07) 2
+  17.317 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(139B8F054BE8460B) 2
+  17.317 [com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(6F3F3BD891AAB898) 2
+  17.318 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=598, existingLoaderToResume=0)
+  17.318 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=598)
+  17.319 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=599, existingLoaderToResume=0)
+  17.319 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=599)
+  17.320 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=600, existingLoaderToResume=0)
+  17.320 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=600)
+  17.337 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=601, existingLoaderToResume=0)
+  17.337 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=601)
+  17.371 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=602, existingLoaderToResume=0)
+  17.371 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=602)
+  17.462 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=604, existingLoaderToResume=0)
+  17.462 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=604)
+  17.464 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=605, existingLoaderToResume=0)
+  17.464 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=605)
+  17.630 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{309248/15360 = 20.133333333333333}] , totalBufferSize: 522630
+  17.641 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 90040 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{309248/15360 = 20.133333333333333}]  streaming = false
+  17.642 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{1761280/44100 = 39.938321995464854}]  streaming = false
+  18.501 TIGER-MEDIA fps=37.0 shown=75 dropped=0 lag=7ms pts=6.87
+  18.652 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateDidReceiveInitializationSegment(0) 
+  18.666 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  18.666 [h264 @ 0x15494c480] error while decoding MB 40 0, bytestream 7843
+  18.666 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in I frame
+  18.683 [h264 @ 0x15e578aa0] error while decoding MB 33 9, bytestream -14
+  18.683 [h264 @ 0x15e578aa0] concealing 1150 DC, 1150 AC, 1150 MV errors in P frame
+  18.692 [h264 @ 0x15494c480] concealing 1310 DC, 1310 AC, 1310 MV errors in B frame
+  18.707 [h264 @ 0x15e578aa0] error while decoding MB 24 7, bytestream -6
+  18.708 [h264 @ 0x15e578aa0] concealing 1267 DC, 1267 AC, 1267 MV errors in B frame
+  18.727 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  18.727 [h264 @ 0x15494c480] error while decoding MB 47 0, bytestream 1839
+  18.728 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  18.850 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{1761280/44100 = 39.938321995464854}] , totalBufferSize: 639478
+  18.929 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 112383 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{1761280/44100 = 39.938321995464854}]  streaming = false
+  18.945 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{374272/15360 = 24.366666666666667}] , totalBufferSize: 611046
+  18.980 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 71786 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{374272/15360 = 24.366666666666667}]  streaming = false
+  19.199 [com.apple.WebKit:Loading:4] [pageID=5, frameID=12884901894] PolicyChecker::checkNavigationPolicy: continuing because this is an initial empty document
+  19.204 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{2201600/44100 = 49.92290249433107}] , totalBufferSize: 799189
+  19.258 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{421376/15360 = 27.433333333333334}] , totalBufferSize: 681628
+  19.279 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 435486 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{421376/15360 = 27.433333333333334}]  streaming = false
+  19.449 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{528896/15360 = 34.43333333333333}] , totalBufferSize: 1114494
+  19.483 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 318389 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{528896/15360 = 34.43333333333333}]  streaming = false
+  19.490 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=632, existingLoaderToResume=0)
+  19.490 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=632)
+  19.513 [h264 @ 0x15e578aa0] Reference 3 >= 2
+  19.513 [h264 @ 0x15e578aa0] error while decoding MB 10 1, bytestream 172
+  19.513 [h264 @ 0x15e578aa0] concealing 1605 DC, 1605 AC, 1605 MV errors in B frame
+  19.556 [h264 @ 0x15494c480] concealing 1572 DC, 1572 AC, 1572 MV errors in B frame
+  19.578 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  19.578 [h264 @ 0x15e578aa0] error while decoding MB 43 0, bytestream 1686
+  19.578 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  19.623 [h264 @ 0x15494c480] Reference 2 >= 2
+  19.623 [h264 @ 0x15494c480] error while decoding MB 47 0, bytestream 205
+  19.624 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in B frame
+  19.638 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  19.638 [h264 @ 0x15e578aa0] error while decoding MB 42 0, bytestream 2053
+  19.638 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  19.664 [h264 @ 0x15494c480] Reference 3 >= 2
+  19.664 [h264 @ 0x15494c480] error while decoding MB 52 0, bytestream 222
+  19.664 [h264 @ 0x15494c480] concealing 1617 DC, 1617 AC, 1617 MV errors in B frame
+  19.704 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  19.704 [h264 @ 0x15e578aa0] error while decoding MB 42 1, bytestream 219
+  19.704 [h264 @ 0x15e578aa0] concealing 1573 DC, 1573 AC, 1573 MV errors in B frame
+  19.735 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  19.735 [h264 @ 0x15494c480] error while decoding MB 44 0, bytestream 2092
+  19.735 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  19.772 [h264 @ 0x15e578aa0] concealing 1528 DC, 1528 AC, 1528 MV errors in B frame
+  19.797 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{608256/15360 = 39.6}] , totalBufferSize: 1430923
+  19.803 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  19.803 [h264 @ 0x15494c480] error while decoding MB 40 0, bytestream 2197
+  19.803 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  19.831 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 207840 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{608256/15360 = 39.6}]  streaming = false
+  19.837 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  19.837 [h264 @ 0x15e578aa0] error while decoding MB 29 1, bytestream 237
+  19.837 [h264 @ 0x15e578aa0] concealing 1586 DC, 1586 AC, 1586 MV errors in B frame
+  19.846 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=633, existingLoaderToResume=0)
+  19.846 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=633)
+  19.869 [h264 @ 0x15494c480] Reference 2 >= 2
+  19.869 [h264 @ 0x15494c480] error while decoding MB 44 0, bytestream 272
+  19.869 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in B frame
+  19.900 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  19.900 [h264 @ 0x15e578aa0] error while decoding MB 40 0, bytestream 2438
+  19.900 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  19.914 tigeraudio32: t=10s read=365090 write=387140 paused=0 underruns=149
+  19.936 [h264 @ 0x15494c480] left block unavailable for requested intra mode
+  19.936 [h264 @ 0x15494c480] error while decoding MB 0 1, bytestream 294
+  19.936 [h264 @ 0x15494c480] concealing 1615 DC, 1615 AC, 1615 MV errors in B frame
+  19.967 [h264 @ 0x15e578aa0] Reference 3 >= 2
+  19.967 [h264 @ 0x15e578aa0] error while decoding MB 51 1, bytestream 80
+  19.967 [h264 @ 0x15e578aa0] concealing 1564 DC, 1564 AC, 1564 MV errors in B frame
+  20.003 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  20.003 [h264 @ 0x15494c480] error while decoding MB 43 0, bytestream 2528
+  20.003 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  20.019 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}] , totalBufferSize: 1636347
+  20.039 [h264 @ 0x15e578aa0] concealing 1468 DC, 1468 AC, 1468 MV errors in B frame
+  20.070 [h264 @ 0x15494c480] Reference 2 >= 2
+  20.070 [h264 @ 0x15494c480] error while decoding MB 0 1, bytestream 208
+  20.070 [h264 @ 0x15494c480] concealing 1615 DC, 1615 AC, 1615 MV errors in B frame
+  20.104 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  20.104 [h264 @ 0x15e578aa0] error while decoding MB 41 0, bytestream 2243
+  20.105 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  20.127 [h264 @ 0x15494c480] Reference 3 >= 2
+  20.127 [h264 @ 0x15494c480] error while decoding MB 49 0, bytestream 258
+  20.127 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in B frame
+  20.161 [h264 @ 0x15e578aa0] Reference 6 >= 2
+  20.161 [h264 @ 0x15e578aa0] error while decoding MB 5 1, bytestream 199
+  20.162 [h264 @ 0x15e578aa0] concealing 1610 DC, 1610 AC, 1610 MV errors in B frame
+  20.205 [h264 @ 0x15494c480] concealing 1416 DC, 1416 AC, 1416 MV errors in P frame
+  20.238 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  20.238 [h264 @ 0x15e578aa0] error while decoding MB 46 2, bytestream 257
+  20.238 [h264 @ 0x15e578aa0] concealing 1515 DC, 1515 AC, 1515 MV errors in B frame
+  20.269 [h264 @ 0x15494c480] Reference 3 >= 2
+  20.269 [h264 @ 0x15494c480] error while decoding MB 51 4, bytestream 177
+  20.269 [h264 @ 0x15494c480] concealing 1402 DC, 1402 AC, 1402 MV errors in B frame
+  20.310 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  20.310 [h264 @ 0x15e578aa0] error while decoding MB 42 1, bytestream 1832
+  20.310 [h264 @ 0x15e578aa0] concealing 1573 DC, 1573 AC, 1573 MV errors in P frame
+  20.343 [h264 @ 0x15494c480] concealing 1544 DC, 1544 AC, 1544 MV errors in B frame
+  20.367 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  20.367 [h264 @ 0x15e578aa0] error while decoding MB 43 0, bytestream 1711
+  20.367 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  20.401 [h264 @ 0x15494c480] concealing 1544 DC, 1544 AC, 1544 MV errors in B frame
+  20.433 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  20.433 [h264 @ 0x15e578aa0] error while decoding MB 43 0, bytestream 1742
+  20.433 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  20.466 [h264 @ 0x15494c480] Reference 4 >= 2
+  20.466 [h264 @ 0x15494c480] error while decoding MB 10 5, bytestream 251
+  20.466 [h264 @ 0x15494c480] concealing 1389 DC, 1389 AC, 1389 MV errors in B frame
+  20.498 [h264 @ 0x15e578aa0] concealing 1560 DC, 1560 AC, 1560 MV errors in B frame
+  20.533 TIGER-MEDIA fps=15.7 shown=32 dropped=0 lag=6ms pts=8.90
+  20.533 [h264 @ 0x15494c480] top block unavailable for requested intra mode -1
+  20.533 [h264 @ 0x15494c480] error while decoding MB 52 0, bytestream 1815
+  20.533 [h264 @ 0x15494c480] concealing 1617 DC, 1617 AC, 1617 MV errors in P frame
+  20.571 [h264 @ 0x15e578aa0] concealing 1436 DC, 1436 AC, 1436 MV errors in B frame
+  20.603 [h264 @ 0x15494c480] Reference 4 >= 4
+  20.603 [h264 @ 0x15494c480] error while decoding MB 9 2, bytestream 1473
+  20.603 [h264 @ 0x15494c480] concealing 1552 DC, 1552 AC, 1552 MV errors in P frame
+  20.626 [h264 @ 0x15e578aa0] Reference 4 >= 2
+  20.626 [h264 @ 0x15e578aa0] error while decoding MB 37 1, bytestream 208
+  20.626 [h264 @ 0x15e578aa0] concealing 1578 DC, 1578 AC, 1578 MV errors in B frame
+  20.661 [h264 @ 0x15494c480] concealing 1218 DC, 1218 AC, 1218 MV errors in B frame
+  20.695 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  20.695 [h264 @ 0x15e578aa0] error while decoding MB 40 0, bytestream 2042
+  20.696 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  20.735 [h264 @ 0x15494c480] concealing 1251 DC, 1251 AC, 1251 MV errors in B frame
+  20.774 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  20.774 [h264 @ 0x15e578aa0] error while decoding MB 46 7, bytestream 185
+  20.774 [h264 @ 0x15e578aa0] concealing 1245 DC, 1245 AC, 1245 MV errors in B frame
+  20.810 [h264 @ 0x15494c480] Reference 4 >= 4
+  20.810 [h264 @ 0x15494c480] error while decoding MB 30 1, bytestream 1934
+  20.810 [h264 @ 0x15494c480] concealing 1585 DC, 1585 AC, 1585 MV errors in P frame
+  20.840 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  20.840 [h264 @ 0x15e578aa0] error while decoding MB 44 1, bytestream 239
+  20.840 [h264 @ 0x15e578aa0] concealing 1571 DC, 1571 AC, 1571 MV errors in B frame
+  20.873 [h264 @ 0x15494c480] concealing 1241 DC, 1241 AC, 1241 MV errors in B frame
+  20.895 [h264 @ 0x15e578aa0] concealing 1410 DC, 1410 AC, 1410 MV errors in P frame
+  20.935 [h264 @ 0x15494c480] concealing 1358 DC, 1358 AC, 1358 MV errors in B frame
+  20.967 [h264 @ 0x15e578aa0] concealing 1388 DC, 1388 AC, 1388 MV errors in B frame
+  21.023 [h264 @ 0x15494c480] left block unavailable for requested intra mode
+  21.023 [h264 @ 0x15494c480] error while decoding MB 0 4, bytestream 921
+  21.023 [h264 @ 0x15494c480] concealing 1453 DC, 1453 AC, 1453 MV errors in P frame
+  21.035 [h264 @ 0x15e578aa0] Reference 10 >= 2
+  21.035 [h264 @ 0x15e578aa0] error while decoding MB 5 4, bytestream 243
+  21.035 [h264 @ 0x15e578aa0] concealing 1448 DC, 1448 AC, 1448 MV errors in B frame
+  21.069 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  21.069 [h264 @ 0x15494c480] error while decoding MB 47 0, bytestream 1847
+  21.069 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  21.079 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=642, existingLoaderToResume=0)
+  21.079 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=642)
+  21.084 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=647, existingLoaderToResume=0)
+  21.084 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=647)
+  21.086 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=648, existingLoaderToResume=0)
+  21.086 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=648)
+  21.104 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  21.104 [h264 @ 0x15e578aa0] error while decoding MB 12 6, bytestream 223
+  21.104 [h264 @ 0x15e578aa0] concealing 1333 DC, 1333 AC, 1333 MV errors in B frame
+  21.138 [h264 @ 0x15494c480] top block unavailable for requested intra mode -1
+  21.138 [h264 @ 0x15494c480] error while decoding MB 47 0, bytestream 1888
+  21.138 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  21.170 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  21.170 [h264 @ 0x15e578aa0] error while decoding MB 14 3, bytestream 176
+  21.170 [h264 @ 0x15e578aa0] concealing 1493 DC, 1493 AC, 1493 MV errors in B frame
+  21.200 [h264 @ 0x15494c480] Reference 4 >= 4
+  21.200 [h264 @ 0x15494c480] error while decoding MB 47 0, bytestream 1528
+  21.201 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  21.233 [h264 @ 0x15e578aa0] concealing 1286 DC, 1286 AC, 1286 MV errors in B frame
+  21.235 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=649, existingLoaderToResume=0)
+  21.235 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=649)
+  21.276 [h264 @ 0x15494c480] error while decoding MB 7 3, bytestream -13
+  21.276 [h264 @ 0x15494c480] concealing 1500 DC, 1500 AC, 1500 MV errors in P frame
+  21.303 [h264 @ 0x15e578aa0] concealing 1349 DC, 1349 AC, 1349 MV errors in B frame
+  21.358 [h264 @ 0x15494c480] concealing 1573 DC, 1573 AC, 1573 MV errors in P frame
+  21.378 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  21.378 [h264 @ 0x15e578aa0] error while decoding MB 34 3, bytestream 187
+  21.378 [h264 @ 0x15e578aa0] concealing 1473 DC, 1473 AC, 1473 MV errors in B frame
+  21.384 WARNING: trying to load platform resource 'missingImage'
+  21.409 [h264 @ 0x15494c480] Reference 7 >= 4
+  21.409 [h264 @ 0x15494c480] error while decoding MB 25 1, bytestream 1510
+  21.409 [h264 @ 0x15494c480] concealing 1590 DC, 1590 AC, 1590 MV errors in P frame
+  21.444 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  21.444 [h264 @ 0x15e578aa0] error while decoding MB 29 2, bytestream 199
+  21.444 [h264 @ 0x15e578aa0] concealing 1532 DC, 1532 AC, 1532 MV errors in B frame
+  21.473 [h264 @ 0x15494c480] Reference 4 >= 4
+  21.473 [h264 @ 0x15494c480] error while decoding MB 52 0, bytestream 1575
+  21.474 [h264 @ 0x15494c480] concealing 1617 DC, 1617 AC, 1617 MV errors in P frame
+  21.555 [h264 @ 0x15e578aa0] Reference 6 >= 2
+  21.555 [h264 @ 0x15e578aa0] error while decoding MB 8 6, bytestream 152
+  21.555 [h264 @ 0x15e578aa0] concealing 1337 DC, 1337 AC, 1337 MV errors in B frame
+  21.569 [h264 @ 0x15494c480] Reference 4 >= 4
+  21.569 [h264 @ 0x15494c480] error while decoding MB 6 1, bytestream 1200
+  21.569 [h264 @ 0x15494c480] concealing 1609 DC, 1609 AC, 1609 MV errors in P frame
+  21.579 [h264 @ 0x15e578aa0] Reference 6 >= 2
+  21.579 [h264 @ 0x15e578aa0] error while decoding MB 2 5, bytestream 203
+  21.579 [h264 @ 0x15e578aa0] concealing 1397 DC, 1397 AC, 1397 MV errors in B frame
+  21.605 [h264 @ 0x15494c480] concealing 1366 DC, 1366 AC, 1366 MV errors in P frame
+  21.639 [h264 @ 0x15e578aa0] Reference 7 >= 2
+  21.639 [h264 @ 0x15e578aa0] error while decoding MB 32 4, bytestream 254
+  21.639 [h264 @ 0x15e578aa0] concealing 1421 DC, 1421 AC, 1421 MV errors in B frame
+  21.666 [h264 @ 0x15494c480] concealing 1266 DC, 1266 AC, 1266 MV errors in B frame
+  21.703 [h264 @ 0x15e578aa0] Reference 7 >= 4
+  21.703 [h264 @ 0x15e578aa0] error while decoding MB 2 1, bytestream 1613
+  21.703 [h264 @ 0x15e578aa0] concealing 1613 DC, 1613 AC, 1613 MV errors in P frame
+  21.738 [h264 @ 0x15494c480] concealing 1503 DC, 1503 AC, 1503 MV errors in B frame
+  21.768 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  21.769 [h264 @ 0x15e578aa0] error while decoding MB 19 5, bytestream 197
+  21.769 [h264 @ 0x15e578aa0] concealing 1380 DC, 1380 AC, 1380 MV errors in B frame
+  21.864 [h264 @ 0x15494c480] top block unavailable for requested intra mode -1
+  21.864 [h264 @ 0x15494c480] error while decoding MB 53 0, bytestream 1836
+  21.865 [h264 @ 0x15494c480] concealing 1616 DC, 1616 AC, 1616 MV errors in P frame
+  21.880 [h264 @ 0x15e578aa0] error while decoding MB 52 3, bytestream -8
+  21.880 [h264 @ 0x15e578aa0] concealing 1455 DC, 1455 AC, 1455 MV errors in B frame
+  21.887 [com.apple.WebKit:Media:-] MediaSessionManagerInterface::dumpSessionStates(0)  Sessions:
+  21.887 (3323CD30C1F5C751): VideoAudio, Playing, MediaSource (Media Element Source Type), 0x0, 
+  21.887 (C267DE9B5298C81C): Audio, Autoplaying, 
+  21.887 (2A7CCF83DDC02B07): Audio, Autoplaying, 
+  21.887 (139B8F054BE8460B): Audio, Autoplaying, 
+  21.887 (6F3F3BD891AAB898): Audio, Autoplaying, 
+  21.887 
+  21.894 [h264 @ 0x15494c480] Reference 2 >= 2
+  21.894 [h264 @ 0x15494c480] error while decoding MB 25 5, bytestream 198
+  21.895 [h264 @ 0x15494c480] concealing 1374 DC, 1374 AC, 1374 MV errors in B frame
+  21.913 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  21.913 [h264 @ 0x15e578aa0] error while decoding MB 51 0, bytestream 1737
+  21.913 [h264 @ 0x15e578aa0] concealing 1618 DC, 1618 AC, 1618 MV errors in P frame
+  21.925 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=658, existingLoaderToResume=0)
+  21.925 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=658)
+  21.934 [h264 @ 0x15494c480] Reference 4 >= 4
+  21.934 [h264 @ 0x15494c480] error while decoding MB 17 2, bytestream 1682
+  21.934 [h264 @ 0x15494c480] concealing 1544 DC, 1544 AC, 1544 MV errors in P frame
+  21.966 [h264 @ 0x15e578aa0] concealing 1570 DC, 1570 AC, 1570 MV errors in B frame
+  21.998 [h264 @ 0x15494c480] Reference 3 >= 2
+  21.998 [h264 @ 0x15494c480] error while decoding MB 25 4, bytestream 221
+  21.998 [h264 @ 0x15494c480] concealing 1428 DC, 1428 AC, 1428 MV errors in B frame
+  22.031 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  22.031 [h264 @ 0x15e578aa0] error while decoding MB 44 1, bytestream 1792
+  22.031 [h264 @ 0x15e578aa0] concealing 1571 DC, 1571 AC, 1571 MV errors in P frame
+  22.069 [h264 @ 0x15494c480] Reference 2 >= 2
+  22.069 [h264 @ 0x15494c480] error while decoding MB 21 4, bytestream 282
+  22.069 [h264 @ 0x15494c480] concealing 1432 DC, 1432 AC, 1432 MV errors in B frame
+  22.101 [h264 @ 0x15e578aa0] Reference 4 >= 2
+  22.101 [h264 @ 0x15e578aa0] error while decoding MB 25 4, bytestream 190
+  22.101 [h264 @ 0x15e578aa0] concealing 1428 DC, 1428 AC, 1428 MV errors in B frame
+  22.135 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  22.135 [h264 @ 0x15494c480] error while decoding MB 41 0, bytestream 1562
+  22.136 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  22.153 [com.apple.WebKit:Media:-] HTMLMediaElement::handleAutoplayEvent(3323CD30C1F5C751) hasAudio = true wasPlaybackPrevented = false hasMainContent = false
+  22.172 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  22.172 [h264 @ 0x15e578aa0] error while decoding MB 45 0, bytestream 234
+  22.172 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in B frame
+  22.193 [h264 @ 0x15494c480] Reference 3 >= 2
+  22.193 [h264 @ 0x15494c480] error while decoding MB 43 3, bytestream 169
+  22.193 [h264 @ 0x15494c480] concealing 1464 DC, 1464 AC, 1464 MV errors in B frame
+  22.238 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  22.238 [h264 @ 0x15e578aa0] error while decoding MB 41 0, bytestream 1817
+  22.238 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  22.267 [h264 @ 0x15494c480] concealing 1418 DC, 1418 AC, 1418 MV errors in B frame
+  22.298 [h264 @ 0x15e578aa0] Reference 3 >= 2
+  22.298 [h264 @ 0x15e578aa0] error while decoding MB 39 3, bytestream 231
+  22.298 [h264 @ 0x15e578aa0] concealing 1468 DC, 1468 AC, 1468 MV errors in B frame
+  22.338 [h264 @ 0x15494c480] top block unavailable for requested intra mode -1
+  22.338 [h264 @ 0x15494c480] error while decoding MB 48 0, bytestream 1393
+  22.338 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  22.392 [h264 @ 0x15e578aa0] concealing 1399 DC, 1399 AC, 1399 MV errors in B frame
+  22.417 [h264 @ 0x15494c480] Reference 3 >= 2
+  22.417 [h264 @ 0x15494c480] error while decoding MB 4 4, bytestream 76
+  22.417 [h264 @ 0x15494c480] concealing 1449 DC, 1449 AC, 1449 MV errors in B frame
+  22.440 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  22.440 [h264 @ 0x15e578aa0] error while decoding MB 52 0, bytestream 1753
+  22.440 [h264 @ 0x15e578aa0] concealing 1617 DC, 1617 AC, 1617 MV errors in P frame
+  22.461 [h264 @ 0x15494c480] concealing 1408 DC, 1408 AC, 1408 MV errors in B frame
+  22.500 [h264 @ 0x15e578aa0] concealing 941 DC, 941 AC, 941 MV errors in P frame
+  22.531 [h264 @ 0x15494c480] Reference 4 >= 2
+  22.531 [h264 @ 0x15494c480] error while decoding MB 22 3, bytestream 192
+  22.531 [h264 @ 0x15494c480] concealing 1485 DC, 1485 AC, 1485 MV errors in B frame
+  22.566 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=4ms pts=10.93
+  22.567 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  22.567 [h264 @ 0x15e578aa0] error while decoding MB 3 1, bytestream 1239
+  22.567 [h264 @ 0x15e578aa0] concealing 1612 DC, 1612 AC, 1612 MV errors in P frame
+  22.602 [h264 @ 0x15494c480] Reference 3 >= 2
+  22.602 [h264 @ 0x15494c480] error while decoding MB 25 3, bytestream 168
+  22.602 [h264 @ 0x15494c480] concealing 1482 DC, 1482 AC, 1482 MV errors in B frame
+  22.646 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  22.646 [h264 @ 0x15e578aa0] error while decoding MB 43 1, bytestream 1478
+  22.646 [h264 @ 0x15e578aa0] concealing 1572 DC, 1572 AC, 1572 MV errors in P frame
+  22.672 [h264 @ 0x15494c480] error while decoding MB 37 5, bytestream -5
+  22.672 [h264 @ 0x15494c480] concealing 1362 DC, 1362 AC, 1362 MV errors in B frame
+  22.700 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  22.700 [h264 @ 0x15e578aa0] error while decoding MB 43 0, bytestream 1794
+  22.700 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  22.731 [h264 @ 0x15494c480] concealing 1457 DC, 1457 AC, 1457 MV errors in B frame
+  22.768 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  22.768 [h264 @ 0x15e578aa0] error while decoding MB 51 6, bytestream 411
+  22.768 [h264 @ 0x15e578aa0] concealing 1294 DC, 1294 AC, 1294 MV errors in P frame
+  22.804 [h264 @ 0x15494c480] concealing 1449 DC, 1449 AC, 1449 MV errors in B frame
+  22.833 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  22.833 [h264 @ 0x15e578aa0] error while decoding MB 51 0, bytestream 1765
+  22.834 [h264 @ 0x15e578aa0] concealing 1618 DC, 1618 AC, 1618 MV errors in P frame
+  22.875 [h264 @ 0x15494c480] Reference 2 >= 2
+  22.875 [h264 @ 0x15494c480] error while decoding MB 14 3, bytestream 175
+  22.875 [h264 @ 0x15494c480] concealing 1493 DC, 1493 AC, 1493 MV errors in B frame
+  22.901 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=753, existingLoaderToResume=0)
+  22.901 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=753)
+  22.904 [h264 @ 0x15e578aa0] concealing 1459 DC, 1459 AC, 1459 MV errors in B frame
+  22.938 [h264 @ 0x15494c480] Reference 5 >= 4
+  22.938 [h264 @ 0x15494c480] error while decoding MB 23 1, bytestream 1370
+  22.938 [h264 @ 0x15494c480] concealing 1592 DC, 1592 AC, 1592 MV errors in P frame
+  22.969 [h264 @ 0x15e578aa0] concealing 1476 DC, 1476 AC, 1476 MV errors in B frame
+  22.995 [h264 @ 0x15494c480] Reference 2 >= 2
+  22.995 [h264 @ 0x15494c480] error while decoding MB 14 2, bytestream 215
+  22.995 [h264 @ 0x15494c480] concealing 1547 DC, 1547 AC, 1547 MV errors in B frame
+  23.032 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  23.032 [h264 @ 0x15e578aa0] error while decoding MB 51 0, bytestream 2069
+  23.032 [h264 @ 0x15e578aa0] concealing 1618 DC, 1618 AC, 1618 MV errors in P frame
+  23.075 [h264 @ 0x15494c480] Reference 6 >= 2
+  23.075 [h264 @ 0x15494c480] error while decoding MB 7 3, bytestream 240
+  23.075 [h264 @ 0x15494c480] concealing 1500 DC, 1500 AC, 1500 MV errors in B frame
+  23.101 [h264 @ 0x15e578aa0] Reference 4 >= 2
+  23.101 [h264 @ 0x15e578aa0] error while decoding MB 41 2, bytestream 178
+  23.102 [h264 @ 0x15e578aa0] concealing 1520 DC, 1520 AC, 1520 MV errors in B frame
+  23.136 [h264 @ 0x15494c480] Reference 4 >= 4
+  23.136 [h264 @ 0x15494c480] error while decoding MB 8 3, bytestream 1357
+  23.137 [h264 @ 0x15494c480] concealing 1499 DC, 1499 AC, 1499 MV errors in P frame
+  23.168 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  23.168 [h264 @ 0x15e578aa0] error while decoding MB 19 2, bytestream 190
+  23.169 [h264 @ 0x15e578aa0] concealing 1542 DC, 1542 AC, 1542 MV errors in B frame
+  23.203 [h264 @ 0x15494c480] concealing 1467 DC, 1467 AC, 1467 MV errors in B frame
+  23.236 [h264 @ 0x15e578aa0] concealing 1512 DC, 1512 AC, 1512 MV errors in P frame
+  23.262 [h264 @ 0x15494c480] concealing 1447 DC, 1447 AC, 1447 MV errors in B frame
+  23.292 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=762, existingLoaderToResume=0)
+  23.292 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=762)
+  23.297 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  23.297 [h264 @ 0x15e578aa0] error while decoding MB 28 1, bytestream 1337
+  23.297 [h264 @ 0x15e578aa0] concealing 1587 DC, 1587 AC, 1587 MV errors in P frame
+  23.339 [h264 @ 0x15494c480] Reference 2 >= 2
+  23.339 [h264 @ 0x15494c480] error while decoding MB 33 4, bytestream 167
+  23.339 [h264 @ 0x15494c480] concealing 1420 DC, 1420 AC, 1420 MV errors in B frame
+  23.369 [h264 @ 0x15e578aa0] concealing 1538 DC, 1538 AC, 1538 MV errors in B frame
+  23.402 [h264 @ 0x15494c480] concealing 1558 DC, 1558 AC, 1558 MV errors in P frame
+  23.437 [h264 @ 0x15e578aa0] Reference 3 >= 2
+  23.437 [h264 @ 0x15e578aa0] error while decoding MB 26 2, bytestream 240
+  23.437 [h264 @ 0x15e578aa0] concealing 1535 DC, 1535 AC, 1535 MV errors in B frame
+  23.463 [h264 @ 0x15494c480] Reference 2 >= 2
+  23.463 [h264 @ 0x15494c480] error while decoding MB 20 2, bytestream 176
+  23.463 [h264 @ 0x15494c480] concealing 1541 DC, 1541 AC, 1541 MV errors in B frame
+  23.495 [h264 @ 0x15e578aa0] concealing 1504 DC, 1504 AC, 1504 MV errors in P frame
+  23.534 [h264 @ 0x15494c480] Reference 2 >= 2
+  23.534 [h264 @ 0x15494c480] error while decoding MB 45 1, bytestream 199
+  23.535 [h264 @ 0x15494c480] concealing 1570 DC, 1570 AC, 1570 MV errors in B frame
+  23.566 [h264 @ 0x15e578aa0] Reference 3 >= 2
+  23.566 [h264 @ 0x15e578aa0] error while decoding MB 27 2, bytestream 211
+  23.566 [h264 @ 0x15e578aa0] concealing 1534 DC, 1534 AC, 1534 MV errors in B frame
+  23.604 [h264 @ 0x15494c480] Reference 5 >= 4
+  23.605 [h264 @ 0x15494c480] error while decoding MB 14 1, bytestream 1380
+  23.605 [h264 @ 0x15494c480] concealing 1601 DC, 1601 AC, 1601 MV errors in P frame
+  23.638 [h264 @ 0x15e578aa0] concealing 1577 DC, 1577 AC, 1577 MV errors in B frame
+  23.671 [h264 @ 0x15494c480] concealing 1266 DC, 1266 AC, 1266 MV errors in B frame
+  23.704 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  23.704 [h264 @ 0x15e578aa0] error while decoding MB 1 1, bytestream 1763
+  23.704 [h264 @ 0x15e578aa0] concealing 1614 DC, 1614 AC, 1614 MV errors in P frame
+  23.728 [h264 @ 0x15494c480] concealing 1467 DC, 1467 AC, 1467 MV errors in B frame
+  23.770 [h264 @ 0x15e578aa0] Reference 6 >= 4
+  23.770 [h264 @ 0x15e578aa0] error while decoding MB 48 0, bytestream 1495
+  23.770 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  23.804 [h264 @ 0x15494c480] Reference 2 >= 2
+  23.804 [h264 @ 0x15494c480] error while decoding MB 27 1, bytestream 130
+  23.805 [h264 @ 0x15494c480] concealing 1588 DC, 1588 AC, 1588 MV errors in B frame
+  23.836 [h264 @ 0x15e578aa0] Reference 8 >= 4
+  23.836 [h264 @ 0x15e578aa0] error while decoding MB 44 1, bytestream 1373
+  23.836 [h264 @ 0x15e578aa0] concealing 1571 DC, 1571 AC, 1571 MV errors in P frame
+  23.867 [h264 @ 0x15494c480] error while decoding MB 26 3, bytestream -5
+  23.867 [h264 @ 0x15494c480] concealing 1481 DC, 1481 AC, 1481 MV errors in B frame
+  23.904 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  23.905 [h264 @ 0x15e578aa0] error while decoding MB 48 0, bytestream 1814
+  23.905 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  23.940 [h264 @ 0x15494c480] error while decoding MB 46 2, bytestream -10
+  23.940 [h264 @ 0x15494c480] concealing 1515 DC, 1515 AC, 1515 MV errors in B frame
+  23.970 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  23.970 [h264 @ 0x15e578aa0] error while decoding MB 52 0, bytestream 1768
+  23.970 [h264 @ 0x15e578aa0] concealing 1617 DC, 1617 AC, 1617 MV errors in P frame
+  23.994 [h264 @ 0x15494c480] Reference 3 >= 2
+  23.994 [h264 @ 0x15494c480] error while decoding MB 10 1, bytestream 197
+  23.994 [h264 @ 0x15494c480] concealing 1605 DC, 1605 AC, 1605 MV errors in B frame
+  24.040 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  24.041 [h264 @ 0x15e578aa0] error while decoding MB 2 2, bytestream 1499
+  24.041 [h264 @ 0x15e578aa0] concealing 1559 DC, 1559 AC, 1559 MV errors in P frame
+  24.071 [h264 @ 0x15494c480] Reference 6 >= 2
+  24.071 [h264 @ 0x15494c480] error while decoding MB 52 1, bytestream 158
+  24.071 [h264 @ 0x15494c480] concealing 1563 DC, 1563 AC, 1563 MV errors in B frame
+  24.114 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  24.114 [h264 @ 0x15e578aa0] error while decoding MB 23 1, bytestream 1755
+  24.114 [h264 @ 0x15e578aa0] concealing 1592 DC, 1592 AC, 1592 MV errors in P frame
+  24.147 [h264 @ 0x15494c480] concealing 1478 DC, 1478 AC, 1478 MV errors in B frame
+  24.169 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  24.169 [h264 @ 0x15e578aa0] error while decoding MB 49 0, bytestream 1624
+  24.169 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  24.204 [h264 @ 0x15494c480] concealing 1577 DC, 1577 AC, 1577 MV errors in B frame
+  24.236 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  24.236 [h264 @ 0x15e578aa0] error while decoding MB 21 2, bytestream 220
+  24.237 [h264 @ 0x15e578aa0] concealing 1540 DC, 1540 AC, 1540 MV errors in B frame
+  24.268 [h264 @ 0x15494c480] Reference 4 >= 4
+  24.268 [h264 @ 0x15494c480] error while decoding MB 48 2, bytestream 1232
+  24.268 [h264 @ 0x15494c480] concealing 1513 DC, 1513 AC, 1513 MV errors in P frame
+  24.298 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  24.298 [h264 @ 0x15e578aa0] error while decoding MB 33 1, bytestream 252
+  24.298 [h264 @ 0x15e578aa0] concealing 1582 DC, 1582 AC, 1582 MV errors in B frame
+  24.331 [h264 @ 0x15494c480] Reference 3 >= 2
+  24.336 [h264 @ 0x15494c480] error while decoding MB 36 1, bytestream 220
+  24.336 [h264 @ 0x15494c480] concealing 1579 DC, 1579 AC, 1579 MV errors in B frame
+  24.366 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  24.366 [h264 @ 0x15e578aa0] error while decoding MB 50 1, bytestream 1692
+  24.366 [h264 @ 0x15e578aa0] concealing 1565 DC, 1565 AC, 1565 MV errors in P frame
+  24.408 [h264 @ 0x15494c480] Reference 3 >= 2
+  24.408 [h264 @ 0x15494c480] error while decoding MB 29 1, bytestream 225
+  24.409 [h264 @ 0x15494c480] concealing 1586 DC, 1586 AC, 1586 MV errors in B frame
+  24.433 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  24.433 [h264 @ 0x15e578aa0] error while decoding MB 44 1, bytestream 235
+  24.433 [h264 @ 0x15e578aa0] concealing 1571 DC, 1571 AC, 1571 MV errors in B frame
+  24.470 [h264 @ 0x15494c480] Reference 4 >= 4
+  24.470 [h264 @ 0x15494c480] error while decoding MB 3 2, bytestream 1562
+  24.471 [h264 @ 0x15494c480] concealing 1558 DC, 1558 AC, 1558 MV errors in P frame
+  24.505 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  24.505 [h264 @ 0x15e578aa0] error while decoding MB 17 2, bytestream 183
+  24.505 [h264 @ 0x15e578aa0] concealing 1544 DC, 1544 AC, 1544 MV errors in B frame
+  24.527 [h264 @ 0x15494c480] Reference 2 >= 2
+  24.527 [h264 @ 0x15494c480] error while decoding MB 14 2, bytestream 127
+  24.527 [h264 @ 0x15494c480] concealing 1547 DC, 1547 AC, 1547 MV errors in B frame
+  24.558 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=796, existingLoaderToResume=0)
+  24.558 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=796)
+  24.563 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  24.563 [h264 @ 0x15e578aa0] error while decoding MB 41 0, bytestream 1446
+  24.564 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  24.598 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=2ms pts=12.97
+  24.598 [h264 @ 0x15494c480] concealing 1456 DC, 1456 AC, 1456 MV errors in B frame
+  24.637 [h264 @ 0x15e578aa0] concealing 1480 DC, 1480 AC, 1480 MV errors in B frame
+  24.667 [h264 @ 0x15494c480] left block unavailable for requested intra4x4 mode -1
+  24.667 [h264 @ 0x15494c480] error while decoding MB 0 1, bytestream 1233
+  24.667 [h264 @ 0x15494c480] concealing 1615 DC, 1615 AC, 1615 MV errors in P frame
+  24.704 [h264 @ 0x15e578aa0] concealing 1479 DC, 1479 AC, 1479 MV errors in B frame
+  24.737 [h264 @ 0x15494c480] concealing 1541 DC, 1541 AC, 1541 MV errors in B frame
+  24.762 [h264 @ 0x15e578aa0] left block unavailable for requested intra4x4 mode -1
+  24.762 [h264 @ 0x15e578aa0] error while decoding MB 0 1, bytestream 1024
+  24.762 [h264 @ 0x15e578aa0] concealing 1615 DC, 1615 AC, 1615 MV errors in P frame
+  24.796 [h264 @ 0x15494c480] Reference 5 >= 2
+  24.796 [h264 @ 0x15494c480] error while decoding MB 19 2, bytestream 170
+  24.796 [h264 @ 0x15494c480] concealing 1542 DC, 1542 AC, 1542 MV errors in B frame
+  24.830 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  24.830 [h264 @ 0x15e578aa0] error while decoding MB 44 0, bytestream 581
+  24.831 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  24.871 [h264 @ 0x15494c480] Reference 3 >= 2
+  24.871 [h264 @ 0x15494c480] error while decoding MB 42 1, bytestream 160
+  24.871 [h264 @ 0x15494c480] concealing 1573 DC, 1573 AC, 1573 MV errors in B frame
+  24.902 [h264 @ 0x15e578aa0] Reference 4 >= 2
+  24.902 [h264 @ 0x15e578aa0] error while decoding MB 20 1, bytestream 266
+  24.902 [h264 @ 0x15e578aa0] concealing 1595 DC, 1595 AC, 1595 MV errors in B frame
+  24.922 tigeraudio32: t=15s read=586274 write=607812 paused=0 underruns=149
+  24.925 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=810, existingLoaderToResume=0)
+  24.925 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=810)
+  24.937 [h264 @ 0x15494c480] top block unavailable for requested intra mode -1
+  24.937 [h264 @ 0x15494c480] error while decoding MB 40 0, bytestream 34240
+  24.937 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in I frame
+  24.971 [h264 @ 0x15e578aa0] Cannot use next picture in error concealment
+  24.972 [h264 @ 0x15e578aa0] concealing 1526 DC, 1526 AC, 1526 MV errors in P frame
+  25.006 [h264 @ 0x15494c480] concealing 1381 DC, 1381 AC, 1381 MV errors in B frame
+  25.031 [h264 @ 0x15e578aa0] Reference 4 >= 3
+  25.031 [h264 @ 0x15e578aa0] error while decoding MB 3 1, bytestream 1076
+  25.031 [h264 @ 0x15e578aa0] concealing 1612 DC, 1612 AC, 1612 MV errors in P frame
+  25.069 [h264 @ 0x15494c480] concealing 1184 DC, 1184 AC, 1184 MV errors in B frame
+  25.098 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  25.098 [h264 @ 0x15e578aa0] error while decoding MB 53 0, bytestream 1320
+  25.099 [h264 @ 0x15e578aa0] concealing 1616 DC, 1616 AC, 1616 MV errors in P frame
+  25.133 [h264 @ 0x15494c480] Reference 2 >= 2
+  25.133 [h264 @ 0x15494c480] error while decoding MB 28 1, bytestream 168
+  25.133 [h264 @ 0x15494c480] concealing 1587 DC, 1587 AC, 1587 MV errors in B frame
+  25.165 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  25.165 [h264 @ 0x15e578aa0] error while decoding MB 15 1, bytestream 1110
+  25.165 [h264 @ 0x15e578aa0] concealing 1600 DC, 1600 AC, 1600 MV errors in P frame
+  25.201 [h264 @ 0x15494c480] concealing 1507 DC, 1507 AC, 1507 MV errors in B frame
+  25.236 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode -1
+  25.236 [h264 @ 0x15e578aa0] error while decoding MB 52 0, bytestream 1469
+  25.236 [h264 @ 0x15e578aa0] concealing 1617 DC, 1617 AC, 1617 MV errors in P frame
+  25.272 [h264 @ 0x15494c480] Reference 2 >= 2
+  25.272 [h264 @ 0x15494c480] error while decoding MB 16 2, bytestream 128
+  25.272 [h264 @ 0x15494c480] concealing 1545 DC, 1545 AC, 1545 MV errors in B frame
+  25.298 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  25.299 [h264 @ 0x15e578aa0] error while decoding MB 44 0, bytestream 1789
+  25.299 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  25.326 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=824, existingLoaderToResume=0)
+  25.326 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=824)
+  25.333 [h264 @ 0x15494c480] concealing 1539 DC, 1539 AC, 1539 MV errors in B frame
+  25.371 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  25.371 [h264 @ 0x15e578aa0] error while decoding MB 25 2, bytestream 1711
+  25.371 [h264 @ 0x15e578aa0] concealing 1536 DC, 1536 AC, 1536 MV errors in P frame
+  25.401 [h264 @ 0x15494c480] Reference 2 >= 2
+  25.401 [h264 @ 0x15494c480] error while decoding MB 2 1, bytestream 157
+  25.401 [h264 @ 0x15494c480] concealing 1613 DC, 1613 AC, 1613 MV errors in B frame
+  25.432 [h264 @ 0x15e578aa0] concealing 1396 DC, 1396 AC, 1396 MV errors in P frame
+  25.467 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  25.467 [h264 @ 0x15494c480] error while decoding MB 45 0, bytestream 221
+  25.467 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in B frame
+  25.504 [h264 @ 0x15e578aa0] Reference 4 >= 2
+  25.504 [h264 @ 0x15e578aa0] error while decoding MB 31 3, bytestream 119
+  25.504 [h264 @ 0x15e578aa0] concealing 1476 DC, 1476 AC, 1476 MV errors in B frame
+  25.537 [h264 @ 0x15494c480] Reference 5 >= 4
+  25.537 [h264 @ 0x15494c480] error while decoding MB 0 2, bytestream 1846
+  25.537 [h264 @ 0x15494c480] concealing 1561 DC, 1561 AC, 1561 MV errors in P frame
+  25.567 [h264 @ 0x15e578aa0] Reference 7 >= 2
+  25.567 [h264 @ 0x15e578aa0] error while decoding MB 16 1, bytestream 168
+  25.567 [h264 @ 0x15e578aa0] concealing 1599 DC, 1599 AC, 1599 MV errors in B frame
+  25.600 [h264 @ 0x15494c480] Reference 6 >= 2
+  25.600 [h264 @ 0x15494c480] error while decoding MB 37 1, bytestream 167
+  25.600 [h264 @ 0x15494c480] concealing 1578 DC, 1578 AC, 1578 MV errors in B frame
+  25.631 [h264 @ 0x15e578aa0] Reference 7 >= 4
+  25.631 [h264 @ 0x15e578aa0] error while decoding MB 40 0, bytestream 2119
+  25.631 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  25.668 [h264 @ 0x15494c480] Reference 2 >= 2
+  25.669 [h264 @ 0x15494c480] error while decoding MB 15 2, bytestream 141
+  25.669 [h264 @ 0x15494c480] concealing 1546 DC, 1546 AC, 1546 MV errors in B frame
+  25.700 [h264 @ 0x15e578aa0] Reference 4 >= 2
+  25.700 [h264 @ 0x15e578aa0] error while decoding MB 45 1, bytestream 120
+  25.700 [h264 @ 0x15e578aa0] concealing 1570 DC, 1570 AC, 1570 MV errors in B frame
+  25.740 [h264 @ 0x15494c480] Reference 4 >= 4
+  25.740 [h264 @ 0x15494c480] error while decoding MB 40 0, bytestream 1903
+  25.740 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  25.772 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  25.772 [h264 @ 0x15e578aa0] error while decoding MB 37 2, bytestream 108
+  25.772 [h264 @ 0x15e578aa0] concealing 1524 DC, 1524 AC, 1524 MV errors in B frame
+  25.802 [h264 @ 0x15494c480] concealing 1511 DC, 1511 AC, 1511 MV errors in B frame
+  25.834 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  25.834 [h264 @ 0x15e578aa0] error while decoding MB 50 0, bytestream 1778
+  25.834 [h264 @ 0x15e578aa0] concealing 1619 DC, 1619 AC, 1619 MV errors in P frame
+  25.865 [h264 @ 0x15494c480] Reference 2 >= 2
+  25.865 [h264 @ 0x15494c480] error while decoding MB 48 1, bytestream 133
+  25.865 [h264 @ 0x15494c480] concealing 1567 DC, 1567 AC, 1567 MV errors in B frame
+  25.904 [h264 @ 0x15e578aa0] concealing 1535 DC, 1535 AC, 1535 MV errors in B frame
+  25.940 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  25.940 [h264 @ 0x15494c480] error while decoding MB 53 0, bytestream 2493
+  25.940 [h264 @ 0x15494c480] concealing 1616 DC, 1616 AC, 1616 MV errors in P frame
+  25.974 [h264 @ 0x15e578aa0] concealing 1387 DC, 1387 AC, 1387 MV errors in B frame
+  26.003 [h264 @ 0x15494c480] Reference 2 >= 2
+  26.003 [h264 @ 0x15494c480] error while decoding MB 46 1, bytestream 121
+  26.003 [h264 @ 0x15494c480] concealing 1569 DC, 1569 AC, 1569 MV errors in B frame
+  26.043 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  26.043 [h264 @ 0x15e578aa0] error while decoding MB 8 2, bytestream 1216
+  26.043 [h264 @ 0x15e578aa0] concealing 1553 DC, 1553 AC, 1553 MV errors in P frame
+  26.050 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=839, existingLoaderToResume=0)
+  26.050 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=839)
+  26.067 [h264 @ 0x15494c480] concealing 1420 DC, 1420 AC, 1420 MV errors in B frame
+  26.103 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  26.103 [h264 @ 0x15e578aa0] error while decoding MB 10 1, bytestream 1719
+  26.103 [h264 @ 0x15e578aa0] concealing 1605 DC, 1605 AC, 1605 MV errors in P frame
+  26.140 [h264 @ 0x15494c480] Reference 13 >= 2
+  26.140 [h264 @ 0x15494c480] error while decoding MB 36 11, bytestream 25
+  26.140 [h264 @ 0x15494c480] concealing 1039 DC, 1039 AC, 1039 MV errors in B frame
+  26.173 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  26.173 [h264 @ 0x15e578aa0] error while decoding MB 42 0, bytestream 1709
+  26.173 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  26.210 [h264 @ 0x15494c480] Reference 2 >= 2
+  26.210 [h264 @ 0x15494c480] error while decoding MB 11 4, bytestream 71
+  26.210 [h264 @ 0x15494c480] concealing 1442 DC, 1442 AC, 1442 MV errors in B frame
+  26.236 [h264 @ 0x15e578aa0] concealing 1572 DC, 1572 AC, 1572 MV errors in P frame
+  26.275 [h264 @ 0x15494c480] concealing 1315 DC, 1315 AC, 1315 MV errors in B frame
+  26.304 [h264 @ 0x15e578aa0] Reference 7 >= 4
+  26.304 [h264 @ 0x15e578aa0] error while decoding MB 48 0, bytestream 1800
+  26.304 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  26.333 [h264 @ 0x15494c480] concealing 741 DC, 741 AC, 741 MV errors in B frame
+  26.367 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  26.367 [h264 @ 0x15e578aa0] error while decoding MB 28 1, bytestream 2359
+  26.367 [h264 @ 0x15e578aa0] concealing 1587 DC, 1587 AC, 1587 MV errors in P frame
+  26.387 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=842, existingLoaderToResume=0)
+  26.388 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=842)
+  26.400 [h264 @ 0x15494c480] Reference 2 >= 2
+  26.400 [h264 @ 0x15494c480] error while decoding MB 34 10, bytestream 115
+  26.400 [h264 @ 0x15494c480] concealing 1095 DC, 1095 AC, 1095 MV errors in B frame
+  26.437 [h264 @ 0x15e578aa0] concealing 1513 DC, 1513 AC, 1513 MV errors in B frame
+  26.468 [h264 @ 0x15494c480] Reference 4 >= 4
+  26.468 [h264 @ 0x15494c480] error while decoding MB 18 1, bytestream 2101
+  26.468 [h264 @ 0x15494c480] concealing 1597 DC, 1597 AC, 1597 MV errors in P frame
+  26.504 [h264 @ 0x15e578aa0] Reference 2 >= 2
+  26.505 [h264 @ 0x15e578aa0] error while decoding MB 2 6, bytestream -4
+  26.505 [h264 @ 0x15e578aa0] concealing 1343 DC, 1343 AC, 1343 MV errors in B frame
+  26.542 [h264 @ 0x15494c480] concealing 752 DC, 752 AC, 752 MV errors in B frame
+  26.570 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  26.570 [h264 @ 0x15e578aa0] error while decoding MB 39 1, bytestream 2027
+  26.570 [h264 @ 0x15e578aa0] concealing 1576 DC, 1576 AC, 1576 MV errors in P frame
+  26.595 [h264 @ 0x15494c480] error while decoding MB 30 3, bytestream -13
+  26.595 [h264 @ 0x15494c480] concealing 1477 DC, 1477 AC, 1477 MV errors in B frame
+  26.629 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=1ms pts=15.00
+  26.630 [h264 @ 0x15e578aa0] error while decoding MB 37 7, bytestream -10
+  26.630 [h264 @ 0x15e578aa0] concealing 1254 DC, 1254 AC, 1254 MV errors in B frame
+  26.665 [h264 @ 0x15494c480] Reference 4 >= 4
+  26.666 [h264 @ 0x15494c480] error while decoding MB 47 2, bytestream 1102
+  26.666 [h264 @ 0x15494c480] concealing 1514 DC, 1514 AC, 1514 MV errors in P frame
+  26.702 [h264 @ 0x15e578aa0] concealing 1470 DC, 1470 AC, 1470 MV errors in B frame
+  26.737 [h264 @ 0x15494c480] Reference 2 >= 2
+  26.737 [h264 @ 0x15494c480] error while decoding MB 50 9, bytestream 70
+  26.738 [h264 @ 0x15494c480] concealing 1133 DC, 1133 AC, 1133 MV errors in B frame
+  26.767 [h264 @ 0x15e578aa0] concealing 1516 DC, 1516 AC, 1516 MV errors in P frame
+  26.804 [h264 @ 0x15494c480] concealing 927 DC, 927 AC, 927 MV errors in B frame
+  26.828 [h264 @ 0x15e578aa0] concealing 1198 DC, 1198 AC, 1198 MV errors in B frame
+  26.868 [h264 @ 0x15494c480] Reference 4 >= 4
+  26.868 [h264 @ 0x15494c480] error while decoding MB 49 0, bytestream 1734
+  26.868 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  26.903 [h264 @ 0x15e578aa0] error while decoding MB 44 12, bytestream -14
+  26.903 [h264 @ 0x15e578aa0] concealing 977 DC, 977 AC, 977 MV errors in B frame
+  26.932 [h264 @ 0x15494c480] Reference 3 >= 2
+  26.932 [h264 @ 0x15494c480] error while decoding MB 23 6, bytestream 55
+  26.932 [h264 @ 0x15494c480] concealing 1322 DC, 1322 AC, 1322 MV errors in B frame
+  26.968 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  26.969 [h264 @ 0x15e578aa0] error while decoding MB 45 0, bytestream 1573
+  26.969 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  27.002 [h264 @ 0x15494c480] concealing 867 DC, 867 AC, 867 MV errors in B frame
+  27.038 [h264 @ 0x15e578aa0] error while decoding MB 34 14, bytestream -7
+  27.038 [h264 @ 0x15e578aa0] concealing 879 DC, 879 AC, 879 MV errors in B frame
+  27.070 [h264 @ 0x15494c480] concealing 1535 DC, 1535 AC, 1535 MV errors in P frame
+  27.101 [h264 @ 0x15e578aa0] error while decoding MB 11 10, bytestream -10
+  27.101 [h264 @ 0x15e578aa0] concealing 1118 DC, 1118 AC, 1118 MV errors in B frame
+  27.131 [h264 @ 0x15494c480] concealing 1330 DC, 1330 AC, 1330 MV errors in B frame
+  27.162 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  27.163 [h264 @ 0x15e578aa0] error while decoding MB 41 0, bytestream 1036
+  27.163 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  27.202 [h264 @ 0x15494c480] Reference 2 >= 2
+  27.202 [h264 @ 0x15494c480] error while decoding MB 43 5, bytestream 1
+  27.202 [h264 @ 0x15494c480] concealing 1356 DC, 1356 AC, 1356 MV errors in B frame
+  27.237 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  27.237 [h264 @ 0x15e578aa0] error while decoding MB 44 0, bytestream 988
+  27.237 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  27.269 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  27.269 [h264 @ 0x15494c480] error while decoding MB 49 0, bytestream 12
+  27.269 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in B frame
+  27.304 [h264 @ 0x15e578aa0] Reference 3 >= 2
+  27.304 [h264 @ 0x15e578aa0] error while decoding MB 31 9, bytestream 2
+  27.305 [h264 @ 0x15e578aa0] concealing 1152 DC, 1152 AC, 1152 MV errors in B frame
+  27.336 [h264 @ 0x15494c480] Reference 5 >= 4
+  27.336 [h264 @ 0x15494c480] error while decoding MB 41 0, bytestream 771
+  27.337 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  27.362 [h264 @ 0x15e578aa0] concealing 1083 DC, 1083 AC, 1083 MV errors in B frame
+  27.406 [h264 @ 0x15494c480] error while decoding MB 36 2, bytestream -7
+  27.406 [h264 @ 0x15494c480] concealing 1525 DC, 1525 AC, 1525 MV errors in B frame
+  27.437 [h264 @ 0x15e578aa0] Reference 6 >= 4
+  27.437 [h264 @ 0x15e578aa0] error while decoding MB 42 0, bytestream 500
+  27.437 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  27.474 [h264 @ 0x15494c480] error while decoding MB 9 3, bytestream -6
+  27.474 [h264 @ 0x15494c480] concealing 1498 DC, 1498 AC, 1498 MV errors in B frame
+  27.506 [h264 @ 0x15e578aa0] error while decoding MB 6 6, bytestream -9
+  27.506 [h264 @ 0x15e578aa0] concealing 1339 DC, 1339 AC, 1339 MV errors in B frame
+  27.549 [h264 @ 0x15494c480] concealing 1571 DC, 1571 AC, 1571 MV errors in P frame
+  27.581 [h264 @ 0x15e578aa0] error while decoding MB 42 1, bytestream -5
+  27.581 [h264 @ 0x15e578aa0] concealing 1573 DC, 1573 AC, 1573 MV errors in P frame
+  27.603 [h264 @ 0x15494c480] concealing 1504 DC, 1504 AC, 1504 MV errors in P frame
+  27.629 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  27.629 [h264 @ 0x15e578aa0] error while decoding MB 35 1, bytestream 24
+  27.629 [h264 @ 0x15e578aa0] concealing 1580 DC, 1580 AC, 1580 MV errors in P frame
+  27.649 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=851, existingLoaderToResume=0)
+  27.649 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=851)
+  27.663 [h264 @ 0x15494c480] error while decoding MB 18 2, bytestream -6
+  27.664 [h264 @ 0x15494c480] concealing 1543 DC, 1543 AC, 1543 MV errors in P frame
+  27.690 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}]  streaming = false
+  27.693 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}] , totalBufferSize: 1636347
+  27.693 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}]  streaming = false
+  27.704 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}] , totalBufferSize: 1636347
+  27.706 [h264 @ 0x15e578aa0] error while decoding MB 48 9, bytestream -5
+  27.706 [h264 @ 0x15e578aa0] concealing 1135 DC, 1135 AC, 1135 MV errors in P frame
+  27.716 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 65536 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}]  streaming = false
+  27.724 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{2201600/44100 = 49.92290249433107}]  streaming = false
+  27.742 [h264 @ 0x15494c480] top block unavailable for requested intra mode -1
+  27.742 [h264 @ 0x15494c480] error while decoding MB 40 0, bytestream 44328
+  27.742 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in I frame
+  27.759 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}] , totalBufferSize: 1636347
+  27.760 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 62580 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{707072/15360 = 46.03333333333333}]  streaming = false
+  27.768 [h264 @ 0x15e578aa0] concealing 1547 DC, 1547 AC, 1547 MV errors in P frame
+  27.802 [h264 @ 0x15494c480] concealing 1461 DC, 1461 AC, 1461 MV errors in B frame
+  27.815 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{2201600/44100 = 49.92290249433107}] , totalBufferSize: 799189
+  27.817 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 145190 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{2201600/44100 = 49.92290249433107}]  streaming = false
+  27.840 [h264 @ 0x15e578aa0] Reference 5 >= 3
+  27.840 [h264 @ 0x15e578aa0] error while decoding MB 4 1, bytestream 737
+  27.840 [h264 @ 0x15e578aa0] concealing 1611 DC, 1611 AC, 1611 MV errors in P frame
+  27.863 [h264 @ 0x15494c480] Reference 4 >= 4
+  27.864 [h264 @ 0x15494c480] error while decoding MB 14 1, bytestream 1098
+  27.864 [h264 @ 0x15494c480] concealing 1601 DC, 1601 AC, 1601 MV errors in P frame
+  27.895 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  27.896 [h264 @ 0x15e578aa0] error while decoding MB 2 1, bytestream 891
+  27.896 [h264 @ 0x15e578aa0] concealing 1613 DC, 1613 AC, 1613 MV errors in P frame
+  27.919 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{800256/15360 = 52.1}] , totalBufferSize: 1794947
+  27.925 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 280292 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{800256/15360 = 52.1}]  streaming = false
+  27.932 [h264 @ 0x15494c480] Reference 5 >= 4
+  27.932 [h264 @ 0x15494c480] error while decoding MB 10 1, bytestream 921
+  27.932 [h264 @ 0x15494c480] concealing 1605 DC, 1605 AC, 1605 MV errors in P frame
+  27.941 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{2641920/44100 = 59.90748299319728}] , totalBufferSize: 958939
+  27.942 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=852, existingLoaderToResume=0)
+  27.942 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=852)
+  27.962 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161620 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{2641920/44100 = 59.90748299319728}]  streaming = false
+  27.964 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  27.964 [h264 @ 0x15e578aa0] error while decoding MB 1 2, bytestream 909
+  27.964 [h264 @ 0x15e578aa0] concealing 1560 DC, 1560 AC, 1560 MV errors in P frame
+  28.002 [h264 @ 0x15494c480] concealing 1447 DC, 1447 AC, 1447 MV errors in P frame
+  28.036 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  28.036 [h264 @ 0x15e578aa0] error while decoding MB 9 3, bytestream 650
+  28.036 [h264 @ 0x15e578aa0] concealing 1498 DC, 1498 AC, 1498 MV errors in P frame
+  28.070 [h264 @ 0x15494c480] Reference 5 >= 4
+  28.070 [h264 @ 0x15494c480] error while decoding MB 45 0, bytestream 1291
+  28.070 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  28.078 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2072619
+  28.080 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3082240/44100 = 69.89206349206349}] , totalBufferSize: 1118735
+  28.103 [h264 @ 0x15e578aa0] Reference 6 >= 4
+  28.103 [h264 @ 0x15e578aa0] error while decoding MB 20 1, bytestream 1168
+  28.104 [h264 @ 0x15e578aa0] concealing 1595 DC, 1595 AC, 1595 MV errors in P frame
+  28.134 [h264 @ 0x15494c480] Reference 4 >= 4
+  28.134 [h264 @ 0x15494c480] error while decoding MB 53 0, bytestream 1183
+  28.134 [h264 @ 0x15494c480] concealing 1616 DC, 1616 AC, 1616 MV errors in P frame
+  28.165 [h264 @ 0x15e578aa0] error while decoding MB 2 3, bytestream -8
+  28.165 [h264 @ 0x15e578aa0] concealing 1505 DC, 1505 AC, 1505 MV errors in P frame
+  28.204 [h264 @ 0x15494c480] concealing 1572 DC, 1572 AC, 1572 MV errors in P frame
+  28.233 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  28.233 [h264 @ 0x15e578aa0] error while decoding MB 17 2, bytestream 785
+  28.234 [h264 @ 0x15e578aa0] concealing 1544 DC, 1544 AC, 1544 MV errors in P frame
+  28.270 [h264 @ 0x15494c480] concealing 1532 DC, 1532 AC, 1532 MV errors in P frame
+  28.301 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  28.301 [h264 @ 0x15e578aa0] error while decoding MB 3 1, bytestream 1134
+  28.301 [h264 @ 0x15e578aa0] concealing 1612 DC, 1612 AC, 1612 MV errors in P frame
+  28.335 [h264 @ 0x15494c480] Reference 6 >= 4
+  28.335 [h264 @ 0x15494c480] error while decoding MB 51 0, bytestream 1379
+  28.336 [h264 @ 0x15494c480] concealing 1618 DC, 1618 AC, 1618 MV errors in P frame
+  28.370 [h264 @ 0x15e578aa0] Reference 7 >= 4
+  28.370 [h264 @ 0x15e578aa0] error while decoding MB 11 1, bytestream 1325
+  28.371 [h264 @ 0x15e578aa0] concealing 1604 DC, 1604 AC, 1604 MV errors in P frame
+  28.401 [h264 @ 0x15494c480] Reference 4 >= 4
+  28.401 [h264 @ 0x15494c480] error while decoding MB 21 1, bytestream 1169
+  28.401 [h264 @ 0x15494c480] concealing 1594 DC, 1594 AC, 1594 MV errors in P frame
+  28.427 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  28.428 [h264 @ 0x15e578aa0] error while decoding MB 41 0, bytestream 1344
+  28.428 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  28.468 [h264 @ 0x15494c480] Reference 4 >= 4
+  28.468 [h264 @ 0x15494c480] error while decoding MB 51 1, bytestream 1229
+  28.468 [h264 @ 0x15494c480] concealing 1564 DC, 1564 AC, 1564 MV errors in P frame
+  28.497 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  28.497 [h264 @ 0x15e578aa0] error while decoding MB 36 1, bytestream 1721
+  28.497 [h264 @ 0x15e578aa0] concealing 1579 DC, 1579 AC, 1579 MV errors in P frame
+  28.539 [h264 @ 0x15494c480] concealing 1486 DC, 1486 AC, 1486 MV errors in P frame
+  28.571 [h264 @ 0x15e578aa0] concealing 1548 DC, 1548 AC, 1548 MV errors in P frame
+  28.603 [h264 @ 0x15494c480] Reference 4 >= 4
+  28.603 [h264 @ 0x15494c480] error while decoding MB 4 1, bytestream 1330
+  28.603 [h264 @ 0x15494c480] concealing 1611 DC, 1611 AC, 1611 MV errors in P frame
+  28.636 TIGER-MEDIA fps=29.9 shown=60 dropped=0 lag=9ms pts=17.00
+  28.637 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  28.637 [h264 @ 0x15e578aa0] error while decoding MB 42 0, bytestream 1243
+  28.637 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  28.667 [h264 @ 0x15494c480] top block unavailable for requested intra mode -1
+  28.667 [h264 @ 0x15494c480] error while decoding MB 51 0, bytestream 1559
+  28.667 [h264 @ 0x15494c480] concealing 1618 DC, 1618 AC, 1618 MV errors in P frame
+  28.701 [h264 @ 0x15e578aa0] Reference 8 >= 4
+  28.701 [h264 @ 0x15e578aa0] error while decoding MB 43 1, bytestream 1298
+  28.701 [h264 @ 0x15e578aa0] concealing 1572 DC, 1572 AC, 1572 MV errors in P frame
+  28.730 [h264 @ 0x15494c480] Reference 4 >= 4
+  28.730 [h264 @ 0x15494c480] error while decoding MB 41 0, bytestream 1948
+  28.730 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  28.769 [h264 @ 0x15e578aa0] Reference 6 >= 4
+  28.769 [h264 @ 0x15e578aa0] error while decoding MB 11 2, bytestream 1375
+  28.769 [h264 @ 0x15e578aa0] concealing 1550 DC, 1550 AC, 1550 MV errors in P frame
+  28.802 [h264 @ 0x15494c480] Reference 4 >= 4
+  28.802 [h264 @ 0x15494c480] error while decoding MB 41 0, bytestream 1458
+  28.802 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  28.838 [h264 @ 0x15e578aa0] concealing 1574 DC, 1574 AC, 1574 MV errors in P frame
+  28.870 [h264 @ 0x15494c480] Reference 5 >= 4
+  28.870 [h264 @ 0x15494c480] error while decoding MB 14 1, bytestream 1378
+  28.870 [h264 @ 0x15494c480] concealing 1601 DC, 1601 AC, 1601 MV errors in P frame
+  28.900 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  28.900 [h264 @ 0x15e578aa0] error while decoding MB 53 3, bytestream 868
+  28.900 [h264 @ 0x15e578aa0] concealing 1454 DC, 1454 AC, 1454 MV errors in P frame
+  28.931 [h264 @ 0x15494c480] concealing 1525 DC, 1525 AC, 1525 MV errors in P frame
+  28.968 [h264 @ 0x15e578aa0] Reference 6 >= 4
+  28.968 [h264 @ 0x15e578aa0] error while decoding MB 29 4, bytestream 705
+  28.968 [h264 @ 0x15e578aa0] concealing 1424 DC, 1424 AC, 1424 MV errors in P frame
+  29.002 [h264 @ 0x15494c480] Reference 4 >= 4
+  29.002 [h264 @ 0x15494c480] error while decoding MB 5 1, bytestream 1321
+  29.002 [h264 @ 0x15494c480] concealing 1610 DC, 1610 AC, 1610 MV errors in P frame
+  29.043 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.043 [h264 @ 0x15e578aa0] error while decoding MB 16 2, bytestream 1663
+  29.043 [h264 @ 0x15e578aa0] concealing 1545 DC, 1545 AC, 1545 MV errors in P frame
+  29.077 [h264 @ 0x15494c480] Reference 4 >= 4
+  29.077 [h264 @ 0x15494c480] error while decoding MB 35 2, bytestream 1082
+  29.077 [h264 @ 0x15494c480] concealing 1526 DC, 1526 AC, 1526 MV errors in P frame
+  29.105 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  29.105 [h264 @ 0x15e578aa0] error while decoding MB 19 1, bytestream 2012
+  29.105 [h264 @ 0x15e578aa0] concealing 1596 DC, 1596 AC, 1596 MV errors in P frame
+  29.144 [h264 @ 0x15494c480] concealing 1547 DC, 1547 AC, 1547 MV errors in P frame
+  29.168 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.168 [h264 @ 0x15e578aa0] error while decoding MB 4 1, bytestream 1448
+  29.168 [h264 @ 0x15e578aa0] concealing 1611 DC, 1611 AC, 1611 MV errors in P frame
+  29.199 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  29.199 [h264 @ 0x15494c480] error while decoding MB 47 0, bytestream 1866
+  29.199 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  29.229 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.229 [h264 @ 0x15e578aa0] error while decoding MB 7 3, bytestream 1197
+  29.229 [h264 @ 0x15e578aa0] concealing 1500 DC, 1500 AC, 1500 MV errors in P frame
+  29.267 [h264 @ 0x15494c480] concealing 1491 DC, 1491 AC, 1491 MV errors in P frame
+  29.303 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.303 [h264 @ 0x15e578aa0] error while decoding MB 7 5, bytestream 1120
+  29.303 [h264 @ 0x15e578aa0] concealing 1392 DC, 1392 AC, 1392 MV errors in P frame
+  29.334 [h264 @ 0x15494c480] Reference 5 >= 4
+  29.334 [h264 @ 0x15494c480] error while decoding MB 45 0, bytestream 1734
+  29.334 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  29.368 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.368 [h264 @ 0x15e578aa0] error while decoding MB 42 0, bytestream 1654
+  29.369 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  29.405 [h264 @ 0x15494c480] Reference 4 >= 4
+  29.405 [h264 @ 0x15494c480] error while decoding MB 12 1, bytestream 1664
+  29.405 [h264 @ 0x15494c480] concealing 1603 DC, 1603 AC, 1603 MV errors in P frame
+  29.426 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.427 [h264 @ 0x15e578aa0] error while decoding MB 43 1, bytestream 1427
+  29.427 [h264 @ 0x15e578aa0] concealing 1572 DC, 1572 AC, 1572 MV errors in P frame
+  29.466 [h264 @ 0x15494c480] Reference 4 >= 4
+  29.466 [h264 @ 0x15494c480] error while decoding MB 42 0, bytestream 1887
+  29.466 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  29.497 [h264 @ 0x15e578aa0] concealing 1429 DC, 1429 AC, 1429 MV errors in P frame
+  29.535 [h264 @ 0x15494c480] concealing 1519 DC, 1519 AC, 1519 MV errors in P frame
+  29.569 [h264 @ 0x15e578aa0] concealing 1437 DC, 1437 AC, 1437 MV errors in P frame
+  29.605 [h264 @ 0x15494c480] top block unavailable for requested intra mode
+  29.605 [h264 @ 0x15494c480] error while decoding MB 41 0, bytestream 1722
+  29.605 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  29.634 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.635 [h264 @ 0x15e578aa0] error while decoding MB 6 1, bytestream 1803
+  29.635 [h264 @ 0x15e578aa0] concealing 1609 DC, 1609 AC, 1609 MV errors in P frame
+  29.678 [h264 @ 0x15494c480] Reference 5 >= 4
+  29.678 [h264 @ 0x15494c480] error while decoding MB 39 1, bytestream 1475
+  29.678 [h264 @ 0x15494c480] concealing 1576 DC, 1576 AC, 1576 MV errors in P frame
+  29.701 [h264 @ 0x15e578aa0] Reference 7 >= 4
+  29.701 [h264 @ 0x15e578aa0] error while decoding MB 49 0, bytestream 1545
+  29.701 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  29.733 [h264 @ 0x15494c480] Reference 4 >= 4
+  29.733 [h264 @ 0x15494c480] error while decoding MB 22 1, bytestream 1536
+  29.733 [h264 @ 0x15494c480] concealing 1593 DC, 1593 AC, 1593 MV errors in P frame
+  29.779 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  29.779 [h264 @ 0x15e578aa0] error while decoding MB 47 1, bytestream 1880
+  29.779 [h264 @ 0x15e578aa0] concealing 1568 DC, 1568 AC, 1568 MV errors in P frame
+  29.807 [h264 @ 0x15494c480] concealing 1477 DC, 1477 AC, 1477 MV errors in P frame
+  29.838 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.838 [h264 @ 0x15e578aa0] error while decoding MB 5 1, bytestream 1235
+  29.838 [h264 @ 0x15e578aa0] concealing 1610 DC, 1610 AC, 1610 MV errors in P frame
+  29.869 [h264 @ 0x15494c480] Reference 4 >= 4
+  29.869 [h264 @ 0x15494c480] error while decoding MB 0 1, bytestream 2085
+  29.869 [h264 @ 0x15494c480] concealing 1615 DC, 1615 AC, 1615 MV errors in P frame
+  29.907 [h264 @ 0x15e578aa0] Reference 6 >= 4
+  29.907 [h264 @ 0x15e578aa0] error while decoding MB 18 1, bytestream 1138
+  29.907 [h264 @ 0x15e578aa0] concealing 1597 DC, 1597 AC, 1597 MV errors in P frame
+  29.924 tigeraudio32: t=20s read=806946 write=828996 paused=0 underruns=149
+  29.927 [h264 @ 0x15494c480] Reference 4 >= 4
+  29.927 [h264 @ 0x15494c480] error while decoding MB 2 1, bytestream 2170
+  29.927 [h264 @ 0x15494c480] concealing 1613 DC, 1613 AC, 1613 MV errors in P frame
+  29.968 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  29.968 [h264 @ 0x15e578aa0] error while decoding MB 2 1, bytestream 1354
+  29.968 [h264 @ 0x15e578aa0] concealing 1613 DC, 1613 AC, 1613 MV errors in P frame
+  29.998 [h264 @ 0x15494c480] Reference 6 >= 4
+  29.998 [h264 @ 0x15494c480] error while decoding MB 49 0, bytestream 1605
+  29.998 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  30.044 [h264 @ 0x15e578aa0] concealing 1498 DC, 1498 AC, 1498 MV errors in P frame
+  30.080 [h264 @ 0x15494c480] Reference 4 >= 4
+  30.080 [h264 @ 0x15494c480] error while decoding MB 4 2, bytestream 1708
+  30.080 [h264 @ 0x15494c480] concealing 1557 DC, 1557 AC, 1557 MV errors in P frame
+  30.112 [h264 @ 0x15e578aa0] concealing 1363 DC, 1363 AC, 1363 MV errors in P frame
+  30.141 [h264 @ 0x15494c480] Reference 4 >= 4
+  30.141 [h264 @ 0x15494c480] error while decoding MB 33 3, bytestream 1608
+  30.141 [h264 @ 0x15494c480] concealing 1474 DC, 1474 AC, 1474 MV errors in P frame
+  30.176 [h264 @ 0x15e578aa0] concealing 1563 DC, 1563 AC, 1563 MV errors in P frame
+  30.206 [h264 @ 0x15494c480] Reference 4 >= 4
+  30.206 [h264 @ 0x15494c480] error while decoding MB 23 1, bytestream 1817
+  30.206 [h264 @ 0x15494c480] concealing 1592 DC, 1592 AC, 1592 MV errors in P frame
+  30.229 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  30.229 [h264 @ 0x15e578aa0] error while decoding MB 2 1, bytestream 1376
+  30.229 [h264 @ 0x15e578aa0] concealing 1613 DC, 1613 AC, 1613 MV errors in P frame
+  30.270 [h264 @ 0x15494c480] Reference 4 >= 4
+  30.270 [h264 @ 0x15494c480] error while decoding MB 0 1, bytestream 1874
+  30.270 [h264 @ 0x15494c480] concealing 1615 DC, 1615 AC, 1615 MV errors in P frame
+  30.299 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  30.299 [h264 @ 0x15e578aa0] error while decoding MB 48 0, bytestream 1170
+  30.299 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  30.335 [h264 @ 0x15494c480] Reference 4 >= 4
+  30.335 [h264 @ 0x15494c480] error while decoding MB 42 0, bytestream 1643
+  30.335 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  30.367 [h264 @ 0x15e578aa0] concealing 1573 DC, 1573 AC, 1573 MV errors in P frame
+  30.401 [h264 @ 0x15494c480] concealing 1489 DC, 1489 AC, 1489 MV errors in P frame
+  30.436 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  30.436 [h264 @ 0x15e578aa0] error while decoding MB 14 1, bytestream 1564
+  30.436 [h264 @ 0x15e578aa0] concealing 1601 DC, 1601 AC, 1601 MV errors in P frame
+  30.469 [h264 @ 0x15494c480] Reference 4 >= 4
+  30.469 [h264 @ 0x15494c480] error while decoding MB 39 10, bytestream 763
+  30.469 [h264 @ 0x15494c480] concealing 1090 DC, 1090 AC, 1090 MV errors in P frame
+  30.497 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  30.497 [h264 @ 0x15e578aa0] error while decoding MB 6 1, bytestream 1251
+  30.497 [h264 @ 0x15e578aa0] concealing 1609 DC, 1609 AC, 1609 MV errors in P frame
+  30.537 [h264 @ 0x15494c480] top block unavailable for requested intra mode -1
+  30.537 [h264 @ 0x15494c480] error while decoding MB 44 0, bytestream 1684
+  30.537 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  30.566 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  30.566 [h264 @ 0x15e578aa0] error while decoding MB 50 0, bytestream 1492
+  30.566 [h264 @ 0x15e578aa0] concealing 1619 DC, 1619 AC, 1619 MV errors in P frame
+  30.606 [h264 @ 0x15494c480] Reference 5 >= 4
+  30.606 [h264 @ 0x15494c480] error while decoding MB 47 0, bytestream 1477
+  30.606 [h264 @ 0x15494c480] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  30.638 [h264 @ 0x15e578aa0] Reference 6 >= 4
+  30.638 [h264 @ 0x15e578aa0] error while decoding MB 47 0, bytestream 2141
+  30.638 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  30.668 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=8ms pts=19.03
+  30.675 [h264 @ 0x15494c480] concealing 1573 DC, 1573 AC, 1573 MV errors in P frame
+  30.706 [h264 @ 0x15e578aa0] concealing 1483 DC, 1483 AC, 1483 MV errors in P frame
+  30.734 [h264 @ 0x15494c480] Reference 5 >= 4
+  30.734 [h264 @ 0x15494c480] error while decoding MB 12 5, bytestream 924
+  30.734 [h264 @ 0x15494c480] concealing 1387 DC, 1387 AC, 1387 MV errors in P frame
+  30.762 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  30.762 [h264 @ 0x15e578aa0] error while decoding MB 5 1, bytestream 1343
+  30.762 [h264 @ 0x15e578aa0] concealing 1610 DC, 1610 AC, 1610 MV errors in P frame
+  30.803 [h264 @ 0x15494c480] concealing 1373 DC, 1373 AC, 1373 MV errors in P frame
+  30.838 [h264 @ 0x15e578aa0] top block unavailable for requested intra mode
+  30.838 [h264 @ 0x15e578aa0] error while decoding MB 52 0, bytestream 1275
+  30.838 [h264 @ 0x15e578aa0] concealing 1617 DC, 1617 AC, 1617 MV errors in P frame
+  30.866 [h264 @ 0x15494c480] Reference 4 >= 4
+  30.866 [h264 @ 0x15494c480] error while decoding MB 15 1, bytestream 1336
+  30.866 [h264 @ 0x15494c480] concealing 1600 DC, 1600 AC, 1600 MV errors in P frame
+  30.894 TIGER script: scroll 0,-400
+  30.910 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  30.910 [h264 @ 0x15e578aa0] error while decoding MB 26 1, bytestream 1125
+  30.910 [h264 @ 0x15e578aa0] concealing 1589 DC, 1589 AC, 1589 MV errors in P frame
+  30.952 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=854, existingLoaderToResume=0)
+  30.952 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=854)
+  30.956 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=855, existingLoaderToResume=0)
+  30.956 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=855)
+  30.956 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=856, existingLoaderToResume=0)
+  30.956 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=856)
+  30.956 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=857, existingLoaderToResume=0)
+  30.956 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=857)
+  30.956 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=858, existingLoaderToResume=0)
+  30.956 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=858)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=859, existingLoaderToResume=0)
+  30.957 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=859)
+  30.976 [h264 @ 0x15494c480] concealing 1563 DC, 1563 AC, 1563 MV errors in P frame
+  31.049 [h264 @ 0x15e578aa0] Reference 5 >= 4
+  31.049 [h264 @ 0x15e578aa0] error while decoding MB 40 0, bytestream 1380
+  31.049 [h264 @ 0x15e578aa0] concealing 1620 DC, 1620 AC, 1620 MV errors in P frame
+  31.065 [h264 @ 0x15494c480] error while decoding MB 53 5, bytestream -7
+  31.065 [h264 @ 0x15494c480] concealing 1346 DC, 1346 AC, 1346 MV errors in P frame
+  31.076 [h264 @ 0x15e578aa0] concealing 1534 DC, 1534 AC, 1534 MV errors in P frame
+  31.099 [h264 @ 0x15494c480] Reference 4 >= 4
+  31.099 [h264 @ 0x15494c480] error while decoding MB 15 2, bytestream 1002
+  31.099 [h264 @ 0x15494c480] concealing 1546 DC, 1546 AC, 1546 MV errors in P frame
+  31.117 [h264 @ 0x15e578aa0] concealing 1492 DC, 1492 AC, 1492 MV errors in P frame
+  31.137 [h264 @ 0x15494c480] concealing 1429 DC, 1429 AC, 1429 MV errors in P frame
+  31.173 [h264 @ 0x15e578aa0] concealing 1514 DC, 1514 AC, 1514 MV errors in P frame
+  31.194 TIGER script: wait 10
+  31.204 [h264 @ 0x15494c480] concealing 1541 DC, 1541 AC, 1541 MV errors in P frame
+  31.227 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  31.227 [h264 @ 0x15e578aa0] error while decoding MB 32 1, bytestream 1216
+  31.228 [h264 @ 0x15e578aa0] concealing 1583 DC, 1583 AC, 1583 MV errors in P frame
+  31.274 [h264 @ 0x15494c480] concealing 1554 DC, 1554 AC, 1554 MV errors in P frame
+  31.297 [h264 @ 0x15e578aa0] concealing 1535 DC, 1535 AC, 1535 MV errors in P frame
+  31.333 [h264 @ 0x15494c480] Reference 5 >= 4
+  31.333 [h264 @ 0x15494c480] error while decoding MB 41 1, bytestream 1010
+  31.334 [h264 @ 0x15494c480] concealing 1574 DC, 1574 AC, 1574 MV errors in P frame
+  31.369 [h264 @ 0x15e578aa0] left block unavailable for requested intra4x4 mode -1
+  31.369 [h264 @ 0x15e578aa0] error while decoding MB 0 2, bytestream 827
+  31.369 [h264 @ 0x15e578aa0] concealing 1561 DC, 1561 AC, 1561 MV errors in P frame
+  31.401 [h264 @ 0x15494c480] concealing 1520 DC, 1520 AC, 1520 MV errors in P frame
+  31.435 [h264 @ 0x15e578aa0] concealing 1521 DC, 1521 AC, 1521 MV errors in P frame
+  31.471 [h264 @ 0x15494c480] concealing 1573 DC, 1573 AC, 1573 MV errors in P frame
+  31.500 [h264 @ 0x15e578aa0] concealing 1342 DC, 1342 AC, 1342 MV errors in P frame
+  31.530 [h264 @ 0x15494c480] concealing 1499 DC, 1499 AC, 1499 MV errors in P frame
+  31.570 [h264 @ 0x15e578aa0] Reference 4 >= 4
+  31.571 [h264 @ 0x15e578aa0] error while decoding MB 13 1, bytestream 368
+  31.571 [h264 @ 0x15e578aa0] concealing 1602 DC, 1602 AC, 1602 MV errors in P frame
+  32.217 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=875, existingLoaderToResume=0)
+  32.217 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=875)
+  32.253 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  32.253 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2072619
+  32.258 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  32.263 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2072619
+  32.263 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  32.265 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2072619
+  32.272 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  32.277 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2072619
+  32.281 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  32.286 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{907776/15360 = 59.1}] , totalBufferSize: 2072619
+  32.288 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 9474 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{907776/15360 = 59.1}]  streaming = false
+  32.300 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3082240/44100 = 69.89206349206349}]  streaming = false
+  32.322 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{955392/15360 = 62.2}] , totalBufferSize: 2195565
+  32.325 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 111360 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{955392/15360 = 62.2}]  streaming = false
+  32.333 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3082240/44100 = 69.89206349206349}] , totalBufferSize: 1118735
+  32.334 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=876, existingLoaderToResume=0)
+  32.334 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=876)
+  32.350 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 145179 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3082240/44100 = 69.89206349206349}]  streaming = false
+  32.429 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  32.432 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}] , totalBufferSize: 1278474
+  32.703 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=6ms pts=21.07
+  32.813 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=877, existingLoaderToResume=0)
+  32.813 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=877)
+  34.735 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=5ms pts=23.10
+  34.933 tigeraudio32: t=25s read=1027618 write=1049156 paused=0 underruns=149
+  36.763 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=3ms pts=25.13
+  36.829 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=878, existingLoaderToResume=0)
+  36.829 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=878)
+  36.851 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.854 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.855 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.858 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.862 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.865 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.866 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.878 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.878 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.878 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.881 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.888 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.889 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 98304 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.891 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.892 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.895 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.896 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.897 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}] , totalBufferSize: 2304665
+  36.898 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 13060 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1047552/15360 = 68.2}]  streaming = false
+  36.936 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}]  streaming = false
+  36.936 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1111552/15360 = 72.36666666666666}] , totalBufferSize: 2561885
+  36.936 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 117187 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1111552/15360 = 72.36666666666666}]  streaming = false
+  36.955 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}] , totalBufferSize: 1278474
+  36.956 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}]  streaming = false
+  36.974 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1162752/15360 = 75.7}] , totalBufferSize: 2677772
+  36.974 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=880, existingLoaderToResume=0)
+  36.974 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=880)
+  36.974 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}] , totalBufferSize: 1278474
+  36.974 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 95911 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3522560/44100 = 79.87664399092971}]  streaming = false
+  37.043 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{3962880/44100 = 89.86122448979592}] , totalBufferSize: 1438097
+  38.769 TIGER-MEDIA fps=29.9 shown=60 dropped=0 lag=-0ms pts=27.13
+  39.575 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=881, existingLoaderToResume=0)
+  39.576 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=881)
+  39.615 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1162752/15360 = 75.7}]  streaming = false
+  39.775 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1162752/15360 = 75.7}] , totalBufferSize: 2677772
+  39.777 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 118974 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1162752/15360 = 75.7}]  streaming = false
+  39.795 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1220096/15360 = 79.43333333333334}] , totalBufferSize: 2811686
+  39.797 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 418102 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1220096/15360 = 79.43333333333334}]  streaming = false
+  39.809 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=882, existingLoaderToResume=0)
+  39.809 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=882)
+  39.841 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1295872/15360 = 84.36666666666666}] , totalBufferSize: 3227912
+  39.954 tigeraudio32: t=30s read=1249314 write=1270852 paused=0 underruns=149
+  40.770 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=8ms pts=29.13
+  41.195 TIGER script: scroll 0,-400
+  41.298 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=891, existingLoaderToResume=0)
+  41.298 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=891)
+  41.306 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=892, existingLoaderToResume=0)
+  41.306 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=892)
+  41.309 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=893, existingLoaderToResume=0)
+  41.309 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=893)
+  41.309 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=894, existingLoaderToResume=0)
+  41.309 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=894)
+  41.495 TIGER script: wait 30
+  41.849 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=916, existingLoaderToResume=0)
+  41.849 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=916)
+  42.547 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=917, existingLoaderToResume=0)
+  42.547 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=917)
+  42.558 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=918, existingLoaderToResume=0)
+  42.558 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=918)
+  42.560 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=919, existingLoaderToResume=0)
+  42.560 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=919)
+  42.560 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=920, existingLoaderToResume=0)
+  42.560 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=920)
+  42.771 TIGER-MEDIA fps=29.5 shown=59 dropped=1 lag=5ms pts=31.13
+  43.074 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=925, existingLoaderToResume=0)
+  43.074 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=925)
+  43.409 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=930, existingLoaderToResume=0)
+  43.409 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=930)
+  43.409 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=931, existingLoaderToResume=0)
+  43.409 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=931)
+  44.802 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=4ms pts=33.17
+  44.955 tigeraudio32: t=35s read=1469474 write=1491524 paused=0 underruns=149
+  46.355 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=938, existingLoaderToResume=0)
+  46.355 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=938)
+  46.655 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 170713 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1295872/15360 = 84.36666666666666}]  streaming = false
+  46.656 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 162083 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{3962880/44100 = 89.86122448979592}]  streaming = false
+  46.661 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=939, existingLoaderToResume=0)
+  46.662 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=939)
+  46.830 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=2ms pts=35.20
+  47.281 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1403392/15360 = 91.36666666666666}] , totalBufferSize: 3396005
+  47.282 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4403200/44100 = 99.84580498866214}] , totalBufferSize: 1598356
+  47.283 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 117170 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1403392/15360 = 91.36666666666666}]  streaming = false
+  47.482 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=940, existingLoaderToResume=0)
+  47.482 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=940)
+  47.627 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}] , totalBufferSize: 3511479
+  48.867 TIGER-MEDIA fps=29.9 shown=61 dropped=0 lag=1ms pts=37.23
+  49.957 tigeraudio32: t=40s read=1690146 write=1712196 paused=0 underruns=149
+  50.869 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=9ms pts=39.23
+  50.983 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=947, existingLoaderToResume=0)
+  50.983 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=947)
+  51.015 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}]  streaming = false
+  51.019 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}] , totalBufferSize: 3511479
+  51.020 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}]  streaming = false
+  51.024 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}] , totalBufferSize: 3511479
+  51.024 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}]  streaming = false
+  51.029 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}] , totalBufferSize: 3511479
+  51.029 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 1527 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1471488/15360 = 95.8}]  streaming = false
+  51.049 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4403200/44100 = 99.84580498866214}]  streaming = false
+  51.063 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1553408/15360 = 101.13333333333334}] , totalBufferSize: 3592906
+  51.064 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1553408/15360 = 101.13333333333334}]  streaming = false
+  51.070 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4403200/44100 = 99.84580498866214}] , totalBufferSize: 1598356
+  51.070 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 144766 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4403200/44100 = 99.84580498866214}]  streaming = false
+  51.082 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=948, existingLoaderToResume=0)
+  51.082 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=948)
+  51.108 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1553408/15360 = 101.13333333333334}] , totalBufferSize: 3592906
+  51.110 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 34843 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1553408/15360 = 101.13333333333334}]  streaming = false
+  51.159 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}] , totalBufferSize: 1757682
+  51.163 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3642953
+  52.870 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=6ms pts=41.23
+  54.072 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=949, existingLoaderToResume=0)
+  54.072 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=949)
+  54.102 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.102 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3642953
+  54.110 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.110 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3642953
+  54.117 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.117 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3642953
+  54.118 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.124 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}] , totalBufferSize: 3642953
+  54.125 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 51429 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1599488/15360 = 104.13333333333334}]  streaming = false
+  54.158 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}]  streaming = false
+  54.159 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1663488/15360 = 108.3}] , totalBufferSize: 3758318
+  54.160 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 162817 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1663488/15360 = 108.3}]  streaming = false
+  54.191 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}] , totalBufferSize: 1757682
+  54.193 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 98304 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}]  streaming = false
+  54.197 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=950, existingLoaderToResume=0)
+  54.197 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=950)
+  54.201 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}] , totalBufferSize: 3919115
+  54.206 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}] , totalBufferSize: 1757682
+  54.206 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 47052 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{4843520/44100 = 109.83038548752835}]  streaming = false
+  54.274 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}] , totalBufferSize: 1917598
+  54.871 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=3ms pts=43.23
+  54.960 tigeraudio32: t=45s read=1910818 write=1932868 paused=0 underruns=149
+  56.904 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=1ms pts=45.27
+  58.935 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=-0ms pts=47.30
+  59.963 tigeraudio32: t=50s read=2131490 write=2153028 paused=0 underruns=149
+  60.537 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=951, existingLoaderToResume=0)
+  60.537 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=951)
+  60.587 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}]  streaming = false
+  60.594 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}] , totalBufferSize: 3919115
+  60.594 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 23034 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}]  streaming = false
+  60.600 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}] , totalBufferSize: 3919115
+  60.600 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}]  streaming = false
+  60.612 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}] , totalBufferSize: 3919115
+  60.612 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 23347 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1745408/15360 = 113.63333333333334}]  streaming = false
+  60.632 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}] , totalBufferSize: 4013468
+  60.632 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 131072 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}]  streaming = false
+  60.643 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}] , totalBufferSize: 4013468
+  60.643 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}]  streaming = false
+  60.643 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}] , totalBufferSize: 4013468
+  60.647 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}]  streaming = false
+  60.650 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}]  streaming = false
+  60.654 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}] , totalBufferSize: 4013468
+  60.656 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 56110 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1791488/15360 = 116.63333333333334}]  streaming = false
+  60.684 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}] , totalBufferSize: 1917598
+  60.684 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}]  streaming = false
+  60.711 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}] , totalBufferSize: 4231254
+  60.713 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 98304 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}]  streaming = false
+  60.714 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}] , totalBufferSize: 1917598
+  60.715 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 107066 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}]  streaming = false
+  60.726 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}] , totalBufferSize: 4231254
+  60.734 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 81920 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}]  streaming = false
+  60.737 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}] , totalBufferSize: 1917598
+  60.745 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}] , totalBufferSize: 4231254
+  60.747 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 131072 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}]  streaming = false
+  60.756 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 5290 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5283840/44100 = 119.81496598639455}]  streaming = false
+  60.759 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=952, existingLoaderToResume=0)
+  60.759 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=952)
+  60.791 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}] , totalBufferSize: 4231254
+  60.825 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 24037 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1879552/15360 = 122.36666666666666}]  streaming = false
+  60.848 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}] , totalBufferSize: 2077282
+  60.862 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}] , totalBufferSize: 4564507
+  60.936 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=8ms pts=49.30
+  62.937 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=5ms pts=51.30
+  64.770 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=953, existingLoaderToResume=0)
+  64.770 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=953)
+  64.938 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=2ms pts=53.30
+  64.979 tigeraudio32: t=55s read=2352674 write=2374724 paused=0 underruns=149
+  66.968 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=1ms pts=55.33
+  67.975 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=954, existingLoaderToResume=0)
+  67.975 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=954)
+  68.012 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}]  streaming = false
+  68.019 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}] , totalBufferSize: 4564507
+  68.019 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}]  streaming = false
+  68.023 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}] , totalBufferSize: 4564507
+  68.026 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}]  streaming = false
+  68.026 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}]  streaming = false
+  68.042 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}] , totalBufferSize: 4564507
+  68.042 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 15761 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{1964032/15360 = 127.86666666666666}]  streaming = false
+  68.045 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}] , totalBufferSize: 2077282
+  68.045 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 98304 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}]  streaming = false
+  68.079 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2016256/15360 = 131.26666666666668}] , totalBufferSize: 4644480
+  68.079 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 81920 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2016256/15360 = 131.26666666666668}]  streaming = false
+  68.079 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}] , totalBufferSize: 2077282
+  68.079 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 30318 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{5724160/44100 = 129.79954648526078}]  streaming = false
+  68.162 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2016256/15360 = 131.26666666666668}] , totalBufferSize: 4644480
+  68.169 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 111238 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2016256/15360 = 131.26666666666668}]  streaming = false
+  68.182 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{6164480/44100 = 139.78412698412697}] , totalBufferSize: 2236848
+  68.184 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=956, existingLoaderToResume=0)
+  68.184 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=956)
+  68.204 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161789 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{6164480/44100 = 139.78412698412697}]  streaming = false
+  68.288 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 4835018
+  68.293 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}] , totalBufferSize: 2396813
+  68.970 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=9ms pts=57.33
+  69.981 tigeraudio32: t=60s read=2573346 write=2594884 paused=0 underruns=149
+  71.004 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=8ms pts=59.37
+  71.766 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=957, existingLoaderToResume=0)
+  71.766 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=957)
+  71.791 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.796 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 4835018
+  71.797 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.804 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 4835018
+  71.805 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.818 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 4835018
+  71.819 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 65536 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.827 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 4835018
+  71.828 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.842 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}] , totalBufferSize: 4835018
+  71.843 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 5544 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2123776/15360 = 138.26666666666668}]  streaming = false
+  71.887 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}] , totalBufferSize: 5018706
+  71.889 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 256566 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2208256/15360 = 143.76666666666668}]  streaming = false
+  71.895 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=958, existingLoaderToResume=0)
+  71.895 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=958)
+  71.921 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5273672
+  73.037 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=6ms pts=61.40
+  74.985 tigeraudio32: t=65s read=2794018 write=2816068 paused=0 underruns=149
+  75.072 TIGER-MEDIA fps=30.0 shown=61 dropped=0 lag=4ms pts=63.43
+  77.097 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=3ms pts=65.47
+  77.484 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=959, existingLoaderToResume=0)
+  77.484 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=959)
+  77.709 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=960, existingLoaderToResume=0)
+  77.709 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=960)
+  77.745 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  77.753 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5273672
+  77.753 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  77.759 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5273672
+  77.766 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  77.771 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5273672
+  77.771 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  77.777 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5273672
+  77.781 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  77.785 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5273672
+  77.788 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  77.788 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 98304 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}]  streaming = false
+  77.802 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}] , totalBufferSize: 5273672
+  77.802 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 2448 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2272256/15360 = 147.93333333333334}]  streaming = false
+  77.807 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}] , totalBufferSize: 2396813
+  77.807 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 63082 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{6604800/44100 = 149.7687074829932}]  streaming = false
+  77.956 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}] , totalBufferSize: 5421472
+  77.958 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 429115 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2357760/15360 = 153.5}]  streaming = false
+  77.970 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7045120/44100 = 159.75328798185942}] , totalBufferSize: 2556375
+  77.970 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161614 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7045120/44100 = 159.75328798185942}]  streaming = false
+  77.979 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=961, existingLoaderToResume=0)
+  77.979 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=961)
+  78.078 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}] , totalBufferSize: 5848003
+  78.078 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7485440/44100 = 169.73786848072564}] , totalBufferSize: 2716165
+  79.099 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=-0ms pts=67.47
+  79.990 tigeraudio32: t=70s read=3014690 write=3036228 paused=0 underruns=149
+  81.103 TIGER-MEDIA fps=29.9 shown=60 dropped=0 lag=8ms pts=69.47
+  83.103 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=5ms pts=71.47
+  83.780 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=962, existingLoaderToResume=0)
+  83.780 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=962)
+  83.811 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}]  streaming = false
+  83.817 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}] , totalBufferSize: 5848003
+  83.817 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 32768 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}]  streaming = false
+  83.825 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}] , totalBufferSize: 5848003
+  83.826 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 49152 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}]  streaming = false
+  83.834 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}] , totalBufferSize: 5848003
+  83.834 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 39238 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2463744/15360 = 160.4}]  streaming = false
+  83.886 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}] , totalBufferSize: 5999561
+  83.887 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 101540 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}]  streaming = false
+  83.896 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}] , totalBufferSize: 5999561
+  83.896 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 50003 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2560512/15360 = 166.7}]  streaming = false
+  83.897 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7485440/44100 = 169.73786848072564}]  streaming = false
+  83.945 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7485440/44100 = 169.73786848072564}] , totalBufferSize: 2716165
+  83.946 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 145222 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7485440/44100 = 169.73786848072564}]  streaming = false
+  83.947 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}] , totalBufferSize: 6149588
+  84.021 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{7925760/44100 = 179.72244897959183}] , totalBufferSize: 2875947
+  84.992 tigeraudio32: t=75s read=3235362 write=3256900 paused=0 underruns=149
+  85.131 TIGER-MEDIA fps=30.1 shown=61 dropped=0 lag=4ms pts=73.50
+  86.820 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=971, existingLoaderToResume=0)
+  86.820 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=971)
+  87.141 TIGER-MEDIA fps=30.0 shown=60 dropped=0 lag=0ms pts=75.50
+  87.994 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=972, existingLoaderToResume=0)
+  87.994 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=972)
+  88.036 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}]  streaming = false
+  88.036 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}] , totalBufferSize: 6149588
+  88.050 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}]  streaming = false
+  88.050 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}] , totalBufferSize: 6149588
+  88.067 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}]  streaming = false
+  88.067 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}] , totalBufferSize: 6149588
+  88.075 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}]  streaming = false
+  88.075 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}] , totalBufferSize: 6149588
+  88.082 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}]  streaming = false
+  88.138 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}] , totalBufferSize: 6149588
+  88.139 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 16384 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}]  streaming = false
+  88.141 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 161613 maximumBufferSize = 15938355 buffered = [{0/44100 = 0}..{7925760/44100 = 179.72244897959183}]  streaming = false
+  88.303 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}] , totalBufferSize: 6149588
+  88.304 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 9039 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2620928/15360 = 170.63333333333333}]  streaming = false
+  88.305 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/44100 = 0}..{8366080/44100 = 189.70702947845805}] , totalBufferSize: 3035736
+  88.339 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2672128/15360 = 173.96666666666667}] , totalBufferSize: 6255631
+  88.339 [com.apple.WebKit:MediaSource:-] SourceBuffer::appendBufferInternal(0) size = 130846 maximumBufferSize = 318767091 buffered = [{0/15360 = 0}..{2672128/15360 = 173.96666666666667}]  streaming = false
+  88.345 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=973, existingLoaderToResume=0)
+  88.345 [com.apple.WebKit:Loading:4] 0x10c612460 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=9475, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=973)
+  88.428 [com.apple.WebKit:MediaSource:-] SourceBuffer::sourceBufferPrivateAppendComplete(0) buffered = [{0/15360 = 0}..{2772992/15360 = 180.53333333333333}] , totalBufferSize: 6384013
+  89.150 TIGER-MEDIA fps=29.8 shown=60 dropped=0 lag=9ms pts=77.50
+  90.010 tigeraudio32: t=80s read=3456034 write=3477572 paused=0 underruns=149
+  90.409 TIGER-EXIT pid 0x2503
+  90.409  thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2dada5
+  90.425 TIGER-EXIT pid 0x2507
+  90.426  thread 0xd03 state-kr 0x0 pc 0x10ae56e4e leaf mach_msg_trap+0xa frames: 0x10ae56e4e 0x10ae0c11d 0x1003290ad 0x10adfbc75 0x10adfba0c 0x100001e53 0x100001d61 0x3
+  90.647 tigeraudio32: exit, underruns 149

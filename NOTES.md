@@ -5424,3 +5424,53 @@ is not implemented for the in-tree decoders and upstream only subsamples above 5
 
 Bigger lever seen on the way: USE_SYSTEM_MALLOC on x86_64 (OptionsTiger.cmake); fastMalloc /
 posix_memalign / tryFastCompactRealloc are among the hottest leaves in every style-heavy profile.
+
+## 2026-09-23 — JSC's own traps, the Verge timer-tree crash, and a crash baseline (WebKit-jsperf, tiger-jsperf)
+
+**TigerCrashCatcher killed the process for faults JSC handles on purpose.** A task-level Mach
+exception port is consulted before the kernel synthesizes any BSD signal, and JSC's handlers
+are POSIX ones:
+
+- VMTraps: `JSC_watchdog=3000` on a hot infinite loop (`spike/jsc64/jsctraps.html?test=vmtraps`)
+  killed the web process with `exception 0x2 code 0xd`; the pc dump says `code f4` -- `hlt`,
+  the breakpoint VMTraps patches over DFG invalidation points. Every watchdog/termination of
+  optimized JS was a process kill.
+- Wasm fast memory: an `i32.load` at 0x0ffffff0 (`?test=wasmoob`) killed it with
+  `exception 0x1 code 0x2` at address 0xffffff0 instead of trapping.
+
+Fix (44f77b3a): faults whose pc satisfies JSC's own `isJITPC() || LLInt::isWasmIPIntPC()` get a
+KERN_FAILURE reply, so the kernel falls through to the POSIX handlers (dladdr can't do this
+test: `_llint_entry` is local, an IPInt pc comes back as `_Znam+0x2816a`). Everything else is
+unchanged, and `onFatalSignal` (SIGILL/SEGV/BUS/FPE, installed before JSC) ends WTF's handler
+chain with TIGER-CRASH-SIGNAL + `_exit`, so the default action -- crashdump -- never runs.
+Before: 2 TIGER-CRASH each. After: 0, one `TIGER-JSC-FAULT ... -> POSIX handlers` line each,
+web process alive (loop stopped after 3 s; module trapped as RuntimeError).
+
+**The Verge EXC_BREAKPOINT was RedBlackTree::remove leaving stale CheckedPtr links.**
+Symbolized against a frozen copy of the binary (build/frozen-0352):
+`crashDueToCheckedPtrToDeadObject <- RedBlackTree<RunLoop::TimerBase::ScheduledTask>::insert
+<- RunLoop::TimerBase::start <- WebPage::pageDidScroll <- ... <- WebPage::scrollBy (IPC)`.
+The assert is `decrementCheckedPtrCount` finding a zero count: a CheckedPtr being *released*
+that points at an object WTF_OVERRIDE_DELETE_FOR_CHECKED_PTR had zeroed and leaked because
+CheckedPtrs to it were outstanding at deletion. `remove(z)` never cleared z's own
+m_left/m_right (CheckedPtrs): timer A leaves the tree still linking its old children; child
+B's timer is destroyed (properly unscheduled) and B is zeroed-and-leaked because A still
+points at it; A restarts, `insert(A)` -> `reset()` releases the stale link -> crash. The
+scroll hysteresis timer restarts on every scroll step, so it is the one that trips over it.
+RunLoopGeneric reuses nodes constantly; upstream Cocoa uses CFRunLoop and never runs this
+code. Fix (8980b608, 9e692017): `z->reset()` at the end of `remove()`; nodes start unlinked
+(`m_parentAndRed { 1 }`), and `insert()` release-asserts the node is unlinked (double
+insert) and `~ScheduledTask` that it isn't still scheduled.
+
+Crash baseline (`spike/wk2web/crash-baseline.sh`, 90 s each, sampler off, scripted scroll):
+
+| binaries | verge | nytimes | apple/iphone-duo | youtube watch | x.com onboarding |
+|---|---|---|---|---|---|
+| release 2 (build/tiger-*-port 03:52, frozen), run 1 | **1** (this assert) | 0 | 0 | 0 | 0 |
+| release 2, run 2 | 0 | 0 | 0 | 0 | 0 |
+| tiger-jsperf 9e692017 | 0 | 0 | 0 | 0 | 0 |
+
+Verge alone, all 90 s scrolled: release-2-era binaries 2 asserts in 7 runs (plus the user's
+session and the media track's scroll2 log); fixed build 0 in 4. No TIGER-CRASH-SIGNAL or
+TIGER-ABORT anywhere; TIGER-EXIT 2 per run is the normal teardown pair. Every run's web
+process was alive at 87 s.

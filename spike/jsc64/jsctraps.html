@@ -1,0 +1,64 @@
+<!-- TIGER64: the two faults JSC is supposed to survive, and used to die on because
+     TigerCrashCatcher's Mach exception port is consulted before any BSD signal.
+
+       ?test=vmtraps  an infinite loop in optimized code; run with JSC_watchdog=<ms>, which
+                      fires a VM trap, and VMTraps patches `hlt` (a #GP: EXC_BAD_INSTRUCTION
+                      code 0xd) over the DFG's invalidation points to interrupt it. Expected:
+                      the loop stops with an exception and the process lives.
+       ?test=wasmoob  a wasm i32.load past the end of memory. With fast memory there is no
+                      bounds check: the access faults (EXC_BAD_ACCESS) and JSC's handler
+                      turns it into a wasm trap. Expected: RuntimeError, process lives.
+
+     Like jitround.html the result is signalled by CPU, since nothing on the page reaches
+     the log: PASS leaves the web process idle, FAIL spins it. -->
+<html><body style="font:28px Helvetica">
+<div id="out">running</div>
+<script>
+var test = (location.search.match(/test=(\w+)/) || [])[1] || "vmtraps";
+var result = "";
+
+function spin() {           // hot enough to tier up, then never returns
+    var x = 0;
+    for (var i = 0; i < 1e9; ++i)
+        x += i % 7;
+    return x;
+}
+
+var warm = 0;
+if (test === "vmtraps") {
+    // spin() OSR-enters the optimizing tiers from its own loop, which is exactly where
+    // VMTraps patches the `hlt`. The watchdog's termination is not catchable, so reaching
+    // the next line at all is already the pass; the real signal is the process surviving.
+    try {
+        spin();
+        result = "FAIL the watchdog never interrupted the loop";
+    } catch (e) {
+        result = "PASS interrupted: " + e;
+    }
+} else {
+    // (module (memory 1) (func (export "f") (result i32) i32.const 0x0ffffff0 i32.load))
+    var bytes = new Uint8Array([
+        0x00,0x61,0x73,0x6d, 0x01,0x00,0x00,0x00,
+        0x01,0x05,0x01,0x60,0x00,0x01,0x7f,          // type: () -> i32
+        0x03,0x02,0x01,0x00,                          // func 0 : type 0
+        0x05,0x03,0x01,0x00,0x01,                     // memory: min 1 page
+        0x07,0x05,0x01,0x01,0x66,0x00,0x00,           // export "f" = func 0
+        0x0a,0x0d,0x01,0x0b,0x00,                     // code: 1 body, 11 bytes, 0 locals
+        0x41,0xf0,0xff,0xff,0xff,0x00,                // i32.const 0x0ffffff0
+        0x28,0x02,0x00,                               // i32.load align=2 offset=0
+        0x0b                                          // end
+    ]);
+    try {
+        var instance = new WebAssembly.Instance(new WebAssembly.Module(bytes));
+        var got = instance.exports.f();
+        result = "FAIL out-of-bounds load returned " + got;
+    } catch (e) {
+        result = (e instanceof WebAssembly.RuntimeError ? "PASS trapped: " : "FAIL wrong error: ") + e;
+    }
+}
+
+document.getElementById("out").textContent = result;
+document.title = result.indexOf("PASS") === 0 ? "PASS" : "FAIL";
+if (result.indexOf("PASS") !== 0) { for (;;) { warm = (warm + 1) % 1000; } }
+</script>
+</body></html>
