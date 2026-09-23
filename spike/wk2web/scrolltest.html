@@ -9,6 +9,9 @@
          color:#000; font:bold 28px Helvetica; line-height:60px; text-align:center; }
   .band { height:100px; font:bold 22px Helvetica; color:#fff; padding-left:12px; line-height:100px; }
   #body { padding-top:60px; }
+  #mover { position:fixed; left:0; top:200px; width:200px; height:120px; background:#ffcc00;
+           will-change:transform; animation:slide 2s linear infinite; }
+  @keyframes slide { 0% { transform:translateX(0) } 50% { transform:translateX(140px) } 100% { transform:translateX(0) } }
 </style></head><body>
 <div id="bar">TOP BAR &mdash; must stay upright at the top</div>
 <div id="body"></div>
@@ -19,6 +22,15 @@
   // the exposed strip is painted and everything else on screen is the blit.
   if (location.search.indexOf('nofixed') >= 0)
     document.getElementById('bar').style.position = 'static';
+  // ?composited forces the page into accelerated compositing: a will-change layer
+  // on the fixed bar and a second one animating, which is what apple.com does and
+  // what makes DrawingAreaWC take sendUpdateAC instead of sendUpdateNonAC.
+  if (location.search.indexOf('composited') >= 0) {
+    document.getElementById('bar').style.willChange = 'transform';
+    var box = document.createElement('div');
+    box.id = 'mover';
+    document.body.appendChild(box);
+  }
   var out = [];
   for (var i = 0; i < 40; i++)
     out.push('<div class="band" style="background:rgb(' + (i*6) + ',90,180)">ROW ' + i + ' &#9660; down</div>');
