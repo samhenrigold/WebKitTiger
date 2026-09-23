@@ -2,7 +2,8 @@
 # Regression harness for the Tiger port: runs the main build dirs on the box and
 # says pass or fail per page, with a diff report.
 #
-#   tools/regress.sh                 # all twelve checks, ~6.5 min of box time
+#   tools/regress.sh                 # checks for the integrated baseline
+#   tools/regress.sh --all           # also pending-topic checks (requires those features)
 #   tools/regress.sh example scroll  # only the named checks
 #   tools/regress.sh --list          # the check names
 #   BLESS=1 tools/regress.sh boxtest # run it, then make its shot the new golden
@@ -36,19 +37,38 @@ MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
 ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars"
-case "${1:-}" in --list) echo $ALL; exit 0;; esac
-WANTED=${*:-$ALL}
+DEFAULT="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost"
+case "${1:-}" in --list) echo "$ALL"; exit 0;; --all) shift; set -- $ALL "$@";; esac
+WANTED=${*:-$DEFAULT}
+for requested in $WANTED; do
+    case " $ALL " in *" $requested "*) ;; *) echo "regress: unknown check: $requested" >&2; exit 2;; esac
+done
 
-OUT=$WKT/logs/regress/$(date +%Y%m%d-%H%M%S)
+OUT=${OUT:-$WKT/logs/regress/$(date +%Y%m%d-%H%M%S)-$$}
 mkdir -p "$OUT" "$GOLDEN"
 SUMMARY=$OUT/summary.md
 PASSES=0; FAILS=0
+SERVER_PIDS=""
+STAGE_FAILURES=""
+cleanup_servers() { for server_pid in $SERVER_PIDS; do kill "$server_pid" 2>/dev/null || true; done; }
+trap cleanup_servers EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+
+# Fail before starting servers or touching the box if the candidate is incomplete.
+candidate_path() { case "$1" in /*) printf '%s\n' "$1";; *) printf '%s/%s\n' "$WKT" "$1";; esac; }
+python3 "$WKT/tools/tiger-artifacts.py" verify \
+    --ui "$(candidate_path "${UIDIR:-build/tiger-ui-port}")" \
+    --web "$(candidate_path "${WEBDIR:-build/tiger-web-port}")" \
+    --gpu "$(candidate_path "${GPUDIR:-build/tiger-gpu}")" > "$OUT/candidate.json" || exit 1
 
 # spike/media is served from this Mac; the box fetches the video over the LAN.
 if ! curl -sf -m 3 -o /dev/null "http://$MEDIA_HOST/video480loop.html"; then
     echo "regress: starting python3 -m http.server on $MEDIA_HOST"
-    (cd "$WKT" && nohup python3 -m http.server "${MEDIA_HOST##*:}" -d spike/media >/dev/null 2>&1 &)
+    python3 -m http.server "${MEDIA_HOST##*:}" -d "$WKT/spike/media" > "$OUT/media-server.log" 2>&1 &
+    MEDIA_PID=$!; SERVER_PIDS="$SERVER_PIDS $MEDIA_PID"
     sleep 2
+    kill -0 "$MEDIA_PID" 2>/dev/null || { cat "$OUT/media-server.log" >&2; exit 1; }
 fi
 
 note() { printf '%s\n' "$*" >> "$SUMMARY"; }
@@ -57,20 +77,17 @@ note() { printf '%s\n' "$*" >> "$SUMMARY"; }
 run() {
     name=$1; url=$2; secs=$3; script=$4; extra_env=${5:-}
     echo "== $name ($secs s)"
-    # The user runs /Users/shg/Applications/TigerBrowser.app for real. Never run on top of
-    # it: wait for it to go away rather than producing a meaningless result (or killing it).
-    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-        [ "$(ssh tiger-eth "ps -axo command | grep -c '[/]Applications/TigerBrowser.app'")" = 0 ] && break
-        [ "$i" = 1 ] && echo "   waiting: the user's TigerBrowser.app is up"
-        sleep 10
-    done
+    # The staging helper holds the remote lease while waiting for an idle box.
     APP=TigerBrowser2 \
     SHOT="$OUT/$name.png" \
     LOG="$OUT/$name.log" \
     APP_ENV="$extra_env TIGER_PAINT_PROBE=1 TIGER_SCRIPT='$script'" \
         sh "$STAGE" "$url" "$secs" > "$OUT/$name.stage.log" 2>&1
     stage_rc=$?
-    [ $stage_rc -eq 0 ] || echo "   stage-app.sh exited $stage_rc (see $name.stage.log)"
+    if [ $stage_rc -ne 0 ]; then
+        echo "   stage-app.sh exited $stage_rc (see $name.stage.log)"
+        STAGE_FAILURES="$STAGE_FAILURES $name"
+    fi
     return $stage_rc
 }
 
@@ -98,6 +115,12 @@ record() {
 check() {
     name=$1; extra=$2
     faults=$(log_faults "$OUT/$name.log" | tr '\n' ';' | sed 's/;$//')
+    case " $STAGE_FAILURES " in *" $name "*) faults="stage failed${faults:+; $faults}";; esac
+    if [ "$name" = cookies ]; then
+        case " $STAGE_FAILURES " in *" cookies2 "*) faults="cookie relaunch failed${faults:+; $faults}";; esac
+        second_faults=$(log_faults "$OUT/cookies2.log" | tr '\n' ';' | sed 's/;$//')
+        [ -z "$second_faults" ] || faults="${faults:+$faults; }cookie relaunch: $second_faults"
+    fi
     if [ -n "$faults" ]; then
         record "$name" fail "log: $faults${extra:+ -- $extra}"
     elif case "$extra" in *FAILED*) true;; *) false;; esac; then
@@ -306,13 +329,13 @@ if wants features; then
     FT_PASS="webgl webgpu webrtc getusermedia eme notifications geolocation gamepad devices payment share speech battery vibrate wakelock webxr webauthn permissions
              localstorage indexeddb cacheapi serviceworker websocket fetchstream wasm offscreencanvas worker sab mediasource"
     FT_MISSING="webcodecs"
-    pkill -f 'features-server.py' 2>/dev/null
     python3 "$WKT/tools/features-server.py" 8444 > "$OUT/features-server.out" 2>&1 &
-    FT_PID=$!
+    FT_PID=$!; SERVER_PIDS="$SERVER_PIDS $FT_PID"
     sleep 2
-    ssh tiger-eth "mkdir -p $SHARE" && scp -qO /tmp/tiger-cookie-cert/bundle.pem "tiger-eth:$SHARE/cookie-bundle.pem"
+    kill -0 "$FT_PID" 2>/dev/null || { cat "$OUT/features-server.out" >&2; exit 1; }
+    export STAGE_CA_BUNDLE=/tmp/tiger-cookie-cert/bundle.pem
     run features "https://192.168.1.253:8444/features.html" 26 'wait 20' "TIGER_CONSOLE=1 TIGER_CA_BUNDLE=$SHARE/cookie-bundle.pem"
-    kill $FT_PID 2>/dev/null
+    unset STAGE_CA_BUNDLE
     grep -a 'FEATURE ' "$OUT/features.log" | sed 's/^.*FEATURE /FEATURE /; s/ (https:.*$//' > "$OUT/features.txt"
     bad=""; for f in $FT_PASS; do grep -q "^FEATURE $f PASS" "$OUT/features.txt" || bad="$bad $f"; done
     news=""; for f in $FT_MISSING; do grep -q "^FEATURE $f PASS" "$OUT/features.txt" && news="$news $f"; done
@@ -359,16 +382,16 @@ fi
 if wants cookies; then
     CK_LOG=$OUT/cookies.jsonl
     # TIGER_CURL_RESOLVE: 10.4 resolves the .local name unreliably; pin it to this Mac.
-    CK_ENV="HOME=/Users/shg/wk2/cookiehome TIGER_CA_BUNDLE=$SHARE/cookie-bundle.pem TIGER_COOKIE_LOG=1 TIGER_CURL_RESOLVE=shg-mbp.local:8443:192.168.1.253,shg-mbp.local:8480:192.168.1.253"
-    pkill -f 'cookie-server.py serve' 2>/dev/null; sleep 1
+    CK_ENV="HOME=/Users/shg/wk2/cookiehome-$(date +%Y%m%d-%H%M%S)-$$ TIGER_CA_BUNDLE=$SHARE/cookie-bundle.pem TIGER_COOKIE_LOG=1 TIGER_CURL_RESOLVE=shg-mbp.local:8443:192.168.1.253,shg-mbp.local:8480:192.168.1.253"
     python3 "$WKT/tools/cookie-server.py" serve "$CK_LOG" > "$OUT/cookie-server.out" 2>&1 &
-    CK_PID=$!
+    CK_PID=$!; SERVER_PIDS="$SERVER_PIDS $CK_PID"
     sleep 2
-    ssh tiger-eth "rm -rf /Users/shg/wk2/cookiehome; mkdir -p $SHARE" && scp -qO /tmp/tiger-cookie-cert/bundle.pem "tiger-eth:$SHARE/cookie-bundle.pem"
+    kill -0 "$CK_PID" 2>/dev/null || { cat "$OUT/cookie-server.out" >&2; exit 1; }
+    export STAGE_CA_BUNDLE=/tmp/tiger-cookie-cert/bundle.pem
     run cookies "https://shg-mbp.local:8443/start" 40 'wait 1' "$CK_ENV"
     # The click on B is the user interaction that lifts third-party blocking for B.
     run cookies2 "https://192.168.1.253:8443/interact" 24 'wait 7;click 300,300' "$CK_ENV"
-    kill $CK_PID 2>/dev/null
+    unset STAGE_CA_BUNDLE
     python3 "$WKT/tools/cookie-server.py" report "$CK_LOG" > "$OUT/cookies.md"
     detail=$(grep -c '| PASS |' "$OUT/cookies.md")" pass"
     failed=$(grep '| FAIL |' "$OUT/cookies.md" | cut -d'|' -f2 | sed 's/^ //;s/ $//' | tr '\n' ',' | sed 's/,$//')
