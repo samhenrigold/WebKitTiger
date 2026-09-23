@@ -5118,3 +5118,15 @@ median 2.5 s -> ~0.9 s on nytimes. SIGCHLD reaping of auxiliary processes. Low-p
 (30 fps rendering updates, 30 ms timer alignment) on TIGER64, TIGER_LOW_POWER=0 to disable, win
 unproven. JIT SSE4.1 roundsd/roundss (tiger-jsperf 0a0e90eb, 921420c2) replaced with an x87
 frndint sequence when SSE4.1 is absent: the user's three crashes and The Verge's crash.
+
+## Post-merge verification (2026-09-22 22:00)
+
+All four binaries rebuilt from efa6db46+ (video, controls, paint, JIT rounding, Vector, reaping):
+example.com renders (fence off, incorporate ~6 ms), scrolltest passes check-scrollshot.py,
+controls-test.html shows hosted Aqua controls with full titles, video480loop autoplays at 30 fps
+(UI 0.5%, web 44%). Two regressions found and handled:
+- Low-power mode on TIGER64 blocked every video autoplay (MediaElementSession's user-gesture
+  restriction); now opt-in with TIGER_LOW_POWER=1.
+- x.com onboarding modal repainted shifted ~150 px left with stale strips
+  (logs/perf/x-merged-misplaced.png): partial updates whose bounds origin is not (0,0) are
+  placed wrongly by the new memcpy incorporate path. With the paint track.
