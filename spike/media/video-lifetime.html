@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>VIDEO LIFETIME STARTING</title>
+<style>
+body { margin: 14px; font: 14px Helvetica, sans-serif; background: #eee; color: #111; }
+h1 { margin: 0 0 8px; font-size: 20px; }
+#stage { height: 486px; background: #ccc; border: 1px solid #888; }
+video { display: block; background: black; outline: 1px solid #e44; }
+#status { margin: 8px 0; font-weight: bold; }
+#log { margin: 0; font: 11px Monaco, monospace; white-space: pre-wrap; }
+</style>
+<h1>Video lifetime: 18 second local workload</h1>
+<div id="stage"></div>
+<p id="status">Starting. Leave controls alone until the final result.</p>
+<pre id="log"></pre>
+<script>
+(function () {
+    'use strict';
+    var source = 'bbb-480p.mp4';
+    var duration = 18000;
+    var started = performance.now();
+    var stage = document.getElementById('stage');
+    var status = document.getElementById('status');
+    var log = document.getElementById('log');
+    var records = [];
+    var failures = [];
+    var lines = [];
+    var current;
+    var finished = false;
+    var actionsDone = 0;
+    var stableTime;
+    var sampler;
+
+    function elapsed() { return performance.now() - started; }
+    function report(message) {
+        var line = (elapsed() / 1000).toFixed(2) + 's ' + message;
+        lines.push(line);
+        log.textContent = lines.slice(-7).join('\n');
+        console.log('[VIDEO-LIFETIME] ' + line);
+    }
+    function require(condition, message) {
+        if (!condition) {
+            failures.push(message);
+            report('FAIL: ' + message);
+        }
+    }
+    function sample(record) {
+        if (!record || !record.video)
+            return;
+        var video = record.video;
+        record.maxTime = Math.max(record.maxTime, video.currentTime);
+        record.maxReadyState = Math.max(record.maxReadyState, video.readyState);
+    }
+    function play(record, reason) {
+        var promise;
+        try {
+            promise = record.video.play();
+        } catch (error) {
+            require(false, record.name + ' play threw during ' + reason + ': ' + error);
+            return;
+        }
+        if (promise && typeof promise.catch === 'function') {
+            promise.catch(function (error) {
+                // Unloading a retired element can reject an outstanding play().
+                if (!record.retired && !finished)
+                    require(false, record.name + ' play rejected during ' + reason + ': ' + error);
+            });
+        }
+    }
+    function create(name) {
+        var video = document.createElement('video');
+        var record = { name: name, video: video, retired: false, maxTime: 0, maxReadyState: 0,
+            metadata: 0, playing: 0, pauses: 0, timeupdates: 0, errors: 0,
+            pauseTime: null, reinsertTime: null };
+        records.push(record);
+        video.width = 640;
+        video.height = 360;
+        video.controls = true;
+        video.muted = true;
+        video.defaultMuted = true;
+        video.loop = true;
+        video.preload = 'auto';
+        ['loadedmetadata', 'playing', 'pause', 'timeupdate', 'error'].forEach(function (event) {
+            video.addEventListener(event, function () {
+                if (record.retired || finished)
+                    return;
+                if (event === 'loadedmetadata') record.metadata++;
+                if (event === 'playing') record.playing++;
+                if (event === 'pause') record.pauses++;
+                if (event === 'timeupdate') record.timeupdates++;
+                if (event === 'error') {
+                    record.errors++;
+                    require(false, name + ' media error ' + (video.error ? video.error.code : 'unknown'));
+                }
+                sample(record);
+                if (event !== 'timeupdate')
+                    report(name + ' ' + event + ' t=' + video.currentTime.toFixed(2) + ' ready=' + video.readyState);
+            });
+        });
+        video.src = source;
+        return record;
+    }
+    function checkPlayback(record) {
+        sample(record);
+        var video = record.video;
+        require(record.metadata > 0 && record.playing > 0 && record.timeupdates > 0,
+            record.name + ' requires metadata, playing and timeupdate events');
+        require(record.maxTime >= 0.5 && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0,
+            record.name + ' requires advancing currentTime and decoded media metadata/data');
+        require(!video.paused && !video.error && record.errors === 0,
+            record.name + ' must still be playing without a media error');
+        if (record.pauseTime !== null) {
+            require(record.pauses > 0 && record.playing >= 2 && video.currentTime > record.pauseTime + 0.25,
+                record.name + ' must advance after pause/resume');
+        }
+        if (record.reinsertTime !== null)
+            require(video.currentTime > record.reinsertTime + 0.25, record.name + ' must advance after reinsertion');
+    }
+    function replace(name) {
+        var previous = current;
+        checkPlayback(previous);
+        previous.retired = true;
+        current = create(name);
+        stage.replaceChild(current.video, previous.video);
+        // Explicit unload destroys the old player even if GC keeps its DOM node.
+        previous.video.pause();
+        previous.video.removeAttribute('src');
+        previous.video.load();
+        previous.video = null;
+        play(current, 'replacement');
+    }
+    function resize(width, height) {
+        current.video.width = width;
+        current.video.height = height;
+        require(current.video.getBoundingClientRect().width > 0, 'resized video must be visible');
+    }
+    function pause() {
+        current.pauseTime = current.video.currentTime;
+        current.video.pause();
+        require(current.video.paused, current.name + ' pause() must change paused state');
+    }
+    function resume() {
+        require(current.pauses > 0, current.name + ' pause event must precede resume');
+        play(current, 'resume');
+    }
+    function detach() { stage.removeChild(current.video); }
+    function reinsert() {
+        stage.appendChild(current.video);
+        current.reinsertTime = current.video.currentTime;
+        play(current, 'reinsertion');
+    }
+    var actions = [
+        [1000, 'A resize 320x180', function () { resize(320, 180); }],
+        [2000, 'A resize 854x480', function () { resize(854, 480); }],
+        [3000, 'A pause', pause],
+        [3500, 'A resume', resume],
+        [4200, 'A resize 480x270', function () { resize(480, 270); }],
+        [4500, 'A detach while playing', detach],
+        [4800, 'A reinsert', reinsert],
+        [6000, 'replace A with B; unload A', function () { replace('B'); }],
+        [7000, 'B resize 800x450', function () { resize(800, 450); }],
+        [7800, 'B detach while playing', detach],
+        [8100, 'B reinsert', reinsert],
+        [8800, 'B resize 400x225', function () { resize(400, 225); }],
+        [9200, 'B pause', pause],
+        [9700, 'B resume', resume],
+        [11000, 'replace B with stable C; unload B', function () { replace('C'); }],
+        [13000, 'start final stable playback observation', function () {
+            stableTime = current.video.currentTime;
+            require(current.video.readyState >= 2 && !current.video.paused, 'C must be playing by 13 seconds');
+        }]
+    ];
+    function finish() {
+        if (finished)
+            return;
+        require(elapsed() < duration + 1000, 'final timer delayed by more than one second');
+        require(actionsDone === actions.length && records.length === 3, 'all lifetime actions must complete');
+        checkPlayback(current);
+        require(current.name === 'C' && current.video.parentNode === stage && current.video.controls,
+            'final video C must remain visible with controls');
+        require(typeof stableTime === 'number' && current.video.currentTime > stableTime + 1,
+            'final stable video must advance by more than one second');
+        finished = true;
+        clearInterval(sampler);
+        var verdict = failures.length ? 'FAIL' : 'PASS';
+        document.title = 'VIDEO LIFETIME ' + verdict + ' (API only)';
+        status.textContent = verdict + ' (API checks only). Inspect the still-playing video for tearing, stale frames and controls; inspect process logs for crashes.';
+        window.videoLifetimeResult = { status: verdict, scope: 'API only', elapsedMS: Math.round(elapsed()),
+            actionsDone: actionsDone, failures: failures.slice(), records: records.map(function (record) {
+                return { name: record.name, retired: record.retired, metadata: record.metadata,
+                    playing: record.playing, pauses: record.pauses, timeupdates: record.timeupdates,
+                    maxTime: record.maxTime, maxReadyState: record.maxReadyState, errors: record.errors };
+            }) };
+        report('FINAL ' + JSON.stringify(window.videoLifetimeResult));
+    }
+    current = create('A');
+    stage.appendChild(current.video);
+    report('START local ' + source + '; muted, 18 seconds, 3 players, 2 unloads');
+    play(current, 'initial playback');
+    actions.forEach(function (action) {
+        setTimeout(function () {
+            if (finished)
+                return;
+            require(elapsed() - action[0] < 1000, 'late action: ' + action[1]);
+            report('ACTION ' + action[1]);
+            try {
+                action[2]();
+                actionsDone++;
+            } catch (error) {
+                require(false, 'action threw: ' + action[1] + ': ' + error);
+            }
+        }, action[0]);
+    });
+    sampler = setInterval(function () {
+        sample(current);
+        var video = current.video;
+        document.title = 'VIDEO LIFETIME RUN ' + (elapsed() / 1000).toFixed(1) + '/18s ' + current.name;
+        status.textContent = current.name + ' t=' + video.currentTime.toFixed(2) + ' ready=' + video.readyState +
+            ' paused=' + video.paused + ' actions=' + actionsDone + '/' + actions.length + ' failures=' + failures.length;
+    }, 250);
+    setTimeout(finish, duration);
+}());
+</script>
+</html>
