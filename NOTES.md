@@ -5538,3 +5538,74 @@ tiger-fontcache 82e1ab25: style substitution cache, media clock fallbacks, RunLo
 tree fix, JSC trap pass-through, controls round 2 (real select menus, Tab traversal, list box,
 stepper, search, meter, default button). Harness 7/8 with the controls golden stale (new rows
 on the test page); re-blessed after viewing, then installed.
+
+## 2026-09-23 — libpas (bmalloc + Gigacage) on the x86_64 side (WebKit-video, tiger-video)
+
+**Why it was off.** OptionsTiger.cmake forced USE_SYSTEM_MALLOC on TIGER64 since the wkcmake
+gate (09-21), copying jsc64: libpas wanted TASK_DYLD_INFO, MADV_FREE_REUSABLE, CommonCrypto and
+dispatch_once ("port libpas when malloc shows in a profile"). It showed: 14% of busy
+main-thread leaves on nytimes were 10.4's szone (`malloc_jumpstart+N` is its static internals).
+
+**What had to change** (tiger-video 57aa3f6e port, 6b87564f default flip; all TIGER arms in bmalloc/libpas):
+- libpas passed VM_MAKE_TAG as mmap's fd, the 10.5+ convention bmalloc's BVMTags.h already
+  dropped for TIGER: EINVAL, first crash in pas_compact_heap_reservation. fd -1 now.
+- **Decommit did nothing on 10.4 x86_64.** Probed on the box with 256 MB dirty: MADV_FREE ->
+  EINVAL; MADV_DONTNEED and msync(MS_KILLPAGES) -> 0 but RSS stays 256 MB; only a MAP_FIXED
+  zero-fill remap drops it to 0. PAS_SYSCALL/SYSCALL only retry EAGAIN, so bmalloc's old
+  `madvise(MADV_FREE)` TIGER arm had been failing silently. Both now remap (client-owned-
+  permission ranges keep the DONTNEED hint). Before the fix nytimes RSS at 60 s was 786 MB.
+  Same bug class still open in WTF/posix/OSAllocatorPOSIX.cpp decommit (HAVE(MADV_FREE) arm):
+  JSC's OSAllocator decommits are no-ops on the box.
+- No pthread_self_is_exiting_np: the TLC uses the DESTROYED-sentinel scheme of the other
+  ports. TASK_DYLD_INFO: libpas is only reached through fastMalloc, so libSystem is up.
+  dispatch_once -> pthread_once (MTE config); KERN_NOT_FOUND; malloc_good_size prototype.
+- TZone off on TIGER64 (BUSE_TZONE and WTF's USE_TZONE_MALLOC together): it buckets by
+  CommonCrypto HMAC. Plain libpas heaps + IsoHeaps.
+- **Gigacage works**: a 128 GB MAP_ANON RW reservation succeeds on 10.4 x86_64 and its last
+  byte is touchable, and the web process runs with the cage on (GIGACAGE_ALLOCATION_CAN_FAIL
+  is 0, so a failed reservation would be FATAL). vmmap is 32-bit and cannot read 64-bit
+  tasks, and ps's VSZ for x86_64 processes is meaningless on 10.4.
+- Existing build trees keep their cached USE_SYSTEM_MALLOC=ON: reconfigure with
+  `cmake -DUSE_SYSTEM_MALLOC=OFF .` (build/tiger-web-video done).
+
+**Measured on the box** (spike/wk2web/stage-malloc.sh, UI/GPU from tiger-ui-port/tiger-gpu):
+
+| nytimes, 25 s load + 200 wheel ticks, TIGER_SAMPLE_MAIN=240 | system malloc (2 runs) | libpas (2 runs) |
+|---|---|---|
+| malloc-family leaf, % of busy main-thread samples | 14.0 / 14.4 | 4.2 / 5.1 |
+| main thread busy (samples) | 193/196, 188/191 | 190/193, 196/198 |
+| web process RSS at 60 s | 631 / 603 MB | 699 / 722 MB |
+
+The main thread is pegged either way (the page's timers), so busy% cannot show the win; the
+fixed-work page can. spike/media/allocbench.html (in-page timers, 2 runs each, identical):
+
+| allocbench | system malloc | libpas |
+|---|---|---|
+| innerHTML 3x4000 rows | 3315 / 3347 ms | 2905 / 2907 |
+| style recalc 20x | 13473 / 13478 | 11208 / 11200 |
+| createElement 60k + remove | 9180 / 9306 | 8035 / 8162 |
+| JSON 30x | 527 / 537 | 331 / 332 |
+| strings/regexp | 434 / 444 | 390 / 395 |
+| **total** | **26.9 / 27.1 s** | **22.9 / 23.0 s (-15%)** |
+| web RSS after | 189 MB | 117 MB |
+
+| page load (30 s runs) | system malloc | libpas |
+|---|---|---|
+| wikipedia first visually non-empty (from launch) | 1.68 / 1.54 s | 1.52 / 1.53 / 1.53 |
+| react.dev first visually non-empty | 1.93 / 1.97 s | 1.90 / 1.83 / 1.94 |
+| wikipedia web-process CPU at 25 s | 2.96 / 2.69 s | 2.46 / 2.47 / 2.57 |
+| react.dev web-process CPU at 25 s | 4.13 / 4.16 s | 3.72 / 3.78 / 3.92 |
+| RSS at 25 s wiki / react | 102-106 / 114 MB | 107 / 118 MB (final build) |
+
+First-visual times are launch-dominated and flat; the CPU to get there is 8-15% lower.
+nytimes costs ~+90 MB RSS (libpas keeps partial pages and per-thread caches; the scavenger
+does return memory, allocbench shows it). video480loop: 30 fps, 0 dropped for 60 s.
+
+**Stability**: crash-baseline.sh (now takes STAGE=stage-malloc.sh), SECS=120, 5 sites = 10 min
+on the final build: 0 TIGER-CRASH / SIGNAL / ABORT / JSC-FAULT; youtube watch page played
+108 s at 30 fps, 0 dropped. An earlier libpas run hit 1 TIGER-CRASH on apple.com: the
+RunLoop RedBlackTree CheckedPtr assert of 09-23 (8980b608/9e692017 were not yet merged into
+tiger-video), not the allocator.
+Recommendation: keep libpas + Gigacage as the TIGER64 default (merge tiger-video; reconfigure
+each x86_64 tree). Next levers: OSAllocator decommit (same remap), libpas scavenger tuning if
+the nytimes RSS matters.

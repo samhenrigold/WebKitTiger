@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- Allocation-heavy page work, timed in-page; results shown large for the screenshot.
+     Used to compare fastMalloc back ends (system malloc vs libpas) on the box. -->
+<html><head><meta charset="utf-8"><title>allocbench</title>
+<style>body{font:28px Helvetica;margin:20px} .c{color:#333;padding:1px} #out{white-space:pre}</style></head>
+<body><div id="out">running...</div><div id="work"></div>
+<script>
+function t(name, f) { var s = performance.now(); f(); return name + ": " + Math.round(performance.now() - s) + " ms"; }
+setTimeout(function () {
+  var work = document.getElementById("work"), r = [];
+  r.push(t("innerHTML 3x4000 rows", function () {
+    for (var k = 0; k < 3; k++) {
+      var h = [];
+      for (var i = 0; i < 4000; i++) h.push('<div class="c" style="--v:' + i + ';margin-left:calc(var(--v) * 0px)"><span>row ' + i + '</span><b>' + (i * 7) + '</b></div>');
+      work.innerHTML = h.join("");
+      work.offsetHeight;
+    }
+  }));
+  r.push(t("style recalc 20x", function () {
+    for (var k = 0; k < 20; k++) { work.style.setProperty("--x", k); work.className = "k" + k; getComputedStyle(work.lastChild).marginLeft; }
+  }));
+  r.push(t("createElement 60k + remove", function () {
+    for (var k = 0; k < 3; k++) {
+      var f = document.createDocumentFragment();
+      for (var i = 0; i < 20000; i++) { var d = document.createElement("p"); d.textContent = "x" + i; d.setAttribute("data-i", i); f.appendChild(d); }
+      work.textContent = ""; work.appendChild(f); work.offsetHeight;
+    }
+    work.textContent = "";
+  }));
+  r.push(t("JSON 30x", function () {
+    var o = []; for (var i = 0; i < 5000; i++) o.push({ id: i, name: "item" + i, tags: ["a" + i, "b", "c"], v: i / 3 });
+    var s = JSON.stringify(o); for (var k = 0; k < 30; k++) JSON.parse(s);
+  }));
+  r.push(t("strings/regexp", function () {
+    var s = ""; for (var i = 0; i < 200000; i++) s += String.fromCharCode(97 + i % 26);
+    for (var k = 0; k < 20; k++) s.replace(/[aeiou]/g, "_").split("_").join("-").toUpperCase();
+  }));
+  var total = 0; r.forEach(function (x) { total += parseInt(x.split(": ")[1]); });
+  r.push("TOTAL: " + total + " ms");
+  document.getElementById("out").textContent = r.join("\n");
+  document.title = "allocbench " + total;
+}, 3000);
+</script></body></html>

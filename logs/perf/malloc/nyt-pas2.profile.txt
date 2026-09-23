@@ -1,0 +1,99 @@
+process 0x3725: 5926 thread-samples, 193 main-thread samples, 0.9s .. 62.7s
+
+MAIN THREAD: 193 samples (250 ms each => 48.2 s)
+bucket                            samples      %   ~sec
+JS: execute                           104   53.9   26.0
+Layout                                 39   20.2    9.8
+JS: parse/bytecode                     24   12.4    6.0
+Style                                   9    4.7    2.2
+JS: GC                                  6    3.1    1.5
+JS: JIT compile                         4    2.1    1.0
+idle (blocked in kernel)                3    1.6    0.8
+Images                                  3    1.6    0.8
+other                                   1    0.5    0.2
+busy: 190 samples => ~47.5 s of main-thread work
+
+OTHER THREADS (all, mostly waiting): 1315 samples (250 ms each => 328.8 s)
+bucket                            samples      %   ~sec
+other                                1245   94.7  311.2
+JS: JIT compile                        33    2.5    8.2
+JS: execute                            15    1.1    3.8
+JS: GC                                 12    0.9    3.0
+Malloc/WTF                              9    0.7    2.2
+IPC                                     1    0.1    0.2
+busy: 1315 samples => ~328.8 s of main-thread work
+
+Hot top-of-stack (first in-binary frame) among busy main-thread samples:
+    8  WebCore::Style::ElementRuleCollector::collectMatchingRulesForListSlow(WTF::Vector<WebCore::Style::RuleData, 1ul, WTF::Cr
+    6  WebCore::Style::Builder::applyCustomPropertyImpl(WTF::AtomString const&, WebCore::Style::PropertyCascade::Property const
+    5  WebCore::Style::Builder::customPropertySignature(WebCore::Style::TreeResolutionState&)
+    4  WebCore::SelectorChecker::checkOne(WebCore::SelectorChecker::CheckingContext&, WebCore::SelectorChecker::LocalContext&, 
+    4  WebCore::Style::PropertyCascade::set(WebCore::CSSPropertyID, WebCore::CSSValue&, WebCore::Style::MatchedProperties const
+    3  JSC::Lexer<unsigned char>::lexWithoutClearingLineTerminator(JSC::JSToken*, WTF::OptionSet<JSC::LexerFlags, (WTF::Concurr
+    3  WebCore::Style::ElementRuleCollector::ruleMatches(WebCore::Style::RuleData const&, unsigned int&, WebCore::Style::ScopeO
+    3  JSC::JSRopeString::resolveRope(JSC::JSGlobalObject*) const
+    3  WebCore::Style::BuilderState::~BuilderState()
+    2  WebCore::SelectorChecker::matchRecursively(WebCore::SelectorChecker::CheckingContext&, WebCore::SelectorChecker::LocalCo
+    2  bits_image_fetch_separable_convolution_affine_pad_a8r8g8b8
+    2  WTF::fastFree(void*)
+    2  WTF::operator==(WTF::StringView, WTF::StringView)
+    2  WTF::InlineMapAddResult<WTF::InlineMap<WTF::RefPtr<WTF::UniquedStringImpl, WTF::PackedPtrTraits<WTF::UniquedStringImpl>,
+    2  WebCore::Style::RuleFeatureSet::collectFeatures(WebCore::Style::RuleFeatureSet::CollectionContext&, WebCore::Style::Rule
+    2  llint_entry
+    2  WebCore::Style::Builder::resolveCustomPropertyValue(WebCore::CSSCustomPropertyValue&)
+    2  WTF::VectorTypeOperations<WebCore::Style::RuleFeature>::destruct(WebCore::Style::RuleFeature*, WebCore::Style::RuleFeatu
+    2  os_unfair_lock_lock
+    2  bmalloc_heap_config_specialized_local_allocator_try_allocate_small_segregated_slow
+    2  WebCore::CSSVariableData::CSSVariableData(WebCore::CSSParserTokenRange const&, WebCore::Style::IsAttrTainted, WebCore::C
+    2  pas_segregated_page_construct
+    1  WebCore::HTMLTokenizer::processToken(WebCore::SegmentedString&)
+    1  DYLD-STUB$$memcmp
+    1  WTF::ASCIILiteral JSC::JSObject::putDirectInternal<(JSC::JSObject::PutMode)1>(JSC::VM&, JSC::PropertyName, JSC::JSValue,
+
+Inclusive frame counts (frame appears anywhere in a busy main-thread sample):
+  117  llint_entry
+  105  WTF::RunLoop::runImpl(WTF::RunLoop::RunMode)
+  104  WebKit::AuxiliaryProcessMainBase<WebKit::WebProcess>::run(int, char**)
+  102  WebKit::WebProcessMain(int, char**)
+   99  WebCore::ThreadTimers::sharedTimerFiredInternal()
+   97  _start
+   93  start
+   92  vmEntryToJavaScript
+   86  WebCore::Document::resolveStyle(WebCore::Document::ResolveStyleType)
+   86  WebCore::Document::updateStyleIfNeeded()
+   81  WebCore::Style::TreeResolver::resolve()
+   77  WebCore::Style::TreeResolver::resolveComposedTree()
+   74  WebCore::Style::TreeResolver::resolveElement(WebCore::Element&, WebCore::Style::ComputedStyle const*, WebCore::Style::Tr
+   69  WebCore::Style::TreeResolver::styleForStyleable(WebCore::Styleable const&, WebCore::Style::TreeResolver::ResolutionType,
+   67  WebCore::Style::Resolver::unadjustedStyleForElement(WebCore::Element&, WebCore::Style::ResolutionContext const&, WebCore
+   66  WebCore::EventLoop::run(JSC::VM&, std::__1::optional<WTF::ApproximateTime>)
+   61  WebCore::WindowEventLoop::didReachTimeToRun()
+   58  WTF::Detail::CallableWrapper<WebCore::Timer::Timer<WebCore::WindowEventLoop, WebCore::WindowEventLoop>(T&, void (WebCore
+   55  WebCore::Document::updateLayoutIfDimensionsOutOfDate(WebCore::Element&, WTF::OptionSet<WebCore::DimensionsCheck, (WTF::C
+   53  JSC::MicrotaskQueue::drainWithoutUseCallOnEachMicrotask(JSC::JSGlobalObject*, JSC::VM&, JSC::TopExceptionScope&)
+   52  WebCore::MicrotaskQueue::performMicrotaskCheckpoint(JSC::VM&)
+   50  JSC::runInternalMicrotask(JSC::JSGlobalObject*, JSC::VM&, JSC::InternalMicrotask, unsigned char, std::__1::span<JSC::JSV
+   50  llint_slow_path_get_by_id
+   50  JSC::LLInt::performLLIntGetByID(JSC::BytecodeIndex, JSC::CodeBlock*, JSC::JSGlobalObject*, JSC::JSValue, JSC::Identifier
+   45  WebCore::Style::Resolver::applyMatchedProperties(WebCore::Style::Resolver::State&, WebCore::Style::MatchResult const&, W
+   35  JSC::Interpreter::executeCall(JSC::JSObject*, JSC::CallData const&, JSC::JSValue, JSC::JSCell*, JSC::ArgList const&)
+   34  JSC::profiledCall(JSC::JSGlobalObject*, JSC::ProfilingReason, JSC::JSValue, JSC::CallData const&, JSC::JSValue, JSC::Arg
+   28  WebCore::Style::Builder::applyCustomPropertyImpl(WTF::AtomString const&, WebCore::Style::PropertyCascade::Property const
+   28  WebCore::jsElement_clientWidth(JSC::JSGlobalObject*, long long, JSC::PropertyName)
+   28  WebCore::Element::clientWidth()
+   28  JSC::JSValue JSC::callMicrotask<>(JSC::JSGlobalObject*, JSC::JSValue, JSC::JSValue, JSC::JSCell*, WTF::ASCIILiteral, JSC
+   27  WebCore::Style::Builder::applyCustomProperties()
+   25  WebCore::Document::updateLayout(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>, WebCore::Element const*)
+   25  WebCore::EventTarget::innerInvokeEventListeners(WebCore::Event&, WTF::Vector<WTF::Ref<WebCore::RegisteredEventListener, 
+   25  WebCore::JSEventListener::handleEvent(WebCore::ScriptExecutionContext&, WebCore::Event&)
+   24  WebCore::EventTarget::fireEventListeners(WebCore::Event&, WebCore::EventTarget::EventInvokePhase)
+   24  WebCore::EventTarget::dispatchEvent(WebCore::Event&)
+   23  WebCore::Style::ElementRuleCollector::matchAllRules(bool, bool)
+   22  WebCore::Style::ElementRuleCollector::collectMatchingRules(WebCore::Style::DeclarationOrigin)
+   22  WebCore::Style::ElementRuleCollector::collectMatchingRules(WebCore::Style::MatchRequest const&)
+
+Busy main-thread samples per second (t):
+1s:2 2s:3 3s:4 4s:4 5s:2 6s:4 7s:2 8s:3 9s:3 10s:4 11s:4 12s:3 13s:3 14s:2 15s:2 16s:1 17s:4 18s:4 19s:4 20s:3 21s:4 22s:4 23s:3 24s:4 25s:4 26s:4 27s:4 28s:2 29s:3 30s:3 31s:3 32s:4 33s:3 34s:4 35s:2 36s:2 37s:3 38s:4 39s:2 40s:4 41s:3 42s:4 43s:4 44s:2 45s:2 46s:2 47s:4 48s:3 49s:3 50s:4 51s:3 52s:4 53s:3 54s:3 55s:3 56s:3 57s:2 58s:0 59s:2 60s:2 61s:4 62s:3
+
+malloc-family leaf: 8 of 190 busy main-thread samples = 4.2%
+  WTF::fastFree 2, bmalloc_heap_config_specialized_local_allocator_try_allocate_small_segregated_slow 2, pas_segregated_page_construct 2, WTF::tryFastCompactMalloc 1, pas_thread_local_cache_flush_deallocation_log 1

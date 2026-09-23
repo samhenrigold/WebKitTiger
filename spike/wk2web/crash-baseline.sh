@@ -7,6 +7,7 @@ set -e
 WKT=/Users/shg/Developer/WebKitTiger
 TAG=${TAG:-base}
 SECS=${SECS:-90}
+STAGE=${STAGE:-$WKT/spike/wk2web/stage-jsperf.sh}   # or stage-malloc.sh (same env)
 export WEBBIN UIBIN
 
 scrolls() {
@@ -20,7 +21,7 @@ run() {
     name=$1; url=$2; script=$3
     out="$WKT/logs/perf/$TAG-$name.log"
     APP=TigerBrowser2 SAMPLE=0 SCRIPT="$script" OUT="$out" \
-        "$WKT/spike/wk2web/stage-jsperf.sh" "$url" "$SECS" > "$out.stage" 2>&1 || echo "$name: stage failed"
+        "$STAGE" "$url" "$SECS" > "$out.stage" 2>&1 || echo "$name: stage failed"
     n() { c=$(grep -c "$1" "$out" 2>/dev/null) || true; echo "${c:-?}"; }   # grep -c exits 1 on 0
     printf '%-10s crash=%s signal=%s abort=%s exit=%s jscfault=%s\n' "$name" \
         "$(n 'TIGER-CRASH pid')" "$(n TIGER-CRASH-SIGNAL)" "$(n TIGER-ABORT)" "$(n TIGER-EXIT)" "$(n TIGER-JSC-FAULT)"

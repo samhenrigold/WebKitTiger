@@ -123,3 +123,16 @@ print("\nBusy main-thread samples per second (t):")
 tl = collections.Counter(int(s[0]) for s in busy)
 if tl:
     print(' '.join(f"{t}s:{tl.get(t,0)}" for t in range(min(tl), max(tl) + 1)))
+
+# Allocator share: busy main-thread samples whose leaf is in the allocator (libSystem's
+# malloc shows as malloc_jumpstart+N for its static szone functions; libpas/bmalloc are in-binary).
+MALLOC = re.compile(r'malloc|free\b|free\+|realloc|memalign|calloc|szone|pas_|bmalloc|fastMalloc|fastFree|fastRealloc|fastZeroed|fastCompact|tryFast|FastMalloc')
+def leafname(s):
+    n = sym(s[5][0]) if s[5] and s[5][0] in names else s[4]
+    n = n.split('(')[0]
+    while re.search(r'<[^<>]*>', n):  # drop template arguments (FastMalloc is a Vector policy there)
+        n = re.sub(r'<[^<>]*>', '', n)
+    return n
+nm = sum(1 for s in busy if MALLOC.search(leafname(s)))
+print(f"\nmalloc-family leaf: {nm} of {len(busy)} busy main-thread samples = {100*nm/(len(busy) or 1):.1f}%")
+print("  " + ", ".join(f"{k} {v}" for k, v in collections.Counter(re.sub(r'\+0x[0-9a-f]+$', '', leafname(s)) for s in busy if MALLOC.search(leafname(s))).most_common(8)))

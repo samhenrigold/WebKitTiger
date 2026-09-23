@@ -1,0 +1,101 @@
+process 0x3482: 6316 thread-samples, 204 main-thread samples, 0.9s .. 63.1s
+
+MAIN THREAD: 204 samples (250 ms each => 51.0 s)
+bucket                            samples      %   ~sec
+JS: execute                            81   39.7   20.2
+Layout                                 56   27.5   14.0
+JS: parse/bytecode                     26   12.7    6.5
+JS: GC                                 23   11.3    5.8
+Images                                  8    3.9    2.0
+Style                                   5    2.5    1.2
+JS: JIT compile                         3    1.5    0.8
+idle (blocked in kernel)                1    0.5    0.2
+other                                   1    0.5    0.2
+busy: 203 samples => ~50.8 s of main-thread work
+
+OTHER THREADS (all, mostly waiting): 1487 samples (250 ms each => 371.8 s)
+bucket                            samples      %   ~sec
+other                                1426   95.9  356.5
+JS: JIT compile                        29    2.0    7.2
+JS: GC                                 20    1.3    5.0
+Malloc/WTF                              4    0.3    1.0
+JS: execute                             4    0.3    1.0
+IPC                                     2    0.1    0.5
+system libs only                        1    0.1    0.2
+DOM/other WebCore                       1    0.1    0.2
+busy: 1486 samples => ~371.5 s of main-thread work
+
+Hot top-of-stack (first in-binary frame) among busy main-thread samples:
+    6  JSC::Heap::finishChangingPhase(JSC::GCConductor)
+    5  WebCore::Style::Builder::customPropertySignature(WebCore::Style::TreeResolutionState&)
+    4  llint_entry
+    4  WTF::fastMalloc(unsigned long)
+    4  WebCore::Style::PropertyCascade::set(WebCore::CSSPropertyID, WebCore::CSSValue&, WebCore::Style::MatchedProperties const
+    3  WebCore::SelectorChecker::checkOne(WebCore::SelectorChecker::CheckingContext&, WebCore::SelectorChecker::LocalContext&, 
+    3  WebCore::Style::PropertyCascade::~PropertyCascade()
+    3  JSC::MarkedBlock::Handle::stopAllocating(JSC::FreeList const&, JSC::MarkedBlock::Handle::StopAllocatingMode)
+    3  JSC::MarkedBlock::Handle::sweep(JSC::FreeList*)
+    3  WTF::HashTable<WTF::AtomString, WTF::AtomString, WTF::IdentityExtractor, WTF::DefaultHash<WTF::AtomString>, WTF::HashTra
+    3  JSC::CodeBlock::finishCreation(JSC::VM&, JSC::ScriptExecutable*, JSC::UnlinkedCodeBlock*, JSC::JSScope*)
+    2  WebCore::Style::SubstitutionResolver::substituteVarArgumentGrammar(WebCore::CSSParserTokenRange, WebCore::CSSParserConte
+    2  pas_thread_local_cache_flush_deallocation_log
+    2  WTF::HashTableAddResult<WTF::HashTableIterator<WTF::HashTable<WTF::GenericHashKey<WebCore::Style::SubstitutionContext, W
+    2  WebCore::Style::Builder::resolveCustomPropertyValue(WebCore::CSSCustomPropertyValue&)
+    2  WTF::StringImpl::~StringImpl()
+    2  WTF::ParkingLot::unparkOneImpl(void const*, WTF::ScopedLambda<long (WTF::ParkingLot::UnparkResult)> const&)
+    2  JSC::SyntaxChecker::Expression JSC::Parser<JSC::Lexer<unsigned char>>::parseAssignmentExpression<JSC::SyntaxChecker>(JSC
+    2  bmalloc_prefault_supply_try_allocate
+    2  WebCore::CSSVariableData::CSSVariableData(WebCore::CSSParserTokenRange const&, WebCore::Style::IsAttrTainted, WebCore::C
+    2  WebCore::Style::PropertyCascade::addMatch(WebCore::Style::MatchedProperties const&, WebCore::Style::PropertyCascade::Ori
+    2  WebCore::CSSParserToken::operator==(WebCore::CSSParserToken const&) const
+    2  bool WTF::equalInternal<unsigned char>(WTF::StringImpl const*, std::__1::span<unsigned char const, 18446744073709551615u
+    2  void WTF::Vector<WebCore::Style::Relation, 8ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc>::appendVector<WebCore::Styl
+    2  WTF::HashTableAddResult<WTF::HashTableIterator<WTF::HashTable<WTF::Packed<WTF::StringImpl*>, WTF::Packed<WTF::StringImpl
+
+Inclusive frame counts (frame appears anywhere in a busy main-thread sample):
+  117  WTF::RunLoop::runImpl(WTF::RunLoop::RunMode)
+  115  llint_entry
+  111  WebKit::AuxiliaryProcessMainBase<WebKit::WebProcess>::run(int, char**)
+  107  WebKit::WebProcessMain(int, char**)
+  101  _start
+   98  start
+   98  WebCore::ThreadTimers::sharedTimerFiredInternal()
+   84  vmEntryToJavaScript
+   83  WebCore::Document::resolveStyle(WebCore::Document::ResolveStyleType)
+   83  WebCore::Document::updateStyleIfNeeded()
+   76  WebCore::Style::TreeResolver::resolve()
+   72  WebCore::Style::TreeResolver::resolveComposedTree()
+   70  WebCore::Style::TreeResolver::resolveElement(WebCore::Element&, WebCore::Style::ComputedStyle const*, WebCore::Style::Tr
+   67  WebCore::Style::TreeResolver::styleForStyleable(WebCore::Styleable const&, WebCore::Style::TreeResolver::ResolutionType,
+   65  WebCore::Style::Resolver::unadjustedStyleForElement(WebCore::Element&, WebCore::Style::ResolutionContext const&, WebCore
+   56  WebCore::Style::Resolver::applyMatchedProperties(WebCore::Style::Resolver::State&, WebCore::Style::MatchResult const&, W
+   45  WebCore::EventLoop::run(JSC::VM&, std::__1::optional<WTF::ApproximateTime>)
+   43  WebCore::WindowEventLoop::didReachTimeToRun()
+   42  WebCore::Document::updateLayout(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>, WebCore::Element const*)
+   41  JSC::LLInt::performLLIntGetByID(JSC::BytecodeIndex, JSC::CodeBlock*, JSC::JSGlobalObject*, JSC::JSValue, JSC::Identifier
+   41  llint_slow_path_get_by_id
+   41  WTF::Detail::CallableWrapper<WebCore::Timer::Timer<WebCore::WindowEventLoop, WebCore::WindowEventLoop>(T&, void (WebCore
+   39  JSC::Interpreter::executeCall(JSC::JSObject*, JSC::CallData const&, JSC::JSValue, JSC::JSCell*, JSC::ArgList const&)
+   38  JSC::profiledCall(JSC::JSGlobalObject*, JSC::ProfilingReason, JSC::JSValue, JSC::CallData const&, JSC::JSValue, JSC::Arg
+   34  WebCore::Style::Builder::applyCustomProperties()
+   34  WebCore::Document::updateLayoutIfDimensionsOutOfDate(WebCore::Element&, WTF::OptionSet<WebCore::DimensionsCheck, (WTF::C
+   33  WebCore::Style::Builder::applyCustomPropertyImpl(WTF::AtomString const&, WebCore::Style::PropertyCascade::Property const
+   32  JSC::MicrotaskQueue::drainWithoutUseCallOnEachMicrotask(JSC::JSGlobalObject*, JSC::VM&, JSC::TopExceptionScope&)
+   31  WebCore::MicrotaskQueue::performMicrotaskCheckpoint(JSC::VM&)
+   30  WTF::Detail::CallableWrapper<WebCore::Timer::Timer<WebKit::DrawingAreaWC, WebKit::DrawingAreaWC>(T&, void (WebKit::Drawi
+   30  WebKit::DrawingAreaWC::updateRendering()
+   30  WebCore::Page::updateRendering()
+   30  WebKit::WebPage::updateRendering()
+   30  WebCore::EventTarget::fireEventListeners(WebCore::Event&, WebCore::EventTarget::EventInvokePhase)
+   30  WebCore::JSEventListener::handleEvent(WebCore::ScriptExecutionContext&, WebCore::Event&)
+   30  WebCore::EventTarget::innerInvokeEventListeners(WebCore::Event&, WTF::Vector<WTF::Ref<WebCore::RegisteredEventListener, 
+   29  WebCore::EventTarget::dispatchEvent(WebCore::Event&)
+   28  JSC::runInternalMicrotask(JSC::JSGlobalObject*, JSC::VM&, JSC::InternalMicrotask, unsigned char, std::__1::span<JSC::JSV
+   27  WebCore::LocalFrameView::updateLayoutAndStyleIfNeededRecursive(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyT
+   27  WebCore::Page::layoutIfNeeded(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>)
+
+Busy main-thread samples per second (t):
+1s:2 2s:3 3s:3 4s:4 5s:4 6s:4 7s:4 8s:3 9s:3 10s:4 11s:3 12s:4 13s:4 14s:4 15s:2 16s:4 17s:4 18s:3 19s:4 20s:3 21s:4 22s:3 23s:4 24s:3 25s:4 26s:4 27s:3 28s:3 29s:3 30s:3 31s:4 32s:1 33s:3 34s:4 35s:4 36s:4 37s:3 38s:4 39s:3 40s:3 41s:2 42s:4 43s:3 44s:2 45s:2 46s:4 47s:1 48s:3 49s:4 50s:2 51s:3 52s:3 53s:4 54s:4 55s:4 56s:4 57s:3 58s:1 59s:3 60s:3 61s:4 62s:3 63s:1
+
+malloc-family leaf: 8 of 203 busy main-thread samples = 3.9%
+  WTF::fastMalloc 4, pas_thread_local_cache_flush_deallocation_log 2, WTF::fastFree 1, pas_segregated_size_directory_take_first_eligible 1
