@@ -5359,3 +5359,9 @@ tiger-regress 6fc37ac2 merged: WEBKIT_TIGER_MESSAGE_TABLE hash published by the 
 checked in AuxiliaryProcessMain; a mismatched child exits 70 with "TIGER IPC: message table
 mismatch". Takes effect when all four binaries are next rebuilt together (batched with the next
 merge that touches the wire).
+
+## Release 2.2 to the box (2026-09-23 09:00)
+
+All four binaries rebuilt from 357e34ac (message-table handshake live: a child whose table
+differs exits 70 with "TIGER IPC: message table mismatch"). tools/regress.sh 8/8
+(logs/regress/20260923-084833). Installed with make-bundle.sh while the app was not running.
