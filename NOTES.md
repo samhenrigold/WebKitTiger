@@ -5510,3 +5510,24 @@ Traps worth keeping:
 Not done: multi-select of more than one row reaches the page as a single index; implicit
 submission of a form with no submit button; a non-text hosted control does not yet hand its
 Tab to WebCore; faithful mode not re-verified.
+
+## Merged 2026-09-23 morning: style cache, media clocks, RunLoop tree fix, controls round 2
+
+- tiger-media (to 9db6d4b0): per-cycle var() substitution cache (nytimes substitution 19% -> 1%
+  of main-thread samples; the page still forces full recalcs from timers), progressive <video>
+  keeps loader buffers instead of coalescing, preload=none honoured, wall clock until first PCM
+  and when the audio helper never starts; async decode for large visible images on TIGER64.
+  Finding: x86_64 runs on the system malloc (USE_SYSTEM_MALLOC in OptionsTiger); malloc leaves
+  are the hottest frames in style profiles. bmalloc track started (WebKit-video worktree).
+- tiger-jsperf (to 9e692017): The Verge EXC_BREAKPOINT was WTF::RedBlackTree::remove leaving
+  the removed node's CheckedPtr links set; the generic RunLoop's timer tree reuses nodes, so a
+  restarted scroll timer released a stale link onto a zeroed node. remove() now resets the
+  node; insert/destructor asserts guard it. Crash catcher hands JIT/wasm-pc faults back to JSC
+  (VMTraps hlt, wasm OOB) via KERN_FAILURE; SIGILL/SEGV/BUS/FPE handlers print
+  TIGER-CRASH-SIGNAL and _exit so crashdump never wakes. Crash baseline over 5 sites: 0.
+  spike/wk2web/crash-baseline.sh. build/frozen-0352 keeps release-2 binaries for symbolizing.
+- tiger-faithful (to f97138d5): real <select> menus (realclick/realkey script verbs), Tab and
+  Shift-Tab between page and hosted controls, <select multiple> as NSTableView, number stepper,
+  NSSearchField, NSLevelIndicator meter, placeholder text, default button pulses and Return
+  submits. Open: multi-select reports one index; Enter-only forms; Tab out of non-text controls.
+  Adds 9 lines to a .messages.in: all four binaries rebuilt together (chain running).
