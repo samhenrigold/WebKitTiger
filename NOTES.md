@@ -5349,3 +5349,13 @@ start -- with the media perf track. Verified scrolltest, x.com onboarding + typi
 
 Eight of eight, no log faults on any of them. 7:05 wall clock, of which about 2:30 was
 waiting on the box lock behind another agent.
+
+## Regression harness in place; handshake merged, not yet built (2026-09-23 04:30)
+
+tools/regress.sh: 8 checks (example, scroll, controls, boxtest, textarea, xcom, video, youtube)
+against the main build dirs, goldens in tests/regress/golden, results in logs/regress/<ts>/.
+First run 8/8 on release 2.1. Run it before every bundle install.
+tiger-regress 6fc37ac2 merged: WEBKIT_TIGER_MESSAGE_TABLE hash published by the launcher,
+checked in AuxiliaryProcessMain; a mismatched child exits 70 with "TIGER IPC: message table
+mismatch". Takes effect when all four binaries are next rebuilt together (batched with the next
+merge that touches the wire).
