@@ -5859,3 +5859,16 @@ event-loop-run microtasks are not counted. verge after the fixes: busy 100%, sty
 
 Also: a web process died once at launch in JSC::VM::VM -> scratchBufferForSize (WTFCrashWithInfo,
 nyt-r4, 0.7 s, relaunched) -- allocation failure at VM creation, for the memory track.
+
+## Release 2.5 to the box (2026-09-23 13:30)
+
+tiger-fontcache 5904ecbd: cookies stored at last (PublicSuffixStoreTiger64 stub had declared
+every domain a public suffix, so CookieJarDB refused every cookie from every site; jar now at
+~/Library/Application Support/WebKitTiger/Cookies/Cookies.db; WallTime expiry fix), hosted text
+field keeps the keyboard when a page restyles it mid-typing, faithful-mode damage rects (GPU
+56 -> 2.3 ms/frame, caret blink 264 bytes), BGRA8 tagging so faithful frames skip the CG
+fallback, OSAllocator/libpas decommit via protection-preserving remap, crashinfo registers on
+RELEASE_ASSERT. Harness 12/14: cookies 14/14, faithful rows pass; ghost/fghost (hosted controls
+outliving their document) fail as known, fix in progress. Installed while the app was closed.
+Open: intermittent sanitizeStackForVM startup assert on libpas (2/14 launches; with the libpas
+track), hosted-field value sync/maxlength (controls track).
