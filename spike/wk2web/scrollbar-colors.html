@@ -1,0 +1,82 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>scrollbar colors loading</title>
+<style>
+html { overflow: scroll; color: #4d168b; scrollbar-color: #a014b4 #f8dc78; }
+body { margin: 0; width: 1600px; height: 1800px; font: 13px "Lucida Grande", sans-serif;
+  background: white; }
+.action { position: fixed; top: 20px; width: 115px; height: 28px; line-height: 28px;
+  text-align: center; background: #ddd; color: #111; text-decoration: none; z-index: 1; }
+.box { position: absolute; top: 80px; width: 240px; height: 180px; overflow: scroll; background: #eee; }
+.fill { width: 480px; height: 640px; background: repeating-linear-gradient(white 0px, white 39px, #ddd 40px); }
+#colored { left: 20px; scrollbar-color: #1644c8 #ffcca0; }
+#automatic { left: 300px; scrollbar-color: auto; }
+#thin { left: 580px; width: 180px; scrollbar-width: thin; scrollbar-color: #008020 #cdfac8; }
+#frame { position: absolute; left: 20px; top: 320px; width: 240px; height: 180px; border: 0; }
+#readout { position: fixed; left: 300px; top: 320px; width: 600px; white-space: pre-wrap; color: black; }
+#notes { position: fixed; left: 300px; top: 390px; width: 600px; color: black; line-height: 1.5; }
+</style>
+<a href="#" class="action" id="author" style="left:20px">Author colors</a>
+<a href="#" class="action" id="auto" style="left:150px">Native auto</a>
+<a href="#" class="action" id="alternate" style="left:280px">Other colors</a>
+<a href="#" class="action" id="current" style="left:410px">Current color</a>
+<a href="#" class="action" id="reset" style="left:540px">Reset scroll</a>
+<div id="colored" class="box"><div class="fill">Author colors: blue thumb, peach track.</div></div>
+<div id="automatic" class="box"><div class="fill">Automatic colors: native Aqua with arrows.</div></div>
+<div id="thin" class="box"><div class="fill">Thin author colors: green.</div></div>
+<iframe id="frame" title="Author-colored iframe scrollbars"></iframe>
+<pre id="readout"></pre>
+<div id="notes">The page starts with purple thumbs and gold tracks, including its lower-right
+  corner. Author colors use simple tracks and thumbs without arrow buttons. The middle box
+  always keeps native Aqua scrollbars. Each pane must scroll using its own thumb or track.
+  The iframe uses red thumbs and pale blue tracks. See scrollbar-colors.md for exact checks.</div>
+<script>
+(function () {
+    "use strict";
+    function byId(id) { return document.getElementById(id); }
+    var mode = "author", frame = byId("frame"), frameReady = false;
+    function position(element) { return Math.round(element.scrollLeft) + "," + Math.round(element.scrollTop); }
+    function report(reason) {
+        var state = "colors mode=" + mode + " root=" + Math.round(scrollX) + "," + Math.round(scrollY)
+            + " over=" + position(byId("colored")) + " auto=" + position(byId("automatic"))
+            + " thin=" + position(byId("thin")) + " frame="
+            + (frameReady ? Math.round(frame.contentWindow.scrollX) + "," + Math.round(frame.contentWindow.scrollY) : "pending");
+        document.title = state;
+        byId("readout").textContent = state + "\nLast event: " + reason;
+        console.log(state + " event=" + reason);
+    }
+    ["author", "auto", "alternate", "current"].forEach(function (id) {
+        byId(id).onclick = function (event) {
+            event.preventDefault();
+            mode = id;
+            document.documentElement.style.scrollbarColor = {
+                author: "#a014b4 #f8dc78", auto: "auto", alternate: "#c8281e #c8dcfa",
+                current: "currentColor rgba(0, 200, 200, 0.35)"
+            }[id];
+            report(id);
+        };
+    });
+    byId("reset").onclick = function (event) {
+        event.preventDefault();
+        window.scrollTo(0, 0);
+        ["colored", "automatic", "thin"].forEach(function (id) { byId(id).scrollLeft = byId(id).scrollTop = 0; });
+        frame.contentWindow.scrollTo(0, 0);
+        report("reset");
+    };
+    ["colored", "automatic", "thin"].forEach(function (id) {
+        byId(id).addEventListener("scroll", function () { report(id); });
+    });
+    window.addEventListener("scroll", function () { report("root-scroll"); });
+    frame.addEventListener("load", function () {
+        if (!frame.contentDocument.getElementById("content"))
+            return;
+        frameReady = true;
+        frame.contentWindow.addEventListener("scroll", function () { report("frame-scroll"); });
+        report("frame-ready");
+    });
+    frame.srcdoc = "<!doctype html><style>html{overflow:scroll;scrollbar-color:#c8281e #c8dcfa}"
+        + "body{margin:0;font:13px sans-serif}#content{width:480px;height:640px;background:#eee}</style>"
+        + "<div id='content'>Author-colored iframe</div>";
+    report("ready");
+}());
+</script>
