@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>NATIVE720 waiting</title>
+<style>
+html,body { margin:0; padding:0; overflow:hidden; background:black }
+video { display:block; width:1280px; height:720px }
+</style>
+<!-- A stationary full-resolution presentation workload. No periodic DOM repaint.
+     TigerBrowser2: TIGER_TEST_WINDOW_SIZE=1280x772 gives a 1280x720 page viewport. -->
+<video id="v" src="bbb-720p.mp4" width="1280" height="720" autoplay controls loop></video>
+<script>
+const video = document.getElementById('v');
+function report(event) {
+    const box = video.getBoundingClientRect();
+    const valid = innerWidth >= 1280 && innerHeight >= 720 &&
+        box.width === 1280 && box.height === 720 &&
+        video.videoWidth === 1280 && video.videoHeight === 720;
+    document.title = 'NATIVE720 ' + (valid ? 'READY' : 'INVALID-DIMENSIONS') +
+        ' source=' + video.videoWidth + 'x' + video.videoHeight +
+        ' viewport=' + innerWidth + 'x' + innerHeight + ' event=' + event.type;
+    console.log(document.title);
+}
+video.addEventListener('playing', report);
+window.addEventListener('resize', report);
+video.addEventListener('error', function () {
+    document.title = 'NATIVE720 ERROR ' + (video.error ? video.error.code : 'unknown');
+    console.log(document.title);
+});
+</script>

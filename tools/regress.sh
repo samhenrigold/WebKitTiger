@@ -36,7 +36,7 @@ SHARE=${SHARE:-/Users/shg/wk2/share}             # ...and then SHARE is that dir
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip videolifetime fvideolifetime"
 DEFAULT="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost"
 case "${1:-}" in --list) echo "$ALL"; exit 0;; --all) shift; set -- $ALL "$@";; esac
 WANTED=${*:-$DEFAULT}
@@ -153,6 +153,11 @@ probe() { # probe <compare args...> -> detail string
 }
 
 wants() { case " $WANTED " in *" $1 "*) return 0;; *) return 1;; esac; }
+
+title_seen() {
+    grep -aF 'TIGER title:' "$OUT/$1.log" | grep -Fq "$2" \
+        && printf '%s\n' "$2" || printf 'FAILED missing title: %s\n' "$2"
+}
 
 note "# regress $(date '+%Y-%m-%d %H:%M:%S')"
 note ""
@@ -370,6 +375,29 @@ fi
 if wants fscrollbars; then
     run fscrollbars "file://$SHARE/scrollbars.html" 22 "$SB_SCRIPT" TIGER_FAITHFUL=1
     check fscrollbars "$(scrollbar_checks fscrollbars); $(BLESS=; golden scrollbars fscrollbars --max-frac 0.02)"
+fi
+
+# Fully clipped native controls must neither cover nor intercept the page beneath
+# them; the visible offset iframe's field must still accept native text input.
+CLIP_SCRIPT='wait 6; click 60,232; wait 1; click 380,92; wait 1; click 380,382; wait 1; click 380,242; wait 1; type frame; wait 2'
+if wants hostedclip; then
+    run hostedclip "file://$SHARE/hosted-clipping.html" 22 "$CLIP_SCRIPT" TIGER_CONSOLE=1
+    check hostedclip "$(title_seen hostedclip 'hits=1,1,1 values=//frame/')"
+fi
+if wants fhostedclip; then
+    run fhostedclip "file://$SHARE/hosted-clipping.html" 22 "$CLIP_SCRIPT" 'TIGER_CONSOLE=1 TIGER_FAITHFUL=1'
+    check fhostedclip "$(title_seen fhostedclip 'hits=1,1,1 values=//frame/')"
+fi
+
+# Ring lifecycle workload: API progress plus crash/paint checks. A JS pass does
+# not prove frame integrity; inspect returned screenshots and presentation probes.
+if wants videolifetime; then
+    run videolifetime "http://$MEDIA_HOST/video-lifetime.html" 26 'wait 22' TIGER_CONSOLE=1
+    check videolifetime "$(title_seen videolifetime 'VIDEO LIFETIME PASS (API only)')"
+fi
+if wants fvideolifetime; then
+    run fvideolifetime "http://$MEDIA_HOST/video-lifetime.html" 26 'wait 22' 'TIGER_CONSOLE=1 TIGER_FAITHFUL=1'
+    check fvideolifetime "$(title_seen fvideolifetime 'VIDEO LIFETIME PASS (API only)')"
 fi
 
 # 12. Cookies: tools/cookie-server.py on this Mac is the oracle (it logs every Cookie
