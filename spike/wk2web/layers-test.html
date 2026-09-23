@@ -1,0 +1,30 @@
+<!-- Recovery test: six static composited layers and one ticking counter in its own layer,
+     plus a canvas drawn once and a canvas redrawn every second (in faithful mode canvases are
+     GPU-process image buffers). After a GPU process relaunch the counter's layer changes on
+     its own; the static ones only come back if the web process rebuilds the whole scene. -->
+<html><body style="margin:20px;font:20px Helvetica;background:#eee">
+<div id="tick" style="will-change:transform;position:absolute;left:20px;top:20px;width:300px;height:40px;background:#fff">tick 0</div>
+<script>
+var colors = ["#c33", "#3a3", "#33c", "#cc3", "#3cc", "#c3c"];
+for (var i = 0; i < 6; ++i) {
+    var d = document.createElement("div");
+    d.style.cssText = "will-change:transform;position:absolute;width:140px;height:140px;color:#fff;padding:8px;box-sizing:border-box;"
+        + "left:" + (20 + (i % 3) * 160) + "px;top:" + (90 + Math.floor(i / 3) * 160) + "px;background:" + colors[i];
+    d.textContent = "layer " + i;
+    document.body.appendChild(d);
+}
+var still = document.createElement("canvas"), moving = document.createElement("canvas");
+[still, moving].forEach(function (c, i) {
+    c.width = 140; c.height = 140;
+    c.style.cssText = "position:absolute;top:410px;left:" + (20 + i * 160) + "px";
+    document.body.appendChild(c);
+});
+var g = still.getContext("2d"); g.fillStyle = "#963"; g.fillRect(0, 0, 140, 140); g.fillStyle = "#fff"; g.fillText("canvas once", 10, 20);
+var n = 0;
+setInterval(function () {
+    var m = moving.getContext("2d"); m.fillStyle = n % 2 ? "#369" : "#693"; m.fillRect(0, 0, 140, 140);
+    m.fillStyle = "#fff"; m.fillText("canvas " + n, 10, 20);
+}, 1000);
+setInterval(function () { document.getElementById("tick").textContent = "tick " + (++n); }, 1000);
+</script>
+</body></html>

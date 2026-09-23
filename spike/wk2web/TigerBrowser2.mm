@@ -11,10 +11,15 @@
 
 #import <AppKit/AppKit.h>
 #import <Carbon/Carbon.h>
+#include <signal.h>
 
 #include "config.h"
 
 #include "APINavigation.h"
+#include "APINavigationClient.h"
+#include "GPUProcessProxy.h"
+#include "NetworkProcessProxy.h"
+#include "WKContext.h"
 #include "APIPageConfiguration.h"
 #include "APIProcessPoolConfiguration.h"
 #include "PageLoadState.h"
@@ -86,15 +91,46 @@ private:
     RefPtr<WebProcessPool> _pool;
     RefPtr<TigerWebView> _webView;
     RefPtr<ChromeLoadObserver> _observer;
+    NSString* _note; // a recovery message shown in the status line while nothing is loading
+    NSTimeInterval _lastLoadFailure;
 }
 - (id)initWithURL:(NSString*)url;
 - (void)updateChrome;
+- (void)childProcessDidCrash:(NSString*)which reason:(ProcessTerminationReason)reason;
+- (void)loadDidFail;
 - (void)runScriptStep:(NSTimer*)timer;
 @end
 
 void ChromeLoadObserver::update()
 {
     [m_window updateChrome];
+}
+
+// Recovery. Returning false from processDidTerminate leaves the reload to WebPageProxy
+// (tryReloadAfterProcessTermination: the pending URL, or the current back/forward item
+// with its saved scroll position); the chrome only says what happened.
+class ChromeNavigationClient final : public API::NavigationClient {
+public:
+    explicit ChromeNavigationClient(TigerBrowserWindow* window) : m_window(window) { }
+private:
+    bool processDidTerminate(WebPageProxy&, ProcessTerminationReason reason) final
+    {
+        [m_window childProcessDidCrash:@"web" reason:reason];
+        return false;
+    }
+    void didFailProvisionalNavigationWithError(WebPageProxy&, FrameInfoData&&, API::Navigation*, const URL&, const WebCore::ResourceError&, API::Object*) final { [m_window loadDidFail]; }
+    void didFailNavigationWithError(WebPageProxy&, const FrameInfoData&, API::Navigation*, const URL&, const WebCore::ResourceError&, API::Object*) final { [m_window loadDidFail]; }
+    TigerBrowserWindow* m_window;
+};
+
+static void networkProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationReason, const void* window)
+{
+    [(TigerBrowserWindow*)window childProcessDidCrash:@"net" reason:ProcessTerminationReason::Crash];
+}
+
+static void gpuProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationReason, const void* window)
+{
+    [(TigerBrowserWindow*)window childProcessDidCrash:@"gpu" reason:ProcessTerminationReason::Crash];
 }
 
 @implementation TigerBrowserWindow
@@ -166,6 +202,12 @@ void ChromeLoadObserver::update()
     // WebKit2: one process pool, one page, the same preferences as the harness.
     auto poolConfiguration = API::ProcessPoolConfiguration::create();
     _pool = WebProcessPool::create(poolConfiguration);
+    WKContextClientV4 contextClient { };
+    contextClient.base.version = 4;
+    contextClient.base.clientInfo = self;
+    contextClient.networkProcessDidCrashWithDetails = networkProcessDidCrash;
+    contextClient.gpuProcessDidCrashWithDetails = gpuProcessDidCrash;
+    _pool->initializeClient(&contextClient.base);
     auto pageConfiguration = API::PageConfiguration::create();
     pageConfiguration->setProcessPool(_pool.get());
     pageConfiguration->setWebsiteDataStore(&WebsiteDataStore::defaultDataStore());
@@ -187,6 +229,7 @@ void ChromeLoadObserver::update()
     if (RefPtr page = _webView->page()) {
         _observer = ChromeLoadObserver::create(self);
         page->pageLoadState().addObserver(*_observer);
+        page->setNavigationClient(makeUniqueRef<ChromeNavigationClient>(self));
         page->setViewNeedsDisplay(WebCore::Region(WebCore::IntRect(0, 0, viewBounds.size.width, viewBounds.size.height)));
         page->loadRequest(URL { String::fromUTF8([url UTF8String]) });
     }
@@ -209,7 +252,64 @@ void ChromeLoadObserver::update()
     if (state.isLoading())
         [_status setStringValue:[NSString stringWithFormat:@"Loading… %d%%", (int)(state.estimatedProgress() * 100)]];
     else
-        [_status setStringValue:@""];
+        [_status setStringValue:_note ? _note : @""];
+}
+
+- (void)clearNote
+{
+    [_note release];
+    _note = nil;
+    [self updateChrome];
+}
+
+- (void)loadDidFail
+{
+    _lastLoadFailure = [NSDate timeIntervalSinceReferenceDate];
+}
+
+// One line in the status line for ten seconds. A web process that died is reloaded by
+// WebPageProxy itself; a GPU process is relaunched on the web process's next frame (the
+// web side rebuilds its scene for it); a network process is relaunched by the next load,
+// so a page that was loading -- or whose load just failed because of it -- is reloaded here.
+- (void)childProcessDidCrash:(NSString*)which reason:(ProcessTerminationReason)reason
+{
+    NSString* note = nil;
+    RefPtr page = _webView ? _webView->page() : nullptr;
+    if ([which isEqualToString:@"web"]) {
+        note = reason == ProcessTerminationReason::ExceededMemoryLimit ? @"Page reloaded: it ran out of memory"
+            : @"Page reloaded after a web process crash";
+    } else if ([which isEqualToString:@"gpu"])
+        note = @"Graphics restarted after a GPU process crash";
+    else {
+        bool interrupted = page && (page->pageLoadState().isLoading() || [NSDate timeIntervalSinceReferenceDate] - _lastLoadFailure < 5);
+        if (interrupted)
+            page->reload({ });
+        note = interrupted ? @"Page reloaded after a network process crash" : @"Network restarted after a crash";
+    }
+    fprintf(stderr, "TIGER-RECOVER: %s process exited (reason %d): %s\n", [which UTF8String], static_cast<int>(reason), [note UTF8String]);
+    [_note release];
+    _note = [note retain];
+    [self updateChrome];
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(clearNote) object:nil];
+    [self performSelector:@selector(clearNote) withObject:nil afterDelay:10];
+}
+
+// "killproc web|gpu|net": SIGKILL that child, the way a crash would end it.
+- (void)killChildProcess:(NSString*)which
+{
+    RefPtr page = _webView ? _webView->page() : nullptr;
+    pid_t pid = 0;
+    if ([which isEqualToString:@"web"] && page)
+        pid = page->legacyMainFrameProcess().processID();
+    else if ([which isEqualToString:@"gpu"] && _pool && _pool->gpuProcess())
+        pid = _pool->gpuProcess()->processID();
+    else if ([which isEqualToString:@"net"]) {
+        if (auto* networkProcess = WebsiteDataStore::defaultDataStore().networkProcessIfExists())
+            pid = networkProcess->processID();
+    }
+    fprintf(stderr, "TIGER-RECOVER: killproc %s pid %d\n", [which UTF8String], pid);
+    if (pid > 0)
+        kill(pid, SIGKILL);
 }
 
 - (void)loadFromAddress:(id)sender
@@ -230,7 +330,7 @@ void ChromeLoadObserver::update()
 // TIGER_SCRIPT="wait 5; click 300,400; realclick 79,242; click shift 400,400; drag 20,20 300,20;
 //              type hello; key return; keymod cmd a;
 //              keymod opt left; keymod shift opt right; scroll 0,-300; shot /path.png; load URL;
-//              move 200,150; wheel 400,300 0,-3"
+//              move 200,150; wheel 400,300 0,-3; killproc web|gpu|net"
 // Coordinates are view points, y down, as the page sees them. Events are real NSEvents
 // posted to the view's handlers, so they take the same path as the user's. This is how
 // login flows and scrolling get exercised from a harness with nobody at the keyboard.
@@ -617,7 +717,9 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
     } else if ([verb isEqualToString:@"shot"]) {
         NSString* cmd = [NSString stringWithFormat:@"/usr/sbin/screencapture -x '%@'", rest];
         system([cmd UTF8String]);
-    } else if ([verb isEqualToString:@"load"]) {
+    } else if ([verb isEqualToString:@"killproc"])
+        [self killChildProcess:rest];
+    else if ([verb isEqualToString:@"load"]) {
         if (RefPtr page = _webView ? _webView->page() : nullptr)
             page->loadRequest(URL { String::fromUTF8([rest UTF8String]) });
     }

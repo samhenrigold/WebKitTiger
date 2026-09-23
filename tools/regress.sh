@@ -35,7 +35,7 @@ SHARE=/Users/shg/wk2/share
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch"
 case "${1:-}" in --list) echo $ALL; exit 0;; esac
 WANTED=${*:-$ALL}
 
@@ -272,6 +272,28 @@ fi
 if wants fghost; then
     run fghost "file://$SHARE/controls-test.html" 22 'wait 8; load http://example.com/; wait 8' TIGER_FAITHFUL=1
     check fghost "$(BLESS=; golden example fghost --max-frac 0.02)"
+fi
+
+# 14. Recovery: SIGKILL the children mid-run (TigerBrowser2's killproc verb) and the page
+#    must come back by itself. Fast: the web process during idle (reloaded, painted by the
+#    new process), then the network process, then a load that needs it. Faithful: the GPU
+#    process (a frame from the rebuilt scene must follow), then the web process. The last
+#    shot is the example golden either way; after_kill checks that something happened after.
+after_kill() { # after_kill <log> <which> <pattern> -> "" or FAILED
+    awk -v k="killproc $2" -v p="$3" 'index($0, k) { seen = 1 } seen && index($0, p) { found = 1 } END { exit !found }' "$1" \
+        && echo "$2: ok" || echo "FAILED nothing matching \"$3\" after killproc $2"
+}
+if wants relaunch; then
+    run relaunch http://example.com/ 30 'wait 6; killproc web; wait 7; killproc net; wait 2; load http://example.com/; wait 8'
+    detail="$(after_kill "$OUT/relaunch.log" web 'TIGER ui: incorporate'); $(after_kill "$OUT/relaunch.log" net 'TIGER ui: incorporate')"
+    grep -aq 'TIGER-RECOVER: web process exited' "$OUT/relaunch.log" || detail="$detail; FAILED no status line for the web process"
+    check relaunch "$detail; $(BLESS=; golden example relaunch --max-frac 0.02)"
+fi
+if wants frelaunch; then
+    run frelaunch http://example.com/ 30 'wait 7; killproc gpu; wait 1; scroll 0,-300; wait 6; killproc web; wait 8; scroll 0,300; wait 3' TIGER_FAITHFUL=1
+    detail="$(after_kill "$OUT/frelaunch.log" gpu 'TIGER gpu: frame'); $(after_kill "$OUT/frelaunch.log" web 'TIGER ui: incorporate')"
+    grep -aq 'TIGER-RECOVER: GPU process gone' "$OUT/frelaunch.log" || detail="$detail; FAILED the web process never rebuilt its scene"
+    check frelaunch "$detail; $(BLESS=; golden example frelaunch --max-frac 0.02)"
 fi
 
 # 12. Cookies: tools/cookie-server.py on this Mac is the oracle (it logs every Cookie
