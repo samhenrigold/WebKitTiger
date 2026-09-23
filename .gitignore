@@ -126,3 +126,4 @@
 /spike/ldt64/ldt64
 /spike/ldt64/ldt32host
 spike/wk2web/box.lock
+/logs
