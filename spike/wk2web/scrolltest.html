@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- TIGER: scroll-correctness page. Every band is 100px tall and its red channel is
+     6*index, so a screenshot column of page pixels must have a non-decreasing red
+     channel from top to bottom. A mirrored blit shows up as a decreasing run.
+     The magenta bar is position:fixed so it must stay at the top of the view. -->
+<html><head><meta charset="utf-8"><title>scrolltest</title><style>
+  html,body { margin:0; padding:0; background:#202020; }
+  #bar { position:fixed; top:0; left:0; right:0; height:60px; background:#ff00ff;
+         color:#000; font:bold 28px Helvetica; line-height:60px; text-align:center; }
+  .band { height:100px; font:bold 22px Helvetica; color:#fff; padding-left:12px; line-height:100px; }
+  #body { padding-top:60px; }
+</style></head><body>
+<div id="bar">TOP BAR &mdash; must stay upright at the top</div>
+<div id="body"></div>
+<script>
+  // ?nofixed leaves the bar in flow. With the bar fixed, WebCore has to repaint
+  // the top strip too, the dirty region collapses to the whole window and the
+  // scroll blit's result is overwritten before it can be seen; without it only
+  // the exposed strip is painted and everything else on screen is the blit.
+  if (location.search.indexOf('nofixed') >= 0)
+    document.getElementById('bar').style.position = 'static';
+  var out = [];
+  for (var i = 0; i < 40; i++)
+    out.push('<div class="band" style="background:rgb(' + (i*6) + ',90,180)">ROW ' + i + ' &#9660; down</div>');
+  document.getElementById('body').innerHTML = out.join('');
+</script>
+</body></html>
