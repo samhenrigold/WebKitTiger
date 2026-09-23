@@ -1,0 +1,174 @@
+2026-09-22 20:41:34.043 TigerBrowser2[20735] *** _NSAutoreleaseNoPool(): Object 0x7c09140 of class NSCFString autoreleased with no pool in place - just leaking
+[com.apple.WebKit:Sandbox error] 0x803bc00 - [PID=0] WebProcessProxy::hasAssumedReadAccessToURL(11552775): no access
+TIGER ui: drawRect 0.00 ms rect=960x648+0+0 unpainted=1
+[com.apple.WebKit:Sandbox error] 0x803bc00 - [PID=20737] WebProcessProxy::hasAssumedReadAccessToURL(11552775): no access
+[com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::initializeNetworkProcess: Presenting processPID=20738
+[com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+[com.apple.WebKit:Process:4] 0x10c612980 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+[com.apple.WebKit:Process:4] 0x10c612980 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+[com.apple.WebKit:Process:4] 0x10c612980 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+[com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+[com.apple.WebKit:Process:4] 0x10c6011a0 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+[com.apple.WebKit:Process:4] 0x10c6011a0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=20735
+[com.apple.WebKit:Loading:4] 0x10d024400 - [webPageID=5] WebPage::constructor:
+[com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: AcceleratedCompositingEnabled=false, UseGPUProcessForDOMRenderingEnabled=false
+[com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+TIGER paint: url= page=960x648 bounds=960x648 rects=1 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6668c0 visible=960x648 contents=960x648 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=1 bytes=2488320 buffer 4.65 ms paint 11.17 ms scroll=0x0 by 0,0
+[com.apple.WebKit:Process:4] GPUProcessConnection::create(12)
+[com.apple.WebKit:Loading:4] 0x10c612980 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=20735, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13, existingLoaderToResume=0)
+[com.apple.WebKit:Loading:4] 0x10c612980 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+[com.apple.WebKit:Loading:4] 0x10c612980 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=20735, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13, existingLoaderToResume=0)
+[com.apple.WebKit:Loading:4] 0x10c612980 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=20735, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=13)
+TIGER script: wait 8
+[com.apple.WebKit:Process:4] GPUProcessConnection::didInitialize(12)
+TIGER ui:   map 0.08 ms scroll 0.00 ms copy 5.12 ms (rows=1)
+TIGER ui: incorporate 5.71 ms bounds=960x648+0+0 rects=1 scroll=0x0+0+0 by 0,0 damage=960x648
+TIGER ui: drawRect 2.88 ms rect=960x648+0+0 unpainted=0
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=1 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=1 bytes=2488320 buffer 1.90 ms paint 7.18 ms scroll=0x0 by 0,0
+TIGER ui:   map 0.07 ms scroll 0.00 ms copy 5.06 ms (rows=1)
+TIGER ui: incorporate 5.54 ms bounds=960x648+0+0 rects=1 scroll=0x0+0+0 by 0,0 damage=960x648
+TIGER ui: drawRect 17.16 ms rect=960x648+0+0 unpainted=0
+TIGER script: shot /Users/shg/wk2perf/a7-w-0.png
+TIGER script: wheel 480,400 0,-3
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.80 ms paint 1.95 ms scroll=939x648 by 0,-16
+TIGER ui:   map 0.07 ms scroll 5.66 ms copy 3.99 ms (rows=1)
+TIGER ui: incorporate 10.07 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-16 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.93 ms paint 3.19 ms scroll=939x648 by 0,-33
+TIGER ui: drawRect 5.63 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.06 ms scroll 0.84 ms copy 4.00 ms (rows=1)
+TIGER ui: incorporate 5.35 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-33 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.34 ms paint 2.87 ms scroll=939x648 by 0,-25
+TIGER ui: drawRect 10.73 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.77 ms copy 3.88 ms (rows=1)
+TIGER ui: incorporate 5.11 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-25 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.96 ms paint 2.16 ms scroll=939x648 by 0,-21
+TIGER ui: drawRect 23.74 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.76 ms copy 3.89 ms (rows=1)
+TIGER ui: incorporate 5.09 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-21 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.97 ms paint 2.38 ms scroll=939x648 by 0,-19
+TIGER ui: drawRect 16.21 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.77 ms copy 3.98 ms (rows=1)
+TIGER ui: incorporate 5.20 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-19 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.95 ms paint 2.06 ms scroll=939x648 by 0,-5
+TIGER ui: drawRect 22.74 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.77 ms copy 3.85 ms (rows=1)
+TIGER ui: incorporate 5.06 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-5 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.97 ms paint 2.38 ms scroll=939x648 by 0,-1
+TIGER ui: drawRect 16.43 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.71 ms copy 3.84 ms (rows=1)
+TIGER ui: incorporate 5.00 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-1 damage=960x648
+TIGER ui: drawRect 22.86 ms rect=960x648+0+0 unpainted=0
+TIGER script: wait 2
+TIGER script: shot /Users/shg/wk2perf/a7-w-1.png
+TIGER script: wheel 480,400 0,-3
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.79 ms paint 2.02 ms scroll=939x648 by 0,-16
+TIGER ui:   map 0.07 ms scroll 5.50 ms copy 3.99 ms (rows=1)
+TIGER ui: incorporate 9.92 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-16 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER ui: drawRect 3.28 ms rect=960x648+0+0 unpainted=0
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.74 ms paint 3.11 ms scroll=939x648 by 0,-32
+TIGER ui:   map 0.07 ms scroll 0.89 ms copy 3.84 ms (rows=1)
+TIGER ui: incorporate 5.15 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-32 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.09 ms paint 2.69 ms scroll=939x648 by 0,-24
+TIGER ui: drawRect 15.58 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.77 ms copy 3.88 ms (rows=1)
+TIGER ui: incorporate 5.10 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-24 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.96 ms paint 2.11 ms scroll=939x648 by 0,-27
+TIGER ui: drawRect 22.76 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.11 ms scroll 0.77 ms copy 3.90 ms (rows=1)
+TIGER ui: incorporate 5.12 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-27 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.14 ms paint 2.63 ms scroll=939x648 by 0,-16
+TIGER ui: drawRect 15.29 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.11 ms scroll 0.77 ms copy 3.85 ms (rows=1)
+TIGER ui: incorporate 5.08 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-16 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.96 ms paint 1.99 ms scroll=939x648 by 0,-4
+TIGER ui: drawRect 22.96 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.11 ms scroll 0.72 ms copy 3.86 ms (rows=1)
+TIGER ui: incorporate 5.11 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-4 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.97 ms paint 2.35 ms scroll=939x648 by 0,-1
+TIGER ui: drawRect 16.26 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.71 ms copy 3.95 ms (rows=1)
+TIGER ui: incorporate 5.11 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-1 damage=960x648
+TIGER ui: drawRect 22.86 ms rect=960x648+0+0 unpainted=0
+TIGER script: wait 2
+TIGER script: shot /Users/shg/wk2perf/a7-w-2.png
+TIGER script: wheel 480,400 0,-3
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.79 ms paint 2.42 ms scroll=939x648 by 0,-16
+TIGER ui:   map 0.07 ms scroll 5.64 ms copy 3.99 ms (rows=1)
+TIGER ui: incorporate 10.05 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-16 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER ui: drawRect 3.29 ms rect=960x648+0+0 unpainted=0
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.78 ms paint 3.07 ms scroll=939x648 by 0,-34
+TIGER ui:   map 0.07 ms scroll 0.90 ms copy 4.03 ms (rows=1)
+TIGER ui: incorporate 5.47 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-34 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.25 ms paint 2.88 ms scroll=939x648 by 0,-24
+TIGER ui: drawRect 9.62 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.78 ms copy 3.87 ms (rows=1)
+TIGER ui: incorporate 5.10 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-24 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.95 ms paint 2.00 ms scroll=939x648 by 0,-20
+TIGER ui: drawRect 23.98 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.79 ms copy 3.89 ms (rows=1)
+TIGER ui: incorporate 5.12 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-20 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.29 ms paint 2.86 ms scroll=939x648 by 0,-20
+TIGER ui: drawRect 15.68 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.77 ms copy 3.88 ms (rows=1)
+TIGER ui: incorporate 5.10 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-20 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 0.95 ms paint 2.47 ms scroll=939x648 by 0,-5
+TIGER ui: drawRect 23.33 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.77 ms copy 3.87 ms (rows=1)
+TIGER ui: incorporate 5.08 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-5 damage=960x648
+TIGER paint: url=file:///Users/shg/wk2perf/share/scrolltest.html page=960x648 bounds=960x648 rects=3 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x10c6f0ca0 visible=960x648 contents=960x4060 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=3 bytes=2488320 buffer 1.13 ms paint 2.77 ms scroll=939x648 by 0,-1
+TIGER ui: drawRect 15.45 ms rect=960x648+0+0 unpainted=0
+TIGER ui:   map 0.10 ms scroll 0.74 ms copy 3.91 ms (rows=1)
+TIGER ui: incorporate 5.10 ms bounds=960x648+0+0 rects=3 scroll=939x648+0+0 by 0,-1 damage=960x648
+TIGER ui: drawRect 22.98 ms rect=960x648+0+0 unpainted=0
+TIGER script: wait 2
+TIGER script: shot /Users/shg/wk2perf/a7-w-3.png
+TIGER-EXIT pid 0x50ff
+ thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2d5165
+TIGER-EXIT pid 0x5102
+ thread 0xd03 state-kr 0x0 pc 0x10ae52e4e leaf mach_msg_trap+0xa frames: 0x10ae52e4e 0x10ae0811d 0x100328c9d 0x10adf7c75 0x10adf7a0c 0x100001c93 0x100001ba1 0x3
