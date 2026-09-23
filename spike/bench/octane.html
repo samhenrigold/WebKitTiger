@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Octane 2 (bench)</title>
+<!-- Octane 2 without its UI: starts on load, reports each benchmark and the score through
+     document.title and the console (TigerBrowser2 logs titles as "TIGER title:").
+     ?skip=Name,Name leaves benchmarks out. Needs spike/bench/fetch.sh first. -->
+<body style="font:14px Helvetica"><pre id="out"></pre>
+<script type="text/javascript" src="octane/base.js"></script>
+<script type="text/javascript" src="octane/richards.js"></script>
+<script type="text/javascript" src="octane/deltablue.js"></script>
+<script type="text/javascript" src="octane/crypto.js"></script>
+<script type="text/javascript" src="octane/raytrace.js"></script>
+<script type="text/javascript" src="octane/earley-boyer.js"></script>
+<script type="text/javascript" src="octane/regexp.js"></script>
+<script type="text/javascript" src="octane/splay.js"></script>
+<script type="text/javascript" src="octane/navier-stokes.js"></script>
+<script type="text/javascript" src="octane/pdfjs.js"></script>
+<script type="text/javascript" src="octane/mandreel.js"></script>
+<script type="text/javascript" src="octane/gbemu-part1.js"></script>
+<script type="text/javascript" src="octane/gbemu-part2.js"></script>
+<script type="text/javascript" src="octane/code-load.js"></script>
+<script type="text/javascript" src="octane/box2d.js"></script>
+<script type="text/javascript" src="octane/zlib.js"></script>
+<script type="text/javascript" src="octane/zlib-data.js"></script>
+<script type="text/javascript" src="octane/typescript.js"></script>
+<script type="text/javascript" src="octane/typescript-input.js"></script>
+<script type="text/javascript" src="octane/typescript-compiler.js"></script>
+<script>
+var t0 = Date.now(), out = document.getElementById('out');
+function say(s) { document.title = s; console.log(s); out.textContent += s + '\n'; }
+var skip = (location.search.match(/skip=([^&]*)/) || [, ''])[1].split(',').filter(Boolean);
+window.onload = function () {
+  setTimeout(function () {
+    BenchmarkSuite.RunSuites({
+      NotifyResult: function (name, r) { say('OCTANE ' + name + ' ' + r + ' at ' + ((Date.now() - t0) / 1000).toFixed(1) + 's'); },
+      NotifyError: function (name, e) { say('OCTANE ' + name + ' error ' + e); },
+      NotifyScore: function (s) { say('OCTANE score ' + s + ' after ' + ((Date.now() - t0) / 1000).toFixed(1) + 's'); }
+    }, skip);
+  }, 500);
+};
+</script>
