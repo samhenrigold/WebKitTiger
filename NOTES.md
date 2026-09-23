@@ -5889,3 +5889,45 @@ the displayed document is described (back/forward cache kept the old page's cont
 snapshot sequence numbers + acknowledgedSequence so page rewrites of a field being edited show
 live with the caret kept; maxlength field. Harness 14/14 including ghost/fghost. Installed while
 the app was closed.
+
+## 2026-09-23 — libpas follow-ups: the startup stack assert, and where the memory goes (WebKit-video, tiger-video)
+
+**Startup crash = the main stack's top page was its own VM map entry.** Reproduced 1 in 24
+launches (x.com; 0 in 30 example.com, 0 in 12 nytimes), crashinfo `0xaa20 lastStackTop
+0x7fff5fbfee28 origin 0x7fff5fc00000 bound 0x7fff5fbff000`: a 4 KB "stack".
+StackBounds' TIGER64 main-thread arm took the one mach_vm_region entry holding a local as the
+whole stack, and at capture time (within the top 4 KB) that entry had been clipped to the top
+page. The "scratchBufferForSize in VM::VM" crash is the same RELEASE_ASSERT symbolized through
+folded crash stubs. What clips the entry is not identified (a plain 64-bit process never
+shows it; tags survive clipping, so it is not a remap of the page). Fix (3b1b42401): origin
+= top of the contiguous VM_MEMORY_STACK-tagged entries holding a local (mach_vm_region_recurse
+user_tag 30); size = RLIMIT_STACK, as upstream's Darwin path does (the 10.4 kernel sizes the
+main stack from it: 8 MB region at 8 MB, 16 MB at `ulimit -s 16384`, checked). A forced split
+(mprotect below sp; one entry then reports 8 KB) keeps 0x7fff5f400000-0x7fff5fc00000.
+A split now prints one `TIGER-STACK` line. After: 0 crashes in 30 x.com + 30 example.com
+launches (0 TIGER-STACK lines either: the split is rare, so the forced-split test is the proof).
+
+**memdrop "stays at 323 MB" is JSC, not the scavenger.** JSC_logGC=1 +
+TIGER_PAS_SCAVENGE_LOG=1 on memdrop.html?mode=objects: the 5M objects are promoted by a Full
+GC during the build (4.5 s: 153 MB -> 153 MB, death rate 0). After the drop only Eden GCs run
+(21.6 s, 28.0 s); no Full GC in 60 s, so the 300 MB is never freed. FullGCActivityCallback's
+delay is lastFullGCLength / timeSlice(bytes x deathRate-of-last-full) = infinite after a
+full GC that freed nothing; JSC_percentCPUPerMBForFullTimer=0.05 changes nothing for the same
+reason. The run that did drop (122-140 MB) got a Full GC at ~38 s. What JSC does free, libpas
+returns fast: the Eden garbage came back 20 MB 1.4 s and 48 MB 0.8 s after its GC. Lever, if
+wanted: a Full-GC trigger (idle/abandoned-graph heuristic), not scavenger tuning.
+
+**nytimes RSS over 90 s (scripted scroll), libpas build, interleaved A/B in one binary**
+(knobs 6de7529f8: TIGER_PAS_SCAVENGE_PERIOD_MS, TIGER_PAS_SCAVENGE_EPOCH_MS; defaults 125 / 600):
+
+| web RSS MB at 30 / 60 / 88 s | default 125 ms / 600 ms | aggressive 50 ms / 100 ms |
+|---|---|---|
+| run 1 | 446 / 705 / 803 | 308 / 497 / 571 |
+| run 2 | 321 / 545 / 672 | 306 / 429 / 493 |
+
+The growth is mostly live memory (JS heap 49 -> 147 MB over the run, 3 Full GCs; the default
+scavenger decommitted 672 MB in 1,022 rounds over 90 s), but a shorter idle window takes
+~25-30% off the peak. NOT made the default: these runs overlapped another agent's JSC test
+driver on the box (load 3-4, later 14-23), so the CPU side (allocbench, main-thread busy)
+could not be measured cleanly, and the scavenger stops other threads' allocators every round.
+Next: allocbench + nytimes busy% with EPOCH_MS=100 on a quiet box; if flat, set it for TIGER.

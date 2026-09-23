@@ -35,20 +35,26 @@ for i in $(seq 1 120); do
 done
 if [ -n "$busy" ]; then echo "stage-malloc: box still busy; aborting, nothing killed"; exit 1; fi
 ssh tiger-eth "mkdir -p $DEST/bin $DEST/Frameworks $DEST/share"
-rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" tiger-eth:$DEST/share/
+rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" "$WKT/spike/wk2web/rss-sample.sh" tiger-eth:$DEST/share/
 FILES=""
 for f in "$UIBIN/bin/TigerWK2App" "$UIBIN/bin/TigerBrowser2" "$WEBBIN/bin/TigerWebProcess" "$WEBBIN/bin/TigerNetworkProcess" "$WKT/build/tiger-gpu/bin/TigerGPUProcess" "$WKT/build/tigeraudio32"; do
     [ -f "$f" ] && FILES="$FILES $f" || echo "stage-malloc: missing $f (not copied)"
 done
 rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:$DEST/bin/
 rsync -rtl -z --partial --inplace --bwlimit=20000 "$WKT/spike/CAHost/Frameworks/QuartzCore.framework" tiger-eth:$DEST/Frameworks/
+REPEAT=${REPEAT:-1}   # >1: launch N times (staged once); logs come back as $OUT.1 .. $OUT.N
+BASE_OUT=$OUT
+for rep in $(seq 1 $REPEAT); do
+[ "$REPEAT" -gt 1 ] && OUT=$BASE_OUT.$rep
 ssh tiger-eth "if ps -axo command | grep -qE '[/]Applications/TigerBrowser.app|[T]iger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)'; then echo 'stage-malloc: box occupied at launch, aborting'; exit 3; fi; \
   cd $DEST/bin && (perl -e 'alarm $((SECS + 3)); exec @ARGV' -- env $APP_ENV TIGER_SCRIPT='$SCRIPT' ./$APP '$URL' $SECS -WebKitLogging ${LOGGING:-Process,Loading,Layout} 2>&1 | perl -MTime::HiRes=time -ne 'BEGIN{\$t0=time} printf \"%8.3f %s\", time-\$t0, \$_' > $DEST/app.log &) ; \
   sleep $SHOT_AT; echo == procs at ${SHOT_AT}s; ps -axo pid,rss,vsz,%cpu,time,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep | cut -c1-100; screencapture -x $DEST/shot.png; WPID=\$(ps -axo pid,command | awk '\$2 ~ /wk2video.*TigerWebProcess/ {print \$1}' | tail -1); ${BOXCMD:-true}; \
   sleep $((SECS - SHOT_AT + 4)); ps -axo pid,command | awk '\$2 ~ /^\.\/Tiger/ || \$2 ~ /\/wk2[a-z]*\// {print \$1}' | xargs kill 2>/dev/null; sleep 1; echo == after; ps -axo pid,command | grep -E 'Tiger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|tigeraudio32' | grep -v grep; true"
 mkdir -p "$(dirname "$OUT")"
 scp -qO tiger-eth:$DEST/app.log "$OUT"
+[ "$REPEAT" -gt 1 ] && { echo "run $rep: $(grep -c 'TIGER-CRASH pid' "$OUT") TIGER-CRASH"; continue; }
 scp -qO tiger-eth:$DEST/shot.png "${OUT%.log}.png"
 echo "log: $OUT ($(wc -l < "$OUT") lines, $(grep -c TIGER-SAMPLE "$OUT") samples, $(grep -c TIGER-CRASH "$OUT") TIGER-CRASH)"
 grep -m1 "milestones=.*DidFirstVisuallyNonEmptyLayout\|dispatching DidFirstVisuallyNonEmptyLayoutForFrame" "$OUT" | cut -c1-12 | sed 's/^/first visually non-empty layout at: /' || true
 grep -aE "TIGER-MEDIA|TIGER-CRASH|FATAL|Gigacage|gigacage" "$OUT" | head -20 || true
+done
