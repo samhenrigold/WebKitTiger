@@ -295,6 +295,160 @@ def stage(root, env, url, seconds, remote, verifier=checked):
         return stage_frozen(root, env, url, seconds, remote, payload)
 
 
+BINARY_CACHE_PROGRAM = r'''
+use strict;
+use Fcntl qw(:mode);
+my ($action, $base, $key, $manifest, $argument) = @ARGV;
+die "invalid cache key\n" unless $key =~ /^[a-f0-9]{64}$/;
+my @lines = split /\n/, $manifest;
+die "invalid cache manifest\n" unless shift(@lines) eq 'TIGER-BINARY-CACHE-1';
+my %files;
+for (@lines) {
+    my ($name, $size, $sha256, $sha1) = split /\t/;
+    die "invalid cache entry\n" unless defined($sha1) && $name =~ /^[A-Za-z0-9]+$/
+        && $size =~ /^\d+$/ && $sha256 =~ /^[a-f0-9]{64}$/ && $sha1 =~ /^[a-f0-9]{40}$/
+        && !exists($files{$name});
+    $files{$name} = [$size, $sha1];
+}
+my @names = sort qw(TigerWK2App TigerBrowser2 TigerWebProcess TigerNetworkProcess TigerGPUProcess tigeraudio32);
+die "incomplete binary cache manifest\n" unless join(',', sort keys %files) eq join(',', @names);
+my $pool = "$base/$key";
+sub directory {
+    my ($path, $mode) = @_;
+    my @s = lstat($path);
+    die "unsafe cache directory: $path\n" unless @s && S_ISDIR($s[2]) && $s[4] == $<
+        && (!defined($mode) || ($s[2] & 07777) == $mode);
+}
+sub temporary {
+    die "invalid temporary cache path\n" unless $argument =~ /^\Q$base\E\/\.staging-\Q$key\E-[a-f0-9]{32}$/;
+    return $argument;
+}
+sub verify {
+    my ($path, $complete) = @_;
+    directory($path, $complete ? 0555 : 0700);
+    opendir(my $dir, $path) or die "cache opendir: $!\n";
+    my @entries = sort grep { $_ ne '.' && $_ ne '..' } readdir($dir);
+    closedir($dir);
+    my @expected = sort(@names, $complete ? ('COMPLETE') : ());
+    die "unexpected cache contents: $path\n" unless join(',', @entries) eq join(',', @expected);
+    if ($complete) {
+        my @s = lstat("$path/COMPLETE");
+        die "unsafe cache marker\n" unless @s && S_ISREG($s[2]) && $s[4] == $< && ($s[2] & 07777) == 0444
+            && $s[7] == length($manifest);
+        open(my $marker, '<', "$path/COMPLETE") or die "cache marker: $!\n";
+        local $/;
+        my $actual = <$marker>;
+        close($marker) or die "cache marker close: $!\n";
+        die "cache identity mismatch\n" unless $actual eq $manifest;
+    }
+    for my $name (@names) {
+        my $file = "$path/$name";
+        my @before = lstat($file);
+        die "unsafe cached executable: $file\n" unless @before && S_ISREG($before[2]) && $before[4] == $<
+            && $before[7] == $files{$name}->[0] && ($before[2] & 0111) && !($before[2] & 06022)
+            && (!$complete || ($before[2] & 07777) == 0555);
+        # Tiger's stock OpenSSL lacks SHA256. SHA1 checks transfer/cache corruption;
+        # the SHA256 cache identity originates from the verified frozen host bytes.
+        open(my $hash, '-|', '/usr/bin/openssl', 'dgst', '-sha1', $file) or die "cache checksum: $!\n";
+        my $digest = <$hash>;
+        close($hash) or die "cache checksum failed: $file\n";
+        die "cache content mismatch: $file\n" unless defined($digest) && $digest =~ /\b([a-f0-9]{40})\s*$/
+            && $1 eq $files{$name}->[1];
+        my @after = lstat($file);
+        # Reading may update atime; inode, mode, size, mtime and ctime must not change.
+        die "cached executable changed during verification\n" unless @after
+            && join(',', @before[0..7, 9..12]) eq join(',', @after[0..7, 9..12]);
+    }
+}
+if ($action eq 'use' && !-e $base && !-l $base) { print "MISS\n"; exit 0; }
+if ($action eq 'prepare' && !-e $base && !-l $base) { mkdir($base, 0700) or die "cache mkdir: $!\n"; }
+directory($base, 0700);
+if ($action eq 'use') {
+    if (!-e $pool && !-l $pool) { print "MISS\n"; exit 0; }
+    verify($pool, 1);
+    directory($argument, undef);
+    for my $name (@names) {
+        link("$pool/$name", "$argument/$name") or die "cache hardlink $name: $! (use BINARY_CACHE=0 for direct copies)\n";
+    }
+    print "HIT\n";
+} elsif ($action eq 'prepare') {
+    mkdir(temporary(), 0700) or die "cache temporary mkdir: $!\n";
+} elsif ($action eq 'publish') {
+    my $temp = temporary();
+    verify($temp, 0);
+    die "cache destination already exists\n" if -e $pool || -l $pool;
+    chmod(0555, map { "$temp/$_" } @names) == @names or die "cache chmod: $!\n";
+    open(my $marker, '>', "$temp/COMPLETE") or die "cache marker create: $!\n";
+    print $marker $manifest or die "cache marker write: $!\n";
+    close($marker) or die "cache marker close: $!\n";
+    chmod(0444, "$temp/COMPLETE") == 1 or die "cache marker chmod: $!\n";
+    chmod(0555, $temp) == 1 or die "cache directory chmod: $!\n";
+    rename($temp, $pool) or die "cache publication failed: $!\n";
+} elsif ($action eq 'discard') {
+    my $temp = temporary();
+    exit 0 unless -e $temp || -l $temp;
+    directory($temp, undef);
+    chmod(0700, $temp) == 1 or die "cache temporary chmod: $!\n";
+    opendir(my $dir, $temp) or die "cache temporary opendir: $!\n";
+    for my $name (grep { $_ ne '.' && $_ ne '..' } readdir($dir)) {
+        unlink("$temp/$name") or die "cache temporary unlink: $!\n";
+    }
+    closedir($dir);
+    rmdir($temp) or die "cache temporary rmdir: $!\n";
+} else { die "unknown cache action\n"; }
+'''
+
+
+def binary_cache_identity(binaries):
+    """Use the frozen bytes, including audio, rather than paths or build timestamps."""
+    expected = set(APPS) | {"TigerWebProcess", "TigerNetworkProcess", "TigerGPUProcess", "tigeraudio32"}
+    if len(binaries) != len(expected) or {path.name for path in binaries} != expected:
+        raise RunError("binary cache requires the complete six-executable bundle")
+    lines = ["TIGER-BINARY-CACHE-1\n"]
+    for path in sorted(binaries, key=lambda path: path.name):
+        sha256, sha1 = hashlib.sha256(), hashlib.sha1()
+        size = 0
+        with path.open("rb") as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                size += len(block)
+                sha256.update(block)
+                sha1.update(block)
+        lines.append("%s\t%d\t%s\t%s\n" % (path.name, size, sha256.hexdigest(), sha1.hexdigest()))
+    manifest = "".join(lines)
+    return hashlib.sha256(manifest.encode("ascii")).hexdigest(), manifest
+
+
+def cached_binaries(remote, binaries, destination):
+    """Called only inside the existing remote lease; published files are never edited."""
+    key, manifest = binary_cache_identity(binaries)
+    base = REMOTE_BASE + "/.binary-cache-v1"
+    prefix = ["perl", "-e", BINARY_CACHE_PROGRAM]
+
+    def use():
+        result = remote.run(prefix + ["use", base, key, manifest, destination], capture_output=True, text=True)
+        if result.stdout not in ("HIT\n", "MISS\n"):
+            raise RunError("unexpected binary cache response")
+        return result.stdout == "HIT\n"
+
+    if use():
+        print("binary cache: hit " + key, flush=True)
+        return
+    temporary = base + "/.staging-" + key + "-" + uuid.uuid4().hex
+    remote.run(prefix + ["prepare", base, key, manifest, temporary])
+    try:
+        remote.transfer(binaries, temporary + "/")
+        remote.run(prefix + ["publish", base, key, manifest, temporary])
+    finally:
+        # Scoped cleanup remains allowed if the owner lost its lease connection.
+        try:
+            remote.run(prefix + ["discard", base, key, manifest, temporary, "cleanup"])
+        except (OSError, RunError, subprocess.CalledProcessError) as error:
+            print("tiger-run: cache temporary cleanup: " + str(error), file=sys.stderr)
+    if not use():
+        raise RunError("binary cache publication did not produce a complete entry")
+    print("binary cache: populated " + key, flush=True)
+
+
 def stage_frozen(root, env, url, seconds, remote, payload):
     app = env.get("APP", "TigerWK2App")
     if app not in APPS:
@@ -326,7 +480,10 @@ def stage_frozen(root, env, url, seconds, remote, payload):
         remote.transfer(files, REMOTE_BASE + "/share/")
         if ca_bundle:
             remote.transfer([ca_bundle], REMOTE_BASE + "/share/cookie-bundle.pem")
-        remote.transfer(binaries, run_path + "/bin/")
+        if env.get("BINARY_CACHE", "1") == "0":
+            remote.transfer(binaries, run_path + "/bin/")
+        else:
+            cached_binaries(remote, binaries, run_path + "/bin")
         remote.transfer([framework], run_path + "/Frameworks/")
         remote.transfer([root / "tools/tiger-run-remote.pl"], run_path + "/")
         remote.transfer([local_out / "provenance"], run_path + "/")

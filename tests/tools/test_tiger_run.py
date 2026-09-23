@@ -4,6 +4,7 @@ import importlib.util
 import os
 from pathlib import Path
 import shlex
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -20,6 +21,7 @@ class FakeRemote:
         self.busy = busy
         self.fail_transfer = fail_transfer
         self.fail_run = fail_run
+        self.cached_keys = set()
 
     @contextlib.contextmanager
     def lease(self, token, timeout):
@@ -31,6 +33,12 @@ class FakeRemote:
 
     def run(self, argv, **kwargs):
         self.calls.append(("run", [str(arg) for arg in argv]))
+        if argv[:3] == ["perl", "-e", RUN.BINARY_CACHE_PROGRAM]:
+            action, key = argv[3], argv[5]
+            if action == "publish":
+                self.cached_keys.add(key)
+            output = ("HIT\n" if key in self.cached_keys else "MISS\n") if action == "use" else ""
+            return subprocess.CompletedProcess(argv, 0, output, "")
         if len(argv) > 2 and argv[0] == "perl" and argv[2] == "run" and self.fail_run:
             raise subprocess.CalledProcessError(1, argv)
         return subprocess.CompletedProcess(argv, 0, self.busy if argv[0] == "ps" else "", "")
@@ -104,6 +112,12 @@ class TigerRunTests(unittest.TestCase):
         self.assertFalse(any(call[0] == "run" and call[1][0] == "perl" for call in remote.calls))
         self.assertEqual(remote.calls[-1][0], "release")
 
+    def test_cache_can_be_disabled_for_direct_per_run_copies(self):
+        remote = FakeRemote()
+        RUN.stage(self.root, {"BINARY_CACHE": "0"}, "https://example.com", 1, remote, self.verifier)
+        self.assertTrue(any(call[0] == "transfer" and call[1].endswith("/bin/") for call in remote.calls))
+        self.assertFalse(any(call[0] == "run" and RUN.BINARY_CACHE_PROGRAM in call[1] for call in remote.calls))
+
     def test_active_user_app_not_transferred_or_killed(self):
         remote = FakeRemote(busy="123 /Users/shg/Applications/TigerBrowser.app/Contents/MacOS/TigerBrowser2\n")
         with self.assertRaisesRegex(RUN.RunError, "box still busy"):
@@ -116,7 +130,8 @@ class TigerRunTests(unittest.TestCase):
         remote = FakeRemote(fail_run=True)
         with self.assertRaises(subprocess.CalledProcessError):
             RUN.stage(self.root, {}, "https://example.com", 15, remote, self.verifier)
-        perl = [call[1] for call in remote.calls if call[0] == "run" and call[1][0] == "perl"]
+        perl = [call[1] for call in remote.calls if call[0] == "run" and call[1][0] == "perl"
+                and call[1][2] in ("run", "cleanup")]
         self.assertEqual([call[2] for call in perl], ["run", "cleanup"])
         self.assertEqual(perl[0][3], perl[1][3])
         self.assertTrue(perl[0][3].startswith(RUN.REMOTE_BASE + "/runs/"))
@@ -260,6 +275,131 @@ class TigerRunTests(unittest.TestCase):
         self.assertEqual((destination / "marker").read_text(), "old")
         self.assertEqual((candidate / "marker").read_text(), "new")
         self.assertFalse(previous.exists())
+
+
+class LocalCacheRemote:
+    """Run the actual Tiger-compatible cache program against temporary local files."""
+    def __init__(self, fail_transfer=False, corrupt_transfer=False):
+        self.transfers = 0
+        self.fail_transfer = fail_transfer
+        self.corrupt_transfer = corrupt_transfer
+
+    def run(self, argv, **kwargs):
+        if argv[:3] != ["perl", "-e", RUN.BINARY_CACHE_PROGRAM]:
+            raise AssertionError("unexpected command: " + str(argv))
+        kwargs.setdefault("capture_output", True)
+        kwargs.setdefault("text", True)
+        return subprocess.run(argv, check=True, timeout=10, **kwargs)
+
+    def transfer(self, sources, destination):
+        self.transfers += 1
+        for source in sources:
+            shutil.copy2(source, Path(destination) / source.name)
+            if self.fail_transfer:
+                raise subprocess.CalledProcessError(1, ["mock-rsync"])
+        if self.corrupt_transfer:
+            path = Path(destination) / sources[0].name
+            path.write_bytes(b"X" * path.stat().st_size)
+
+
+class BinaryCacheTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory(prefix="tiger-binary-cache-test-")
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        self.remote_base = self.root / "remote"
+        self.remote_base.mkdir()
+        patch = mock.patch.object(RUN, "REMOTE_BASE", str(self.remote_base))
+        patch.start()
+        self.addCleanup(patch.stop)
+        # Cache files/directories are intentionally read-only; permit test teardown.
+        self.addCleanup(self.make_writable)
+        self.binaries = []
+        for name in RUN.APPS + ("TigerWebProcess", "TigerNetworkProcess", "TigerGPUProcess", "tigeraudio32"):
+            path = self.root / name
+            path.write_bytes(("frozen " + name).encode())
+            path.chmod(0o755)
+            self.binaries.append(path)
+        self.remote = LocalCacheRemote()
+
+    def make_writable(self):
+        for path in self.root.rglob("*"):
+            if path.is_dir():
+                path.chmod(0o700)
+
+    def destination(self, name):
+        path = self.remote_base / "runs" / name / "bin"
+        path.mkdir(parents=True)
+        return path
+
+    def populate(self, name="first"):
+        destination = self.destination(name)
+        RUN.cached_binaries(self.remote, self.binaries, str(destination))
+        key, manifest = RUN.binary_cache_identity(self.binaries)
+        return destination, self.remote_base / ".binary-cache-v1" / key, manifest
+
+    def test_cache_hit_uses_verified_read_only_hardlinks_without_transfer(self):
+        first, pool, manifest = self.populate()
+        self.assertEqual((pool / "COMPLETE").read_text(), manifest)
+        self.assertEqual(pool.stat().st_mode & 0o7777, 0o555)
+        second, second_pool, _ = self.populate("second")
+        self.assertEqual(second_pool, pool)
+        self.assertEqual(self.remote.transfers, 1)
+        for source in self.binaries:
+            cached = pool / source.name
+            self.assertEqual(cached.read_bytes(), source.read_bytes())
+            self.assertEqual(cached.stat().st_mode & 0o7777, 0o555)
+            self.assertTrue(cached.samefile(first / source.name))
+            self.assertTrue(cached.samefile(second / source.name))
+
+    def test_changing_any_frozen_binary_including_audio_selects_a_new_pool(self):
+        first, old_pool, _ = self.populate()
+        original = {path.name: path.read_bytes() for path in self.binaries}
+        previous_key = old_pool.name
+        for index, source in enumerate(self.binaries):
+            with self.subTest(binary=source.name):
+                source.write_bytes(source.read_bytes() + b" changed")
+                destination, pool, _ = self.populate("change-" + str(index))
+                self.assertNotEqual(pool.name, previous_key)
+                self.assertEqual((destination / source.name).read_bytes(), source.read_bytes())
+                self.assertEqual((first / source.name).read_bytes(), original[source.name])
+                previous_key = pool.name
+        self.assertEqual(self.remote.transfers, 7)
+
+    def test_failed_population_is_never_published_or_linked(self):
+        self.remote.fail_transfer = True
+        destination = self.destination("failed")
+        with self.assertRaises(subprocess.CalledProcessError):
+            RUN.cached_binaries(self.remote, self.binaries, str(destination))
+        self.assertEqual(list(destination.iterdir()), [])
+        self.assertEqual(list((self.remote_base / ".binary-cache-v1").iterdir()), [])
+
+    def test_corrupt_upload_is_rejected_before_complete_marker_publication(self):
+        self.remote.corrupt_transfer = True
+        destination = self.destination("corrupt-upload")
+        with self.assertRaises(subprocess.CalledProcessError):
+            RUN.cached_binaries(self.remote, self.binaries, str(destination))
+        self.assertEqual(list(destination.iterdir()), [])
+        self.assertEqual(list((self.remote_base / ".binary-cache-v1").iterdir()), [])
+
+    def test_marker_does_not_override_corrupt_or_writable_cached_content(self):
+        first, pool, _ = self.populate()
+        binary = pool / self.binaries[0].name
+        old_time = binary.stat().st_mtime_ns
+        original = binary.read_bytes()
+        for mode in ("writable", "corrupt"):
+            with self.subTest(mode=mode):
+                binary.chmod(0o755)
+                if mode == "corrupt":
+                    binary.write_bytes(b"X" * len(original))
+                    os.utime(binary, ns=(old_time, old_time))
+                    binary.chmod(0o555)
+                destination = self.destination(mode)
+                with self.assertRaises(subprocess.CalledProcessError):
+                    RUN.cached_binaries(self.remote, self.binaries, str(destination))
+                self.assertEqual(list(destination.iterdir()), [])
+                self.assertEqual(self.remote.transfers, 1)
+                binary.chmod(0o555)
 
 
 if __name__ == "__main__":
