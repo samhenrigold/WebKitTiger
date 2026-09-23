@@ -1,0 +1,100 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>hosted clipping loading</title>
+<style>
+html, body { margin: 0; padding: 0; }
+body { width: 940px; height: 610px; font: 13px "Lucida Grande", sans-serif; background: white; }
+.action { position: absolute; top: 20px; width: 105px; height: 28px; line-height: 28px;
+  text-align: center; background: #ddd; color: #111; text-decoration: none; }
+.underlay { position: absolute; width: 260px; height: 90px; background: #a9dbec; }
+.underlay span { position: absolute; left: 8px; bottom: 5px; }
+input { position: absolute; width: 180px; height: 22px; }
+#scroller { position: absolute; left: 20px; top: 70px; width: 260px; height: 80px;
+  overflow: auto; background: #eee; }
+#content { position: relative; height: 300px; }
+#clipped { left: 10px; top: 150px; }
+#overflow-underlay { left: 20px; top: 180px; }
+#visibility-underlay { left: 340px; top: 60px; }
+#hidden { left: 350px; top: 80px; visibility: hidden; }
+#frame { position: absolute; left: 340px; top: 220px; width: 260px; height: 80px; border: 0; }
+#frame-underlay { left: 340px; top: 350px; }
+#readout { position: absolute; left: 20px; top: 465px; width: 880px; white-space: pre-wrap; }
+#notes { position: absolute; left: 640px; top: 20px; width: 280px; line-height: 1.5; }
+</style>
+<a href="#" class="action" id="reveal" style="left:20px">Reveal field</a>
+<a href="#" class="action" id="conceal" style="left:140px">Hide field</a>
+<a href="#" class="action" id="show-visibility" style="left:340px">Visible</a>
+<a href="#" class="action" id="hide-visibility" style="left:470px">Hidden</a>
+<div id="overflow-underlay" class="underlay"><span>Overflow underlay: click (60, 232)</span></div>
+<div id="scroller"><div id="content"><input id="clipped" aria-label="Overflow field"></div></div>
+<div id="visibility-underlay" class="underlay"><span>Visibility underlay: click (380, 92)</span></div>
+<input id="hidden" aria-label="Visibility field">
+<a href="#" class="action" id="frame-bottom" style="left:340px;top:170px">Frame bottom</a>
+<a href="#" class="action" id="frame-top" style="left:470px;top:170px">Frame top</a>
+<div id="frame-underlay" class="underlay"><span>Frame underlay: click (380, 382)</span></div>
+<iframe id="frame" title="Offset iframe"></iframe>
+<div id="notes">The blue panels must receive clicks whenever their fields are hidden or fully
+  clipped. They occupy the same page area where a leaked AppKit field would cover content or
+  video. The offset iframe must show its top field at (352, 232). This fixture has no network
+  dependencies. See hosted-clipping.md for exact checks.</div>
+<pre id="readout"></pre>
+<script>
+(function () {
+    "use strict";
+    function byId(id) { return document.getElementById(id); }
+    var scroller = byId("scroller"), hidden = byId("hidden"), frame = byId("frame");
+    var hits = [0, 0, 0], frameReady = false;
+    function report(reason) {
+        var frameDocument = frameReady ? frame.contentDocument : null;
+        var values = [byId("clipped").value, hidden.value,
+            frameReady ? frameDocument.getElementById("frameTop").value : "",
+            frameReady ? frameDocument.getElementById("frameBottom").value : ""];
+        var state = "hosted clipping over=" + scroller.scrollTop
+            + " hidden=" + (hidden.style.visibility === "visible" ? 0 : 1)
+            + " frameY=" + (frameReady ? Math.round(frame.contentWindow.scrollY) : -1)
+            + " hits=" + hits.join(",") + " values=" + values.map(encodeURIComponent).join("/");
+        document.title = state;
+        byId("readout").textContent = state + "\nLast event: " + reason;
+        console.log(state + " event=" + reason);
+    }
+    function action(id, callback) {
+        byId(id).onclick = function (event) {
+            event.preventDefault();
+            callback();
+            report(id);
+        };
+    }
+    function observe(input) {
+        ["focus", "blur", "input", "change"].forEach(function (type) {
+            input.addEventListener(type, function () { report(input.id + ":" + type); });
+        });
+    }
+    action("reveal", function () { scroller.scrollTop = 130; });
+    action("conceal", function () { scroller.scrollTop = 0; });
+    action("show-visibility", function () { hidden.style.visibility = "visible"; });
+    action("hide-visibility", function () { hidden.style.visibility = "hidden"; });
+    action("frame-bottom", function () { frame.contentWindow.scrollTo(0, 130); });
+    action("frame-top", function () { frame.contentWindow.scrollTo(0, 0); });
+    ["overflow-underlay", "visibility-underlay", "frame-underlay"].forEach(function (id, index) {
+        byId(id).onclick = function () { ++hits[index]; report(id); };
+    });
+    observe(byId("clipped"));
+    observe(hidden);
+    scroller.addEventListener("scroll", function () { report("overflow-scroll"); });
+    frame.addEventListener("load", function () {
+        var top = frame.contentDocument.getElementById("frameTop");
+        if (!top)
+            return;
+        frameReady = true;
+        observe(top);
+        observe(frame.contentDocument.getElementById("frameBottom"));
+        frame.contentWindow.addEventListener("scroll", function () { report("frame-scroll"); });
+        report("frame-ready");
+    });
+    frame.srcdoc = "<!doctype html><style>html,body{margin:0;padding:0}"
+        + "body{height:300px;background:#eee}input{position:absolute;left:12px;width:180px;height:22px}"
+        + "</style><input id='frameTop' aria-label='Frame top field' style='top:12px'>"
+        + "<input id='frameBottom' aria-label='Frame bottom field' style='top:150px'>";
+    report("ready");
+}());
+</script>
