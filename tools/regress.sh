@@ -28,14 +28,14 @@
 # (the box's app.log), <name>.stage.log and summary.md.
 set -u
 WKT=/Users/shg/Developer/WebKitTiger
-STAGE=$WKT/spike/wk2web/stage-app.sh
+STAGE=${STAGE:-$WKT/spike/wk2web/stage-app.sh}   # a track's copy (stage-app-features.sh) stages into its own box dir
 COMPARE=$WKT/tools/regress-compare.py
 GOLDEN=$WKT/tests/regress/golden
-SHARE=/Users/shg/wk2/share
+SHARE=${SHARE:-/Users/shg/wk2/share}             # ...and then SHARE is that dir's share
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch scrollbars fscrollbars"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars"
 case "${1:-}" in --list) echo $ALL; exit 0;; esac
 WANTED=${*:-$ALL}
 
@@ -294,6 +294,32 @@ if wants frelaunch; then
     detail="$(after_kill "$OUT/frelaunch.log" gpu 'TIGER gpu: frame'); $(after_kill "$OUT/frelaunch.log" web 'TIGER ui: incorporate')"
     grep -aq 'TIGER-RECOVER: GPU process gone' "$OUT/frelaunch.log" || detail="$detail; FAILED the web process never rebuilt its scene"
     check frelaunch "$detail; $(BLESS=; golden example frelaunch --max-frac 0.02)"
+fi
+
+# 15. Feature probes: spike/wk2web/features.html, served over https from this Mac by
+#    tools/features-server.py (a secure context with COOP/COEP, plus /ws and /stream). The
+#    page prints "FEATURE <name> PASS|FAIL|PENDING" per probe. FT_PASS must all PASS: the
+#    unsupported features answering at once (absent/null/denied), the working set actually
+#    working. FT_MISSING are known gaps; one of those passing is reported, not failed. Any
+#    PENDING is a failure: a promise a site would wait on forever.
+if wants features; then
+    FT_PASS="webgl webgpu webrtc getusermedia eme notifications geolocation gamepad devices payment share speech battery vibrate wakelock webxr webauthn permissions
+             localstorage indexeddb cacheapi serviceworker websocket fetchstream wasm offscreencanvas worker sab mediasource"
+    FT_MISSING="webcodecs"
+    pkill -f 'features-server.py' 2>/dev/null
+    python3 "$WKT/tools/features-server.py" 8444 > "$OUT/features-server.out" 2>&1 &
+    FT_PID=$!
+    sleep 2
+    ssh tiger-eth "mkdir -p $SHARE" && scp -qO /tmp/tiger-cookie-cert/bundle.pem "tiger-eth:$SHARE/cookie-bundle.pem"
+    run features "https://192.168.1.253:8444/features.html" 26 'wait 20' "TIGER_CONSOLE=1 TIGER_CA_BUNDLE=$SHARE/cookie-bundle.pem"
+    kill $FT_PID 2>/dev/null
+    grep -a 'FEATURE ' "$OUT/features.log" | sed 's/^.*FEATURE /FEATURE /; s/ (https:.*$//' > "$OUT/features.txt"
+    bad=""; for f in $FT_PASS; do grep -q "^FEATURE $f PASS" "$OUT/features.txt" || bad="$bad $f"; done
+    news=""; for f in $FT_MISSING; do grep -q "^FEATURE $f PASS" "$OUT/features.txt" && news="$news $f"; done
+    pend=$(grep ' PENDING ' "$OUT/features.txt" | cut -d' ' -f2 | tr '\n' ' ')
+    detail="$(grep -c ' PASS ' "$OUT/features.txt") pass (features.txt)${news:+; now passing, move to FT_PASS:$news}"
+    [ -n "$bad$pend" ] && detail="FAILED not passing:$bad${pend:+; pending: $pend}"
+    check features "$detail"
 fi
 
 # 16. Aqua scrollbars: spike/wk2web/scrollbars.html. The main frame's scrollbar is a hosted
