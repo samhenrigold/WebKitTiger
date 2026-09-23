@@ -5531,3 +5531,10 @@ Tab to WebCore; faithful mode not re-verified.
   NSSearchField, NSLevelIndicator meter, placeholder text, default button pulses and Return
   submits. Open: multi-select reports one index; Enter-only forms; Tab out of non-text controls.
   Adds 9 lines to a .messages.in: all four binaries rebuilt together (chain running).
+
+## Release 2.3 to the box (2026-09-23 10:35)
+
+tiger-fontcache 82e1ab25: style substitution cache, media clock fallbacks, RunLoop red-black
+tree fix, JSC trap pass-through, controls round 2 (real select menus, Tab traversal, list box,
+stepper, search, meter, default button). Harness 7/8 with the controls golden stale (new rows
+on the test page); re-blessed after viewing, then installed.
