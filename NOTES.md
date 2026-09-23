@@ -5333,3 +5333,19 @@ stalls at clock 0 (the clock is the audio consumer's read position; stage-perf2/
 did not stage the helper). The player should fall back to the wall clock when the helper cannot
 start -- with the media perf track. Verified scrolltest, x.com onboarding + typing, video480loop
 30 fps on the main build before installing.
+
+### First full run, 2026-09-23 04:08 (logs/regress/20260923-040823)
+
+| check | verdict | detail |
+| --- | --- | --- |
+| example | PASS | nonblank stddev 13.66; diff 0.0000 |
+| scroll | PASS | bar y=154..212, 59 band columns, red channel never falls |
+| controls | PASS | diff 0.0039 (the indeterminate progress stripes) |
+| boxtest | PASS | diff 0.0000 top band, 0.0000 left band |
+| textarea | PASS | diff 0.0000 |
+| xcom | PASS | dark-text 0.0151 in the phone field ("212 555 1234" typed) |
+| video | PASS | last two windows fps=30.1 dropped=0 / fps=30.0 dropped=0 |
+| youtube | PASS | nonblank stddev 18.66 |
+
+Eight of eight, no log faults on any of them. 7:05 wall clock, of which about 2:30 was
+waiting on the box lock behind another agent.

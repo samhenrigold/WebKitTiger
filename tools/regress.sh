@@ -2,7 +2,7 @@
 # Regression harness for the Tiger port: runs the main build dirs on the box and
 # says pass or fail per page, with a diff report.
 #
-#   tools/regress.sh                 # all nine checks, ~7 minutes
+#   tools/regress.sh                 # all eight checks, ~4.5 min of box time
 #   tools/regress.sh example scroll  # only the named checks
 #   tools/regress.sh --list          # the check names
 #   BLESS=1 tools/regress.sh boxtest # run it, then make its shot the new golden
