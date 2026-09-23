@@ -9,11 +9,21 @@ tools/tiger-profile.py (run in-process with runpy so its classifier and symbols 
 as they are); its full output is kept as <name>.profile.txt. Writes <dir>/tables.md
 (report.md is the hand-written report that quotes it) and <dir>/metrics.json.
 """
-import collections, io, json, os, re, runpy, statistics, sys, contextlib
+import collections, io, json, os, re, runpy, statistics, sys, contextlib, hashlib
 
 WKT = '/Users/shg/Developer/WebKitTiger'
 WEB = WKT + '/build/tiger-web-port/bin/TigerWebProcess'
 d = sys.argv[1]
+build_record = os.path.join(d, 'web-build-dir.txt')
+if os.path.isfile(build_record):
+    WEB = os.path.join(open(build_record).read().strip(), 'bin', 'TigerWebProcess')
+    candidate = json.load(open(os.path.join(d, 'candidate.json')))
+    fingerprint = hashlib.sha256()
+    with open(WEB, 'rb') as binary:
+        for block in iter(lambda: binary.read(1024 * 1024), b''):
+            fingerprint.update(block)
+    if fingerprint.hexdigest() != candidate['processes']['WEB']['TigerWebProcess']:
+        raise SystemExit('bench-report: web binary changed since the run; restore the matching executable before symbolizing')
 T = re.compile(r'^\s*(\d+\.\d+) (.*)')
 
 def lines(name):
@@ -261,7 +271,8 @@ for name, r in M.items():
     P('| %s | %.0f s | %.1f | %.1f | %.1f | %.1f | %.1f | %s |' % (name, j['t'], j['total'], s.get('first party', 0), s.get('third party', 0),
       s.get('inline/eval/native', 0), s.get('unlisted (below top 25)', 0), ', '.join('%s %.1f' % kv for kv in j['top_third'])))
 
-P('\n## Video (TIGER-MEDIA 2 s windows after the first 4 s; the window across a loop wrap is dropped)\n')
+P('\n## Decoder output (TIGER-MEDIA; this does not measure displayed FPS)\n')
+P('Two-second windows after the first four seconds; loop-wrap windows are excluded.\n')
 P('| page | windows | fps median / min | dropped total | clock lag max ms | web / UI / GPU / audio %CPU 0-30 s | 30-88 s |')
 P('|---|---|---|---|---|---|---|')
 for name, r in M.items():

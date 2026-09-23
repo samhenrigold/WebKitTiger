@@ -45,6 +45,9 @@ sp3|http://$BENCH/speedometer3.1/index.html?startAutomatically&iterationCount=1|
 fwiki|https://en.wikipedia.org/wiki/Mac_OS_X_Tiger|92|$STD|TIGER_FAITHFUL=1
 fx|https://x.com/|92|$STD|TIGER_FAITHFUL=1
 fv480|http://$MEDIA/video480loop.html|92|$STD|TIGER_FAITHFUL=1
+fv720|http://$BENCH/video720loop.html|92|$STD|TIGER_FAITHFUL=1
+fnyt|https://www.nytimes.com/|92|$STD|TIGER_FAITHFUL=1
+fverge|https://www.theverge.com/|92|$STD|TIGER_FAITHFUL=1
 EOF
 }
 case "${1:-}" in --list) pages | cut -d'|' -f1 | tr '\n' ' '; echo; exit 0;; esac
@@ -61,24 +64,36 @@ std_script() {
     echo "$s"
 }
 
-OUT=${OUT:-$WKT/logs/bench/$(date +%Y%m%d-%H%M%S)}
+OUT=${OUT:-$WKT/logs/bench/$(date +%Y%m%d-%H%M%S)-$$}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
-[ -d "$WKT/spike/bench/speedometer3.1" ] || sh "$WKT/spike/bench/fetch.sh"
+for name in $WANTED; do
+    pages | cut -d'|' -f1 | grep -qx "$name" || { echo "bench: unknown page $name" >&2; exit 2; }
+done
+candidate_path() { case "$1" in /*) printf '%s\n' "$1";; *) printf '%s/%s\n' "$WKT" "$1";; esac; }
+python3 "$WKT/tools/tiger-artifacts.py" verify \
+    --ui "$(candidate_path "${UIDIR:-build/tiger-ui-port}")" \
+    --web "$(candidate_path "${WEBDIR:-build/tiger-web-port}")" \
+    --gpu "$(candidate_path "${GPUDIR:-build/tiger-gpu}")" > "$OUT/candidate.json" || exit 1
+candidate_path "${WEBDIR:-build/tiger-web-port}" > "$OUT/web-build-dir.txt"
+case " $WANTED " in *" sp3 "*|*" octane "*)
+    [ -d "$WKT/spike/bench/speedometer3.1" ] || sh "$WKT/spike/bench/fetch.sh" || exit 1;;
+esac
 
 # The two page servers on this Mac. Only the ones started here are stopped at the end.
 STARTED=""
 serve() { # serve <port> <dir>
     curl -sf -m 3 -o /dev/null "http://$MAC:$1/" && return
-    (cd "$WKT" && nohup python3 -m http.server "$1" -d "$2" >/dev/null 2>&1 & echo $! > "$OUT/.server-$1")
-    sleep 2; STARTED="$STARTED $1"
+    python3 -m http.server "$1" -d "$WKT/$2" > "$OUT/server-$1.log" 2>&1 &
+    server_pid=$!; STARTED="$STARTED $server_pid"
+    sleep 2
+    kill -0 "$server_pid" 2>/dev/null || { cat "$OUT/server-$1.log" >&2; return 1; }
 }
-serve 8765 spike/media
-serve 8766 spike/bench
-cleanup() { for p in $STARTED; do kill "$(cat "$OUT/.server-$p")" 2>/dev/null; rm -f "$OUT/.server-$p"; done; }
-trap cleanup EXIT INT TERM
-
-ssh tiger-eth 'mkdir -p /Users/shg/wk2/share' && scp -qO "$WKT/spike/bench/benchstamp.pl" tiger-eth:/Users/shg/wk2/share/benchstamp.pl \
-    && ssh tiger-eth 'chmod +x /Users/shg/wk2/share/benchstamp.pl' || { echo "bench: cannot reach the box"; exit 1; }
+cleanup() { for p in $STARTED; do kill "$p" 2>/dev/null || true; done; }
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+serve 8765 spike/media || exit 1
+serve 8766 spike/bench || exit 1
 
 run() { # run <name> <url> <secs> <script> <extra env>
     name=$1; url=$2; secs=$3; script=$4; extra=$5
@@ -88,12 +103,7 @@ run() { # run <name> <url> <secs> <script> <extra env>
     [ "$extra" = js ] && env="TIGER_CONSOLE=1"
     tries=0
     while :; do
-        # The user's own TigerBrowser.app: never run on top of it, wait for it (hours if need be).
-        n=0
-        while [ "$(ssh tiger-eth "ps -axo command | grep -c '[/]Applications/TigerBrowser.app'")" != 0 ]; do
-            [ $n = 0 ] && echo "   $(date +%T) waiting: the user's TigerBrowser.app is up"
-            n=$((n + 1)); sleep 60
-        done
+        # Staging waits for an idle box and copies benchstamp while holding its lease.
         echo "== $name ($secs s) $(date +%T)"
         APP=TigerBrowser2 SHOT="$OUT/$name.png" LOG="$OUT/$name.log" \
         APP_ENV="$env TIGER_SCRIPT='$script' BENCH_PS_AT='30 $((secs - 4))' /Users/shg/wk2/share/benchstamp.pl" \
@@ -105,16 +115,20 @@ run() { # run <name> <url> <secs> <script> <extra env>
         fi
         [ $rc = 0 ] || echo "   stage-app.sh exited $rc (see $name.stage.log)"
         echo "$url" > "$OUT/$name.url"
+        echo "$rc" > "$OUT/$name.exit-status"
         return $rc
     done
 }
 
+FAILS=0
 for name in $WANTED; do
     line=$(pages | grep "^$name|") || { echo "bench: no page $name"; continue; }
     IFS='|' read -r n url secs script extra <<EOF
 $line
 EOF
-    run "$n" "$url" "$secs" "$script" "$extra"
+    run "$n" "$url" "$secs" "$script" "$extra" || FAILS=$((FAILS + 1))
 done
 
-python3 "$WKT/tools/bench-report.py" "$OUT" > /dev/null && echo "tables: $OUT/tables.md"
+python3 "$WKT/tools/bench-report.py" "$OUT" > /dev/null || exit 1
+echo "tables: $OUT/tables.md"
+[ "$FAILS" -eq 0 ]
