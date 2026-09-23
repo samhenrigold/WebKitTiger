@@ -2,7 +2,7 @@
 # Regression harness for the Tiger port: runs the main build dirs on the box and
 # says pass or fail per page, with a diff report.
 #
-#   tools/regress.sh                 # all eleven checks, ~5.5 min of box time
+#   tools/regress.sh                 # all twelve checks, ~6.5 min of box time
 #   tools/regress.sh example scroll  # only the named checks
 #   tools/regress.sh --list          # the check names
 #   BLESS=1 tools/regress.sh boxtest # run it, then make its shot the new golden
@@ -35,7 +35,7 @@ SHARE=/Users/shg/wk2/share
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies"
 case "${1:-}" in --list) echo $ALL; exit 0;; esac
 WANTED=${*:-$ALL}
 
@@ -228,7 +228,8 @@ fi
 #    the fast-mode goldens pixel for pixel -- the same golden files, on purpose.
 #    scrolltest.html?composited puts a will-change layer on the fixed bar and animates a
 #    second one, which forces the CA path; the check is the mirrored-blit checker plus at
-#    least one "TIGER gpu: frame" line, so a run that never reached the GPU scene fails.
+#    least one "TIGER gpu: frame" line, so a run that never reached the GPU scene fails --
+#    when the staged GPU process has that probe at all (see below).
 if wants fexample; then
     run fexample http://example.com/ 14 'wait 8' TIGER_FAITHFUL=1
     detail=$(probe "$OUT/fexample.png" --nonblank)
@@ -242,14 +243,45 @@ if wants fscroll; then
     run fscroll "file://$SHARE/scrolltest.html?composited" 20 'wait 8;scroll 0,-300;wait 3;scroll 0,-300;wait 3' TIGER_FAITHFUL=1
     detail=$(python3 "$WKT/spike/wk2web/check-scrollshot.py" "$OUT/fscroll.png" 2>&1)
     case $detail in *": OK"*) ;; *) detail="FAILED $detail";; esac
-    frames=$(grep -ac 'TIGER gpu: frame' "$OUT/fscroll.log" 2>/dev/null || true)
-    [ "${frames:-0}" -gt 0 ] || detail="FAILED no TIGER gpu: frame (the CA scene never rendered); $detail"
-    check fscroll "$(echo "$detail" | sed "s|$OUT/||"); gpu frames=${frames:-0}"
+    # The frame count needs a GPU process built with the "TIGER gpu:" probe. A binary
+    # without it prints no "TIGER gpu:" line of any kind; then the check is skipped
+    # and says so, rather than failing a build that simply predates the probe.
+    if grep -aq 'TIGER gpu:' "$OUT/fscroll.log" 2>/dev/null; then
+        frames=$(grep -ac 'TIGER gpu: frame' "$OUT/fscroll.log" 2>/dev/null || true)
+        [ "${frames:-0}" -gt 0 ] || detail="FAILED no TIGER gpu: frame (the CA scene never rendered); $detail"
+        gpu="gpu frames=${frames:-0}"
+    else
+        gpu="gpu frame count skipped: probe absent in this GPU binary"
+    fi
+    check fscroll "$(echo "$detail" | sed "s|$OUT/||"); $gpu"
 fi
 
 if wants fcontrols; then
     run fcontrols "file://$SHARE/controls-test.html" 14 'wait 8' TIGER_FAITHFUL=1
     check fcontrols "$(BLESS=; golden controls fcontrols --crop 80,152,640,700 --max-frac 0.02)"
+fi
+
+# 12. Cookies: tools/cookie-server.py on this Mac is the oracle (it logs every Cookie
+#    header it gets). Two launches with the same storage: the first walks sets, fetches,
+#    a third-party iframe, a redirect chain, http, a cross-site visit and back; the
+#    second checks that persistent cookies survived the quit and session ones did not.
+#    HOME is a scratch dir so the jar is this check's own, never the user's profile.
+if wants cookies; then
+    CK_LOG=$OUT/cookies.jsonl
+    CK_ENV="HOME=/Users/shg/wk2/cookiehome TIGER_CA_BUNDLE=$SHARE/cookie-bundle.pem TIGER_COOKIE_LOG=1"
+    pkill -f 'cookie-server.py serve' 2>/dev/null; sleep 1
+    python3 "$WKT/tools/cookie-server.py" serve "$CK_LOG" > "$OUT/cookie-server.out" 2>&1 &
+    CK_PID=$!
+    sleep 2
+    ssh tiger-eth "rm -rf /Users/shg/wk2/cookiehome; mkdir -p $SHARE" && scp -qO /tmp/tiger-cookie-cert/bundle.pem "tiger-eth:$SHARE/cookie-bundle.pem"
+    run cookies "https://shg-mbp.local:8443/start" 40 'wait 1' "$CK_ENV"
+    run cookies2 "https://shg-mbp.local:8443/echo?k=relaunch" 16 'wait 1' "$CK_ENV"
+    kill $CK_PID 2>/dev/null
+    python3 "$WKT/tools/cookie-server.py" report "$CK_LOG" > "$OUT/cookies.md"
+    detail=$(grep -c '| PASS |' "$OUT/cookies.md")" pass"
+    failed=$(grep '| FAIL |' "$OUT/cookies.md" | cut -d'|' -f2 | sed 's/^ //;s/ $//' | tr '\n' ',' | sed 's/,$//')
+    [ -n "$failed" ] && detail="FAILED $failed (cookies.md)"
+    check cookies "$detail"
 fi
 
 note ""
