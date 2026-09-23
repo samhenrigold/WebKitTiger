@@ -4763,3 +4763,55 @@ Test harness: spike/wk2web/scrolltest.html (bands whose red channel rises down t
 under a fixed magenta bar; `?nofixed` stops WebCore repainting the top strip so the blit's
 own output stays on screen) and spike/wk2web/check-scrollshot.py (finds the bar in a
 screencapture, reports any column where the bands fall back up the page).
+
+## 2026-09-22 (late) — controls: the interaction pass, and the numbers AppKit actually wants
+
+All fast mode, TigerBrowser2 driven by TIGER_SCRIPT, screenshots in spike/wk2web/step-*.png.
+
+WHAT VERIFIED (window title = document.title, the page's own log of its events):
+
+| step | what | title |
+| --- | --- | --- |
+| 1 | click the text field, Cmd+A, type "Hello Aqua" | `input INPUT/text=Hello Aqua \| ... Hello Aqu \| ... Hello Aq` |
+| 3 | Tab | focus ring moves to the password field |
+| 4 | click check box, click radio | `input INPUT/radio=on \| input INPUT/checkbox=on \| ...` |
+| 5 | drag the slider to the end | `change INPUT/range=100 \| input INPUT/range=100 \| input INPUT/range=86` |
+| 6/7 | after the change-event fix | `change INPUT/checkbox=on \| input INPUT/checkbox=on \| change INPUT/text=Aqua` |
+| 10 | click a push button | `click Button` |
+
+Real Cocoa editing works because the control IS an NSTextField: Cmd+A goes through the Edit
+menu to the field editor, Option-arrow moves by word, the insertion point and selection are
+AppKit's.
+
+NOT VERIFIED: picking an item out of a `<select>`'s menu. The pop-up is hosted, its options
+and selected index cross the wire, and it draws correctly, but no synthetic-event sequence
+opened its menu -- `-[NSPopUpButtonCell trackMouse:...]` positions the menu from the real
+cursor and runs its own event loop. Three harness changes got everything else working and
+are worth keeping: a click that hit-tests onto a hosted subview is POSTED (not sent) so
+NSControl's tracking loop finds its mouse-up; the mouse-up lags by 350 ms in the common run
+loop modes (posting both at once is a press-and-release in the same instant, which opens an
+Aqua menu and closes it again); keystrokes are posted when the first responder is not the
+page view; and the script's step timer runs in the common modes, because a menu that is open
+runs the loop in event-tracking mode. A human click is what is left to confirm it.
+
+THREE NUMBERS, MEASURED (spike/aquaatlas/titleinset.m, run on the box):
+
+- `-[NSButtonCell cellSize].width` is 28.7 / 26.5 / 24.7 wider than its title (regular /
+  small / mini), independent of the string.
+- `-[NSPopUpButtonCell cellSize].width` is 61.7 wider than its title at every control size.
+- Cell heights are 32 / 28 / 16 (button) and 26 / 22 / 15 (pop-up) against painted bezel
+  heights of 20 / 16 / 13 and 21 / 18 / 15.
+
+The live control draws the title, so the box the page reserves has to cover the width; those
+are now RenderThemeTiger's horizontal paddings. For the height the page's box stays Aqua-sized
+and the HOST grows the frame to the cell's natural size, centred -- but only for the push
+button and the pop-up, whose bezels are fixed-height and draw centred in any frame. A text
+field, slider and progress bar stretch to their frame and must keep the page's box exactly.
+
+THE BUG WORTH REMEMBERING: `dispatchFormControlChangeEvent()` fires nothing unless the element
+believes it changed, and a value set with `DispatchNoEvent` does not make it believe that. The
+page saw every keystroke as `input` and never saw `change`; a range control marks itself,
+which is why the slider looked right and hid it. The change event is now dispatched directly.
+
+x.com in fast mode: spike/wk2web/controls-x-fast.png. Its login controls are CSS-styled, so
+they are correctly NOT hosted -- a styled control must not turn into an Aqua control.
