@@ -36,7 +36,11 @@ def is64(p):
 # Without a pid: the 64-bit process with the most thread-samples (the web process has
 # far more threads than the network process; pass the pid from ps to be sure).
 by_pid = collections.Counter(s[1] for s in samples)
-pid = want_pid or max((p for p in by_pid if by_pid[p] > 50 and is64(p)), key=lambda p: by_pid[p])
+# Thread-sample counts are close between the web and network processes on busy pages, so
+# prefer the one whose on-box leaf symbols are WebCore (the network process also links
+# WebCore and JSC, so symbolizing it against TigerWebProcess yields plausible nonsense).
+webcore = collections.Counter(s[1] for s in samples if 'WebCore' in s[4])
+pid = want_pid or max((p for p in by_pid if by_pid[p] > 50 and is64(p)), key=lambda p: (webcore[p], by_pid[p]))
 mine = [s for s in samples if s[1] == pid]
 print(f"process {pid}: {len(mine)} thread-samples, {sum(1 for s in mine if s[2])} main-thread samples, "
       f"{min(s[0] for s in mine):.1f}s .. {max(s[0] for s in mine):.1f}s")

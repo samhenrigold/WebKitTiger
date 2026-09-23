@@ -14,7 +14,7 @@ i=0
 while [ $i -lt 200 ]; do SCRIPT="$SCRIPT; wheel 400,300 0,-3"; i=$((i + 1)); done
 WEBBIN=$WKT/build/tiger-web-media \
 UIBIN=$WKT/build/tiger-ui-media \
-APP_ENV="TIGER_SAMPLE_MAIN=400 TIGER_STYLE_PROBE=1" \
+APP_ENV="TIGER_SAMPLE_MAIN=400 TIGER_STYLE_PROBE=1 TIGER_JS_PROBE=1 ${EXTRA_ENV:-}" \
 SCRIPT="$SCRIPT" \
 SHOT="$WKT/logs/perf/scroll2/$NAME.png" \
 SHOT_AT=60 \

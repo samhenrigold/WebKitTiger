@@ -5797,3 +5797,65 @@ i.e. lastStackTop is outside the main thread's StackBounds right after sanitizeS
 The page then loads in the relaunched process. TigerCrashCatcher now prints the CRASH_WITH_INFO
 registers (`crashinfo r11 r10 r9 r8 r15 r14 r13` = reason, lastStackTop, origin, end, ...), so
 the next hit says which bound is wrong. Did not recur in the 5 runs after that was added.
+
+## 2026-09-23 (round 2) — nytimes: the recalcs were a loop; verge: who owns the JavaScript (WebKit-media 53859fc3e)
+
+Same harness (spike/media/run-scrollprofile.sh, samples 25-90 s). New probes: TIGER-STYLE now has
+`skipped=` and `rebuild=N(font F [modified M] sheet S) fontdedup=D`; TIGER-STYLE-FULL (per >1000-element
+recalc: rebuild flag, root/body validity); TIGER-STYLE-SHEET (which invalidate-all branch, and CSSOM
+mutations of document sheets); TIGER-FONT (fontLoaded family/status, frame-pointer return addresses for
+Pending faces); TIGER_JS_PROBE=1 -> TIGER-JS (main-thread time per script URL, outermost entry only).
+tools/tiger-profile.py now picks the web process by on-box WebCore leaf symbols: by thread-sample count
+it sometimes picked the network process (nonsense buckets: "100% JS execute").
+
+**Why nytimes restyled the whole document every 2-3 s.** `layoutIfDimensionsOutOfDate` is fine -- it
+only resolves dirty elements. The whole document was dirty, three ways, one feeding the next:
+1. Font loop. nytimes' web components carry @font-face rules; each shadow-tree resolver build
+   (Scope::createOrFindSharedShadowTreeResolver) re-adds 12 faces; each new face's source finds its font
+   in the memory cache and reports loaded while the face is being built (status Pending, via
+   CachedFontLoadRequest::setClient); each report was fontsNeedUpdate = full rebuild + matched
+   declarations cache dropped; the rebuild built the resolvers again. 838 of 941 fontLoaded calls.
+   Fix (19d782a0b): hold loads reported during creation, dispatch only if no face with the same family,
+   descriptors and source URLs has loaded before.
+2. Removing a <style> (ad scripts) = Reconstruct + restyle everything. Fix (757e2e583): if the sheets
+   that stay keep their order, Reset the author style and invalidate by the removed/added sheets; sheets
+   with at-rules still reconstruct.
+3. CSS-in-JS insertRule into a live sheet: 1,552 calls in 50 s into one inline sheet of ~1,000 rules,
+   each a contents change (resolver cleared, everything restyled). Fix (53859fc3e): plain style rules
+   inserted into an active document-scope sheet are queued; the next update Resets the author style and
+   the Invalidator restyles what they match.
+Plus the element-level custom-property shortcut (f9c57558): an element whose (declarations, parent
+values) pair is known to leave the parent's values unchanged applies none of its custom properties.
+spike/media/sheetremove.html (removal: class/descendant/sibling/:has(); insertRule that wins and one at
+index 0 that loses) and customprops.html are green on the box.
+
+| nytimes, main thread 25-90 s | before (09-23 AM) | round 1 | r2 (shortcut) | final (r7) |
+| busy | 99% | 100% | 98% | **87%** |
+| Document::resolveStyle (inclusive) | 52.7% | 51% | 45% | **20%** |
+| Builder::applyCustomProperties | 36.7% | 27% | 16.8% | <4% (off the list) |
+| full-document recalcs in the window | 13 | 15-17 | 14 | **7** |
+| elements resolved | 42k | 53k | 50k | 28k |
+| custom properties applied | 3.17M | 4.37M | 1.16M | 0.17M |
+
+What remains on nytimes: layout forced from JS (Document::updateLayout 21%, `clientWidth` reads from
+timers and MessageChannel tasks), JS parse 11%, images 8%; 13% idle.
+
+**Low power A/B (TIGER_LOW_POWER=1), same build each time:**
+| nytimes | off | on |
+| r2 build: busy / resolveStyle / recalcs | 98% / 45% / 125 | 99% / 48% / 147 |
+| final build: busy / resolveStyle / full recalcs | 87% / 20% / 7 | 100% / 14% / 6 |
+No win: the page's loop is fed by MessagePort tasks (MessageChannel scheduler: 38% of samples under
+MessagePort::drainOneLocalMessage in the low-power run) and 0 ms timers the 30 ms alignment does not
+slow; the busy difference is run-to-run variance (GC 23% in that run). Leave it opt-in.
+
+**theverge.com, JS attribution** (TIGER-JS, cumulative from load to 88 s, 64.9 s of script in 136
+scripts; top 25 cover 56 s): third-party 36.7 s (57%) -- googlesyndication activeview 6.2, concert.io
+ads 4.9, doubleverify 4.9, adsafeprotected 5.3, gtag 2.5, cookielaw, flashtalking, facebook, recaptcha;
+first-party 19.6 s (30%), almost all one Next.js chunk (`_next/static/chunks/14xnqq7u0aiet.js`, 16.4 s
+in 3,927 calls). nytimes (22.6 s in 19 scripts): first-party 13.2 s (59%: the document's inline
+scripts 7.7 s, newsgraphics 2.9, video player 2.6), third-party 9.4 s (media.net 4.3, amazon 1.7,
+GPT 2.3). Attribution is by entry point: microtasks drained after a callback count for its script;
+event-loop-run microtasks are not counted. verge after the fixes: busy 100%, style <7%, JS ~80%.
+
+Also: a web process died once at launch in JSC::VM::VM -> scratchBufferForSize (WTFCrashWithInfo,
+nyt-r4, 0.7 s, relaunched) -- allocation failure at VM creation, for the memory track.

@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Targeted invalidation after a style sheet is removed (StyleScope.cpp,
+     analyzeStyleSheetRemoval). Each box starts RED from a sheet that script removes
+     after 1 s, or is fixed by insertRule (Scope::didInsertStyleRule); every box must end GREEN. -->
+<style>
+  div.b { width: 140px; height: 40px; margin: 6px; display: inline-block; color: white; font: 12px sans-serif; background: green; }
+</style>
+<style id="r1">.one { background: red !important; }</style>
+<style id="r2">.p .two { background: red !important; }</style>
+<style id="r3">.s + .three { background: red !important; }</style>
+<style id="r4">:root:has(.four) .four { background: red !important; }</style>
+<style id="keep">.five { background: green; }</style>
+<style id="ins">.six { background: red; } .seven { background: green; } .eight { background: green; }</style>
+<div class="b one">class rule</div>
+<div class="p"><div class="b two">descendant rule</div></div>
+<div class="b s">sibling</div><div class="b three">sibling rule</div>
+<div class="b four">:has() rule</div>
+<div class="b five">kept sheet</div>
+<div class="b six">insertRule wins</div>
+<div class="b seven">insertRule at 0 loses</div>
+<div class="b eight">untouched</div>
+<script>
+setTimeout(() => {
+  for (const id of ["r1", "r3"]) document.getElementById(id).remove();
+  document.getElementById("r2").remove();
+  document.getElementById("r4").remove();
+  const sheet = document.getElementById("ins").sheet;
+  sheet.insertRule(".six { background: green; }", sheet.cssRules.length);
+  sheet.insertRule(".seven { background: red; }", 0);
+  document.title = "removed";
+}, 1000);
+</script>
