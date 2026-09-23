@@ -7,7 +7,8 @@
 # worktree gets its own source mirror WebKit-<name> and build dir build/<build-name> there,
 # configured from web-opts.txt (x86_64 web) or ui-opts.txt (i386 UI) on first use. Binaries
 # come back into build/<build-name>/bin here so the staging scripts see them unchanged.
-# One ninja at a time per caller; -j8 fits 16 GB. Never builds in the mini's WebKit/ mirror.
+# ccache on the mini is seeded from this Mac's cache (same base_dir), so most rebuilds are link-only.
+# One ninja at a time per caller; -j8 fits 16 GB. Release builds carry no DWARF already (-O3 -DNDEBUG). Never builds in the mini's WebKit/ mirror.
 set -e
 MINI=${MINI:-shg@shg-mini.local}
 WKT=/Users/shg/Developer/WebKitTiger
@@ -21,7 +22,7 @@ rsync -a --exclude '.git' "$WKT/spike/" "$MINI:$WKT/spike/"; rsync -a "$WKT/comp
 rsync -a "$WKT/build/builtins-i386" "$MINI:$WKT/build/"   # prebuilt compiler-rt the ninja files reference
 ssh "$MINI" "set -e; cd $WKT; export PATH=$WKT/bin:$WKT/cmake/bin:\$PATH; mkdir -p build/$BUILD; cd build/$BUILD
 if [ ! -f CMakeCache.txt ]; then
-  cmake -G Ninja -DCMAKE_MAKE_PROGRAM=$WKT/bin/ninja -DPKG_CONFIG_EXECUTABLE=$WKT/bin/pkg-config -DPython_EXECUTABLE=/usr/bin/python3 -DRUBY_EXECUTABLE=/usr/bin/ruby \$(grep -v '_EXECUTABLE:' ../$OPTS | grep -v '^-DTIGER_PROCESS:' | tr '\n' ' ') -DTIGER_PROCESS:STRING=$TIGER_PROCESS $WKT/$WT > configure.log 2>&1 || { tail -20 configure.log; exit 1; }
+  cmake -G Ninja -DCMAKE_MAKE_PROGRAM=$WKT/bin/ninja -DPKG_CONFIG_EXECUTABLE=$WKT/bin/pkg-config -DPython_EXECUTABLE=/usr/bin/python3 -DRUBY_EXECUTABLE=/usr/bin/ruby -DCCACHE_FOUND:FILEPATH=$WKT/bin/ccache \$(grep -v '_EXECUTABLE:' ../$OPTS | grep -v '^-DTIGER_PROCESS:' | tr '\n' ' ') -DTIGER_PROCESS:STRING=$TIGER_PROCESS $WKT/$WT > configure.log 2>&1 || { tail -20 configure.log; exit 1; }
 fi
 while [ \$(sysctl -n vm.loadavg | awk '{print int(\$2)}') -gt 12 ]; do sleep 30; done
 ninja -j${J:-8} $TARGETS 2>&1 | grep -E 'error|FAILED|Linking CXX exec' | tail -20; test \${PIPESTATUS:-0} -eq 0 || true"
