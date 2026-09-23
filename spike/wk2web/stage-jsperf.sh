@@ -15,11 +15,15 @@ sys.exit(1)' "$WKT/spike/wk2web/box.lock" || { echo "stage-jsperf: box busy for 
 URL=${1:-http://example.com/}
 SECS=${2:-30}
 WEBBIN=${WEBBIN:-$WKT/build/tiger-web-jsperf}
+UIBIN=${UIBIN:-$WKT/build/tiger-ui-port}   # where TigerWK2App/TigerBrowser2 come from
+SAMPLE=${SAMPLE:-100}                      # TIGER_SAMPLE_MAIN; 0 leaves the sampler off
 OUT=${OUT:-$WKT/logs/perf/jsperf-last.log}
 APP_ENV=${APP_ENV:-}
 APP=${APP:-TigerWK2App}   # or TigerBrowser2 (honours TIGER_SCRIPT)
 SCRIPT=${SCRIPT:-}   # TIGER_SCRIPT steps, e.g. SCRIPT='wait 20; scroll 0,-600'
-APP_ENV="TIGER_FONT_MANIFEST=/Users/shg/wk2jsperf/share/tiger-fonts.json TIGER_CA_BUNDLE=/Users/shg/wk2jsperf/share/cacert.pem TIGER_SAMPLE_MAIN=100 WEBKIT_DEBUG=Process,Loading,Layout $APP_ENV"
+SAMPLE_ENV=""
+if [ "$SAMPLE" != "0" ]; then SAMPLE_ENV="TIGER_SAMPLE_MAIN=$SAMPLE"; fi   # bare && would trip set -e
+APP_ENV="TIGER_FONT_MANIFEST=/Users/shg/wk2jsperf/share/tiger-fonts.json TIGER_CA_BUNDLE=/Users/shg/wk2jsperf/share/cacert.pem $SAMPLE_ENV WEBKIT_DEBUG=Process,Loading,Layout $APP_ENV"
 for i in $(seq 1 60); do
     busy=$(ssh tiger-eth "ps -axo pid,command | grep -E '[T]iger(WK2App|Browser2|WebProcess|NetworkProcess|GPUProcess)|[p]agedriver' | head -3")
     [ -z "$busy" ] && break
@@ -30,7 +34,7 @@ if [ -n "$busy" ]; then echo "stage: box still busy (the user may be using Tiger
 ssh tiger-eth 'mkdir -p /Users/shg/wk2jsperf/bin /Users/shg/wk2jsperf/Frameworks /Users/shg/wk2jsperf/share'
 rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" tiger-eth:/Users/shg/wk2jsperf/share/
 FILES=""
-for f in "$WKT/build/tiger-ui-port/bin/TigerWK2App" "$WKT/build/tiger-ui-port/bin/TigerBrowser2" "$WEBBIN/bin/TigerWebProcess" "$WEBBIN/bin/TigerNetworkProcess" "$WKT/build/tiger-gpu/bin/TigerGPUProcess"; do
+for f in "$UIBIN/bin/TigerWK2App" "$UIBIN/bin/TigerBrowser2" "$WEBBIN/bin/TigerWebProcess" "$WEBBIN/bin/TigerNetworkProcess" "$WKT/build/tiger-gpu/bin/TigerGPUProcess" "$WKT/build/tigeraudio32"; do
     [ -f "$f" ] && FILES="$FILES $f" || echo "stage-jsperf: missing $f (not copied)"
 done
 rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:/Users/shg/wk2jsperf/bin/

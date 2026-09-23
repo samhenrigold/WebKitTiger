@@ -33,7 +33,7 @@ ssh tiger-eth 'mkdir -p /Users/shg/wk2perf/bin /Users/shg/wk2perf/Frameworks /Us
 rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" tiger-eth:/Users/shg/wk2perf/share/ 2>/dev/null || echo "stage-app: share files not all copied (cacert.pem present?)"
 # rsync -t skips binaries that have not changed since the last stage.
 FILES=""
-for f in "$WKT/build/tiger-ui-perf/bin/TigerWK2App" "$WKT/build/tiger-ui-perf/bin/TigerBrowser2" "$WKT/$WEBDIR/bin/TigerWebProcess" "$WKT/$WEBDIR/bin/TigerNetworkProcess" "$WKT/build/tiger-gpu/bin/TigerGPUProcess"; do
+for f in "$WKT/build/tiger-ui-perf/bin/TigerWK2App" "$WKT/build/tiger-ui-perf/bin/TigerBrowser2" "$WKT/$WEBDIR/bin/TigerWebProcess" "$WKT/$WEBDIR/bin/TigerNetworkProcess" "$WKT/build/tiger-gpu/bin/TigerGPUProcess" "$WKT/build/tigeraudio32"; do
     [ -f "$f" ] && FILES="$FILES $f" || echo "stage-app: missing $f (not copied)"
 done
 rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:/Users/shg/wk2perf/bin/

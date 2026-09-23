@@ -1,0 +1,24 @@
+<!doctype html>
+<!-- Checks for the custom-property substitution cache (StyleBuilder.cpp,
+     ResolvedCustomProperty): every box must be GREEN. A wrong cache hit reuses a value
+     resolved for another element and paints RED. -->
+<style>
+  :root { --ok: green; --bad: red; --pick: var(--bad); }
+  /* The same var()-valued declaration applied to every element, as nytimes does. */
+  :where(:root *) { --tile: var(--pick); }
+  div { width: 140px; height: 40px; margin: 6px; display: inline-block; color: white; font: 12px sans-serif; }
+  .a { background: var(--tile); --pick: var(--ok); }           /* own dependency overrides the inherited one */
+  .b { background: var(--tile); }                               /* inherits --pick from .parent */
+  .parent { --pick: var(--ok); }
+  .c { background: var(--tile, red); --pick: attr(data-c type(<color>)); }  /* attr(): per element */
+  .d { background: var(--tile); }
+  .d.fixed { --pick: green; }
+  @layer low { .e { --pick: green; } }
+  @layer high { .e { --pick: revert-layer; background: var(--tile); } }
+</style>
+<div class="a">own dependency</div>
+<div class="parent"><div class="b">inherited dependency</div></div>
+<div class="c" data-c="green">attr() one</div>
+<div class="c" data-c="green">attr() two</div>
+<div class="d fixed">same rules, other own</div>
+<div class="e">revert-layer</div>

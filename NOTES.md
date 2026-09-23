@@ -5365,3 +5365,62 @@ merge that touches the wire).
 All four binaries rebuilt from 357e34ac (message-table handshake live: a child whose table
 differs exits 70 with "TIGER IPC: message table mismatch"). tools/regress.sh 8/8
 (logs/regress/20260923-084833). Installed with make-bundle.sh while the app was not running.
+
+## 2026-09-23 — nytimes/verge main thread: custom-property substitution, media appends, images (WebKit-media 9db6d4b0)
+
+Measured with spike/media/run-scrollprofile.sh (25 s load, ~65 s of wheel ticks, TIGER_SAMPLE_MAIN=400,
+TIGER_STYLE_PROBE=1; samples 25-90 s bucketed with tools/tiger-profile.py). Logs/shots: logs/perf/scroll2/.
+The bucket table puts a style recalc forced from JS under "JS: execute", so the inclusive frame counts
+are the numbers that matter.
+
+**Style probe** (new, TIGER_STYLE_PROBE=1): one TIGER-STYLE line a second with recalcs, elements resolved,
+matched-declarations-cache hit/miss, custom properties applied, var() substitutions, sync image decodes.
+
+**Root cause, nytimes.** `:root, :where(:root *) { 180 --tpl-*: var(...) }` applies 180 var()-valued custom
+properties to every element. A full recalc was ~3,250 elements, 125k-345k `applyCustomPropertyImpl` and
+173k-475k var() substitutions, and the page forces one every few seconds from timers reading
+`clientWidth` (jsElement_clientWidth -> updateLayoutIfDimensionsOutOfDate -> updateStyleIfNeeded).
+The matched declarations cache hits 71% but custom properties are inherited, so a hit still re-applies
+them. Nothing Tiger-specific turns caches off. Fix: a per-style-resolution-cycle substitution cache in
+TreeResolutionState keyed by (declaration, parent's inherited custom-property data by identity, the
+element's own custom-property declarations interned as a signature); not used for registered
+properties, custom functions, keyframe/highlight styles, attr(), revert*. spike/media/customprops.html
+covers those hazards (all green on the box).
+
+| nytimes, busy main-thread samples 25-90 s | before | after |
+| main thread busy | 99% (207/209) | 100% (199/199) |
+| Document::resolveStyle (inclusive) | 52.7% | 51% |
+| Builder::applyCustomProperties | 36.7% | 27% |
+| Builder::resolveCustomPropertyValue | 18.8% | ~1% |
+| var() substitutions per element resolved | 103 | 34 |
+| full-document recalcs completed in the window | 13 | 15-17 |
+
+The main thread stays pegged: the page's timer loop just gets through more recalcs. What remains in
+applyCustomProperties is writing 180 values per element into the style (setCustomPropertyValue) --
+upstream shape; the next lever is not re-applying custom properties whose values equal the parent's.
+
+theverge: style is 10-20% and custom properties are ~0 at steady state (its 1,869 tokens sit on
+<body> and inherit); JS execute/parse/GC is 75%. Nothing to take here. The same scroll-driven crash
+as before (CheckedPtr to a dead RunLoop::TimerBase::ScheduledTask under WebPage::pageDidScroll, also in
+logs/perf/verge-before.log and nyt-after.log of 09-22) hit verge-after at 73 s: pre-existing, not chased.
+
+**Media.** FFmpegByteSource (<video src>) coalesced every loader buffer into one Vector; it now keeps
+the SharedBuffers and the AVIO read binary-searches them. preload="none" no longer downloads or opens
+a decoder until prepareToPlay/play (metadata still loads everything: no range requests). The MSE
+append path (m_pending) was not in these profiles: 0 samples in FFmpegByteSource/SharedBufferBuilder
+before and after on both sites -- the "third of samples" of 09-22 did not reproduce. nytimes' video
+ad was playing with the clock frozen at 0 (MSE audio never arrived): the player now runs on the wall
+clock until the first PCM reaches the ring, and on the wall clock for good (dropping PCM, one
+TIGER-MEDIA line) if the i386 helper has not consumed a frame 1 s after the first push. The ad then
+stalls later at clock=0.17 when its audio runs dry (the page stops appending) -- open.
+video.html / mse.html: 30 fps, 0 dropped after the change. tigeraudio32 is now staged by
+stage-perf2/jsperf/controls too. Helper-missing fallback not exercised on the box.
+
+**Images.** Not reproduced: 1-2 main-thread samples in image decoding on either site (probe: 0-8
+sync decodes a second). The port uses the in-tree libjpeg/libpng decoders (USE_CG off on x86_64),
+async decoding is compiled in and enabled, but visible images decode synchronously upstream; on
+TIGER64 large (>500 KB decoded) ones now go to the decoder work queue even when visible. Subsampling
+is not implemented for the in-tree decoders and upstream only subsamples above 5 MP anyway.
+
+Bigger lever seen on the way: USE_SYSTEM_MALLOC on x86_64 (OptionsTiger.cmake); fastMalloc /
+posix_memalign / tryFastCompactRealloc are among the hottest leaves in every style-heavy profile.
