@@ -5668,3 +5668,77 @@ the non-HttpOnly ones; ct0 is only cleared (empty, expired) before login. The lo
 now `x.com/i/jfapi/onboarding/web/actions/begin_login` (not task.json): 200 for a nonsense
 username, no 403 anywhere. Main build (tiger-web-port 11:17) crashed a new web process in
 `JSC::sanitizeStackForVM` from `VM::VM` during the cookie run; not seen on tiger-regress.
+
+## Faithful mode: damage rects, the RGBA8 tag, and why video stays on the in-page path (2026-09-23 13:05)
+
+tiger-perf da70b8bb, e021239c. GPU process built in `build/tiger-gpu-perf` (TIGER_PROCESS=GPU,
+from WebKit-perf; ccache off there -- a cache cloned from the UI dir made ccache serve the UI
+dir's DerivedSources). `GPUDIR=build/tiger-gpu-perf spike/wk2web/stage-perf2.sh` stages it.
+
+Faithful mode only turns accelerated compositing on; nothing forces it, so a page without
+compositing layers (example.com, controls-test.html, plain scrolltest.html) still paints in
+the web process and never reaches the CA scene. The measurements below are pages that do.
+
+**Every faithful frame went down the UI's CoreGraphics fallback.** The GPU process read the
+scene back into a `ShareableBitmap` with the default configuration, tagged RGBA8; the UI's row
+copy accepted only BGRA8. On CG both 8-bit tags have one layout (`calculateBitmapInfo` gives
+both `kCGBitmapByteOrder32Host | PremultipliedFirst`), so colours were right and the cost was
+invisible: 120 ms of UI incorporate per frame. The copy takes both now (da70b8bb) and the GPU
+side tags BGRA8 at the source. There was never a CPU swizzle: `glReadPixels(GL_BGRA,
+GL_UNSIGNED_INT_8_8_8_8_REV)` already writes the UI's layout.
+
+**Damage rects** (e021239c). `-[CARenderer updateBounds]`, asked between `-beginFrameAtTime:`
+and `-render`, is the union of what the commit changed on screen, in GL coordinates under the
+existing glOrtho (verified: the 200x120 box at top 200 reports `214x120+119+328`). The frame
+scissors the clear, the render and the readback to it; the pbuffer keeps the rest, which is
+exactly the UI's store outside it. A commit that changes nothing but pixels in existing tiles
+uses the tiles' dirty rects mapped to the host layer instead, because CA damages a whole
+512x512 tile on `setContents:`; `RepaintCount` rides along with every repaint and is never
+applied, so it does not disqualify. Grow-only frame bitmap, rows reversed in place, one full
+frame after a new pbuffer or root.
+
+| faithful, 960x648 | before | after |
+|---|---|---|
+| scrolltest?composited: GPU per frame | 56 ms (render 0.8, readback 5.5, reverse 18.8) | 2.3 ms |
+| same: bytes per frame | 2.5 MB | 97 KB |
+| same: frames in 26 s | 205 | 1051-1120 |
+| x.com caret blink: bytes | 2.5 MB | 264 (3x22 px) |
+| x.com: UI incorporate | 120 ms -> 29 ms (da70b8bb) | 0.32 ms |
+
+The composited test page now has a static translucent layer across the animation's path; it
+stays one tone and the animated layer leaves no trail, so nothing is blended outside the
+damage. Faithful example.com and controls-test.html with this build match the fast goldens
+(0.0000 and 0.0051 of the page area differ).
+
+**Video in faithful mode: stays on the in-page blit for now, and it is bad.** 480p loop, 30 s:
+
+| | on screen | web %CPU | GPU %CPU | UI %CPU |
+|---|---|---|---|---|
+| faithful (in-page blit through CA) | ~3.5 fps (107 GPU frames) | 50.7 | 50.4 | 1.9 |
+| fast (direct ring) | 30 fps, 0 dropped | 37.6 | -- | 1.0 |
+
+The media clock reports 30 fps and 0 dropped in both, because it counts frames handed to the
+page. In faithful mode each frame is ~938x394 of tile damage: the web process cairo-paints the
+frame into the video layer's tiles, the GPU process copies every touched 512x512 tile
+(`CGBitmapContextCreateImage` of the tile context) and CA re-uploads each texture: 57-130 ms a
+frame. Damage rects do not help here -- the damage really is the video.
+
+The fix is the ring feeding a CALayer in the GPU process: map the ring by path (the same
+linked-file protocol as the UI's sink, no descriptor crosses a socket), give the video's
+GraphicsLayer platform-layer contents, and per frame set that layer's contents to a CGImage over
+the current slot -- no web-side paint, no tile copies, one 640x360 upload, damage = the video
+rect. Not done here, because it is not a paint-path-only change: (a) nothing in the WC delta can
+tell the GPU scene which layer shows which ring -- `WCContentBufferIdentifier` is a GPU-side WebGL
+handle, overloading it would be a protocol hack and a proper field is a serialization change;
+(b) `MediaPlayerPrivateFFmpeg`/`TigerVideoSink` have to offer a platform layer in faithful mode,
+which is the media track's code; (c) the ring alone does not wake the GPU scene, so each frame
+still needs a tiny compositing commit to drive the render. It wants a joint task with the media
+track and a `WCLayerUpdateInfo` field for the ring path. Interim, cheaper and local: when a tile
+update covers the whole tile, hand CA the incoming bitmap's image instead of copying it through
+the tile context (saves the copy, not the upload).
+
+**Not mine, found on the way: hosted controls survive navigation, in both modes.** Load
+controls-test.html, then `load http://example.com/`: every native control of the first page
+stays on screen over example.com (logs/perf/scroll/ghost-fast.png fast, fs-example.png
+faithful). regress.sh cannot see it because every check is a fresh launch; a check that loads a
+controls page and then a plain one would.
