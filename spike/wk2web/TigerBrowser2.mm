@@ -93,11 +93,13 @@ private:
     RefPtr<ChromeLoadObserver> _observer;
     NSString* _note; // a recovery message shown in the status line while nothing is loading
     NSTimeInterval _lastLoadFailure;
+    unsigned _webCrashesSinceLoad;
 }
 - (id)initWithURL:(NSString*)url;
 - (void)updateChrome;
 - (void)childProcessDidCrash:(NSString*)which reason:(ProcessTerminationReason)reason;
 - (void)loadDidFail;
+- (void)loadDidFinish;
 - (void)runScriptStep:(NSTimer*)timer;
 @end
 
@@ -120,6 +122,7 @@ private:
     }
     void didFailProvisionalNavigationWithError(WebPageProxy&, FrameInfoData&&, API::Navigation*, const URL&, const WebCore::ResourceError&, API::Object*) final { [m_window loadDidFail]; }
     void didFailNavigationWithError(WebPageProxy&, const FrameInfoData&, API::Navigation*, const URL&, const WebCore::ResourceError&, API::Object*) final { [m_window loadDidFail]; }
+    void didFinishNavigation(WebPageProxy&, API::Navigation*, API::Object*) final { [m_window loadDidFinish]; }
     TigerBrowserWindow* m_window;
 };
 
@@ -267,6 +270,22 @@ static void gpuProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationRe
     _lastLoadFailure = [NSDate timeIntervalSinceReferenceDate];
 }
 
+// WebPageProxy reloads after one web process crash, and again only once a load has finished
+// and 30 s have passed (maximumWebProcessRelaunchAttempts, resetRecentCrashCountSoon); the
+// status line has to know which of the two it is saying.
+- (void)resetWebCrashCount
+{
+    _webCrashesSinceLoad = 0;
+}
+
+- (void)loadDidFinish
+{
+    if (_webCrashesSinceLoad > 1)
+        [self clearNote];
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(resetWebCrashCount) object:nil];
+    [self performSelector:@selector(resetWebCrashCount) withObject:nil afterDelay:30];
+}
+
 // One line in the status line for ten seconds. A web process that died is reloaded by
 // WebPageProxy itself; a GPU process is relaunched on the web process's next frame (the
 // web side rebuilds its scene for it); a network process is relaunched by the next load,
@@ -276,8 +295,13 @@ static void gpuProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationRe
     NSString* note = nil;
     RefPtr page = _webView ? _webView->page() : nullptr;
     if ([which isEqualToString:@"web"]) {
-        note = reason == ProcessTerminationReason::ExceededMemoryLimit ? @"Page reloaded: it ran out of memory"
-            : @"Page reloaded after a web process crash";
+        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(resetWebCrashCount) object:nil];
+        if (++_webCrashesSinceLoad > 1)
+            note = @"The web process crashed again; press R to reload the page";
+        else if (reason == ProcessTerminationReason::ExceededMemoryLimit)
+            note = @"Page reloaded: it ran out of memory";
+        else
+            note = @"Page reloaded after a web process crash";
     } else if ([which isEqualToString:@"gpu"])
         note = @"Graphics restarted after a GPU process crash";
     else {
@@ -291,7 +315,9 @@ static void gpuProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationRe
     _note = [note retain];
     [self updateChrome];
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(clearNote) object:nil];
-    [self performSelector:@selector(clearNote) withObject:nil afterDelay:10];
+    // "Crashed again" stays until the user's reload has loaded something.
+    if (_webCrashesSinceLoad <= 1 || ![which isEqualToString:@"web"])
+        [self performSelector:@selector(clearNote) withObject:nil afterDelay:10];
 }
 
 // "killproc web|gpu|net": SIGKILL that child, the way a crash would end it.
