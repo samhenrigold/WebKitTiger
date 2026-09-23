@@ -38,7 +38,15 @@ static void* handler(void* unused)
             continue;
         int pid = -1;
         pid_for_task(m.task.name, &pid);
-        fprintf(stderr, "\nTIGER-CHILD-CRASH pid %d exception %d code %#x %#x\n", pid, m.exception, m.code[0], m.code[1]);
+        x86_thread_state64_t state;
+        mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
+        unsigned long long pc = 0, fp = 0;
+        if (!thread_get_state(m.thread.name, x86_THREAD_STATE64, (thread_state_t)&state, &count)) {
+            pc = state.rip;
+            fp = state.rbp;
+        }
+        /* pc and frame pointer only: the frames live in the crashed task (atos -o binary -l 0x100000000). */
+        fprintf(stderr, "\nTIGER-CHILD-CRASH pid %d exception %d code %#x %#x pc %#llx fp %#llx\n", pid, m.exception, m.code[0], m.code[1], pc, fp);
         if (pid > 0 && pid != getpid())
             kill(pid, SIGKILL);
         mach_port_deallocate(mach_task_self(), m.thread.name);

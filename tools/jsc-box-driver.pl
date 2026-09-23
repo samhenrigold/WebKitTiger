@@ -3,7 +3,8 @@
 # files run-jsc-stress-tests generated, N at a time, nice'd, each in its own process group
 # with a hard timeout, and writes one "P|F|T index seconds name" line per test.
 #   perl jsc-box-driver.pl <runner dir> <list file> <results file> <jobs> <timeout secs>
-# Box rules: kills every child group on exit/signal/orphaning, pauses while load > 4.
+# Box rules: kills every child group on exit/signal/orphaning; while the load average is over 4
+# nothing of ours runs (running groups are SIGSTOPped, resumed under 3).
 use strict;
 use POSIX qw(setsid WNOHANG);
 use Time::HiRes qw(time sleep);
@@ -35,14 +36,25 @@ sub load1 { my $l = `sysctl -n vm.loadavg`; $l =~ /([\d.]+)/; $1 || 0 }
 
 my $total = @queue;
 my $done = 0;
+my $lastLoadCheck = 0;
 while (@queue || %running) {
     exit 1 if getppid() == 1;    # the ssh session died: do not outlive it
-    while (@queue && keys(%running) < $jobs) {
+    # Box rule: over load 4, nothing of ours runs. A single test can raise the load by itself
+    # (JIT and GC threads, libpas's 1000-thread tests), so not starting new ones is not enough:
+    # stop the running groups too, and resume under 3. Stopped time does not count to timeouts.
+    if (time - $lastLoadCheck >= 5) {
+        $lastLoadCheck = time;
         if (load1() > 4) {
-            print $log "load > 4, pausing\n";
-            sleep 30;
-            last;
+            my $stoppedAt = time;
+            kill 'STOP', -$_ for keys %running;
+            print $log "load > 4, paused\n";
+            do { sleep 30; exit 1 if getppid() == 1; } while (load1() > 3);
+            kill 'CONT', -$_ for keys %running;
+            $_->[1] += time - $stoppedAt for values %running;
+            print $log "resumed\n";
         }
+    }
+    while (@queue && keys(%running) < $jobs) {
         my $script = shift @queue;
         my $pid = fork;
         die "fork: $!" unless defined $pid;
