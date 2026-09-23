@@ -275,6 +275,11 @@ static NSPoint pointFromString(NSString* spec)
 }
 
 // "click 100,40", "click shift 300,40": modifiers then one point.
+- (void)postQueuedEvent:(NSEvent*)event
+{
+    [NSApp postEvent:event atStart:NO];
+}
+
 - (void)clickAt:(NSString*)spec
 {
     NSArray* words = [spec componentsSeparatedByString:@" "];
@@ -282,10 +287,36 @@ static NSPoint pointFromString(NSString* spec)
         return;
     unsigned flags = modifierMaskFromWords(words, [words count] - 1);
     NSPoint p = pointFromString([words objectAtIndex:[words count] - 1]);
+    NSEvent* down = [self mouseEventOfType:NSLeftMouseDown at:p flags:flags];
+    NSEvent* up = [self mouseEventOfType:NSLeftMouseUp at:p flags:flags];
+
+    // A form control on this port is a real AppKit view hosted over the page
+    // (UIProcess/tiger/TigerNativeWidgetHost.mm), so a click that lands on one has to go
+    // through the window's hit test rather than straight to -[TigerWK2View mouseDown:].
+    // NSControl tracks the mouse by pulling events out of the queue, which is why the
+    // mouse-up is posted before the mouse-down is sent: its tracking loop finds it there and
+    // returns instead of waiting for a user who is not present.
+    NSView* hit = [[_window contentView] hitTest:[_view convertPoint:p toView:nil]];
+    if (hit && hit != _view && [hit isDescendantOf:_view]) {
+        // Both posted, in order, and neither sent: NSControl tracks the mouse by pulling
+        // events out of the queue and finds its mouse-up there, and -[NSPopUpButtonCell
+        // trackMouse:...] does not return until its menu closes -- sending the mouse-down
+        // would block this verb, and the script would never reach the step that picks an item.
+        [NSApp postEvent:down atStart:NO];
+        // The mouse-up lags, and in common modes so it still arrives once a pop-up menu is
+        // running its own event loop. Posting both at once is a press-and-release in the same
+        // instant: an NSPopUpButton opens its menu and closes it again on the item already
+        // selected, and the script never gets to pick anything. A real hand holds the button
+        // down for a moment, and that is the gesture that leaves an Aqua menu open.
+        [self performSelector:@selector(postQueuedEvent:) withObject:up afterDelay:0.35
+            inModes:[NSArray arrayWithObject:(NSString*)kCFRunLoopCommonModes]];
+        return;
+    }
+
     [_window makeFirstResponder:_view];
     [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:p flags:flags]];
-    [_view mouseDown:[self mouseEventOfType:NSLeftMouseDown at:p flags:flags]];
-    [_view mouseUp:[self mouseEventOfType:NSLeftMouseUp at:p flags:flags]];
+    [_view mouseDown:down];
+    [_view mouseUp:up];
 }
 
 // "wheel 400,300 0,-3": a wheel tick at a point, deltas in lines. 10.4 has no public
@@ -379,10 +410,24 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
         characters:characters charactersIgnoringModifiers:characters isARepeat:NO keyCode:code];
     if ((flags & NSCommandKeyMask) && [[NSApp mainMenu] performKeyEquivalent:down])
         return;
-    [_view keyDown:down];
-    [_view keyUp:[NSEvent keyEventWithType:NSKeyUp location:NSZeroPoint modifierFlags:flags
+    NSEvent* up = [NSEvent keyEventWithType:NSKeyUp location:NSZeroPoint modifierFlags:flags
         timestamp:[NSDate timeIntervalSinceReferenceDate] windowNumber:[_window windowNumber] context:nil
-        characters:characters charactersIgnoringModifiers:characters isARepeat:NO keyCode:code]];
+        characters:characters charactersIgnoringModifiers:characters isARepeat:NO keyCode:code];
+
+    // Typing into a hosted AppKit control: the first responder is the control or its field
+    // editor, not the page view, and only the window knows which. Everything Cocoa gives a
+    // text field for free -- Option-arrow, the kill ring, the input manager -- is on this path.
+    if ([_window firstResponder] && [_window firstResponder] != (NSResponder*)_view
+        && [_window firstResponder] != (NSResponder*)_window) {
+        // Posted, not sent: a pop-up menu that is open is running its own event loop and pulls
+        // events out of the queue. Sending straight to the window would miss it.
+        [NSApp postEvent:down atStart:NO];
+        [NSApp postEvent:up atStart:NO];
+        return;
+    }
+
+    [_view keyDown:down];
+    [_view keyUp:up];
 }
 
 // "cmd a", "opt left", "shift opt right", "cmd shift z": modifiers then one key name.
@@ -448,7 +493,12 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
         if (RefPtr page = _webView ? _webView->page() : nullptr)
             page->loadRequest(URL { String::fromUTF8([rest UTF8String]) });
     }
-    [NSTimer scheduledTimerWithTimeInterval:delay target:self selector:@selector(runScriptStep:) userInfo:nil repeats:NO];
+    // Common modes, not the default one: an open pop-up menu runs the run loop in
+    // NSEventTrackingRunLoopMode, and a default-mode timer would not fire until the menu was
+    // dismissed -- so the script could open a menu and never get to the step that picks from it.
+    NSTimer* next = [NSTimer timerWithTimeInterval:delay target:self selector:@selector(runScriptStep:) userInfo:nil repeats:NO];
+    // NSRunLoopCommonModes is 10.5; the CF constant is the same string and is there on 10.4.
+    [[NSRunLoop currentRunLoop] addTimer:next forMode:(NSString*)kCFRunLoopCommonModes];
 }
 
 - (void)goBack:(id)sender { if (RefPtr page = _webView ? _webView->page() : nullptr) page->goBack(); }
