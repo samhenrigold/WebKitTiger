@@ -127,3 +127,13 @@
 /spike/ldt64/ldt32host
 spike/wk2web/box.lock
 /logs
+
+# Linked WebKit worktrees own their history in WebKit/.git.
+/WebKit-*/
+__pycache__/
+# Regenerable probe executables and captures; tests/regress/golden stays tracked.
+/spike/aquascroller/scrollerprobe
+/spike/aquascroller/out/
+/spike/aquascroller/compare-ours-vs-native.png
+/spike/wk2web/shot-*.png
+/spike/wk2web/step-*.png
