@@ -95,5 +95,5 @@ ssh $BOX "cd $BOXDIR/$SUITE/.runner && TZ=US/Pacific JSCTEST_timeout=$TIMEOUT JS
 # 5. Collect: verdicts, the log of every failure, then group by signature.
 scp -qO $BOX:$BOXDIR/$SUITE/.runner/results.txt "$RUN/results.txt"
 awk '$1 != "P" {print $2 ".log"}' "$RUN/results.txt" > "$RUN/faillogs.txt"
-[ -s "$RUN/faillogs.txt" ] && rsync -z --files-from="$RUN/faillogs.txt" $BOX:$BOXDIR/$SUITE/.runner/ "$RUN/out/"
+[ -s "$RUN/faillogs.txt" ] && { rsync -z --files-from="$RUN/faillogs.txt" $BOX:$BOXDIR/$SUITE/.runner/ "$RUN/out/" || true; }
 python3 "$WKT/tools/jsc-results.py" "$RUN"
