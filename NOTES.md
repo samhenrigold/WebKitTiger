@@ -6003,6 +6003,8 @@ kernel sometimes splits the 8 MB stack mapping so the entry holding a stack loca
 (`TIGER-DEBUG ... origin=0x7fff5fc00000 end=0x7fff5fbff000`); `jsc -e 'print(1)'`: 12 failures in ~310
 runs before, 0 in 300 after. The compat fixes reach every x86_64 binary at its next link (the sysroot
 archive is reinstalled); the StackBounds and catcher changes need tiger-tests merged.
+The libpas follow-up (9aa1231) fixed the same split independently in its own branch, with a
+TIGER-STACK line on a split: keep one StackBounds.cpp version when merging tiger-tests.
 The libm probe (spike/jsc64/libm-signedzero64.c: trunc/ceil/floor/round/rint/nearbyint/fmod and the elementary functions on
 signed zeros) found no other signed-zero error.
 
