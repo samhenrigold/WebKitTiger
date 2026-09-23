@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summarize a tools/run-jsc-tests-box.sh run: pass/fail/timeout lists and failures
 grouped by signature.   tools/jsc-results.py logs/jsc-tests/<run>"""
-import collections, os, re, sys
+import collections, os, re, subprocess, sys
 
 run = sys.argv[1]
 verdicts = collections.defaultdict(list)
@@ -12,6 +12,22 @@ for line in open(os.path.join(run, "results.txt")):
     scripts[name.strip()] = script
 for v, f in (("P", "pass.txt"), ("F", "fail.txt"), ("T", "timeout.txt")):
     open(os.path.join(run, f), "w").write("".join(n + "\n" for n in sorted(verdicts[v])))
+
+
+BINARY = os.path.join(run, "jsc")  # hard link to the binary that ran
+_symbols = {}
+
+
+def symbolize(addrs):
+    """Frames below the leaf, by name (atos; Tiger has no ASLR, x86_64 loads at 4 GB)."""
+    todo = [a for a in addrs if a not in _symbols]
+    if todo and os.path.exists(BINARY):
+        out = subprocess.run(["atos", "-o", BINARY, "-l", "0x100000000"] + todo,
+                             capture_output=True, text=True).stdout.splitlines()
+        for a, name in zip(todo, out):
+            _symbols[a] = re.sub(r"\(.*", "", name).strip()
+    names = [_symbols.get(a, a) for a in addrs]
+    return (" < " + " < ".join(names)) if names else ""
 
 
 def norm(s):
@@ -35,7 +51,9 @@ def signature(name):
         m = re.search(r"TIGER-CRASH pid \S+ .*exception (\S+) code (\S+)", l)
         if m:
             leaf = re.search(r" leaf (\S+?)\+", l)
-            return "crash exc %s code %s %s" % (m.group(1), m.group(2), leaf.group(1) if leaf else "(jit/no symbol)")
+            frames = re.search(r"frames: (.*)", l)
+            where = symbolize(frames.group(1).split()[1:4]) if frames else ""
+            return "crash exc %s code %s %s%s" % (m.group(1), m.group(2), leaf.group(1) if leaf else "(jit/no symbol)", where)
         m = re.search(r"TIGER-CRASH-SIGNAL pid \S+ signal (\S+)", l)
         if m:
             return "crash signal %s" % m.group(1)

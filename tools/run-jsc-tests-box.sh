@@ -52,6 +52,7 @@ rm -rf "$BUNDLE"
 ruby "$SRC/Tools/Scripts/run-jsc-stress-tests" --jsc "$JSC" --arch x86_64 --os darwin \
     --tarball "$SUITE.tgz" -o "$BUNDLE" ${FILTER:+--filter "$FILTER"} "$COLL" > "$RUN/plan.log" 2>&1
 rm -f "$(dirname "$BUNDLE")/$SUITE.tgz"
+ln "$BUNDLE/.vm/JavaScriptCore.framework/Helpers/jsc" "$RUN/jsc"   # for symbolizing later
 
 # 2. Pick the scripts whose mode is in $MODES (the name is "<suite>/<test>.<mode>").
 ( cd "$BUNDLE/.runner" && find . -name 'test_script_*' -print0 | xargs -0 grep -H -m1 '^echo Running' ) |
@@ -77,7 +78,8 @@ rsync -c "$WKT/tools/jsc-box-driver.pl" $BOX:$BOXDIR/bin/
 #    JSCTEST_timeout never fires (upstream jsc.cpp's timeout thread looks for a VM that is
 #    NOT the main one), but its hard timeout exits cleanly 5 s later ("HARD TIMEOUT");
 #    the driver's SIGKILL at +30 s is the backstop.
-ssh $BOX "cd $BOXDIR/$SUITE/.runner && JSCTEST_timeout=$TIMEOUT JSCTEST_hardTimeout=5 perl $BOXDIR/bin/jsc-box-driver.pl . list.txt results.txt $JOBS $((TIMEOUT + 30)) < /dev/null" || echo "run-jsc-tests-box: driver exited $?"
+#    TZ=US/Pacific as upstream runs them (the Intl/Date tests assume it).
+ssh $BOX "cd $BOXDIR/$SUITE/.runner && TZ=US/Pacific JSCTEST_timeout=$TIMEOUT JSCTEST_hardTimeout=5 perl $BOXDIR/bin/jsc-box-driver.pl . list.txt results.txt $JOBS $((TIMEOUT + 30)) < /dev/null" || echo "run-jsc-tests-box: driver exited $?"
 
 # 5. Collect: verdicts, the log of every failure, then group by signature.
 scp -qO $BOX:$BOXDIR/$SUITE/.runner/results.txt "$RUN/results.txt"
