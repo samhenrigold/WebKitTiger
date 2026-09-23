@@ -5931,3 +5931,211 @@ scavenger decommitted 672 MB in 1,022 rounds over 90 s), but a shorter idle wind
 driver on the box (load 3-4, later 14-23), so the CPU side (allocbench, main-thread busy)
 could not be measured cleanly, and the scavenger stops other threads' allocators every round.
 Next: allocbench + nytimes busy% with EPOCH_MS=100 on a quiet box; if flat, set it for TIGER.
+
+## 2026-09-23 — WebKit's own test suites on the box: JSC stress, mozilla, TestWTF, testmasm (WebKit-tests, branch tiger-tests)
+
+First baseline of upstream's tests against this port, cheap tiers first. Worktree WebKit-tests
+(tiger-tests, from tiger-fontcache 5f810d01; sparse checkout adds JSTests/{stress,mozilla,ChakraCore},
+Tools/TestWebKitAPI, Source/ThirdParty/gtest), build dir build/tiger-web-tests (x86_64, configured as
+tiger-web-port + USE_SYSTEM_MALLOC=OFF + ccache + ENABLE_API_TESTS=ON). Nothing here needs the GUI or
+box.lock; everything runs nice 10, 2 jobs, and dies with its ssh.
+
+**How to run**
+
+    ninja -C build/tiger-web-tests jsc TestWTF TestJavaScriptCore testmasm
+    tools/run-jsc-tests-box.sh                               # stress, default tier (~2 h)
+    tools/run-jsc-tests-box.sh --modes no-llint,dfg-eager --filter '^stress/a'
+    tools/run-jsc-tests-box.sh --suite mozilla --modes mozilla
+    tools/run-api-tests-box.sh TestWTF                        # ~12 min; TestJavaScriptCore likewise
+    scp build/tiger-web-tests/bin/testmasm tiger-eth:wk2tests/bin/ && ssh tiger-eth 'cd wk2tests/bin && ./testmasm'
+
+run-jsc-tests-box.sh lets upstream's run-jsc-stress-tests do the planning (`--tarball`: the //@
+directives, tier variants, output checks) and ships only the chosen modes' test_script_N files; on the
+box tools/jsc-box-driver.pl (perl 5.8) runs them 2 at a time, nice 10, each in its own process group
+with a hard timeout, pauses while the load average is over 4, and exits (killing its children) if its
+ssh goes away. TZ=US/Pacific as upstream. memoryHog tests are skipped unless --memory-hogs (below).
+Results: logs/jsc-tests/<run>/{pass,fail,timeout,signatures}.txt, out/test_script_N.log, a hard link
+to the jsc that ran (tools/jsc-results.py symbolizes the frames under a crash's leaf with it).
+run-api-tests-box.sh runs one process per gtest test through the same driver.
+
+**Traps found on the way**
+- The jsc shell had no TigerCrashCatcher, and the stress suite crashes and CRASH()es on purpose: every
+  crash would have reached crashdump. It now links the catcher (shell/PlatformTiger.cmake, also TestWTF,
+  TestJavaScriptCore, testmasm) with TIGER_CRASH_CATCHER_SHELL: no TIGER-EXIT atexit line (tests diff
+  output), no /tmp/webkit-* sweep, and exit status 128+signal like a killed process (mustCrash! tests
+  need > 130). x86_64 TIGER-CRASH lines now carry `crashinfo` = WTFCrashWithInfo's CRASH_GPR0..6
+  (r11 r10 r9 r8 r15 r14 r13), i.e. a RELEASE_ASSERT's extra values.
+- JSCTEST_timeout never fires, upstream too: jsc.cpp's timeout thread asks VMManager for a VM that is
+  `!= s_vm`, so a single-VM shell is never interrupted. JSCTEST_hardTimeout (which runs after it) does
+  work; the runner sets both and SIGKILLs at +30 s.
+- Stage scripts on the box kill every process whose argv[0] contains `/wk2<letters>/`, which includes
+  ~/wk2tests: TestWTF runs by relative path (the jsc scripts already do). Seen as random "Terminated".
+- memoryHog tests (2 at a time, with the user's browser up) filled the swap:
+  `kernel: (default pager): no space in available paging segments` in system.log (13:08-13:31).
+  Default off; run them alone (`--memory-hogs --jobs 1 --timeout 900`), not while the user is on it.
+- **Load**: libpas's test_pas with 2 child processes pushed the box's load average to 14-23 (16:20)
+  and spoiled another track's measurements. The driver now enforces the rule itself: every 5 s, if
+  the 1-minute load is over 4 it SIGSTOPs every running test group and resumes them under 3.5
+  (stopped time is not charged to the timeout); it never starts a test above 4 either. The
+  resume mark is 3.5, not 3: with other tracks keeping the box at 3.2-3.8 a stricter one never resumes.
+- Separately, about 1 fresh process in 1,000 on the box dies of SIGBUS right after fork -- /bin/mkdir,
+  the shell's `read`, dyld's malloc ("vm_allocate(size=8421376) failed") -- with no pager message,
+  e.g. 3 of 5,493 stress scripts, 2 of 2,018 TestWTF tests. Every one passed on rerun. Seen while the
+  swap files were growing (swapfile5-7, 3 GB, created 14:52-14:53); cause not proven. A box property,
+  not a WebKit one, but anything that forks on the box will occasionally see it.
+
+**Port bugs found and fixed**
+
+| bug | found by | fix |
+|---|---|---|
+| main-thread stack bounds were 4 KB in ~1 run in 25 | 60 stress crashes (RELEASE_ASSERT in sanitizeStackForVM) + silent exit 3 | WTF StackBounds: merge split VM map entries (tiger-tests 39b391ec) |
+| 10.4 libm trunc(-0.5) = +0 | math-trunc-arith-rounding-mode, arith-trunc-on-various-types | compat trunc/truncf (master 6a3c1f9) |
+| realpath(p, NULL) faults on 10.4 | TestWTF FileSystemTest.realPath | compat realpath (master 4734ad2) |
+| 10.4 ignores O_NOFOLLOW | TestWTF FileSystemTest.fileType* (remove_all of a dir with a broken symlink) | compat openat lstat check (master 4734ad2; spike/jsc64/open-nofollow64.c) |
+| catcher exit codes read as plain failure | stress/ensure-crash.js | 128+signal in shells (tiger-tests f20c4c75) |
+
+The stack-bounds one matters beyond tests, and it is the "intermittent startup assert on the
+libpas build" left open above (2 of 14 web-process launches, 0xaa20 in sanitizeStackForVM): the web
+process's main thread takes the same
+mainThreadStackBoundsFromVMMap path, so about 1 launch in 25 ran every page's JS with a 4 KB stack
+(scripts "overflow" on the first call, or the process dies on the sanitizeStackForVM assert). The
+kernel sometimes splits the 8 MB stack mapping so the entry holding a stack local is one page
+(`TIGER-DEBUG ... origin=0x7fff5fc00000 end=0x7fff5fbff000`); `jsc -e 'print(1)'`: 12 failures in ~310
+runs before, 0 in 300 after. The compat fixes reach every x86_64 binary at its next link (the sysroot
+archive is reinstalled); the StackBounds and catcher changes need tiger-tests merged.
+The libm probe (spike/jsc64/libm-signedzero64.c: trunc/ceil/floor/round/rint/nearbyint/fmod and the elementary functions on
+signed zeros) found no other signed-zero error.
+
+**Baselines** (box, 2 jobs, nice 10; logs/jsc-tests/, logs/api-tests/)
+
+| suite / tier | run | pass | fail | timeout | notes |
+|---|---|---|---|---|---|
+| stress default, before the fixes (12:10, all 5,616) | 5,616 | 5,538 | 78 | 0 | 60 stack-bounds, 8 memoryHog timeouts, TZ, trunc, ... |
+| **stress default, final** (14:45, memoryHog skipped) | 5,493 | 5,488 | 5 | 0 | 3 fork SIGBUS flakes pass on rerun; left: unlinked-metadata-table-finalize-overflow (slow!), js-to-wasm-callee-has-correct-prototype (sampling profiler) |
+| stress no-llint + no-cjit-validate-phases + dfg-eager + ftl-eager, tests a-c | 4,910 | 4,907 | 2 | 1 | all 3 pass on rerun (fork flake; one timeout during load pauses) |
+| mozilla (mode `mozilla`) | 1,125 | 1,124 | 0 | 1 | js1_5/Array/regress-157652 (sorts a huge array: slow) |
+| TestWTF (2,035 tests, 17 DISABLED_) | 2,018 | 2,014 | 3 | 1 | SafeStrerror x2, MemoryDumpNullPointer; DoubleWeakDeref timeout (all expectations, below) |
+| TestJavaScriptCore | 135 | 135 | 0 | 0 | one fork SIGBUS on the first run, passes on rerun |
+| testmasm | 392 | 392 | 0 | 0 | 2 AVX-only tests gated |
+| libpas test_pas (first 1,725 tests; run stopped for the load rule) | 1,725 | 1,720 | 5 | 0 | 2 PGM madvise panics (fixed: Enumeration 4/4 now), 3 ExpendableMemory testRage (test bug on x86, below) |
+
+Wall time under the box rules (2 jobs, SIGSTOP while load > 4): stress default ~25 min for 5,493
+when the box is otherwise quiet (14:45-15:10); the 4-tier a-c sample (4,910) took 40 min with 8 load
+pauses. So one tier over all of stress is 25-50 min depending on who else is on the box, and all 17
+upstream stress modes would be ~8-14 h: overnight material, one or two tiers per night.
+Caveat of the pausing: jsc's hard timeout counts wall time, so a test stopped for minutes can report
+"HARD TIMEOUT"; rerun timeouts before reading anything into them.
+
+**Expectations, not port bugs**
+- memoryHog/slow!: 123 memoryHog tests skipped by default. Of the 8 that timed out at 120 s, 5 pass
+  at 900 s run alone (85-272 s), typed-array-set and array-prototype-flat-reentrant-mutation exceed
+  900 s, unlinked-metadata-table-finalize-overflow fails at 914 s. The box pages.
+- many-substrings-of-rope-shouldnt-use-excessive-memory: MemoryFootprint on 10.4 is resident size
+  (no phys_footprint before 10.9), which counts the shell's own text; 18 MB against a 14 MB bound.
+- js-to-wasm-callee-has-correct-prototype: needs the sampling profiler (off on Tiger).
+- TestWTF WTF_SafeStrerror.*: 10.4's strerror() says "Unknown error: 0", its strerror_r "Unknown error 0".
+- TestWTF WTF.MemoryDumpNullPointer: std::span(nullptr, 42) traps in our hardened libc++ (the test is UB).
+- TestWTF WTF_ThreadSafeWeakPtr.DoubleWeakDeref: three threads spin-wait on each other 20,000 times;
+  on 2 cores every round waits for a scheduler quantum (> 900 s). Not a hang in WTF.
+- testmasm testMove128ToVector*: AVX-only on x86_64; gated (392/392 pass).
+- TestJavaScriptCore / TestWTF one-off SIGBUS in /bin/mkdir or dyld: the fork flake above.
+- libpas ExpendableMemory testRage(..., `[] (unsigned j) { return deterministicRandomNumber(j); }`, ...):
+  deterministicRandomNumber(0) is `value % 0`, a divide error on x86 (EXC_ARITHMETIC) and a silent 0
+  on arm64, where upstream runs it. A test bug, not a port one.
+- libpas test_pas is built from libpas's own CMake: `cmake -S WebKit-tests/Source/bmalloc/libpas -B
+  build/tiger-libpas-tests -G Ninja -DCMAKE_TOOLCHAIN_FILE=$PWD/toolchain/tiger64.cmake -DTIGER=ON
+  -DCMAKE_OSX_SYSROOT=$PWD/sdk/MacOSX10.4u.sdk -DCMAKE_BUILD_TYPE=Release -DPAS_LIBRARY_TYPE=STATIC
+  "-DCMAKE_C_FLAGS_RELEASE=-O3 -DNDEBUG -DENABLE_PAS_TESTING -DPAS_BMALLOC_HIDDEN=0"` (same for CXX);
+  run it on the box under spike/jsc64/catchexec64 (it forks a child per test and has no catcher) and
+  through jsc-box-driver.pl, `--child-processes 1`: its scavenger tests alone push the load past 4.
+
+**Left**: the other tiers over all of stress (~5,000 tests and ~2 h each on the box; only a sample
+ran), the rest of libpas's test_pas (1,725 ran; a full run is 2+ h at 1 child with load pauses), ChakraCore (checked out, not run), the memoryHog set alone overnight, a jsc.cpp upstream fix for
+the soft timeout, and the WKTR port below. Merge note: the main tree grew its own crashinfo printing
+in TigerCrashCatcher this afternoon (release 2.5); tiger-tests's version of the same lines will
+conflict, keep one.
+
+### WebKitTestRunner for this port: assessment and plan (not started)
+
+Read-only survey of Tools/WebKitTestRunner, TestRunnerShared, ImageDiff and webkitpy/port
+(from the git objects; none of it is in the sparse checkout). Estimate **~14-20 agent-days**
+to a first TestExpectations; nothing here is under a day, so the port itself is not started.
+
+**Template: the Win/PlayStation C-API shape plus the Mac NSEvent code, not Mac Cocoa.** The
+i386 UI build is PLATFORM(MAC)/COCOA, so WKTR's COCOA branches would switch on, but they are
+written against the ObjC WKWebView API we do not build (our shell is TigerWebView, C++/C API).
+TestController.cpp has 23 PLATFORM(COCOA) + 10 PLATFORM(MAC) sites, TestController.h 14 + 4,
+TestInvocation.cpp 3 + 2: each needs a !PLATFORM(TIGER) arm. **C API coverage is not the
+problem**: of the 417 WK* functions WKTR's UI side calls, `nm` on build/tiger-ui-port's
+libWebKit.a finds all but the WKView* family (Win/PlayStation only; replaced below), two
+inlines and ~10 mac-only or #if'd ones; WKImageCreateCGImage needs UIProcess/API/C/cg/WKImageCG.cpp
+added to the UI build. The bundle side's 118 WKBundle* calls are all in tiger-web-port except
+WKBundlePageSetUseTestingViewportConfiguration.
+
+Files to write (Tools/WebKitTestRunner/tiger/):
+- PlatformWebViewTiger.mm: off-screen NSWindow + TigerWK2View + TigerWebView (a WKViewCreate/
+  WKViewGetPage-sized shim, or toAPI(page) directly); windowSnapshotImage builds a CGImage
+  from the UI's BackingStore (fast mode owns it; no screencapture).
+- EventSenderProxyTiger.mm: the NSEvent factory TIGER_SCRIPT already uses; wheel events go
+  through WebPageProxy as TIGER_SCRIPT does (10.4 has no public wheel NSEvent constructor).
+- TestControllerTiger.mm (Win's as the model; platformRunUntil on the RunLoop),
+  TestInvocationTiger (Cocoa's CG pixel dump with UTType replaced by "public.png").
+- InjectedBundle/tiger: ActivateFonts (point TIGER_FONT_MANIFEST at a test manifest that adds
+  WKTR's 18 fonts: Ahem, WebKitWeightWatcher100-900, FakeHelvetica, "WebKit Layout Tests"),
+  accessibility and TestRunner stubs as PlayStation has.
+
+**Process model.** WKTR is the UI process: i386, in a UI tree (TIGER_PROCESS=UI). The injected
+bundle must run in the x86_64 web process. InjectedBundleTiger.cpp today returns false, and a
+dlopen'd bundle does not fit a 166 MB statically linked, dead-stripped TigerWebProcess (a
+self-contained bundle carries a second WTF/JSC/libpas; -bundle_loader needs symbols dead-strip
+removed, e.g. WKBundleSetClient is absent). **Link the bundle in statically**: a test-only web
+executable (build/tiger-web-wktr, ENABLE_LAYOUT_TESTS=ON) linking TestRunnerInjectedBundle +
+WebCoreTestSupport, InjectedBundleTiger calling a weak WKBundleInitialize (production: null ->
+false). WKTR launches it through WEBKIT_TIGER_HELPER_DIR (ProcessLauncherTiger.cpp), so the
+shipping binaries are untouched.
+
+**run-webkit-tests.** No generic ssh driver in webkitpy. Add port/tiger.py (TigerPort: baseline
+search platform/tiger -> platform/wk2 -> generic, LayoutTests/platform/tiger/TestExpectations,
+default_child_processes 1) registered in factory.py; its driver is a wrapper
+(`ssh -T tiger-eth /Users/shg/wk2t/run-wktr.sh -`) that exports TIGER_FONT_MANIFEST,
+WEBKIT_TIGER_HELPER_DIR, TIGER_GPU=0 on the box and kills its children at stdin EOF. The
+home directory is /Users/shg on both machines, so LayoutTests rsynced to the same absolute path
+need no path mapping. ImageDiff runs on the Mac (host build). HTTP tests: webkitpy's server on
+the Mac, reverse-tunnelled (`ssh -R 8000:127.0.0.1:8000 -R 8443:... -R 8080:...`).
+
+| piece | agent-days |
+|---|---|
+| CMake: ENABLE_LAYOUT_TESTS, TestRunnerShared/WKTR/bundle in the two trees, WebCoreTestSupport x86_64 | 2-3 |
+| statically linked test web process + InjectedBundleTiger hook | 1-2 |
+| WKTR UI platform files (view, snapshot, events, controller, pixel dump, COCOA re-gating) | 4-6 |
+| bundle platform files (fonts, stubs) + test font manifest | 2 |
+| tiger.py, ssh wrapper, tunnels, host ImageDiff | 2 |
+| first triage + TestExpectations | 3-5 |
+
+Risk: reset-between-tests paths the browser never exercises (website data clearing,
+resetStateToConsistentValues) will hit 10.4/IPC surprises.
+
+**First subset** (test files, from ls-tree; render-tree = generic -expected.txt starting "layer at"):
+
+| subset | tests | ref tests | render-tree | nature |
+|---|---|---|---|---|
+| http/tests/cookies | 57 | 0 | 0 | text |
+| js (fast/js moved to LayoutTests/js) | 1387 | 0 | 4 | js-test text; js/dom 523 |
+| fast/dom | 1702 | 25 | 35 | text |
+| fast/events | 1101 | 7 | 2 | text, needs a solid EventSender |
+| fast/forms | 1580 | 329 | 36 | control metrics: hardest |
+| fast/css | 1629 | 486 | 136 | ref tests = our rasterizer vs itself |
+
+Order: cookies -> js -> fast/dom -> fast/events (~4,250 mostly-text tests), then the ref-test
+halves of fast/css and fast/forms; render-tree/pixel baselines only once platform/tiger
+baselines are generated.
+
+**Nightly shape.** One Mac-side job (tools/nightly-wktr.sh): flock spike/wk2web/box.lock on fd 9
+like stage-app.sh; wait while TigerBrowser.app is up (never kill it); rsync binaries, fonts and
+the subset; start httpd on the Mac; `run-webkit-tests --platform tiger --child-processes=1`
+sharded by directory, fast mode with TIGER_GPU=0 (three processes per worker, deterministic
+cairo raster); second worker only once N=1 is stable. Cleanup kills only its own pids / the
+/wk2t/ staging path. If the user's browser appears mid-run, stop after the current test and
+release the lock. Results stay on the Mac; only box-side logs come back to logs/wktr/<date>/.
+Guess (not measured): 0.5-1 s per text test on the box, 1-2 h for the first ~4,000.
+The JSC tier (tools/run-jsc-tests-box.sh, no lock, no GUI) can run in the same night before it.

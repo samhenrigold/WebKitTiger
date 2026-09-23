@@ -4,7 +4,7 @@
 # with a hard timeout, and writes one "P|F|T index seconds name" line per test.
 #   perl jsc-box-driver.pl <runner dir> <list file> <results file> <jobs> <timeout secs>
 # Box rules: kills every child group on exit/signal/orphaning; while the load average is over 4
-# nothing of ours runs (running groups are SIGSTOPped, resumed under 3).
+# nothing of ours runs (running groups are SIGSTOPped, resumed under 3.5).
 use strict;
 use POSIX qw(setsid WNOHANG);
 use Time::HiRes qw(time sleep);
@@ -41,14 +41,14 @@ while (@queue || %running) {
     exit 1 if getppid() == 1;    # the ssh session died: do not outlive it
     # Box rule: over load 4, nothing of ours runs. A single test can raise the load by itself
     # (JIT and GC threads, libpas's 1000-thread tests), so not starting new ones is not enough:
-    # stop the running groups too, and resume under 3. Stopped time does not count to timeouts.
+    # stop the running groups too, and resume under 3.5. Stopped time does not count to timeouts.
     if (time - $lastLoadCheck >= 5) {
         $lastLoadCheck = time;
         if (load1() > 4) {
             my $stoppedAt = time;
             kill 'STOP', -$_ for keys %running;
             print $log "load > 4, paused\n";
-            do { sleep 30; exit 1 if getppid() == 1; } while (load1() > 3);
+            do { sleep 30; exit 1 if getppid() == 1; } while (load1() > 3.5);
             kill 'CONT', -$_ for keys %running;
             $_->[1] += time - $stoppedAt for values %running;
             print $log "resumed\n";
