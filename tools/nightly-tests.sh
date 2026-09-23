@@ -39,7 +39,8 @@ else
     echo $(( (i + TIERS_PER_NIGHT) % n )) > "$STATE"
 fi
 
-ninja -C "$WKT/build/tiger-web-tests" jsc > "$NIGHT/build.log" 2>&1 || { echo "nightly-tests: jsc build failed"; exit 1; }
+# Tests whatever build/tiger-web-tests/bin/jsc is; it does not build (never two ninjas in one dir).
+ls -l "$WKT/build/tiger-web-tests/bin/jsc" > "$NIGHT/jsc-binary.txt" || exit 1
 run() { # <name> <args...>
     name=$1; shift
     echo "$(date '+%H:%M') $name"
