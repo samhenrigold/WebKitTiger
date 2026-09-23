@@ -5881,3 +5881,11 @@ shared not re-applied; three full-document restyle triggers on nytimes fixed (we
 now invalidate only matched elements); TIGER_JS_PROBE=1 attributes JS time per script URL
 (theverge: 57% third-party). nytimes main thread 99% -> 87% busy, style 45% -> 20%.
 Harness clean (three rows re-run after lock starvation). Installed while the app was closed.
+
+## Release 2.7 to the box (2026-09-23 15:10)
+
+tiger-faithful round 4 merged (a8fa0144): hosted controls cleared on commit/process swap and only
+the displayed document is described (back/forward cache kept the old page's controls alive);
+snapshot sequence numbers + acknowledgedSequence so page rewrites of a field being edited show
+live with the caret kept; maxlength field. Harness 14/14 including ghost/fghost. Installed while
+the app was closed.
