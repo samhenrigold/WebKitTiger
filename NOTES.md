@@ -5130,3 +5130,15 @@ controls-test.html shows hosted Aqua controls with full titles, video480loop aut
 - x.com onboarding modal repainted shifted ~150 px left with stale strips
   (logs/perf/x-merged-misplaced.png): partial updates whose bounds origin is not (0,0) are
   placed wrongly by the new memcpy incorporate path. With the paint track.
+
+## Release 2 to the box (2026-09-22 22:35)
+
+tools/make-bundle.sh from tiger-fontcache 0014801d (all four binaries fresh, message tables agree):
+JIT SSE4.1 rounding fallback, paint path (owned backing store, buffer reuse with the translate
+fixed, no store discard in AC mode, dirty-rect drawRect), GPU flush fence off in fast mode,
+Vector geometric growth, SIGCHLD reaping, Cocoa text editing, hosted Aqua controls, direct video
+path, YouTube MSE, low-power opt-in. Verified on the box before install: example.com, scrolltest
+(checker OK), controls-test, x.com onboarding with typing (logs/perf/x-final-22h32.png),
+video480loop at 30 fps. Open: x.com 2FA rejection (unreproduced), mirrored regions on
+apple.com/iphone-duo (unreproduced after fixes), <select> menu pick unverified by script,
+faithful-mode x.com typing.
