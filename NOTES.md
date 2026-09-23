@@ -6177,3 +6177,17 @@ cost is within noise; the only same-load pair (def 23.9 / agg 24.9 s) is +4%. Th
 cut of the earlier (heavily loaded) runs did not reproduce: epoch 100 alone is +8%, the combo
 -4%, i.e. the nytimes growth is live memory, not pages waiting to be scavenged. Defaults stay;
 the knobs stay for later A/B. (Two runs skipped by the box lock.)
+
+## Mac mini build server (2026-09-23 18:05)
+
+shg@shg-mini.local (M4, 10 cores, 16 GB, macOS 15.7) mirrors this repo at the same path:
+toolchain, sdk, deps, compat, spike, tools, build/builtins-i386, WebKit source (no .git,
+no LayoutTests), plus self-contained bin/ninja, bin/pkg-config, bin/ccache (+ lib/*.dylib
+rewritten to @loader_path) and cmake/. ccache configured like this Mac (same base_dir) and
+seeded with the 26 GB cache, so hits carry across worktrees and machines. Configure options
+for new dirs come from build/web-opts.txt and build/ui-opts.txt (dumped from the *-port caches
+minus executables/launchers). tools/mini-build.sh <worktree> <build-name> <targets> syncs the
+worktree, configures on first use, builds at -j8 behind a load gate of 12, and rsyncs bin/
+back into build/<build-name>/bin here. Cold full x86_64 web build: 8 min 5 s (this Mac under
+agent load: 40-60 min). Disk on the mini shows few GB "available" but it is purgeable APFS
+space; writes succeed. No sudo there: pmset/mdutil are the user's call.
