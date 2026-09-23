@@ -394,6 +394,15 @@ int openat(int dirfd, const char *path, int flags, ...)
     if (flags & O_CREAT) {
         va_list ap; va_start(ap, flags); mode = (mode_t)va_arg(ap, int); va_end(ap);
     }
+    /* Tiger's kernel ignores O_NOFOLLOW: it opens a symlink's target, or fails ENOENT on a
+       broken one, where POSIX says ELOOP. libc++'s remove_all tells links from directories
+       exactly that way (TestWTF FileSystemTest.fileType: a directory holding a broken
+       symlink could not be deleted). Probed on the box 2026-09-23. */
+    struct stat st;
+    if ((flags & O_NOFOLLOW) && !lstat(full, &st) && S_ISLNK(st.st_mode)) {
+        errno = ELOOP;
+        return -1;
+    }
     return open(full, flags, mode);
 }
 
@@ -479,3 +488,29 @@ _Bool _dyld_find_unwind_sections(void *addr, struct dyld_unwind_sections *info)
     }
     return 0;
 }
+
+#if defined(__x86_64__)
+/* 10.4's realpath() writes into a caller buffer only; POSIX.1-2008 lets resolved be NULL
+   for a malloc'd result, which libc++'s filesystem::canonical (WTF::FileSystem::realPath)
+   relies on -- on the box it faulted inside realpath (TestWTF FileSystemTest.realPath).
+   The system one is still reached through dlsym, since this definition shadows it. */
+#include <dlfcn.h>
+char *realpath(const char *path, char *resolved)
+{
+    static char *(*systemRealpath)(const char *, char *);
+    if (!systemRealpath)
+        systemRealpath = (char *(*)(const char *, char *))dlsym(RTLD_NEXT, "realpath");
+    if (resolved)
+        return systemRealpath(path, resolved);
+    char *buffer = malloc(PATH_MAX);
+    if (!buffer)
+        return NULL;
+    if (!systemRealpath(path, buffer)) {
+        int saved = errno;
+        free(buffer);
+        errno = saved;
+        return NULL;
+    }
+    return buffer;
+}
+#endif
