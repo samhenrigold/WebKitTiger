@@ -5080,3 +5080,30 @@ steps coalesce (`by 0,-329`, `by 0,-391` for 120 px steps) because a rendering u
 gets a slot about once a second. Notable in the hot frames: `FFmpegByteSource::append`,
 `SharedBufferBuilder::appendSpans` and `fastMalloc` together are about a third of the busy
 main-thread samples -- media source appends, on the main thread, during scrolling.
+
+## Blank pages after the merges = stale GPU process message table (2026-09-22 21:30)
+
+After merging tiger-video (which added TigerVideoSinkUpdate to WebPageProxy.messages.in) every
+fast-mode page came up white with the web process sending updates and the UI never seeing them.
+MessageNames is one global enum: a message added anywhere renumbers everything after it, and
+build/tiger-gpu's TigerGPUProcess (16:25) still had the old table. DrawingAreaWC::sendUpdateNonAC
+ends every update with RemoteRenderingBackend::Flush + a semaphore wait on the GPU process; the
+stale GPU never answered, so each frame arrived after the 15 s connection timeout ("TIGER web:
+fence 15000.8 ms"). That is also the shape of the user's "flickers out and repaints" when their
+installed bundle's GPU process was current but a page went heavy.
+
+Fixes: (1) tiger-perf 5d3e0e6e takes the fence only when something is actually rendered remotely
+(DOM/canvas/media in the GPU process) -- nothing is in fast mode; (2) rebuild the GPU process with
+every .messages.in change, always stage all four binaries together. Rule going forward: any
+.messages.in change = rebuild UI, web, network and GPU before staging; tools/make-bundle.sh does
+that implicitly by taking all four from the main build dirs. Wanted: a startup handshake that
+compares a hash of the message table between processes and fails loudly.
+
+Also merged from the responsiveness track (tiger-media b50ebfc3..58f51365): WTF::Vector
+appendRange/appendContainerWithMapping grew capacity exactly (O(n^2)); the network process spent
+43% of a core in SharedBufferBuilder::append and every document.cookie sync call queued behind it
+(23.6% of web main-thread samples). Now geometric growth: network 2.6-5% busy, hover-to-cursor
+median 2.5 s -> ~0.9 s on nytimes. SIGCHLD reaping of auxiliary processes. Low-power throttling
+(30 fps rendering updates, 30 ms timer alignment) on TIGER64, TIGER_LOW_POWER=0 to disable, win
+unproven. JIT SSE4.1 roundsd/roundss (tiger-jsperf 0a0e90eb, 921420c2) replaced with an x87
+frndint sequence when SSE4.1 is absent: the user's three crashes and The Verge's crash.
