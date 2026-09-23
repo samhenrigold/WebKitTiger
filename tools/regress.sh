@@ -16,7 +16,7 @@
 # what it staged. The test pages are rsynced to /Users/shg/wk2/share by that script.
 #
 # Every run also checks the app log: no TIGER-CRASH, no TIGER-ABORT, no "unresponsive",
-# no "cannot connect to :", no "Autoplay blocked", and at least one
+# no "cannot connect to :", no actual autoplay denial, and at least one
 # "TIGER ui: incorporate" (TIGER_PAINT_PROBE=1 is set for every run, so a run that
 # paints nothing at all is a failure even when the screenshot happens to look right).
 #
@@ -95,10 +95,15 @@ run() {
 log_faults() {
     log=$1
     [ -f "$log" ] || { echo "no app.log came back"; return; }
-    for pattern in TIGER-CRASH TIGER-ABORT unresponsive 'cannot connect to :' 'Autoplay blocked'; do
+    for pattern in TIGER-CRASH TIGER-ABORT unresponsive 'cannot connect to :'; do
         n=$(grep -ac "$pattern" "$log" 2>/dev/null || true)
         [ "${n:-0}" -gt 0 ] && echo "$n x \"$pattern\""
     done
+    # HTMLMediaElement::canTransitionFromAutoplayToPlay returns !paused when
+    # play() already started playback. setReadyState logs this as "blocked" even
+    # though no autoplay transition is needed. Keep every actual denial fatal.
+    n=$(grep -a 'Autoplay blocked' "$log" | grep -avEc 'HTMLMediaElement::setReadyState\([[:xdigit:]]+\) Autoplay blocked with reason: PageConsentRequired: !paused$' || true)
+    [ "${n:-0}" -gt 0 ] && echo "$n x \"Autoplay blocked\""
     grep -aq 'TIGER ui: incorporate' "$log" || echo 'no "TIGER ui: incorporate" (nothing was painted)'
 }
 
