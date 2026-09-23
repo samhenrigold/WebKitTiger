@@ -19,7 +19,8 @@ SHOT=${SHOT:-$WKT/spike/wk2web/first-window.png}   # where the screenshot lands 
 LOG=${LOG:-}                                       # if set, the whole app.log is copied here
 APP_ENV=${APP_ENV:-}   # e.g. APP_ENV=TIGER_GPU=0 to keep the GPU process out
 # Font manifest and CA bundle live under the staging dir; the processes read these two env vars.
-APP_ENV="TIGER_FONT_MANIFEST=/Users/shg/wk2/share/tiger-fonts.json TIGER_CA_BUNDLE=/Users/shg/wk2/share/cacert.pem $APP_ENV"
+# Own HOME so staged runs never touch the installed app's cookies/storage under ~/Library.
+APP_ENV="HOME=/Users/shg/wk2/home TIGER_FONT_MANIFEST=/Users/shg/wk2/share/tiger-fonts.json TIGER_CA_BUNDLE=/Users/shg/wk2/share/cacert.pem $APP_ENV"
 # Never run on top of someone else's processes: results would be meaningless and the
 # cleanup would kill theirs. Wait up to 5 minutes for the box to be clear.
 for i in $(seq 1 60); do
@@ -29,7 +30,7 @@ for i in $(seq 1 60); do
     sleep 5
 done
 if [ -n "$busy" ]; then echo "stage: box still busy (the user may be using TigerBrowser.app); aborting, nothing killed"; exit 1; fi
-ssh tiger-eth 'mkdir -p /Users/shg/wk2/bin /Users/shg/wk2/Frameworks /Users/shg/wk2/share'
+ssh tiger-eth 'mkdir -p /Users/shg/wk2/bin /Users/shg/wk2/Frameworks /Users/shg/wk2/share /Users/shg/wk2/home'
 rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" "$WKT"/spike/wk2web/*.html tiger-eth:/Users/shg/wk2/share/ 2>/dev/null || echo "stage-app: share files not all copied (cacert.pem present?)"
 # rsync -t skips binaries that have not changed since the last stage.
 FILES=""
