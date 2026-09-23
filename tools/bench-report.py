@@ -14,6 +14,7 @@ import collections, io, json, os, re, runpy, statistics, sys, contextlib, hashli
 WKT = '/Users/shg/Developer/WebKitTiger'
 WEB = WKT + '/build/tiger-web-port/bin/TigerWebProcess'
 d = sys.argv[1]
+paint_summary = runpy.run_path(WKT + '/tools/paint-metrics.py')['summarize']
 build_record = os.path.join(d, 'web-build-dir.txt')
 if os.path.isfile(build_record):
     WEB = os.path.join(open(build_record).read().strip(), 'bin', 'TigerWebProcess')
@@ -198,6 +199,10 @@ for name in names:
     web30 = ps.get(30, {}).get('TigerWebProcess')
     r = dict(url=url, fvnl=fvnl(name), crashes=crashes(name), ps={str(k): v for k, v in ps.items()},
              media=media(name), titles=titles(name)[-40:])
+    status = os.path.join(d, name + '.exit-status')
+    r['stage_exit_status'] = int(open(status).read()) if os.path.exists(status) else None
+    with open(os.path.join(d, name + '.log'), errors='replace') as stream:
+        r['paint_operations'] = paint_summary(stream)
     if not name.startswith(('octane', 'sp3')):
         r['input'] = input_metrics(name)
         r['profile'] = profile(name, hex(web30[0]) if web30 else None)
@@ -227,6 +232,9 @@ def later(r):
     ats = sorted(int(a) for a in r['ps'] if int(a) > 30)
     return ats[-1] if ats else 88
 
+failed = [name for name, r in M.items() if r['stage_exit_status'] not in (None, 0)]
+if failed:
+    P('Failed staging runs (diagnostics only, not successful benchmarks): ' + ', '.join(failed) + '\n')
 P('## Load, responsiveness, CPU (fast mode unless the name starts with f)\n')
 P('| page | first non-empty layout | TTI (move answered <100 ms) | wheel->frame median / p90 (n) | hover->cursor median / p90 (n/15) | web / UI / GPU / net %CPU 0-30 s | ... 30-88 s | web RSS @88 s | load @30/88 | crashes |')
 P('|---|---|---|---|---|---|---|---|---|---|')
@@ -270,6 +278,21 @@ for name, r in M.items():
     s = j['split']
     P('| %s | %.0f s | %.1f | %.1f | %.1f | %.1f | %.1f | %s |' % (name, j['t'], j['total'], s.get('first party', 0), s.get('third party', 0),
       s.get('inline/eval/native', 0), s.get('unlisted (below top 25)', 0), ', '.join('%s %.1f' % kv for kv in j['top_third'])))
+
+P('\n## Paint operations after warmup (not distinct video frames or physical scanout)\n')
+P('| page | interval s | GPU renders/s | UI incorporates/s | UI draws/s | GPU render / readback p95 ms | UI draw gap p95 / max ms |')
+P('|---|---|---|---|---|---|---|')
+def number(value):
+    return '-' if value is None else '%.1f' % value
+for name, r in M.items():
+    p = r['paint_operations']; ops = p['operations']
+    if not any(op['count'] for op in ops.values()):
+        continue
+    P('| %s | %.1f | %s | %s | %s | %s / %s | %s / %s |' % (
+        name, p['duration_s'], number(ops['gpu_render']['per_second']),
+        number(ops['ui_incorporate']['per_second']), number(ops['ui_draw']['per_second']),
+        number(ops['gpu_render']['cost_p95_ms']), number(ops['gpu_readback']['cost_p95_ms']),
+        number(ops['ui_draw']['gap_p95_ms']), number(ops['ui_draw']['gap_max_ms'])))
 
 P('\n## Decoder output (TIGER-MEDIA; this does not measure displayed FPS)\n')
 P('Two-second windows after the first four seconds; loop-wrap windows are excluded.\n')
