@@ -328,6 +328,25 @@ int clock_gettime(clockid_t clk, struct timespec *tp)
 }
 int clock_getres(clockid_t clk, struct timespec *res) { (void)clk; res->tv_sec = 0; res->tv_nsec = 1000; return 0; }
 
+/* 10.4's libm trunc()/truncf() lose the sign of a zero result: trunc(-0.5) is +0, C99
+   (and roundsd, and JS's Math.trunc) say -0. Probed on the box (NOTES 2026-09-23): no
+   other rounding or elementary function there gets a signed zero wrong. This archive is
+   linked ahead of libSystem, so these are the process's trunc. */
+#include <math.h>
+#include <stdint.h>
+double trunc(double x)
+{
+    if (!(fabs(x) < 4503599627370496.0)) /* NaN, infinities, and |x| >= 2^52: already integral */
+        return x;
+    return copysign((double)(int64_t)x, x);
+}
+float truncf(float x)
+{
+    if (!(fabsf(x) < 8388608.0f)) /* 2^23 */
+        return x;
+    return copysignf((float)(int32_t)x, x);
+}
+
 /* Apple clang emits __bzero for zeroing memsets on some Darwin targets. */
 void __bzero(void *p, size_t n) { memset(p, 0, n); }
 
