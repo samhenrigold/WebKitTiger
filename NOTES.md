@@ -6449,3 +6449,13 @@ tiger-ime (IME/spellcheck, guarded by TIGER_HAS_IME), tiger-features (API stubs)
 (relaunch recovery, memory pressure), tiger-tests (nightly stress, WKTR phase 1), benchmark
 (tools/bench.sh, logs/bench). Agents were told to commit WIP and stop; check each worktree's
 `git status` and `git log` for WIP commits. Build on the mini with tools/mini-build.sh.
+Wind-down statuses: tiger-regress aa1bc415 clean (youtube watch cookie-access not reproduced
+with a scratch HOME; suspect the user's profile's IsolatedSites/ServiceWorkers state). tiger-perf
+fec9476d4 two-frames-in-flight committed, unbuilt/unmeasured. tiger-ime 9c62a04be..ae093cad1:
+composition API + NSSpellChecker (dead keys verified; spelling underline, Kotoeri unverified;
+wire change: WebPage.messages.in, GPU not rebuilt). tiger-tests 40d3d118: nightly runner done
+(not scheduled; tools/nightly-tests.plist), first night stress default 5472 pass / 8 fail,
+no-llint 5008/1, mozilla 1124/1; WKTR phase 1 written, stops on AccessibilityUIElement abstract.
+Recovery, features, scrollbars, benchmark agents were stopped by the user mid-task: check their
+worktrees (WebKit-recover or WebKit-video, WebKit-features, WebKit-faithful) and the uncommitted
+tools/regress.sh rows (relaunch/features/scrollbars) on master. Box left clean.
