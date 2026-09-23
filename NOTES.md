@@ -6249,3 +6249,137 @@ on the mini (hash inputs differ somewhere: launcher basedir per tree / build-dir
 paths), so each build dir warms after its first build there. tools/mini-build.sh round trip
 verified on WebKit-perf -> build/tiger-web-perf/bin (7 min 50 s including sync); all tracks
 told to build there. EXTRA_CMAKE='...' adds first-configure options.
+
+## 2026-09-23 — Aqua scrollbars (tiger-faithful)
+
+Until now every scrollbar was ScrollbarThemeAdwaita (overlay, GNOME). Two paths now, in the
+port's order (system API first):
+
+    main frame                                   overflow areas, iframes, list boxes
+    ScrollbarThemeTiger reserves 15 px and       ScrollbarThemeTiger lays the parts out
+    paints NOTHING there                         (HITheme's own geometry) and hit-tests them
+    the widget snapshot gains                    paint(): GetTigerControlBitmap(kind =
+      VerticalScroller / HorizontalScroller        TigerControlScrollbarVertical/Horizontal)
+      (value 0..1, knobProportion)               UI: TigerRenderAquaScrollbar -- the whole
+    UI: a real NSScroller at the view's edge       scrollbar through HIThemeDrawTrack, thumb
+      knob/slot -> Input(value), arrows/page       at the exact pixel; cached web-side like
+      -> ScrollLine*/ScrollPage* -> the frame      the drawn controls
+      view scrolls by its own line/page step
+
+**The main frame's scrollers are hosted widgets**, not a new protocol: two more entries in the
+per-frame TigerNativeWidget set (identifiers UINT64_MAX / UINT64_MAX-1), so "hide when the
+content fits" is just absence, faithful mode gets them for free (same TigerWK2View), and a
+scroll updates the knob through the snapshot that already follows every rendering update. The
+knob is not pushed back while the user is dragging it (the echo is a frame old). The wheel over
+an NSScroller goes to the page view. `-[TigerWebView scrollViewBackingStore]` now declines the
+window-pixel scroll only when a subview intersects the scroll rect -- the rect is the visible
+content, which excludes the scrollbars -- otherwise every scrollable page would have lost the
+fast path the moment it got an NSScroller.
+
+**Pixels for the drawn ones: HIThemeDrawTrack with exact integers.** HITheme takes
+min/max/value/viewsize, not pixels. With min 0, max = travel - length, value = position,
+viewsize = length its proportion arithmetic is exact whatever it rounds, so the thumb lands on
+the pixel ScrollbarThemeComposite hit-tests. The travel is measured from HITheme at run time
+(the indicator's start at value 0, the page-down part's end). HITheme's normal orientation is
+y-down: the context is flipped and kHIThemeOrientationNormal used (compat/aquacontrols.m's
+old drawScrollbar drew it upside down -- arrows at the top -- and is unused). The GetTigerControlBitmap
+fields are reinterpreted for the two scrollbar kinds (TigerScrollbarArtwork.h): value = thumb
+offset px, zoomFactor = thumb length px, states bits 24..31 = HITheme press state, thickness
+picks regular/small. No message or TigerControlStyle change, so libtigercompat (shared by every
+worktree) is untouched; the renderer is UIProcess/tiger/TigerScrollbarArtwork.c.
+
+**Geometry, measured** (spike/aquascroller/scrollerprobe.m, run.sh; HITheme part bounds on the
+box, 10.4 default "together at the end", paging on click):
+
+| | travel | back arrow | forward arrow | min thumb |
+|---|---|---|---|---|
+| vertical 15 | 4 .. L-30 | 14 | 16 | 26 |
+| vertical 11 | 4 .. L-23 | 10 | 13 | 20 |
+| horizontal 15 | 4 .. L-30 | 13 | 17 | 26 |
+| horizontal 11 | 4 .. L-24 | 11 | 13 | 20 |
+
+The back arrow's concave top is drawn over the end of the travel; HITheme gives the arrow only
+the part below, and so does the theme. (The 2009 ScrollbarThemeMac constants were close: 14/16
+and 26 regular; its small ones were off by one.)
+
+**Against a live NSScroller** (same window, same knob rect, same backdrop): regular sizes are
+identical everywhere but inside the knob, where the blue stripes are one row out of phase
+(maxDelta 12-27; the texture is anchored to the destination, so a live scroller's phase
+depends on where it sits in its window too). Two real differences left: (1) in an INACTIVE
+window NSScroller draws its arrow glyphs at half strength and HITheme at full (maxDelta 75 on
+the glyph pixels only); AppKit on 10.4 does not call HITheme for scrollers at all (nm: only
+HIThemeDrawBackground), it has its own images, and no enableState reproduces it --
+kThemeTrackDisabled equals Inactive, NothingToScroll drops the buttons. (2) the small knob
+draws one pixel higher than NSScroller's. Fix for both if the eye objects: render with an
+offscreen NSScroller instead of HITheme. spike/aquascroller/out/window-active.png is the probe
+window (live scrollers + a real NSScrollView), *-live/*-ours pairs beside it.
+
+Harness: `scrollbars` / `fscrollbars` rows in tools/regress.sh on spike/wk2web/scrollbars.html
+(the page logs `y= x= over= thin=` in its title; TigerBrowser2 prints `TIGER title:` in scripted
+runs). Click the div's drawn down arrow -> over=40 (one line), click the NSScroller's down
+arrow -> y=40, drag the knob -> y=1461, drag it back -> y=0, then a golden
+(tests/regress/golden/scrollbars.png). The `drag` verb now posts the whole gesture when a
+hosted view is under the press, so NSScroller's own tracking loop gets it.
+
+ponytail: a drawn scrollbar's bitmap is one sync round trip per distinct thumb position (the
+generic 512-entry control cache); wheel-scrolling a long overflow div fetches as it goes.
+Composite from a thumb strip + an empty track if that ever shows in a profile. Scrollbar
+preference (AppleScrollBarVariant) and jump-on-click are not read by the web side; the box has
+the defaults.
+
+Page layout changes: the main frame now reserves 15 px for a classic scrollbar (Adwaita's
+were overlay), so every long page is 15 px narrower -- goldens of scrollable pages need a
+re-bless when this merges (example.com fits and is unaffected).
+
+## Faithful-mode video through a ring-fed CALayer (2026-09-23 18:40) -- partway
+
+tiger-perf 67afb079d. Serialization change (videoRingPath in PlatformLayerChanges):
+rebuild web, network, UI and GPU together. check-message-names and check-serializers
+agree between web and GPU on the new field; the one serializer difference they report
+(`WebCore::PlatformColorSpace`) is present between the shipped build/tiger-gpu and
+build/tiger-web-port too, so it is not from this change.
+
+How it works: the decoder's ring (the fast-mode sink, now the producer in both modes)
+is mapped read-only by path in the GPU process; the video's GraphicsLayer carries the
+ring path in its PlatformLayer change; the CA scene keeps a "video" sublayer between
+the tiles and the children, placed by WC's contentsRect, and sets a fresh CGImage over
+the current slot per frame (no copy). A frame is committed on its own -- that layer
+alone, no WebCore rendering update -- and only the video rect is rendered and read
+back. Fast mode is untouched: 30 fps, 0 dropped, no accelerated frames.
+
+Bugs found on the way, all fixed in that commit:
+- The repaint request per frame was coalesced by a flag only `paint()` cleared, and
+  `paint()` never runs for a layered video: only the first frame ever asked.
+- WC's contentsRect was being applied as CALayer's unit-square contentsRect.
+- GraphicsLayerWC cast every platform layer to the WebGL subclass unconditionally.
+- Tile images and tile contexts were sRGB-tagged; CA colour-matched the whole
+  512x512 tile on every contents change: 80-150 ms per commit under a playing video.
+  Device RGB now: CA commit median 0.08 ms.
+
+video480loop.html, faithful, 30 s:
+
+| | on screen | decoder | web %CPU | GPU %CPU |
+|---|---|---|---|---|
+| before (in-page blit) | ~3.5 fps | 30 fps, 0 dropped | 50.7 | 50.4 |
+| now | ~20 fps (16-24 per 2 s window) | 30 fps, 0 dropped | ~44 | ~37 |
+
+**Not at 30 fps. The limit is the serial handshake**: one frame in flight, web -> GPU
+(render 5-9 ms + readback 7-13 ms, ~24 ms round trip) -> UI (incorporate 2.7 ms, draw
+1.2 ms, ~4.7 ms leg) -> DisplayDidRefresh -> next frame. Median cycle 36-45 ms, and
+30 fps needs 33. Options, cheapest first: (a) let the next video-only commit go while
+the previous frame's UI leg is still in flight (two frames in flight for the layer-only
+path; the GPU scene already has no dependency on the UI); (b) skip the readback for the
+video rect entirely and have the UI draw the ring there itself, as fast mode does,
+inside a hole the GPU leaves -- only correct while nothing composited sits on top of
+the video, which on YouTube is false (the controls); (c) render the pbuffer straight
+to a window the UI hosts, which is the faithful-mode compositing redesign.
+
+**YouTube watch page did not start, in either mode, with this tree**: the network
+process rejects the first load ("Web process does not have cookie access to url
+https://www.youtube.com/watch?v=f7NwyBnIRTE", then requestTermination
+RequestedByNetworkProcess). It happens before any media code runs, and in fast mode too
+(logs/perf/scroll/app-ytfast.log, app-yt.log). The shipped build loads the YouTube home
+page cleanly (regress youtube PASS, no rejection); the watch page on the shipped build
+could not be tried because the box stayed locked past stage-app's 10-minute wait. This
+tree is tiger-fontcache a8fa01442 plus the video commit, and the video commit touches no
+networking code.

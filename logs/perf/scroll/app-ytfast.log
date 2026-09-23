@@ -1,0 +1,64 @@
+2026-09-23 18:16:30.783 TigerBrowser2[28120] *** _NSAutoreleaseNoPool(): Object 0x7c09180 of class NSCFString autoreleased with no pool in place - just leaking
+TIGER ui: drawRect 0.00 ms rect=960x648+0+0 unpainted=1
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::initializeNetworkProcess: Presenting processPID=28161
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+[com.apple.WebKit:Process:4] 0x119084240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+[com.apple.WebKit:Process:4] 0x119084240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+[com.apple.WebKit:Process:4] 0x119084240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+[com.apple.WebKit:Process:4] 0x1190300c0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=28120
+[com.apple.WebKit:Loading:4] 0x119118b80 - [webPageID=5] WebPage::constructor:
+[com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+[com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+TIGER paint: url= page=960x648 bounds=960x648 rects=1 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x119031d80 visible=960x648 contents=960x648 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=1 bytes=2488320 buffer 14.18 ms paint 38.19 ms scroll=0x0 by 0,0
+TIGER web: remote rendering DOM=0 canvas=0 media=0 -> flush fence off
+TIGER web: commit queue waited 1.1 ms, fence 0.0 ms
+[com.apple.WebKit:Loading:1] scheduleResourceLoad: Web process does not have cookie access to url https://www.youtube.com/watch?v=f7NwyBnIRTE for request https://www.youtube.com/watch?v=f7NwyBnIRTE
+IPC: NetworkConnectionToWebProcess_ScheduleResourceLoad rejected after dispatch: decoderValid=1 size=2707 consumed=2707
+00 00 28 01 00 00 00 00 00 00 00 00 00 00 00 00
+04 00 00 00 00 00 00 00 05 00 00 00 00 00 00 00
+01 00 00 00 01 00 00 00 2B 00 00 00 01 68 74 74
+70 73 3A 2F 2F 77 77 77 2E 79 6F 75 74 75 62 65
+2E 63 6F 6D 2F 77 61 74 63 68 3F 76 3D 66 37 4E
+77 79 42 6E 49 52 54 45 2B 00 00 00 01 68 74 74
+70 73 3A 2F 2F 77 77 77 2E 79 6F 75 74 75 62 65
+2E 63 6F 6D 2F 77 61 74 63 68 3F 76 3D 66 37 4E
+77 79 42 6E 49 52 54 45 00 00 00 00 00 00 00 00
+03 00 00 00 01 47 45 54 05 00 00 00 00 00 00 00
+
+TIGER ui:   map 0.11 ms scroll 0.00 ms copy 5.61 ms (rows=1)
+TIGER ui: incorporate 6.24 ms bounds=960x648+0+0 rects=1 scroll=0x0+0+0 by 0,0 damage=960x648
+TIGER web: displayDidRefresh 15.6 ms after the update was sent, deferred 15.6 ms, suspended=1
+TIGER ui: drawRect 6.70 ms rect=960x648+0+0 unpainted=0
+[com.apple.WebKit:Process error] 0x803b400 - [PID=28160] WebProcessProxy::requestTermination: reason=RequestedByNetworkProcess
+[com.apple.WebKit:Process error] 0x803b400 - [PID=28160] WebProcessProxy::processDidTerminateOrFailedToLaunch: reason=RequestedByNetworkProcess
+[com.apple.WebKit:Process error] 0x803e600 - [pageProxyID=4, webPageID=5, PID=28160] WebPageProxy::processDidTerminate: (pid 28160), reason=RequestedByNetworkProcess
+[com.apple.WebKit:Loading error] 0x803e600 - [pageProxyID=4, webPageID=5, PID=28160] WebPageProxy::dispatchProcessDidTerminate: reason=RequestedByNetworkProcess
+[com.apple.WebKit:Loading:4] 0x119084240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::didClose: WebProcess closed its connection. Aborting related loaders.
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::removeNetworkConnectionToWebProcess: Removing process 3
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 5
+[com.apple.WebKit:Process:4] 0x119084240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 5
+[com.apple.WebKit:Process:4] 0x119084240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established service worker server connection
+[com.apple.WebKit:Process:4] 0x119084240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established shared worker connection
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 5, notifying the UI process
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 5 to the UI process
+[com.apple.WebKit:Process:4] 0x1190300c0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=28120
+[com.apple.WebKit:Loading:4] 0x119110b80 - [webPageID=5] WebPage::constructor:
+[com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+TIGER paint: url= page=960x648 bounds=960x648 rects=1 ctxDisabled=0 needsLayout=0 visualUpdatesAllowed=1 renderView=0x119031d80 visible=960x648 contents=960x648 composited=0
+TIGER paint: cairo status after paint: no error has occurred
+TIGER web: update bounds=960x648+0+0 rects=1 bytes=2488320 buffer 4.79 ms paint 10.73 ms scroll=0x0 by 0,0
+TIGER web: remote rendering DOM=0 canvas=0 media=0 -> flush fence off
+TIGER web: commit queue waited 1.5 ms, fence 0.0 ms
+TIGER ui:   map 0.15 ms scroll 0.00 ms copy 5.88 ms (rows=1)
+TIGER ui: incorporate 6.68 ms bounds=960x648+0+0 rects=1 scroll=0x0+0+0 by 0,0 damage=960x648
+TIGER web: displayDidRefresh 15.8 ms after the update was sent, deferred 15.8 ms, suspended=0
+TIGER web: displayDidRefresh 15.9 ms after the update was sent, deferred -1.0 ms, suspended=0
+TIGER ui: drawRect 2.51 ms rect=960x648+0+0 unpainted=0
+TIGER-EXIT pid 0x6dd8
+ thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2dccc5
+TIGER-EXIT pid 0x6e01
+ thread 0xd03 state-kr 0x0 pc 0x10b6dfe4e leaf mach_msg_trap+0xa crashinfo 0x206 0x270 0x0 0xe03 0x3 0x7fff5fbff4e0 0x270 frames: 0x10b6dfe4e 0x10b69511d 0x100329a9c 0x10b684c75 0x10b684a0c 0x100001cd3 0x100001be1 0x3
