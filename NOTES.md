@@ -4959,15 +4959,26 @@ Measured on nytimes.com, same script:
 | web process main thread in `waitForSyncReply` | 23.6% | 0.6-1.6% |
 | hover -> cursor, median | 2.5 s | 0.86-1.0 s |
 
-### Low-power throttling: on, unproven
+### Low-power throttling: wired up, opt-in, unproven
 
 The box is a 2007 two-core laptop, permanently the machine WebKit's low-power mode exists
 for, and `ThrottlingReason::LowPowerMode` is the port's own machinery for it: the rendering
 update falls from 60 to 30 fps (`Page::preferredRenderingUpdateInterval` -- and on this port
 `RenderingUpdateScheduler` has no display link, so that interval *is* the timer) and DOM
 timers align to 30 ms instead of firing free (`Page::updateDOMTimerAlignmentInterval`).
-`LowPowerModeNotifier::isLowPowerModeEnabled()` now returns true on TIGER64;
-`TIGER_LOW_POWER=0` turns it off, so one binary measures both sides.
+`LowPowerModeNotifier::isLowPowerModeEnabled()` answers on TIGER64 from
+`TIGER_LOW_POWER`, so one binary measures both sides.
+
+**Opt-in (`TIGER_LOW_POWER=1`), not default**: it was default-on for an afternoon and that
+broke media. `MediaElementSession` folds low-power mode into
+`RequireUserGestureForVideoDueToLowPowerMode` (MediaElementSession.cpp:557), so every
+`<video autoplay>` and YouTube's own player refused to start -- "Autoplay blocked with
+reason: UserGestureRequired: Video low power mode restriction" on
+spike/media/video480loop.html. Getting the timer alignment and the 30 fps rendering
+interval without the media restriction means gating them separately: a Tiger arm in
+`Page::preferredRenderingUpdateInterval` / `Page::updateDOMTimerAlignmentInterval` keyed on
+a Tiger setting, leaving `MediaElementSession`'s low-power check false. Not worth building
+until there is a measured win to protect.
 
 No reliable win yet: run-to-run variance on nytimes.com is dominated by the web process
 crashing (the JIT crashes another track fixed in its own tree, not merged here), and a run
