@@ -5742,3 +5742,58 @@ controls-test.html, then `load http://example.com/`: every native control of the
 stays on screen over example.com (logs/perf/scroll/ghost-fast.png fast, fs-example.png
 faithful). regress.sh cannot see it because every check is a fresh launch; a check that loads a
 controls page and then a plain one would.
+
+## 2026-09-23 — decommit that actually decommits: OSAllocator and libpas's JIT heap (WebKit-jsperf, tiger-jsperf)
+
+10.4 x86_64 frees pages only for a MAP_FIXED anonymous remap (MADV_FREE is EINVAL, MADV_DONTNEED
+and msync(MS_KILLPAGES) succeed and free nothing -- tiger-video's probe). Two places still
+relied on the madvise path:
+
+- **WTF OSAllocator::decommit** (e7b5..., see tiger-jsperf log): its HAVE(MADV_FREE) arm was a
+  silent no-op. It now remaps, reading each region's protection back with `vm_region_64` and
+  reusing it, because decommit() is called on RW memory and on freed RWX JIT pages alike and is
+  not told which (x86_64 has no separated W^X heap; the pool is one RWX anonymous mapping, so a
+  fresh RWX mapping is exactly what it was). PROT_NONE regions are left alone.
+- **libpas's JIT heap** (527db29d): jit_heap_config is `client_owns_permissions | executable`,
+  and the TIGER arm kept those ranges on the DONTNEED hint because its zero-fill remap resets to
+  RW. Same protection-preserving remap now.
+
+`spike/jsc64/decommit64.c` (run on the box, 0 failures): vm_region_64 reports RW/RWX correctly
+from a 64-bit task; MADV_DONTNEED control keeps 320 MB resident; the remap drops a dirty 256 MB
+RW and 64 MB RWX to 0; RW stays RW and writable, RWX stays RWX, reads back zero, code written
+there afterwards runs; a range spanning an RWX and an RW region keeps both protections.
+
+Knobs: `TIGER_DECOMMIT_REMAP=0` restores the old OSAllocator no-op (A/B in one binary);
+`TIGER_DECOMMIT_LOG=1` prints `TIGER-DECOMMIT` (OSAllocator) and `TIGER-PAS-DECOMMIT` (libpas
+client-owned ranges) lines. `spike/wk2web/rss-run.sh` stages a run and samples the web
+process's RSS every 2 s from this side. `spike/jsc64/memdrop.html?mode=objects|shapes|jit`
+builds, drops and churns (web content cannot call gc()).
+
+**What it is worth, measured** -- smaller than the brief assumed, because with libpas the JS
+heap never goes through OSAllocator:
+
+| run (RSS MB after drop + GC, 60 s) | remap on | remap off (old) |
+|---|---|---|
+| system malloc, memdrop shapes (300k Structures) | **73** (65 MB via 4195 x 16 KB structure-heap decommits) | 139-161 |
+| system malloc, memdrop objects (5M objects, ~340 MB peak) | 341 | 342 (0 OSAllocator decommits: malloc's memory) |
+| libpas, shapes / objects / wikipedia / nytimes | 0 OSAllocator decommits in every run | same |
+
+Under libpas the structure heap and MarkedBlocks come from libpas (tiger-video's remap already
+returns them: shapes ends at 45-52 MB either way; objects returned to 122-140 MB in one run and
+stayed at 323 MB in the other within 60 s -- scavenger timing, not this change, worth a look by
+the libpas track). What is left for this code on libpas is JIT memory: 1-2 JIT-heap remaps on
+jitround.html, 31 (212 KB) on theverge.com, 25 (200 KB) on nytimes.com over 90 s scrolled --
+real but small. Wikipedia never decommits anything (RSS ~100-107 MB either way).
+
+**JIT after decommit/recommit**: jitround.html 3 runs (rounding checks pass, web process idle),
+theverge.com and nytimes.com 90 s scrolled on the libpas build with JIT pages remapped under
+them: 0 TIGER-CRASH, same web pid throughout. Pre-libpas build: theverge 90 s with 107 JIT-pool
+OSAllocator decommits (4-60 KB), 0 crashes.
+
+**New, open**: an intermittent *startup* assert on the libpas build, 2 of 14 runs (never in
+dozens of system-malloc runs): `RELEASE_ASSERT(stack.contains(vm.lastStackTop()), 0xaa20, ...)`
+in `sanitizeStackForVM` (VM.cpp:1540) <- `VM::VM` <- `commonVMSlow` <- `initializeWebProcess`,
+i.e. lastStackTop is outside the main thread's StackBounds right after sanitizeStackForVMImpl.
+The page then loads in the relaunched process. TigerCrashCatcher now prints the CRASH_WITH_INFO
+registers (`crashinfo r11 r10 r9 r8 r15 r14 r13` = reason, lastStackTop, origin, end, ...), so
+the next hit says which bound is wrong. Did not recur in the 5 runs after that was added.

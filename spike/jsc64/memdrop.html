@@ -1,0 +1,53 @@
+<!-- TIGER64: does JSC give memory back after a page drops it?
+     ?mode=objects  ~300 MB: 5M objects in one array
+     ?mode=jit      4000 distinct functions, each run hot enough for the baseline JIT
+     ?mode=shapes   300k distinct object shapes (Structures come from OSAllocator)
+     Build for ~15 s, drop everything at once, then churn short-lived garbage for 15 s so
+     the collector runs (web content cannot call gc()), then sit idle. Sample the web
+     process's RSS from outside (the harness prints ps; see NOTES). -->
+<html><body style="font:24px Helvetica">
+<div id="out">building</div>
+<script>
+var mode = (location.search.match(/mode=(\w+)/) || [])[1] || "objects";
+var keep = null, sink = 0;
+function log(s) { document.getElementById("out").textContent = s; }
+
+function build() {
+    if (mode === "objects") {
+        keep = new Array(5000000);
+        for (var i = 0; i < keep.length; ++i)
+            keep[i] = { a: i, b: i * 2, c: "x", d: null };
+    } else if (mode === "jit") {
+        keep = [];
+        for (var i = 0; i < 4000; ++i) {
+            var f = new Function("x", "var s = " + i + "; for (var k = 0; k < x; ++k) s += (k * " + (i % 97) + ") ^ " + i + "; return s;");
+            for (var j = 0; j < 300; ++j) sink += f(20);
+            keep.push(f);
+        }
+    } else {
+        keep = [];
+        for (var i = 0; i < 300000; ++i) {
+            var o = {};
+            o["p" + i] = i;
+            o["q" + (i % 1000)] = i;
+            keep.push(o);
+        }
+    }
+}
+
+setTimeout(function () {
+    var t0 = Date.now();
+    build();
+    log("built in " + (Date.now() - t0) + " ms; dropping at 20 s");
+    setTimeout(function () {
+        keep = null;
+        log("dropped; churning");
+        var end = Date.now() + 15000;
+        (function churn() {
+            for (var i = 0; i < 2000; ++i) { var a = new Array(64); a[0] = i; sink += a.length; }
+            if (Date.now() < end) setTimeout(churn, 0); else log("idle, sink " + sink);
+        })();
+    }, Math.max(0, 20000 - (Date.now() - t0) - 2000));
+}, 2000);
+</script>
+</body></html>

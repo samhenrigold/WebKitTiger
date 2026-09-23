@@ -1,0 +1,45 @@
+   0.217 2026-09-23 12:49:47.064 TigerBrowser2[22251] *** _NSAutoreleaseNoPool(): Object 0x7c09180 of class NSCFString autoreleased with no pool in place - just leaking
+   0.706 Unknown logging channel: Loading
+   0.706 Unknown logging channel: Layout
+   0.745 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::initializeNetworkProcess: Presenting processPID=22256
+   0.771 Unknown logging channel: Loading
+   0.771 Unknown logging channel: Layout
+   0.775 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 3
+   0.776 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.784 [com.apple.WebKit:Process:4] 0x119088240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.784 [com.apple.WebKit:Process:4] 0x119088240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+   0.784 [com.apple.WebKit:Process:4] 0x119088240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+   0.785 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+   0.801 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+   0.905 [com.apple.WebKit:Process:4] 0x1190300c0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=22251
+   0.907 [com.apple.WebKit:Loading:4] 0x119118b80 - [webPageID=5] WebPage::constructor:
+   0.912 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+   0.918 TIGER script: 
+   1.010 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   1.013 [com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+   1.050 [com.apple.WebKit:Loading:4] [pageID=5, frameID=4294967297] PolicyChecker::checkNavigationPolicy: continuing because this policyAction from dispatchDecidePolicyForNavigationAction is Use
+   1.055 [com.apple.WebKit:Loading:4] 0x119088240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=22251, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   1.055 [com.apple.WebKit:Loading:4] 0x119088240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+   1.055 [com.apple.WebKit:Loading:4] 0x119088240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=22251, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   1.056 [com.apple.WebKit:Loading:4] 0x119088240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=22251, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9)
+   1.094 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   1.185 Unknown logging channel: Loading
+   1.186 Unknown logging channel: Layout
+   1.189 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 5
+   1.191 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 5
+   1.193 [com.apple.WebKit:Process:4] 0x1190885d0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 5
+   1.193 [com.apple.WebKit:Process:4] 0x1190885d0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established service worker server connection
+   1.193 [com.apple.WebKit:Process:4] 0x1190885d0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established shared worker connection
+   1.193 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 5, notifying the UI process
+   1.193 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 5 to the UI process
+   1.201 
+   1.201 TIGER-CRASH pid 0x56f4 msgid 0x961 size 0x4c descriptors 0x2 exception 0x6 code 0x2 0x0 thread 0xd03 state-kr 0x0 pc 0x1041c1262 leaf _Z20WTFCrashWithInfoImpliPKcS0_yyyy+0x12 frames: 0x1041c1262 0x103e0dbb9 0x103e06e16 0x103e0b234 0x100bc196f 0x10004d895 0x100061890 0x10043ad03 0x10043b03f 0x10043b477 0x1041ed188 0x1042b38c6 0x10004bbab 0x10004bb1f 0x1000016cc 0x1000015e1 0x3
+   1.210 [com.apple.WebKit:Process error] 0x804de00 - [PID=22260] WebProcessProxy::didClose (web process crash)
+   1.210 [com.apple.WebKit:Process error] 0x804de00 - [PID=22260] WebProcessProxy::processDidTerminateOrFailedToLaunch: reason=Crash
+   1.210 [com.apple.WebKit:ProcessSwapping error] 0x7c80c90 - [pageProxyID=4, webPageID=13, PID=22260, navigationID=11] ProvisionalPageProxy::processDidTerminate:
+   1.210 [com.apple.WebKit:Loading:4] 0x1190885d0 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::didClose: WebProcess closed its connection. Aborting related loaders.
+   1.210 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::removeNetworkConnectionToWebProcess: Removing process 5
+  46.039 TIGER-EXIT pid 0x56eb
+  46.039  thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2dd615
+  46.087 TIGER-EXIT pid 0x56f0
+  46.087  thread 0xd03 state-kr 0x0 pc 0x10b6dfe4e leaf mach_msg_trap+0xa frames: 0x10b6dfe4e 0x10b69511d 0x1003286fd 0x10b684c75 0x10b684a0c 0x100001893 0x1000017a1 0x3

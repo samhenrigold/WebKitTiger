@@ -1,0 +1,53 @@
+   0.228 2026-09-23 11:00:47.816 TigerBrowser2[17708] *** _NSAutoreleaseNoPool(): Object 0x7c09180 of class NSCFString autoreleased with no pool in place - just leaking
+   0.669 Unknown logging channel: Loading
+   0.669 Unknown logging channel: Layout
+   0.671 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 3
+   0.704 Unknown logging channel: Loading
+   0.704 Unknown logging channel: Layout
+   0.712 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::initializeNetworkProcess: Presenting processPID=17716
+   0.731 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.741 [com.apple.WebKit:Process:4] 0x10c612400 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.741 [com.apple.WebKit:Process:4] 0x10c612400 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+   0.742 [com.apple.WebKit:Process:4] 0x10c612400 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+   0.742 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+   0.750 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+   0.797 [com.apple.WebKit:Process:4] 0x10c601220 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=17708
+   0.798 [com.apple.WebKit:Loading:4] 0x10d024400 - [webPageID=5] WebPage::constructor:
+   0.803 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+   0.831 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   0.833 [com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+   0.879 [com.apple.WebKit:Loading:4] [pageID=5, frameID=4294967297] PolicyChecker::checkNavigationPolicy: continuing because this policyAction from dispatchDecidePolicyForNavigationAction is Use
+   0.893 [com.apple.WebKit:Loading:4] 0x10c612400 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=17708, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   0.893 [com.apple.WebKit:Loading:4] 0x10c612400 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+   0.893 [com.apple.WebKit:Loading:4] 0x10c612400 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=17708, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   0.893 [com.apple.WebKit:Loading:4] 0x10c612400 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=17708, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9)
+   0.981 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   0.986 Unknown logging channel: Loading
+   0.986 Unknown logging channel: Layout
+   0.988 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 5
+   0.988 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 5
+   0.989 [com.apple.WebKit:Process:4] 0x10c602ac0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 5
+   0.989 [com.apple.WebKit:Process:4] 0x10c602ac0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established service worker server connection
+   0.989 [com.apple.WebKit:Process:4] 0x10c602ac0 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established shared worker connection
+   0.989 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 5, notifying the UI process
+   0.989 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 5 to the UI process
+   0.990 TIGER script: 
+   1.037 [com.apple.WebKit:Process:4] 0x10c601220 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=17708
+   1.038 [com.apple.WebKit:Loading:4] 0x10d024c00 - [webPageID=13] WebPage::constructor:
+   1.043 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: AcceleratedCompositingEnabled=false, UseGPUProcessForDOMRenderingEnabled=false
+   1.073 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   1.075 [com.apple.WebKit:Loading:4] [webPageID=13] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=2, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=1
+   1.080 [com.apple.WebKit:Loading:4] 0x10c602ac0 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=17708, pageProxyID=4, webPageID=13, frameID=4294967298, resourceID=9, existingLoaderToResume=1)
+   1.080 [com.apple.WebKit:Loading:4] 0x10c602ac0 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: Resuming existing NetworkResourceLoader
+   1.121 [com.apple.WebKit:Loading:4] 0x10c612400 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::didClose: WebProcess closed its connection. Aborting related loaders.
+   1.121 [com.apple.WebKit:Process:4] 0x10c601220 - NetworkProcess::removeNetworkConnectionToWebProcess: Removing process 3
+   1.189 [com.apple.WebKit:Layout:4] [pageID=13, frameID=4294967298, isMainFrame=1] LocalFrameView::fireLayoutRelatedMilestonesIfNeeded: Firing first visually non-empty layout milestone on the main frame
+   1.189 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidFirstLayoutForFrame
+   1.189 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstLayout, DidFirstVisuallyNonEmptyLayout)
+   1.189 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidFirstVisuallyNonEmptyLayoutForFrame
+   1.189 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   1.201 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstMeaningfulPaint)
+  60.512 TIGER-EXIT pid 0x452c
+  60.512  thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2dd615
+  60.537 TIGER-EXIT pid 0x4534
+  60.537  thread 0xd03 state-kr 0x0 pc 0x10ae62e4e leaf mach_msg_trap+0xa frames: 0x10ae62e4e 0x10ae1811d 0x1003292bd 0x10ae07c75 0x10ae07a0c 0x100001c53 0x100001b61 0x3
