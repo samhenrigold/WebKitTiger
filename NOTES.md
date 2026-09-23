@@ -6418,3 +6418,16 @@ Startup: 0 TIGER-CRASH in these 25 runs (~43 web-process launches) on the merged
 `TIGER-STACK main stack map entry 0x7fff5fbff000-0x7fff5fc00000, stack taken as
 0x7fff5f400000-0x7fff5fc00000` -- and went on normally, so the scratchBufferForSize /
 sanitizeStackForVM 0xaa20 crash is gone.
+
+## 2026-09-23 18:50 — YouTube watch "does not have cookie access" (open, tiger-regress aa1bc415)
+
+Not reproduced: tiger-regress (round 2) and the installed build load
+https://www.youtube.com/watch?v=f7NwyBnIRTE cleanly, 4 runs, fresh and reused HOME
+(logs/cookies2/ytw*.log). The failing logs (logs/perf/scroll/app-yt*.log) came from
+stage-perf2.sh, which sets **no HOME** -- those runs used the user's real profile, whose
+IsolatedSites.db / ServiceWorkers state is the likely trigger (IsolatedSiteStore feeds
+BrowsingContextGroup/process selection; a path that picks a process without
+addAllowedFirstPartyForCookies would give exactly this). Next: repro with a copy of only
+IsolatedSites + ServiceWorkers (never Cookies) into a scratch HOME, then add the `ytwatch`
+row. Separately, one run hit TIGER-CRASH in JSC::sanitizeStackForVM from VM::VM at web
+process start (also seen in round 1 on the main build).
