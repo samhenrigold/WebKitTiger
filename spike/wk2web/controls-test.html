@@ -70,6 +70,11 @@
   </div>
 </form>
 
+<h2>a form with no submit button (Return submits implicitly)</h2>
+<form onsubmit="document.title = 'implicit ' + this.lone.value; return false;">
+  <div class="row"><input type="text" name="lone" value="lone" size="14"></div>
+</form>
+
 <h2>sliders, progress, meter</h2>
 <div class="row">
   <input type="range" value="40">
@@ -89,6 +94,11 @@ var log = [];
 function note(e) {
   var t = e.target, v;
   if (t.type === 'checkbox' || t.type === 'radio') v = t.checked ? 'on' : 'off';
+  else if (t.tagName === 'SELECT' && t.multiple) {
+    v = [];
+    for (var i = 0; i < t.options.length; ++i) if (t.options[i].selected) v.push(i);
+    v = '[' + v.join(',') + ']';
+  }
   else if (t.tagName === 'SELECT') v = t.selectedIndex + ':' + t.value;
   else v = t.value;
   log.unshift(e.type + ' ' + (t.tagName + '/' + (t.type || '')) + '=' + v);
