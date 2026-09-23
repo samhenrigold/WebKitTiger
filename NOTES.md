@@ -6191,3 +6191,55 @@ worktree, configures on first use, builds at -j8 behind a load gate of 12, and r
 back into build/<build-name>/bin here. Cold full x86_64 web build: 8 min 5 s (this Mac under
 agent load: 40-60 min). Disk on the mini shows few GB "available" but it is purgeable APFS
 space; writes succeed. No sudo there: pmset/mdutil are the user's call.
+
+## 2026-09-23 — cookies round 2: Safari's policy, and document.cookie from a web-process cache (tiger-regress aa1bc415)
+
+**Policy** on the curl jar (CookieJarDB / NetworkStorageSessionCurl / NetworkDataTaskCurl):
+SameSite parsed and stored (schema 2 adds a `samesite` column; schema-1 rows migrate as
+None, i.e. as they behaved). Missing or unknown SameSite = Lax by default. Cross-site
+requests get None cookies; Lax only on a top-level safe-method navigation; Strict never;
+Lax-by-default cookies under two minutes old still go with a cross-site top-level POST
+(Chrome's Lax-allowing-unsafe; keeps form_post sign-ins alive). Lax/Strict can't be set from
+a cross-site context except by a top-level navigation's response. A cross-site redirect makes
+the rest of the chain cross-site; requests with no SameSite classification are not held to
+it. SameSite=None needs Secure; Secure needs a secure origin. Third-party cookies are blocked
+(WebKit's `thirdPartyCookieBlockingDecisionForRequest`, mode All) by turning the storage
+session's tracking-prevention flag on in NetworkSessionCurl -- **no ITP store**, so no
+classifier and no website-data removal. Blocked requests neither send nor store; a cross-site
+frame's document.cookie is empty. ITP-lite exemption: a registrable domain the user clicked or
+typed in as a first party (TigerUserInteractionObserver in the web process ->
+`LogUserInteraction` -> `logUserInteractionAsFirstParty`, persisted in the jar's
+`Interaction` table). `TIGER_THIRD_PARTY_COOKIES=1` disables blocking.
+
+**WebCookieCache**: HAVE_COOKIE_CHANGE_LISTENER_API is on for both halves (its five messages
+are on the wire; the i386 neutralisation block now says 1 too). The web process answers
+document.cookie for first-party frames from a CookieJarDB on `:memory:`, filled per host by
+`DomCookiesForHost` (curl implementation: every cookie that domain-matches, HttpOnly ones
+with an empty value so the name is known to be taken) and kept current by the jar's own change
+listener, which notifies subscribed connections synchronously -- so the notification is
+ahead of the response that carried the Set-Cookie on the same connection. The first profile
+was 90% SQLite compiling the search statement: it is now prepared once, uses a suffix compare
+instead of `domain GLOB ?` (SQLite re-prepares a statement whose GLOB/LIKE pattern is a bound
+parameter on every rebind), and only runs `strftime` when the Lax-by-default age matters.
+
+| | release (installed, before) | tiger-regress |
+|---|---|---|
+| cookie conformance (24 cases) | n/a (round-1 18/18 with SameSite, 3p, Secure-over-http as INFO) | 24/24 |
+| document.cookie, first read in a task (2000 tasks) | 2173 / 2648 us | 170 / 173 us |
+| document.cookie write + read (1000) | 2196 / 2673 us | 424 / 442 us |
+| 10k reads in one task (Document's own cache) | 9-10 ms | 12-19 ms |
+| nytimes, web main thread in sync CookiesForDOM (TIGER_SAMPLE_MAIN, 250 ms) | 2 of 273 samples (0.7%) | 0 of 276 |
+
+x.com, fresh profile, login flow to a nonsense username: nothing rejected, no 4xx anywhere
+(693 x 200, 1 x 307); x.com / api.x.com / jf.x.com (the flow is now
+`jf.x.com/onboarding/web/actions/begin_login`, 200) all get the full first-party set.
+
+Tools: `TIGER_CURL_RESOLVE=host:port:addr,...` (curl --resolve; the box's resolver misses
+shg-mbp.local even when mDNS answers), cookie-server.py `/interact` and `/bench`,
+`build/tiger-gpu-regress` (TIGER_PROCESS=GPU from WebKit-regress: the flag change renumbers
+the message table, so every process has to be rebuilt -- the stock build/tiger-gpu now
+disagrees with a tiger-regress UI).
+
+Left: no Storage Access API prompt (document.requestStorageAccess is not wired to the
+exemption); no "leave Secure cookies alone" rule; SameSite is schemeless (http and https of one
+host are same-site); the cache is first-party only (upstream's rule) and holds five hosts.
