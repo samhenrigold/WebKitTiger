@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- TIGER: repaint-placement page. The only thing that ever repaints is a fixed
+     400x300 box in the middle of the view, so every update after the first has an
+     updateRectBounds whose origin is NOT (0,0) -- the case that a translate left on
+     a reused update buffer, or a source/destination mix-up in the UI process's row
+     copy, shifts. The box sits inside a static 12px black frame that is never
+     repainted: if the update lands even a pixel off, colour spills over the frame
+     and a strip of the old colour survives inside it. -->
+<html><head><meta charset="utf-8"><title>boxtest</title><style>
+  html,body { margin:0; padding:0; background:#f0f0f0; font:bold 20px Helvetica; }
+  #frame { position:fixed; left:280px; top:174px; width:400px; height:300px; border:12px solid #000; }
+  #box { width:400px; height:300px; background:#00a000; color:#fff; text-align:center; line-height:300px; }
+</style></head><body>
+<div id="frame"><div id="box">BOX 0</div></div>
+<script>
+  var colors = ['#00a000', '#0000c0', '#c00000', '#008080'], n = 0;
+  setInterval(function () {
+    n++;
+    var b = document.getElementById('box');
+    b.style.background = colors[n % colors.length];
+    b.textContent = 'BOX ' + n;
+  }, 1500);
+</script>
+</body></html>
