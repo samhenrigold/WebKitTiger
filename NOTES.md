@@ -6243,3 +6243,9 @@ disagrees with a tiger-regress UI).
 Left: no Storage Access API prompt (document.requestStorageAccess is not wired to the
 exemption); no "leave Secure cookies alone" rule; SameSite is schemeless (http and https of one
 host are same-site); the cache is first-party only (upstream's rule) and holds five hosts.
+Mini timings: cold full x86_64 web+network 8 min 5 s; from-clean rebuild with the mini's own
+warm ccache 46 s (99.9% hits; the time is the two links). The laptop's seeded cache gave 0 hits
+on the mini (hash inputs differ somewhere: launcher basedir per tree / build-dir name in -I
+paths), so each build dir warms after its first build there. tools/mini-build.sh round trip
+verified on WebKit-perf -> build/tiger-web-perf/bin (7 min 50 s including sync); all tracks
+told to build there. EXTRA_CMAKE='...' adds first-configure options.
