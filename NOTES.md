@@ -5872,3 +5872,12 @@ RELEASE_ASSERT. Harness 12/14: cookies 14/14, faithful rows pass; ghost/fghost (
 outliving their document) fail as known, fix in progress. Installed while the app was closed.
 Open: intermittent sanitizeStackForVM startup assert on libpas (2/14 launches; with the libpas
 track), hosted-field value sync/maxlength (controls track).
+
+## Release 2.6 to the box (2026-09-23 14:20)
+
+tiger-media style round 2 merged (5904ecbd..): custom properties equal to the parent's are
+shared not re-applied; three full-document restyle triggers on nytimes fixed (web-font
+"loaded" loop from shadow-tree @font-face re-creation, <style> removal, CSS-in-JS insertRule
+now invalidate only matched elements); TIGER_JS_PROBE=1 attributes JS time per script URL
+(theverge: 57% third-party). nytimes main thread 99% -> 87% busy, style 45% -> 20%.
+Harness clean (three rows re-run after lock starvation). Installed while the app was closed.
