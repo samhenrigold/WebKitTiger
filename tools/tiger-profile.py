@@ -23,7 +23,7 @@ for line in subprocess.run(['otool', '-l', binary], capture_output=True, text=Tr
         TEXT_END = max(TEXT_END, addr + int(w[1], 16))
 
 samples = []  # (t, pid, isMain, thread, leaf, frames)
-rx = re.compile(r'^\s*([\d.]+) TIGER-SAMPLE pid (0x[0-9a-f]+) n 0x[0-9a-f]+ (main|thread) 0x[0-9a-f]+ thread (0x[0-9a-f]+) state-kr 0x[0-9a-f]+ pc 0x[0-9a-f]+(?: leaf (\S+))? frames:((?: 0x[0-9a-f]+)*)')
+rx = re.compile(r'^\s*([\d.]+) TIGER-SAMPLE pid (0x[0-9a-f]+) n 0x[0-9a-f]+ (main|thread) 0x[0-9a-f]+ thread (0x[0-9a-f]+) state-kr 0x[0-9a-f]+ pc 0x[0-9a-f]+(?: leaf (\S+))?(?: crashinfo(?: 0x[0-9a-f]+)*)? frames:((?: 0x[0-9a-f]+)*)')
 for line in open(log, errors='replace'):
     m = rx.match(line)
     if not m:

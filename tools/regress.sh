@@ -298,19 +298,23 @@ fi
 
 # 12. Cookies: tools/cookie-server.py on this Mac is the oracle (it logs every Cookie
 #    header it gets). Two launches with the same storage: the first walks sets, fetches,
-#    a third-party iframe, a redirect chain, http, a cross-site visit and back; the
-#    second checks that persistent cookies survived the quit and session ones did not.
+#    a third-party iframe, a redirect chain, http, a cross-site visit, a cross-site POST
+#    and back (SameSite, Secure and third-party blocking); the second clicks on the other
+#    site, then checks that persistent cookies survived the quit, session ones did not,
+#    and that the clicked site's cookies now reach it inside a frame.
 #    HOME is a scratch dir so the jar is this check's own, never the user's profile.
 if wants cookies; then
     CK_LOG=$OUT/cookies.jsonl
-    CK_ENV="HOME=/Users/shg/wk2/cookiehome TIGER_CA_BUNDLE=$SHARE/cookie-bundle.pem TIGER_COOKIE_LOG=1"
+    # TIGER_CURL_RESOLVE: 10.4 resolves the .local name unreliably; pin it to this Mac.
+    CK_ENV="HOME=/Users/shg/wk2/cookiehome TIGER_CA_BUNDLE=$SHARE/cookie-bundle.pem TIGER_COOKIE_LOG=1 TIGER_CURL_RESOLVE=shg-mbp.local:8443:192.168.1.253,shg-mbp.local:8480:192.168.1.253"
     pkill -f 'cookie-server.py serve' 2>/dev/null; sleep 1
     python3 "$WKT/tools/cookie-server.py" serve "$CK_LOG" > "$OUT/cookie-server.out" 2>&1 &
     CK_PID=$!
     sleep 2
     ssh tiger-eth "rm -rf /Users/shg/wk2/cookiehome; mkdir -p $SHARE" && scp -qO /tmp/tiger-cookie-cert/bundle.pem "tiger-eth:$SHARE/cookie-bundle.pem"
     run cookies "https://shg-mbp.local:8443/start" 40 'wait 1' "$CK_ENV"
-    run cookies2 "https://shg-mbp.local:8443/echo?k=relaunch" 16 'wait 1' "$CK_ENV"
+    # The click on B is the user interaction that lifts third-party blocking for B.
+    run cookies2 "https://192.168.1.253:8443/interact" 24 'wait 7;click 300,300' "$CK_ENV"
     kill $CK_PID 2>/dev/null
     python3 "$WKT/tools/cookie-server.py" report "$CK_LOG" > "$OUT/cookies.md"
     detail=$(grep -c '| PASS |' "$OUT/cookies.md")" pass"

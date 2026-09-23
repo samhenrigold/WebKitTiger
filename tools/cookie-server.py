@@ -8,7 +8,9 @@ Two sites: A = https://shg-mbp.local:8443 (plus http://shg-mbp.local:8480, same 
 secure) and B = https://192.168.1.253:8443 (cross-site). The browser's first run loads
 A/start, which sets every cookie case at once and walks a chain of fetches, an iframe
 from B, a redirect chain, an http page, a top-level visit to B and back to A. The second
-run (after quitting the app) loads A/echo?k=relaunch. The server itself is the oracle:
+run (after quitting the app) loads B/interact, which waits for a click (TIGER_SCRIPT) -- the
+user interaction that exempts B from third-party cookie blocking -- then A/echo?k=relaunch,
+which frames B again. The server itself is the oracle:
 it logs the Cookie header of every request, and the pages POST document.cookie to
 /report. The certificate is self-signed for both names; the box trusts it through a
 copy of cacert.pem with it appended (CERT_DIR/bundle.pem).
@@ -41,16 +43,18 @@ START_COOKIES = {
     "__Secure-bad": "Path=/",
     "c_long": "Path=/",
     "c_del": f"Path=/; {FAR}",
+    "c_none_insecure": "Path=/; SameSite=None",  # refused: None needs Secure
+    "c_ss_bogus": "Path=/; SameSite=Bogus",      # unknown value: Lax by default
     # the x.com shapes: ct0 is read by the page's JS for x-csrf-token, auth_token is not
     "ct0": f"Path=/; Domain=.{A_HOST}; Secure; SameSite=Lax; {FAR}",
     "auth_token": f"Path=/; Domain=.{A_HOST}; Secure; HttpOnly; SameSite=None; {FAR}",
 }
 SESSION = {"c_plain", "c_httponly", "c_secure", "c_sn", "c_lax", "c_strict", "c_domain", "__Host-ok",
-           "__Secure-ok", "c_long", "c_js", "c_xhr", "c_r1", "c_r2"}
+           "__Secure-ok", "c_long", "c_js", "c_xhr", "c_r1", "c_r2", "c_ss_bogus"}
 PERSISTENT = {"c_maxage", "c_expires", "c_exp2039", "ct0", "auth_token", "c_jsp"}
 SECURE = {"c_secure", "c_sn", "__Host-ok", "__Secure-ok", "ct0", "auth_token", "c_xhr"}
 HTTPONLY = {"c_httponly", "auth_token"}
-BADPREFIX = {"__Host-bad", "__Secure-bad"}  # refused at set time
+BADPREFIX = {"__Host-bad", "__Secure-bad", "c_none_insecure"}  # refused at set time
 NEVER = BADPREFIX | {"c_del"}  # c_del is deleted by /xhr-set
 AT_ROOT = SESSION | PERSISTENT  # everything a request for A:/ should carry after /start's script
 
@@ -91,9 +95,30 @@ FRAME_JS = """
 })();
 """ % A
 
-# The top-level chain after the redirects: k -> next URL.
+# The top-level chain after the redirects: k -> next URL. "POST " submits a form instead
+# (a cross-site top-level POST, the Lax-by-default two-minute case).
 CHAIN = {"redirect": f"{A_HTTP}/echo?k=http", "http": f"{B}/echo?k=crosssite",
-         "crosssite": f"{A}/echo?k=back", "back": None, "relaunch": None}
+         "crosssite": f"POST {A}/echo?k=xpost", "xpost": f"{B}/echo?k=crosssite2",
+         "crosssite2": f"{A}/echo?k=back", "back": None, "relaunch": None}
+# Pages that frame B once they have logged: the frame fetches B/echo?k=<value>.
+FRAMES = {"back": "frame2", "relaunch": "frame3"}
+# B's own cookies, set when B is visited top-level (first party).
+B_COOKIES = ["c_b=1; Path=/; Secure; SameSite=None; " + FAR, "c_b_lax=1; Path=/; Secure; SameSite=Lax; " + FAR]
+
+FRAME2_JS = """
+(async () => {
+  await fetch('/echo?k=' + new URLSearchParams(location.search).get('k') + '-fetch', {credentials: 'include'});
+  await report(new URLSearchParams(location.search).get('k') + '-dom', document.cookie);
+  parent.postMessage('done', '*');
+})();
+"""
+
+INTERACT_JS = """
+let went = false;
+function go() { if (!went) { went = true; location = '%s/echo?k=relaunch'; } }
+document.addEventListener('mousedown', () => { log('clicked'); setTimeout(go, 200); });
+setTimeout(go, 15000);
+""" % A
 
 LOCK = threading.Lock()
 LOG_PATH = None
@@ -143,6 +168,37 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif p == "/frame":
             self.send(200, (PAGE % ("frame", FRAME_JS)).encode(),
                       cookies=["c_frame=1; Path=/; Secure; SameSite=None", "c_frame_lax=1; Path=/; SameSite=Lax"])
+        elif p == "/bench":
+            # document.cookie read 10k times, then 1k write+read pairs: the WebCookieCache number.
+            # Document keeps document.cookie until the task ends, so the reads that cost an IPC
+            # are the first one in each task and every one after a write.
+            js = """const n = 10000; let t = performance.now(), len = 0;
+for (let i = 0; i < n; i++) len += document.cookie.length;
+const same = performance.now() - t;
+const ch = new MessageChannel();
+function tasks(count, body) {
+  return new Promise(done => { let i = 0; const t0 = performance.now();
+    ch.port1.onmessage = () => { body(); if (++i < count) ch.port2.postMessage(0); else done(performance.now() - t0); };
+    ch.port2.postMessage(0); });
+}
+(async () => {
+  const N = +(new URLSearchParams(location.search).get('tasks') || 2000);
+  const empty = await tasks(N, () => {});
+  const reads = await tasks(N, () => { len += document.cookie.length; });
+  t = performance.now();
+  for (let i = 0; i < 1000; i++) { document.cookie = 'bench=' + i; len += document.cookie.length; }
+  const rw = performance.now() - t;
+  log('BENCH sameTask10k=' + same.toFixed(1) + 'ms perTaskRead=' + ((reads - empty) / N * 1000).toFixed(0) + 'us (' + N + ' tasks ' + reads.toFixed(0) + 'ms, empty ' + empty.toFixed(0) + 'ms) writeRead=' + (rw / 1000 * 1000).toFixed(0) + 'us last=' + document.cookie.includes('bench=999'));
+  document.title = 'BENCH DONE';
+})();"""
+            cookies = [f"b{i}=value{i}; Path=/; Max-Age=600" for i in range(20)]
+            self.send(200, (PAGE % ("bench", "setTimeout(() => { %s }, 500);" % js)).encode(), cookies=cookies)
+        elif p == "/frame2":
+            self.send(200, (PAGE % ("frame2", FRAME2_JS)).encode())
+        elif p == "/interact":
+            page = PAGE % ("click anywhere", INTERACT_JS)
+            page = page.replace("<body ", "<body onload=\"document.body.style.height='100%'\" ")
+            self.send(200, page.encode(), cookies=B_COOKIES)
         elif p == "/redir1":
             self.send(302, cookies=["c_r1=1; Path=/"], headers=[("Location", "/redir2")])
         elif p == "/redir2":
@@ -152,10 +208,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif p.endswith("/echo"):
             k = q.get("k", "")
             cookies = ["c_insecure_secure=1; Path=/; Secure"] if k == "http" else []
+            if k == "crosssite":
+                cookies = B_COOKIES
             nxt = CHAIN.get(k)
             js = "log(%s);" % json.dumps(self.headers.get("Cookie", ""))
-            js += ("setTimeout(() => location = %s, 300);" % json.dumps(nxt)) if nxt else "document.title = 'COOKIES DONE';"
-            if self.command == "GET" and self.headers.get("Sec-Fetch-Dest", "document") == "document" and k in CHAIN:
+            if k in FRAMES:
+                js += """await new Promise(done => { addEventListener('message', done); setTimeout(done, 6000);
+                  const f = document.createElement('iframe'); f.src = '%s/frame2?k=%s'; document.body.appendChild(f); });""" % (B, FRAMES[k])
+            if nxt and nxt.startswith("POST "):
+                js += """const f = document.createElement('form'); f.method = 'POST'; f.action = %s;
+                  document.body.appendChild(f); setTimeout(() => f.submit(), 300);""" % json.dumps(nxt[5:])
+            elif nxt:
+                js += "setTimeout(() => location = %s, 300);" % json.dumps(nxt)
+            else:
+                js += "document.title = 'COOKIES DONE';"
+            js = "(async () => { %s })();" % js
+            if self.headers.get("Sec-Fetch-Dest", "document") == "document" and k in CHAIN:
                 self.send(200, (PAGE % (k, js)).encode(), cookies=cookies)
             else:
                 self.send(200, self.headers.get("Cookie", "").encode(), "text/plain", cookies=cookies)
@@ -224,6 +292,7 @@ def report(log_path):
         rows.append((name, verdict, detail or "ok"))
 
     visible = AT_ROOT - HTTPONLY - {"c_js", "c_jsp", "c_xhr", "c_r1", "c_r2"}
+    NONE = {"c_sn", "auth_token", "c_xhr"}  # SameSite=None (all Secure)
     check("document.cookie shows non-HttpOnly (incl. ct0)", "dom1", visible | {"c_del"}, HTTPONLY | BADPREFIX | {"c_path"})
     check("__Host-/__Secure- prefix rules", "dom1", {"__Host-ok", "__Secure-ok"}, {"__Host-bad", "__Secure-bad"})
     check("long value (3000 bytes)", "dom1", {"c_long"})
@@ -236,14 +305,22 @@ def report(log_path):
     check("Path=/sub sent under /sub only", "path", {"c_path"})
     check("302 chain sets cookies on each hop", "redirect", {"c_r1", "c_r2"} | AT_ROOT, NEVER)
     check("http: no Secure cookies sent", "http", AT_ROOT - SECURE, SECURE)
-    check("http: Set-Cookie with Secure refused", "back", absent={"c_insecure_secure"}, info=True)
+    check("http: Set-Cookie with Secure refused", "back", absent={"c_insecure_secure"})
+    check("SameSite=None without Secure refused", "dom1", absent={"c_none_insecure"})
+    check("unknown SameSite value kept (Lax by default)", "dom1", {"c_ss_bogus"})
     check("cross-site top level: A's cookies stay on A", "crosssite", absent=AT_ROOT)
-    check("third-party iframe cookie (Safari blocks)", "frame-dom", absent={"c_frame"}, info=True)
-    check("cross-site fetch: Lax/Strict withheld", "xsite-fetch", absent={"c_lax", "c_strict", "c_plain"}, info=True)
-    check("cross-site nav back: Strict withheld", "back", absent={"c_strict"}, info=True)
+    check("3p iframe: Set-Cookie and document.cookie blocked", "frame-dom", absent={"c_frame", "c_frame_lax"})
+    check("3p iframe: its own-site fetch sends nothing", "frame-fetch", absent={"c_frame", "c_frame_lax"})
+    check("cross-site subresource: only SameSite=None sent", "xsite-fetch", {"c_sn", "auth_token"},
+          {"c_lax", "c_strict", "c_plain", "c_ss_bogus", "ct0"})
+    check("cross-site top-level POST: Lax withheld, Lax-by-default <2 min sent", "xpost",
+          NONE - {"c_xhr"} | {"c_plain", "c_ss_bogus"}, {"c_lax", "c_strict", "ct0"})
+    check("cross-site top-level GET: Lax sent, Strict withheld", "back", {"c_lax", "ct0"}, {"c_strict"})
     check("back on A after B: session cookies persist", "back", AT_ROOT - {"c_strict"}, NEVER | {"c_path"})
+    check("3p iframe, no interaction: B's cookies blocked", "frame2-fetch", absent={"c_b", "c_b_lax"})
     check("relaunch: persistent survive", "relaunch", PERSISTENT)
     check("relaunch: session cookies gone", "relaunch", absent=SESSION)
+    check("3p iframe after user interaction with B: None sent, Lax not", "frame3-fetch", {"c_b"}, {"c_b_lax"})
     print("| case | verdict | detail |\n| --- | --- | --- |")
     for r in rows:
         print("| %s | %s | %s |" % r)
