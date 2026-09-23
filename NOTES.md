@@ -6163,3 +6163,17 @@ Load average reached 500 with eight build dirs compiling (three full new ones fr
 build/tiger-gpu as-is), one waiter per job. Spotlight indexes the build trees (mds at 118%);
 excluding /Users/shg/Developer/WebKitTiger/build in System Settings > Spotlight > Privacy would
 help and is the user's call.
+
+**Scavenger default, re-measured with box load < 4 before each run (2026-09-23 evening): no change.**
+
+| setting | allocbench total | nytimes main busy | nytimes web RSS peak (88 s) |
+|---|---|---|---|
+| default (125 ms period, 600 ms epoch) | 33.4, 33.8, 23.9, 39.7 s | 94%, 94% | 638, 728 MB |
+| epoch 100 ms | 31.7, 36.5 s | 94%, 95% | 687, 741 MB |
+| period 50 + epoch 100 ms | 24.9, 38.1 s | 96% | 696 MB |
+
+allocbench swings 24-40 s with the test driver's load (quiet-box value: 23 s), so its CPU
+cost is within noise; the only same-load pair (def 23.9 / agg 24.9 s) is +4%. The 25-30% peak
+cut of the earlier (heavily loaded) runs did not reproduce: epoch 100 alone is +8%, the combo
+-4%, i.e. the nytimes growth is live memory, not pages waiting to be scavenged. Defaults stay;
+the knobs stay for later A/B. (Two runs skipped by the box lock.)
