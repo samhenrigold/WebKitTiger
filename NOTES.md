@@ -5321,3 +5321,15 @@ launched by a UI process older than this, still runs.
 `build/tiger-gpu`'s TigerGPUProcess predates this and has no check: an old child simply
 ignores the variable and runs, which is the intended compatibility direction. It gets the
 check on its next rebuild, and it is the process this was written for.
+
+## Release 2.1 to the box (2026-09-23 04:00)
+
+tiger-fontcache 1d010e54 merged: wheel ticks scroll the window's pixels with -[NSView
+scrollRect:by:] and repaint only the exposed strip (drawRect 15-23 ms -> ~2 ms per tick on
+scrolltest; falls back to full invalidation when hosted controls are present as subviews).
+Faithful mode re-checked by the paint track after the merges: everything renders, hosted
+controls work, no gliDestroyContext crash seen; video in a staging dir without tigeraudio32
+stalls at clock 0 (the clock is the audio consumer's read position; stage-perf2/controls/jsperf
+did not stage the helper). The player should fall back to the wall clock when the helper cannot
+start -- with the media perf track. Verified scrolltest, x.com onboarding + typing, video480loop
+30 fps on the main build before installing.
