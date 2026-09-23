@@ -158,7 +158,7 @@ class WKTRArtifactTests(unittest.TestCase):
                 path = directory / ('wire-' + kind + '.txt')
                 path.write_text(kind + '\n')
                 wire[kind + '_sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
-            data = {'schema': 1, 'process': process, 'binaries': binaries, 'wire': wire,
+            data = {'schema': 1, 'process': process, 'binaries': binaries, 'wire': wire, 'dependencies_sha256': 'f' * 64,
                     'source': {'head': 'a' * 40, 'tree': 'b' * 40,
                                'dirty_sha256': hashlib.sha256(b'').hexdigest()}}
             (directory / 'build-manifest.json').write_text(json.dumps(data))

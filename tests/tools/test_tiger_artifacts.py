@@ -29,7 +29,7 @@ class ArtifactTests(unittest.TestCase):
                 path = directory / ('wire-' + kind + '.txt')
                 path.write_text(kind + '\n')
                 wire[kind + '_sha256'] = artifacts.digest(path)
-            manifest = {'schema': 1, 'process': process,
+            manifest = {'schema': 1, 'process': process, 'dependencies_sha256': 'f' * 64,
                         'source': {'head': 'a' * 40, 'tree': 'b' * 40,
                                    'dirty_sha256': hashlib.sha256(b'').hexdigest()},
                         'binaries': binaries, 'wire': wire}
@@ -61,6 +61,11 @@ class ArtifactTests(unittest.TestCase):
     def test_different_source_revision(self):
         self.alter('GPU', lambda d: d['source'].update(head='c' * 40))
         with self.assertRaisesRegex(ValueError, 'mixed WebKit'):
+            self.verify()
+
+    def test_different_dependency_inputs(self):
+        self.alter('GPU', lambda d: d.update(dependencies_sha256='c' * 64))
+        with self.assertRaisesRegex(ValueError, 'mixed dependency'):
             self.verify()
 
     def test_changed_serializer_with_valid_hash_is_rejected(self):

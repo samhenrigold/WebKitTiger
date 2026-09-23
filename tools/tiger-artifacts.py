@@ -146,10 +146,13 @@ def read_manifest(directory, process):
         raise ValueError('wrong manifest schema/process in ' + str(directory))
     source = data.get('source', {})
     for key in ('head', 'tree', 'dirty_sha256'):
-        if not re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', source.get(key, '')):
+        size = 64 if key == 'dirty_sha256' else 40
+        if not re.fullmatch(r'[0-9a-f]{' + str(size) + '}', source.get(key, '')):
             raise ValueError('missing source identity ' + key + ' in ' + str(directory))
     if source['dirty_sha256'] != hashlib.sha256(b'').hexdigest():
         raise ValueError('release candidate must come from committed WebKit source: ' + str(directory))
+    if not re.fullmatch(r'[0-9a-f]{64}', data.get('dependencies_sha256', '')):
+        raise ValueError('missing dependency identity in ' + str(directory))
     binaries = data.get('binaries', {})
     for name in REQUIRED[process]:
         if name not in binaries:
@@ -178,9 +181,12 @@ def verify(ui, web, gpu):
     for data in manifests[1:]:
         if data['source'] != reference['source']:
             raise ValueError('mixed WebKit source revisions in candidate')
+        if data['dependencies_sha256'] != reference['dependencies_sha256']:
+            raise ValueError('mixed dependency/toolchain inputs in candidate')
         if data['wire'] != reference['wire']:
             raise ValueError('IPC message/serializer mismatch in candidate')
     return {'source': reference['source'], 'wire': reference['wire'],
+            'dependencies_sha256': reference['dependencies_sha256'],
             'processes': {data['process']: data['binaries'] for data in manifests}}
 
 

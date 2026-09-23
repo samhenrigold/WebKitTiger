@@ -99,8 +99,13 @@ def validate_cache(cache, source, process, toolchain):
 
 
 def logged(args, log, env=None, stdout_path=None):
-    print("mini-build: " + shlex.join([str(a) for a in args]), flush=True)
+    display = shlex.join([str(a) for a in args])
+    if len(display) > 300:
+        display = str(args[0]) + " (" + str(len(args) - 1) + " arguments; full command in log)"
+    print("mini-build: " + display + "; log: " + str(log), flush=True)
     with open(log, "w") as output:
+        output.write("$ " + shlex.join([str(a) for a in args]) + "\n")
+        output.flush()
         if stdout_path:
             with open(stdout_path, "w") as stdout:
                 proc = subprocess.run(args, stdout=stdout, stderr=output, env=env)
@@ -115,7 +120,12 @@ def logged(args, log, env=None, stdout_path=None):
 def artifact_paths(build, targets):
     result = []
     for target in targets:
-        matches = [p for p in (build / "bin").rglob(target) if p.is_file() and not p.is_symlink()]
+        # The injected WKTR target deliberately uses the regular helper's basename.
+        if target == "TigerWebProcessTests":
+            candidates = [build / "bin/wktr/TigerWebProcess"]
+        else:
+            candidates = (build / "bin").rglob(target)
+        matches = [p for p in candidates if p.is_file() and not p.is_symlink()]
         if len(matches) != 1:
             raise BuildError("expected exactly one executable for target %s, found %d" % (target, len(matches)))
         if not os.access(matches[0], os.X_OK):

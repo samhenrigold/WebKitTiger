@@ -71,6 +71,14 @@ print(json.dumps(result))
                     "targets": ["TigerWebProcess", "TigerNetworkProcess"], "source": {"head": "a" * 40, "tree": "b" * 40, "dirty_sha256": mini.json_hash("")},
                     "outer": {}, "input_paths": paths, "inputs": mini.inventory(self.root, paths), "id": "test-job"}
 
+    def test_test_helper_target_requires_the_injected_output(self):
+        executable(self.build / "bin/TigerWebProcess", "production")
+        with self.assertRaisesRegex(mini.BuildError, "found 0"):
+            mini.artifact_paths(self.build, ["TigerWebProcessTests"])
+        injected = self.build / "bin/wktr/TigerWebProcess"
+        executable(injected, "injected")
+        self.assertEqual(mini.artifact_paths(self.build, ["TigerWebProcessTests"]), [injected])
+
     def test_failed_ninja_cannot_certify_stale_binary_and_keeps_full_log(self):
         executable(self.build / "bin/TigerWebProcess", "stale")
         (self.build / "build-manifest.json").write_text('{"old":true}')

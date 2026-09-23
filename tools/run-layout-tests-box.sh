@@ -37,6 +37,8 @@ def manifests(ui, web):
     data = [wire.read_manifest(ui, 'UI'), wire.read_manifest(web, 'WEB')]
     if data[0]['source'] != data[1]['source']:
         raise ValueError('WKTR UI and WEB were built from different source revisions')
+    if data[0]['dependencies_sha256'] != data[1]['dependencies_sha256']:
+        raise ValueError('WKTR UI and WEB were built with different dependency/toolchain inputs')
     if data[0]['wire'] != data[1]['wire']:
         raise ValueError('WKTR UI and WEB have different IPC message/serializer schemas')
     return data
