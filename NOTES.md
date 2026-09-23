@@ -4700,3 +4700,66 @@ progressive repaints on apple.com/iphone-duo, glacial hover/scroll on nytimes/th
 
 Harness: the new cleanup line in the stage scripts had its awk $1/$2 expanded by the outer shell
 for ~40 min (kill step hung on awk, processes left behind); escaped now.
+
+## Fast-mode paint path: the UI process owns its backing store (2026-09-22 21:00)
+
+tiger-perf 4db688b7 (probes), d4a4615e, ee2a34be. Everything below is the 960x648
+TigerBrowser2 window on the box, `TIGER_PAINT_PROBE=1` on both sides.
+
+The root cause under most of it: `BackingStore`'s bitmap context was created with
+`CGBitmapContextCreate(nullptr, ...)`. That works on 10.4, but **`CGBitmapContextGetData`
+on such a context returns null**, so the UI process could not touch its own pixels and
+everything had to go through CG. The store owns its buffer now (`m_bitmapData`), which
+also fixes the stride, and no `CGBitmapContextGet*` call is left in a hot path.
+
+- `BackingStore::incorporateUpdate` went through `ShareableBitmap::paint`: a CGImage
+  drawn under a y-flipping CTM in Copy mode, **145 ms** for a full-window update, 240 ns
+  a pixel. The flip alone takes CG off its blit path. Now a memcpy per row, with the CG
+  path kept as a fallback when the two bitmaps do not line up.
+- `DrawingAreaWC` allocated a new `ImageBuffer` per update, i.e. a new `SharedMemory`,
+  i.e. **a new file under /tmp on the boot disk** (SharedMemoryUnix on Tiger), 2.5 MB a
+  frame that the UI process then faulted in cold. One buffer is kept and handed out again
+  when the next update is the same size; only one update is ever in flight
+  (`m_waitDidUpdate`), so this is safe. This alone took incorporate 50 ms -> 9.5 ms and
+  the web process's cairo paint 10-15 ms -> 2.2 ms (the zero-fill faults were being
+  charged to the paint).
+- `BackingStore::scroll` snapshotted the store and drew the snapshot back offset.
+  `CGContextDrawImage` obeys the CTM and the store is y-down, so on modern CG that copy
+  is vertically mirrored (proved with a standalone CG test); 10.4 appears to shortcut a
+  self-blit and got away with it. It is a memmove per row now: right under both, and
+  0.7 ms instead of a full-window CG snapshot.
+- `BackingStore::paint` snapshotted the whole store on every `-drawRect:`. It draws a
+  CGImage over the dirty rect's own rows instead -- the provider starts at the rect's
+  first row and the image keeps the store's stride, because 10.4 prepares a whole image
+  before a clip applies.
+- `DrawingAreaProxyWC` stops discarding the backing store. Upstream drops it on
+  `enterAcceleratedCompositingMode` because a real accelerated path takes over the window;
+  here `sendUpdateAC` renders offscreen and comes back through the same Update message, so
+  dropping it painted the window white until the next update -- the flicker on a page heavy
+  enough to keep entering and leaving compositing mode. Same on resize. Damage is the
+  scrolled region plus the painted rects, not the whole view.
+
+Per update, wheel-scrolling spike/wk2web/scrolltest.html:
+
+| stage              | before   | after   |
+|--------------------|----------|---------|
+| web process paint  | 10-15 ms | 2.2 ms  |
+| UI incorporate     | 145 ms   | 5.1 ms  |
+| UI -drawRect:      | 6.5 ms   | 15-23 ms (full window; was a lazy CG snapshot) |
+| total              | ~165 ms  | ~26 ms  |
+
+apple.com/iphone-duo, 44 s with wheel scrolls, 430 updates: incorporate median
+1.55 ms -> 0.17 ms. nytimes.com: incorporate 5.8 ms, -drawRect: 2.4 ms, but only 16
+updates in 44 s -- **nytimes is bottlenecked on the web process's cairo paint, 27 ms
+median**, not on the paint path. That is the next thing to chase there.
+
+Not reproduced: the upside-down partial updates the user saw on apple.com. Scripted wheel
+scrolling over 90 s on that page, before and after, never mirrored anything
+(logs/perf/scroll/*.png, checked with spike/wk2web/check-scrollshot.py). The one
+demonstrably mirrored blit in the pipeline was the scroll path above, which is fixed; if it
+comes back, the next suspect is the WC compositor's per-layer upload in AC mode.
+
+Test harness: spike/wk2web/scrolltest.html (bands whose red channel rises down the page
+under a fixed magenta bar; `?nofixed` stops WebCore repainting the top strip so the blit's
+own output stays on screen) and spike/wk2web/check-scrollshot.py (finds the bar in a
+screencapture, reports any column where the bands fall back up the page).
