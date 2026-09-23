@@ -18,7 +18,7 @@ p { margin: 0 0 6px 0; }
 <script>
 function fill(id, n, prefix) {
   var html = "";
-  for (var i = 1; i <= n; ++i) html += "<p>" + prefix + " line " + i + "</p>";
+  for (var i = 1; i <= n; ++i) html += "<p>" + i + ": " + prefix + "</p>";
   document.getElementById(id).innerHTML = html;
 }
 fill("overInner", 40, "overflow: auto, wider than its box,");

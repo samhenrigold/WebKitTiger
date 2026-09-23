@@ -35,7 +35,7 @@ SHARE=/Users/shg/wk2/share
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch scrollbars fscrollbars"
 case "${1:-}" in --list) echo $ALL; exit 0;; esac
 WANTED=${*:-$ALL}
 
@@ -294,6 +294,33 @@ if wants frelaunch; then
     detail="$(after_kill "$OUT/frelaunch.log" gpu 'TIGER gpu: frame'); $(after_kill "$OUT/frelaunch.log" web 'TIGER ui: incorporate')"
     grep -aq 'TIGER-RECOVER: GPU process gone' "$OUT/frelaunch.log" || detail="$detail; FAILED the web process never rebuilt its scene"
     check frelaunch "$detail; $(BLESS=; golden example frelaunch --max-frac 0.02)"
+fi
+
+# 16. Aqua scrollbars: spike/wk2web/scrollbars.html. The main frame's scrollbar is a hosted
+#    NSScroller; the overflow div's, the thin div's and the iframe's are HIThemeDrawTrack
+#    artwork painted by the web process. The page reports its scroll positions in its title,
+#    which TigerBrowser2 logs as "TIGER title:". A click on the NSScroller's down arrow is
+#    one line (40 px), a click on the overflow div's drawn down arrow is one line of the div,
+#    a knob drag scrolls the page and a drag back returns it to the top; then the shot (the
+#    drawn scrollbars in view, the div scrolled by one line) is a golden. Fast and faithful.
+SB_SCRIPT='wait 8; click 265,230; wait 1; click 952,640; wait 1; drag 952,60 952,360; wait 2; drag 952,370 952,0; wait 2'
+scrollbar_checks() { # scrollbar_checks <name> -> detail string
+    log=$OUT/$1.log
+    d=""
+    grep -aq 'TIGER title: y=0 x=0 over=40,0' "$log" || d="$d; FAILED the drawn arrow did not scroll the div one line"
+    grep -aq 'TIGER title: y=40 x=0 over=40,0' "$log" || d="$d; FAILED the NSScroller's arrow did not scroll the page one line"
+    most=$(grep -a 'TIGER title: y=' "$log" | sed 's/^.*TIGER title: y=\([0-9]*\).*$/\1/' | sort -n | tail -1)
+    [ "${most:-0}" -gt 400 ] 2>/dev/null || d="$d; FAILED the knob drag did not scroll the page (y=${most:-none})"
+    grep -a 'TIGER title: y=' "$log" | tail -1 | grep -q 'y=0 ' || d="$d; FAILED the drag back up did not return to the top"
+    echo "titles ok, y=${most:-none} after the drag, 0 after dragging back$d"
+}
+if wants scrollbars; then
+    run scrollbars "file://$SHARE/scrollbars.html" 22 "$SB_SCRIPT"
+    check scrollbars "$(scrollbar_checks scrollbars); $(golden scrollbars scrollbars --max-frac 0.02)"
+fi
+if wants fscrollbars; then
+    run fscrollbars "file://$SHARE/scrollbars.html" 22 "$SB_SCRIPT" TIGER_FAITHFUL=1
+    check fscrollbars "$(scrollbar_checks fscrollbars); $(BLESS=; golden scrollbars fscrollbars --max-frac 0.02)"
 fi
 
 # 12. Cookies: tools/cookie-server.py on this Mac is the oracle (it logs every Cookie
