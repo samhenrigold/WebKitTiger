@@ -37,6 +37,7 @@
 #import "TigerWK2View.h"
 #include <WebCore/IntRect.h>
 #include <WebCore/Region.h>
+#include <algorithm>
 #include <wtf/MainThread.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RunLoop.h>
@@ -147,6 +148,20 @@ static void gpuProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationRe
 
     const float barHeight = 34, statusHeight = 18, pad = 6;
     NSRect frame = NSMakeRect(80, 80, 960, 700);
+    // Reproducible engine presentation tests, including an unscaled 1280x720 video.
+    // The size includes the 34 px toolbar and 18 px status bar, but not the title bar.
+    if (const char* requested = getenv("TIGER_TEST_WINDOW_SIZE")) {
+        int width = 0, height = 0;
+        char trailing = 0;
+        NSRect visible = [[NSScreen mainScreen] visibleFrame];
+        if (sscanf(requested, "%dx%d%c", &width, &height, &trailing) == 2 && width >= 320 && height >= 240
+            && width <= visible.size.width && height + 22 <= visible.size.height) {
+            frame.size = NSMakeSize(width, height);
+            frame.origin.x = std::max<CGFloat>(visible.origin.x, NSMaxX(visible) - width - 20);
+            frame.origin.y = std::max<CGFloat>(visible.origin.y, NSMaxY(visible) - height - 30);
+        } else
+            fprintf(stderr, "TIGER test: invalid TIGER_TEST_WINDOW_SIZE: %s\n", requested);
+    }
     _window = [[NSWindow alloc] initWithContentRect:frame
         styleMask:(NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask)
         backing:NSBackingStoreBuffered defer:NO];

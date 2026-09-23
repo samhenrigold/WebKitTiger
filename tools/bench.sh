@@ -48,6 +48,8 @@ fv480|http://$MEDIA/video480loop.html|92|$STD|TIGER_FAITHFUL=1
 fv720|http://$BENCH/video720loop.html|92|$STD|TIGER_FAITHFUL=1
 fnyt|https://www.nytimes.com/|92|$STD|TIGER_FAITHFUL=1
 fverge|https://www.theverge.com/|92|$STD|TIGER_FAITHFUL=1
+n720|http://$BENCH/video720native.html|45|wait 40|TIGER_TEST_WINDOW_SIZE=1280x772 TIGER_VIDEO_PROBE=1
+fn720|http://$BENCH/video720native.html|45|wait 40|TIGER_TEST_WINDOW_SIZE=1280x772 TIGER_VIDEO_PROBE=1 TIGER_FAITHFUL=1
 EOF
 }
 case "${1:-}" in --list) pages | cut -d'|' -f1 | tr '\n' ' '; echo; exit 0;; esac
@@ -113,6 +115,12 @@ run() { # run <name> <url> <secs> <script> <extra env>
         if [ $rc != 0 ] && grep -q 'box busy\|box still busy\|occupied' "$OUT/$name.stage.log"; then
             tries=$((tries + 1)); echo "   $(date +%T) box busy, retry $tries"; sleep 30; continue
         fi
+        case "$name" in n720|fn720)
+            if [ "$rc" = 0 ] && ! grep -q 'NATIVE720 READY' "$OUT/$name.log"; then
+                echo '   invalid native-720 workload: source or viewport dimensions did not match'
+                rc=1
+            fi;;
+        esac
         [ $rc = 0 ] || echo "   stage-app.sh exited $rc (see $name.stage.log)"
         echo "$url" > "$OUT/$name.url"
         echo "$rc" > "$OUT/$name.exit-status"
