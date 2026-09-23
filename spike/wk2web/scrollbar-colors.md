@@ -49,3 +49,23 @@ APP_ENV="TIGER_CONSOLE=1 TIGER_SCRIPT='wait 6; drag 952,50 952,250; wait 2'" \
 
 Repeat with `TIGER_FAITHFUL=1` inside `APP_ENV`; complete all transition and per-pane checks
 before integration. Keep `scrollbars.html` passing to protect automatic-color native geometry.
+
+For an initial-state screenshot (before the drag script above, or after Reset scroll), run:
+
+```sh
+python3 tools/check-scrollbar-colors.py shot.png
+```
+
+The checker requires the complete 960 × 648 page, initially at screenshot origin `(80,154)`.
+Use `--page-origin X,Y` for a moved window or `--page-origin 0,0` for a page-only crop.
+It checks 20 opaque 3 × 3 patches: vertical/horizontal thumb and track plus the corner for
+the root, regular overflow, thin overflow and iframe scrollbars. Every sampled RGB channel
+must be within `--tolerance` (default 24, allowed 0–32); the solid interior samples avoid
+antialiased edges. Failures print page/screenshot coordinates, expected and sampled RGB,
+the patch's RGB range, and its maximum channel error. Missing, undecodable or cropped images
+are errors; blank gray/white images and transparent samples cannot pass.
+
+After Other colors, use `--root-mode alternate` with all panes reset. Native auto and the
+translucent Current color mode require the visual checks above. Exit status is 0 for a pass,
+1 for a color mismatch, and 2 for invalid input. This checker verifies rendering; retain the
+title/event checks for scrolling and input delivery.
