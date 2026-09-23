@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- Typing into hosted text fields: does the DOM value match what was typed, and does the
+     field show it? Every input event and a summary every second go to console.log
+     (TIGER_CONSOLE=1). Fields: a plain input; a React 18 controlled input; a React
+     controlled input that restyles its wrapper on first input (x.com's floating label);
+     and a 2FA-shaped code field (numeric, maxlength 6, digits-only filter). -->
+<html><head><meta charset="utf-8"><title>typetest</title>
+<style>
+body { font: 14px Helvetica; margin: 0; }
+.row { position: absolute; left: 20px; width: 400px; height: 44px; }
+input { width: 380px; font-size: 16px; }
+.float label { position: absolute; top: 12px; left: 6px; color: #888; pointer-events: none; }
+.float.active label { top: -14px; font-size: 11px; color: #d00; }
+.float.active input { border: 2px solid #d00; padding-top: 4px; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+</head><body>
+<div class=row style="top:20px"><input id=plain></div>
+<div class=row style="top:80px" id=r1></div>
+<div class=row style="top:140px" id=r2></div>
+<div class=row style="top:200px"><input id=code inputmode=numeric autocomplete=one-time-code maxlength=6></div>
+<div class=row style="top:260px"><input id=slow></div>
+<script>
+const log = s => console.log('TYPETEST ' + s);
+function Controlled() {
+  const [v, setV] = React.useState('');
+  return React.createElement('input', {id: 'react', value: v, onChange: e => setV(e.target.value)});
+}
+function Floating() {
+  const [v, setV] = React.useState('');
+  return React.createElement('div', {className: 'float' + (v ? ' active' : ''), style: {position: 'relative'}},
+    React.createElement('label', null, 'Email or username'),
+    React.createElement('input', {id: 'reactfloat', value: v, onChange: e => setV(e.target.value)}));
+}
+if (window.ReactDOM) {
+  ReactDOM.createRoot(document.getElementById('r1')).render(React.createElement(Controlled));
+  ReactDOM.createRoot(document.getElementById('r2')).render(React.createElement(Floating));
+} else log('no React');
+code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, ''); });
+document.addEventListener('input', e => log('input ' + e.target.id + '=' + e.target.value));
+setInterval(() => log('values ' + ['plain', 'react', 'reactfloat', 'code', 'slow'].map(id => {
+  const el = document.getElementById(id); return id + '=' + (el ? el.value : '?');
+}).join(' ')), 1000);
+</script></body></html>

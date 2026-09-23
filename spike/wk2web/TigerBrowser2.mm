@@ -462,8 +462,9 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
     // Typing into a hosted AppKit control: the first responder is the control or its field
     // editor, not the page view, and only the window knows which. Everything Cocoa gives a
     // text field for free -- Option-arrow, the kill ring, the input manager -- is on this path.
-    if ([_window firstResponder] && [_window firstResponder] != (NSResponder*)_view
-        && [_window firstResponder] != (NSResponder*)_window) {
+    // Anything but the page view -- the window itself included, which is where a real key
+    // goes after the focused control is taken away -- gets the event the way a user's would.
+    if ([_window firstResponder] != (NSResponder*)_view) {
         // Posted, not sent: a pop-up menu that is open is running its own event loop and pulls
         // events out of the queue. Sending straight to the window would miss it.
         [NSApp postEvent:down atStart:NO];
