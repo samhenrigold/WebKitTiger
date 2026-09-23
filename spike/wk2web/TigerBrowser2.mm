@@ -222,6 +222,14 @@ static void gpuProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationRe
     bool gpuDOM = faithful && getenv("TIGER_GPU_DOM") && !strcmp(getenv("TIGER_GPU_DOM"), "1");
     pageConfiguration->preferences().setUseGPUProcessForDOMRenderingEnabled(gpuDOM);
     pageConfiguration->preferences().setAcceleratedCompositingEnabled(faithful);
+    // TIGER_GPU=0 keeps the GPU process out, as in TigerWK2App (a track that changed the
+    // message table but not the GPU process stages the old GPU binary and needs this).
+    if (const char* gpu = getenv("TIGER_GPU"); gpu && !strcmp(gpu, "0")) {
+        pageConfiguration->preferences().setUseGPUProcessForMediaEnabled(false);
+        pageConfiguration->preferences().setUseGPUProcessForCanvasRenderingEnabled(false);
+        pageConfiguration->preferences().setUseGPUProcessForWebGLEnabled(false);
+        pageConfiguration->preferences().setUseGPUProcessForDisplayCapture(false);
+    }
     _webView = TigerWebView::create(pageConfiguration.get());
     if (!_webView) {
         fprintf(stderr, "TigerBrowser2: could not create the web view\n");
