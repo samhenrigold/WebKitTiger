@@ -94,6 +94,7 @@ private:
     NSString* _note; // a recovery message shown in the status line while nothing is loading
     NSTimeInterval _lastLoadFailure;
     unsigned _webCrashesSinceLoad;
+    NSString* _lastURL; // the address the page had before a crash reset its load state
 }
 - (id)initWithURL:(NSString*)url;
 - (void)updateChrome;
@@ -248,8 +249,12 @@ static void gpuProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationRe
     auto& state = page->pageLoadState();
     String title = state.title();
     [_window setTitle:title.isEmpty() ? @"TigerBrowser" : (NSString*)title.createNSString().get()];
+    if (!state.activeURL().isEmpty()) {
+        [_lastURL release];
+        _lastURL = [(NSString*)state.activeURL().string().createNSString().get() copy];
+    }
     if (![[_window firstResponder] isKindOfClass:[NSTextView class]] || [_address currentEditor] == nil)
-        [_address setStringValue:(NSString*)state.activeURL().string().createNSString().get()];
+        [_address setStringValue:_lastURL ? _lastURL : @""];
     [_back setEnabled:state.canGoBack()];
     [_forward setEnabled:state.canGoForward()];
     if (state.isLoading())
@@ -759,7 +764,17 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
 
 - (void)goBack:(id)sender { if (RefPtr page = _webView ? _webView->page() : nullptr) page->goBack(); }
 - (void)goForward:(id)sender { if (RefPtr page = _webView ? _webView->page() : nullptr) page->goForward(); }
-- (void)reload:(id)sender { if (RefPtr page = _webView ? _webView->page() : nullptr) page->reload({ }); }
+- (void)reload:(id)sender
+{
+    RefPtr page = _webView ? _webView->page() : nullptr;
+    if (!page)
+        return;
+    // A page whose process died during its first load has nothing to reload: load it again.
+    if (!page->hasRunningProcess() && !page->backForwardList().currentItem() && _lastURL)
+        page->loadRequest(URL { String::fromUTF8([_lastURL UTF8String]) });
+    else
+        page->reload({ });
+}
 - (void)focusAddress:(id)sender { [_window makeFirstResponder:_address]; [_address selectText:self]; }
 
 @end
