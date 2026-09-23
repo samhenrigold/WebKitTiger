@@ -191,19 +191,28 @@ fi
 # 7. video480loop over the LAN: the numbers the media path prints, not a picture.
 if wants video; then
     run video "http://$MEDIA_HOST/video480loop.html" 25 'wait 3'
-    detail=$(grep -a TIGER-MEDIA "$OUT/video.log" | tail -2 | python3 -c '
+    detail=$(grep -a TIGER-MEDIA "$OUT/video.log" | python3 -c '
 import re, sys
-lines = sys.stdin.read().split("\n")
-lines = [l for l in lines if "TIGER-MEDIA" in l]
-if len(lines) < 2:
-    print("FAILED only %d TIGER-MEDIA windows (need the last two)" % len(lines)); raise SystemExit
-bad = []
-for line in lines:
+windows = []
+for line in sys.stdin:
+    if "TIGER-MEDIA" not in line:
+        continue
     fps = float(re.search(r"fps=([\d.]+)", line).group(1))
     dropped = int(re.search(r"dropped=(\d+)", line).group(1))
-    if fps < 29 or dropped: bad.append("fps=%.1f dropped=%d" % (fps, dropped))
-print(("FAILED " + "; ".join(bad)) if bad else "last two windows: " + " / ".join(l.split("TIGER-MEDIA")[1].strip() for l in lines))
+    pts = float(re.search(r"pts=([\d.]+)", line).group(1))
+    # The page loops the clip: the window that straddles the wrap is short by the
+    # gap, and its fps is meaningless. Drop it, not the real windows around it.
+    if windows and pts < windows[-1][2]:
+        continue
+    windows.append((fps, dropped, pts))
+windows = windows[-2:]
+if len(windows) < 2:
+    print("FAILED only %d usable TIGER-MEDIA windows" % len(windows)); raise SystemExit
+bad = ["fps=%.1f dropped=%d" % (f, d) for f, d, _ in windows if f < 29 or d]
+print(("FAILED " + "; ".join(bad)) if bad else
+      "last two windows: " + " / ".join("fps=%.1f dropped=%d" % (f, d) for f, d, _ in windows))
 ')
+
     check video "$detail"
 fi
 
