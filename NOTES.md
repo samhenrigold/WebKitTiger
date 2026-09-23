@@ -5142,3 +5142,63 @@ path, YouTube MSE, low-power opt-in. Verified on the box before install: example
 video480loop at 30 fps. Open: x.com 2FA rejection (unreproduced), mirrored regions on
 apple.com/iphone-duo (unreproduced after fixes), <select> menu pick unverified by script,
 faithful-mode x.com typing.
+
+## Scrolling moves the window's pixels; faithful-mode sweep (2026-09-23 03:50)
+
+tiger-perf 1d010e54.
+
+**A wheel tick costs a strip, not a window.** The backing store was scrolled in place
+and then the whole scrolled area invalidated, so `-drawRect:` got the window and CG
+blitted 960x648 every tick. `-[NSView scrollRect:by:]` does to the window's backing
+exactly what `BackingStore::scroll` does to ours; after both, the two agree except for
+the strip the scroll exposed, and that is all `DrawingAreaProxyWC` invalidates. AppKit
+clips `-drawRect:` to it:
+
+| scrolltest.html, per wheel tick | before | after |
+|---|---|---|
+| UI `-drawRect:` | 15-23 ms | **0.6 ms** |
+| UI incorporate | 5.1 ms | 5.1 ms |
+| web paint | 2.8 ms | 2.8 ms |
+
+nytimes is unchanged (2.45 -> 2.38 ms median): its updates were already small and its
+limit is the page's JavaScript. The view declines the scroll when it has no window, when
+the offset exceeds the rect, and **when it has subviews** -- the hosted AppKit controls
+sit over the page and `-scrollRect:by:` would drag their pixels along while the web
+process repositions them on its own schedule. Those pages fall back to the old path.
+
+**The reused-context hazard has a check now.** With `TIGER_PAINT_PROBE` on,
+`updateImageBuffer` complains if the reused context comes back with a non-identity CTM.
+The state saver added in 0014801d restores the whole context state -- CTM, clip, alpha,
+composite operator, shadow -- and nothing else in `sendUpdateNonAC` touches the context
+outside it. No warning fired in any run.
+
+### Faithful mode (TIGER_FAITHFUL=1), first run since the merges
+
+Binaries: tiger-perf `1d010e54` web + UI, `build/tiger-gpu` GPU process of 21:36.
+
+| case | result |
+|---|---|
+| example.com | renders, screenshot logs/perf/scroll/f-ex.png |
+| scrolltest.html + wheel | renders, passes check-scrollshot.py, `-drawRect:` 2.2-2.5 ms |
+| controls-test.html | every hosted Aqua control correct: buttons, checkboxes, radios, text fields, popups, list box, sliders, progress, meter (f-c1.png) |
+| x.com onboarding | modal placed correctly, "212 555 1234" typed into the field, caret visible (fx-2.png) |
+| video480loop.html | first frame + controls painted by the in-page blit as expected, **but playback never starts** |
+
+No `gliDestroyContext` crash in any of these runs; the `TIGER-EXIT` lines are the normal
+shutdown traces. Two `TIGER-SEM: cannot open semaphore '/tmp/webkit-sem-<pid>-<n>'` lines
+at teardown of the x.com run, harmless-looking but new.
+
+**The video stall is not faithful-specific.** Same signature in fast mode on the same
+file, so it is a media regression on the current tree, not the compositing path:
+
+    TIGER-MEDIA stall: clock=0.00 pendingVideo=3 untilDue=0.033 pendingAudio=0
+                       ring=7168/0 basePts=1 eof=0 mseEnded=0 queues: v:0 a:0
+
+repeated forever, with the page reporting `readyState 4 network 1 paused false
+t=0.00/10.00`. Three frames are decoded and waiting, the clock never leaves 0 and
+`basePts=1` while the frames are at pts ~0, so nothing is ever due. Logs
+logs/perf/scroll/app-f-ctrl.log (faithful) and app-fast-video.log (fast).
+
+Also confirmed here: the flush fence gating is right. Faithful mode reports
+`remote rendering DOM=0 canvas=1 media=0 -> flush fence on` and the fence returns in
+18 ms, so the fence is taken exactly when the GPU process really has something to flush.
