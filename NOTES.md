@@ -4815,3 +4815,84 @@ which is why the slider looked right and hid it. The change event is now dispatc
 
 x.com in fast mode: spike/wk2web/controls-x-fast.png. Its login controls are CSS-styled, so
 they are correctly NOT hosted -- a styled control must not turn into an Aqua control.
+
+## 2026-09-22 — the JIT crash on real pages was SSE4.1 `roundsd` (WebKit-jsperf, branch tiger-jsperf)
+
+`TIGER-CRASH ... exception 0x2 code 0x1` is **not** EXC_BAD_ACCESS. Mach numbers
+EXC_BAD_ACCESS 1 and EXC_BAD_INSTRUCTION 2, so exception 0x2 is an illegal instruction and
+code 0x1 is EXC_I386_INVOP — an undefined opcode, the same class as the AVX probe
+trampoline earlier today. `spike/jsc64/machtrap64.c` pins the mapping down on this kernel
+by executing each trap out of an RWX page with a task exception port installed exactly as
+TigerCrashCatcher installs it:
+
+| instruction | exception / code | POSIX signal |
+|-------------|------------------|--------------|
+| `ud2`       | 0x2 / 0x1        | SIGILL (4)   |
+| `hlt`       | 0x2 / 0xd        | SIGILL (4)   |
+| null load   | 0x1 / 0x1        | SIGSEGV (11) |
+
+So the three crashes in the user's session, and the intermittent one on The Verge, were all
+an instruction Merom does not have.
+
+Which one: `supportsFloatingPointRounding()` is `supportsSSE4_1()`, and **a dozen JIT sites
+emit `roundsd`/`roundss` without asking it first**. Most callers do ask (DFG ArithRound,
+B3LowerMacrosAfterOptimizations, the Math thunks — upstream has the fallbacks); these do
+not, and each is reachable from an ordinary page:
+
+- `WasmBBQJIT64`: f32/f64 `floor`, `ceil`, `nearest`, `trunc` — eight sites
+- `WasmOMGIRGenerator`: the f32/f64 `nearest` patchpoints
+- `DFGSpeculativeJIT::compileClampDoubleToByte` — **every `Uint8ClampedArray` store**, i.e.
+  every canvas ImageData write
+- `DFGSpeculativeJIT`'s double-remainder fast path — `%` on doubles
+- `DFGSpeculativeJIT64::compileDateSet` / `compileDateGetInt32OrNaN` — `Date`
+- `FTLLowerDFGToB3`'s clamp patchpoint
+
+`spike/jsc64/jitround.html` exercises four of them and kills the shipping web process in
+1.2 s, every time, with the user's exact signature (logs/perf/jitround-before.log); the
+frames below the two JIT ones are `vmEntryToJavaScript` <- `executeProgram` <- the page's
+`<script>`. (Serve it over the 8765 http server -- file:// URLs are rejected by the
+harness; the page signals its own result by CPU, spinning the web process if any check
+fails, because nothing else on that page reaches the log or the screenshot.)
+
+Fix: not thirteen fallbacks but one, where they all meet — MacroAssemblerX86_64's fourteen
+rounding entry points. Without SSE4.1 they emit x87: `frndint` rounds by the control word's
+bits 11:10, which use the *same encoding as roundsd's immediate*, so the mode maps straight
+across. Sixteen bytes of fresh stack, no scratch register (so it is safe inside FTL
+patchpoints, where the macro scratch register may be live) and no constant pool:
+
+    sub $16, %rsp; movsd src, (%rsp); fnstcw 8(%rsp); fnstcw 12(%rsp)
+    andl $~0xc00, 12(%rsp); orl $mode<<10, 12(%rsp); fldcw 12(%rsp)
+    fldl (%rsp); frndint; fstpl (%rsp); fldcw 8(%rsp); movsd (%rsp), dst; add $16, %rsp
+
+`spike/jsc64/x87round64.c` runs that exact sequence against libm on the box for halfway
+cases, ties, 2^52, denormals, infinities, NaN and -0 in all four modes, and checks the
+control word comes back: all match. The single disagreement is 10.4's libm — `trunc(-0.5)`
+returns +0 there, while C99, `roundsd` and `frndint` all say -0.
+
+`supportsFloatingPointRounding()` still answers false, so the callers that already have a
+cheaper fallback keep it; only the unguarded ones take the x87 path. It is slow (~50 cycles,
+`fldcw` serializes), which is the ceiling to remember if a canvas-heavy page ever shows up
+hot in `compileClampDoubleToByte`.
+
+Also in this branch: TigerCrashCatcher prints 32 bytes at the pc when the pc has no symbol
+(vm_read_overwrite, so a bad pc cannot fault the handler), so the next JIT crash names its
+own opcode instead of needing a bisect.
+
+Still open from the same session's log: one `exception 0x6 code 0x2` (EXC_BREAKPOINT, a
+RELEASE_ASSERT in `CanMakeCheckedPtrBase`) on The Verge — a different bug. And the crash
+catcher holds EXC_MASK_BAD_ACCESS|EXC_MASK_BAD_INSTRUCTION on the *task*, which is consulted
+before any BSD signal: it therefore swallows the faults JSC means to handle (VMTraps' `hlt`,
+wasm's out-of-bounds SIGBUS). machtrap64 shows a KERN_FAILURE reply lets the POSIX handler
+run after all, which is what the catcher should do for those two exceptions.
+
+Measured, tiger-jsperf @921420c2 (+ the tiger-fontcache merge, build/tiger-web-jsperf):
+
+| run                                        | TIGER-CRASH |
+|--------------------------------------------|-------------|
+| jitround.html, build/tiger-web-port         | 2 (both 0x2/0x1, at 1.16 s and 1.41 s) |
+| jitround.html, fixed                        | 0, web process alive and idle (all checks pass) |
+| theverge.com 90 s scrolled, build/tiger-web-port | 1 (0x2/0x1) + 1 unrelated 0x6/0x2 |
+| theverge.com 90 s scrolled, fixed           | 0, one web process pid from start to 87 s |
+| apple.com/iphone-duo 90 s scrolled, fixed   | 0, one web process pid from start to 87 s |
+
+logs/perf/{jitround,verge,apple}-{before,after}.{log,png}.

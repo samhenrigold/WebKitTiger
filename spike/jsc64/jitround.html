@@ -1,0 +1,57 @@
+<!-- TIGER64: the JIT paths that emit SSE4.1 roundsd/roundss without asking
+     supportsFloatingPointRounding() first. On a Core 2 (no SSE4.1) each of these
+     kills the web process with EXC_BAD_INSTRUCTION once the function tiers up:
+       clamp   -> DFG compileClampDoubleToByte (Uint8ClampedArray store), FTL too
+       rem     -> DFG's double remainder fast path (roundTowardZeroDouble)
+       dateSet -> DFG compileDateSet (roundTowardZeroDouble)
+       dateGet -> DFG compileDateGetInt32OrNaN (floorDouble)
+     Math.floor/round are here as a control: those callers already check. -->
+<html><body style="font:28px Helvetica">
+<div id="out">running</div>
+<script>
+function clamp(a, x) { a[0] = x; return a[0]; }
+function rem(x, y) { return x % y; }
+function dateSet(d, t) { d.setTime(t); return d.getTime(); }
+function dateGet(d) { return d.getSeconds(); }
+function mathRound(x) { return Math.floor(x) + Math.ceil(x) + Math.round(x) + Math.trunc(x); }
+
+var results = [];
+function check(name, got, want) {
+    results.push((got === want ? "PASS " : "FAIL ") + name + " got=" + got + " want=" + want);
+}
+
+var a = new Uint8ClampedArray(4);
+var d = new Date(0);
+var sink = 0;
+for (var i = 0; i < 20000; ++i) {
+    sink += clamp(a, (i % 300) + 0.5);
+    sink += rem(i + 0.25, 7);
+    sink += dateSet(d, i * 1000.5);
+    sink += dateGet(d);
+    sink += mathRound(i * 0.5);
+}
+
+// Same functions, now compiled, on values whose rounding is easy to check by eye.
+check("clamp 2.5", clamp(a, 2.5), 2);      // ties to even
+check("clamp 3.5", clamp(a, 3.5), 4);
+check("clamp -1", clamp(a, -1), 0);
+check("clamp 300", clamp(a, 300), 255);
+check("rem 7.5%2", rem(7.5, 2), 1.5);
+check("rem -7.5%2", rem(-7.5, 2), -1.5);
+check("dateSet 1500.9", dateSet(d, 1500.9), 1500);
+check("dateSet -1500.9", dateSet(d, -1500.9), -1500);
+check("dateGet", (dateSet(d, 65000), dateGet(d)), 5);
+check("math 2.5", mathRound(2.5), 2 + 3 + 3 + 2);
+check("math -2.5", mathRound(-2.5), -3 + -2 + -2 + -2);
+check("sink", isFinite(sink), true);
+
+var failures = results.filter(function (r) { return r.indexOf("FAIL") === 0; });
+document.getElementById("out").innerHTML =
+    (failures.length ? "FAILURES " + failures.length : "ALL PASS") + "<br>" + results.join("<br>");
+document.title = failures.length ? "FAIL" : "PASS";
+// The harness has no way to read the page (this window paints nothing in the
+// screenshot and no console channel reaches the log), so the result is signalled
+// by CPU: a failure spins the web process, a pass leaves it idle.
+if (failures.length) { for (;;) { sink += 1; } }
+</script>
+</body></html>
