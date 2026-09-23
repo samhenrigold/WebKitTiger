@@ -2,7 +2,7 @@
 # Regression harness for the Tiger port: runs the main build dirs on the box and
 # says pass or fail per page, with a diff report.
 #
-#   tools/regress.sh                 # all eight checks, ~4.5 min of box time
+#   tools/regress.sh                 # all eleven checks, ~5.5 min of box time
 #   tools/regress.sh example scroll  # only the named checks
 #   tools/regress.sh --list          # the check names
 #   BLESS=1 tools/regress.sh boxtest # run it, then make its shot the new golden
@@ -35,7 +35,7 @@ SHARE=/Users/shg/wk2/share
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols"
 case "${1:-}" in --list) echo $ALL; exit 0;; esac
 WANTED=${*:-$ALL}
 
@@ -53,9 +53,9 @@ fi
 
 note() { printf '%s\n' "$*" >> "$SUMMARY"; }
 
-# stage one page. run <name> <url> <seconds> <script>
+# stage one page. run <name> <url> <seconds> <script> [extra env]
 run() {
-    name=$1; url=$2; secs=$3; script=$4
+    name=$1; url=$2; secs=$3; script=$4; extra_env=${5:-}
     echo "== $name ($secs s)"
     # The user runs /Users/shg/Applications/TigerBrowser.app for real. Never run on top of
     # it: wait for it to go away rather than producing a meaningless result (or killing it).
@@ -67,7 +67,7 @@ run() {
     APP=TigerBrowser2 \
     SHOT="$OUT/$name.png" \
     LOG="$OUT/$name.log" \
-    APP_ENV="TIGER_PAINT_PROBE=1 TIGER_SCRIPT='$script'" \
+    APP_ENV="$extra_env TIGER_PAINT_PROBE=1 TIGER_SCRIPT='$script'" \
         sh "$STAGE" "$url" "$secs" > "$OUT/$name.stage.log" 2>&1
     stage_rc=$?
     [ $stage_rc -eq 0 ] || echo "   stage-app.sh exited $stage_rc (see $name.stage.log)"
@@ -220,6 +220,36 @@ fi
 if wants youtube; then
     run youtube https://www.youtube.com/ 40 'wait 30'
     check youtube "$(probe "$OUT/youtube.png" --nonblank)"
+fi
+
+# 9-11. Faithful mode (TIGER_FAITHFUL=1): accelerated compositing on, layers composited
+#    by CARenderer in the GPU process and read back. A page without compositing layers
+#    still paints in the web process, so example.com and the controls page must match
+#    the fast-mode goldens pixel for pixel -- the same golden files, on purpose.
+#    scrolltest.html?composited puts a will-change layer on the fixed bar and animates a
+#    second one, which forces the CA path; the check is the mirrored-blit checker plus at
+#    least one "TIGER gpu: frame" line, so a run that never reached the GPU scene fails.
+if wants fexample; then
+    run fexample http://example.com/ 14 'wait 8' TIGER_FAITHFUL=1
+    detail=$(probe "$OUT/fexample.png" --nonblank)
+    # BLESS is cleared for the shared goldens: a faithful run must never re-bless the
+    # fast-mode picture it is being held to.
+    case $detail in FAILED*) ;; *) detail="$detail; $(BLESS=; golden example fexample --max-frac 0.02)";; esac
+    check fexample "$detail"
+fi
+
+if wants fscroll; then
+    run fscroll "file://$SHARE/scrolltest.html?composited" 20 'wait 8;scroll 0,-300;wait 3;scroll 0,-300;wait 3' TIGER_FAITHFUL=1
+    detail=$(python3 "$WKT/spike/wk2web/check-scrollshot.py" "$OUT/fscroll.png" 2>&1)
+    case $detail in *": OK"*) ;; *) detail="FAILED $detail";; esac
+    frames=$(grep -ac 'TIGER gpu: frame' "$OUT/fscroll.log" 2>/dev/null || true)
+    [ "${frames:-0}" -gt 0 ] || detail="FAILED no TIGER gpu: frame (the CA scene never rendered); $detail"
+    check fscroll "$(echo "$detail" | sed "s|$OUT/||"); gpu frames=${frames:-0}"
+fi
+
+if wants fcontrols; then
+    run fcontrols "file://$SHARE/controls-test.html" 14 'wait 8' TIGER_FAITHFUL=1
+    check fcontrols "$(BLESS=; golden controls fcontrols --crop 80,152,640,700 --max-frac 0.02)"
 fi
 
 note ""
