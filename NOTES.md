@@ -6383,3 +6383,38 @@ page cleanly (regress youtube PASS, no rejection); the watch page on the shipped
 could not be tried because the box stayed locked past stage-app's 10-minute wait. This
 tree is tiger-fontcache a8fa01442 plus the video commit, and the video commit touches no
 networking code.
+
+## 2026-09-23 — a dropped graph was never collected: bound the Full GC timer (WebKit-jsperf, 750994f1)
+
+memdrop.html?mode=objects builds 5M objects; a Full GC during the build promotes them with a
+death rate of ~0. JSC's Full timer delay is `lastFullGCLength / gcTimeSlice(bytes * deathRate)`,
+so after the page drops the graph the delay is effectively infinite and `scheduleTimer()` never
+arms: only Eden GCs run and ~300 MB stays resident. No existing option bounds it
+(percentCPUPerMBForFullTimer / collectionTimerMaxPercentCPU only scale the slice). New option
+`fullGCTimerMaxDelay` (seconds, 0 = upstream/unbounded): `GCActivityCallback::didAllocate` clamps
+to `maxDelay()`, which only the Full callback overrides; TIGER64 sets 10 in `overrideDefaults()`
+so `JSC_fullGCTimerMaxDelay=0` gives the A/B. The timer is still armed only by allocation and
+cancelled by every collection, so an idle page pays nothing. (Went with the bound rather than an
+idle-triggered GC: memdrop, like real pages, keeps allocating after the drop, and an idle trigger
+would only fire after the churn stops.)
+
+On the box, libpas build, one binary, `JSC_logGC=1` for the collection counts:
+
+| | cap 10 s (default now) | cap 0 (upstream) |
+|---|---|---|
+| memdrop objects: RSS after the drop | **323 -> 50 MB ~12 s after the drop**, 3 of 3 runs | 323 MB to the end of the run (50+ s), 2 of 2 |
+| memdrop Full GCs | 2 (build 7.8 s, post-drop 35.5 s) | 1 (build only) |
+| allocbench Full / Eden GCs | 1 / 2, 1 / 2 | 1 / 2, 1 / 2 |
+| allocbench total (quiet box) | 24.4 s (1 run) | 23.7 / 23.6 s |
+| nytimes 90 s scrolled: main-thread busy / GC share | 96-97% / 4.0, 6.2, 8.8% | 97% / 4.0, 7.1, 6.9% |
+
+allocbench runs the same collections either way (its work is DOM, not JS heap), so the 3% in the
+single capped quiet-box run is noise; later runs overlapped another agent's jsc test driver
+(34-40 s totals, both arms) and are not comparable. nytimes busy is pegged by the page either
+way and the GC share moves within run-to-run spread.
+
+Startup: 0 TIGER-CRASH in these 25 runs (~43 web-process launches) on the merged build with
+3b1b42401 (StackBounds). Three launches hit the exact condition that used to crash --
+`TIGER-STACK main stack map entry 0x7fff5fbff000-0x7fff5fc00000, stack taken as
+0x7fff5f400000-0x7fff5fc00000` -- and went on normally, so the scratchBufferForSize /
+sanitizeStackForVM 0xaa20 crash is gone.

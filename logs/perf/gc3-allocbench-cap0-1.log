@@ -1,0 +1,82 @@
+   0.289 2026-09-23 18:18:20.499 TigerBrowser2[3568] *** _NSAutoreleaseNoPool(): Object 0x7c09180 of class NSCFString autoreleased with no pool in place - just leaking
+   0.473 ERROR: invalid option: JSC_fullGCTimerMaxDelay=0
+   0.655 Unknown logging channel: Loading
+   0.655 Unknown logging channel: Layout
+   0.721 Unknown logging channel: Loading
+   0.721 Unknown logging channel: Layout
+   0.729 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 3
+   0.732 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::initializeNetworkProcess: Presenting processPID=3591
+   0.827 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.830 [com.apple.WebKit:Process:4] 0x11908c240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+   0.833 [com.apple.WebKit:Process:4] 0x11908c240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+   0.833 [com.apple.WebKit:Process:4] 0x11908c240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+   0.833 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+   0.858 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+   0.870 [GC<0x118400108>: starting 0.190180ms]
+   0.932 [com.apple.WebKit:Process:4] 0x1190300c0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=3568
+   0.936 [com.apple.WebKit:Loading:4] 0x119114b80 - [webPageID=5] WebPage::constructor:
+   0.941 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+   0.992 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   0.996 [com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+   1.032 [com.apple.WebKit:Loading:4] [pageID=5, frameID=4294967297] PolicyChecker::checkNavigationPolicy: continuing because this policyAction from dispatchDecidePolicyForNavigationAction is Use
+   1.036 [com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3568, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   1.036 [com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+   1.036 [com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3568, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+   1.037 [com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=3568, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9)
+   1.057 [com.apple.WebKit:Layout:4] [webFrameID=4294967297, webPageID=5] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   1.133 Unknown logging channel: Loading
+   1.134 Unknown logging channel: Layout
+   1.137 [com.apple.WebKit:Process:4] getNetworkProcessConnection: Request connection for core identifier 5
+   1.139 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 5
+   1.141 [com.apple.WebKit:Process:4] 0x11908c370 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 5
+   1.141 [com.apple.WebKit:Process:4] 0x11908c370 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established service worker server connection
+   1.141 [com.apple.WebKit:Process:4] 0x11908c370 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established shared worker connection
+   1.141 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 5, notifying the UI process
+   1.141 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 5 to the UI process
+   1.148 TIGER script: 
+   1.150 [GC<0x118400108>: starting 0.193845ms]
+   1.205 [com.apple.WebKit:Process:4] 0x1190300c0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=3568
+   1.208 [com.apple.WebKit:Loading:4] 0x119118b80 - [webPageID=13] WebPage::constructor:
+   1.216 [com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+   1.267 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   1.270 [com.apple.WebKit:Loading:4] [webPageID=13] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=2, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=1
+   1.276 [com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=3568, pageProxyID=4, webPageID=13, frameID=4294967298, resourceID=9, existingLoaderToResume=1)
+   1.276 [com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: Resuming existing NetworkResourceLoader
+   1.294 [com.apple.WebKit:Loading:4] [webPageID=5] WebPage::close
+   1.317 [com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::didClose: WebProcess closed its connection. Aborting related loaders.
+   1.318 [com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::removeNetworkConnectionToWebProcess: Removing process 3
+   1.441 [com.apple.WebKit:Layout:4] [pageID=13, frameID=4294967298, isMainFrame=1] LocalFrameView::fireLayoutRelatedMilestonesIfNeeded: Firing first visually non-empty layout milestone on the main frame
+   1.442 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstVisuallyNonEmptyLayout)
+   1.442 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidFirstVisuallyNonEmptyLayoutForFrame
+   1.442 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::completePageTransitionIfNeeded: dispatching didCompletePageTransition
+   1.445 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidFirstLayoutForFrame
+   1.445 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstLayout)
+   1.476 TIGER title: allocbench
+   1.481 [com.apple.WebKit:Layout:4] [webFrameID=4294967298, webPageID=13] WebLocalFrameLoaderClient::dispatchDidReachLayoutMilestone: dispatching DidReachLayoutMilestone (milestones=DidFirstMeaningfulPaint)
+  44.565 Requesting GC because bytes allocated this cycle: 33565391 exceed bytes allowed: 33554432 normal bytes: 31968167 oversized bytes: 1597224 last oversized: 360651
+  44.571 [GC<0x118400108>: START M 29158kb => EdenCollection, a=0kb hf=0.000 mu=0.600 v=0kb (C:0 M:0 P1:0) o=0 b=0 i#1:N<CsMsrShDMsm(0)> 3763+0 p=4.179530ms (max 4.179530)...]
+  44.608 [GC<0x118400108>: M a=6kb hf=0.000 mu=0.600 v=1268kb (C:232 M:0 P1:1035) o=3 b=0 i#2:N<WsOJw>Pbc 2+0 p=9.601876ms (max 9.601876)...]
+  44.630 [GC<0x118400108>: M a=30kb hf=0.002 mu=0.599 v=1268kb (C:233 M:0 P1:1035) o=3 b=0 i#3:P<WsOJwMsr>Pbc 0+0 v=1339kb (C:233 M:0 P1:1106) o=3 b=0 i#4:P<ShMsrCsDMsm(0)CbDomoWsOJw>Pbc => 1857kb, p=19.213863ms (max 19.213863), cycle 62.862224ms END]
+  44.630 GC END!
+  44.640 [GC<0x118400108>: epilogue 8.433200ms]
+  45.166 Requesting GC because bytes allocated this cycle: 33557722 exceed bytes allowed: 33554432 normal bytes: 22864986 oversized bytes: 10692736 last oversized: 307728
+  45.172 [GC<0x118400108>: START M 37176kb => EdenCollection, a=0kb hf=0.000 mu=0.600 v=0kb (C:0 M:0 P1:0) o=3 b=6 i#1:N<CsMsrShDMsm(13)> 9+13 v=1348kb (C:1348 M:0 P1:0) o=3 b=6 16602+4 p=6.151765ms (max 19.213863)...]
+  45.175 [GC<0x118400108>: M a=0kb hf=0.000 mu=0.600 v=1349kb (C:1348 M:0 P1:0) o=3 b=0 14790+4 p=0.706446ms (max 19.213863)...]
+  45.177 [GC<0x118400108>: M a=0kb hf=0.000 mu=0.600 v=1349kb (C:1348 M:0 P1:0) o=3 b=0 7140+2 p=0.686031ms (max 19.213863)...]
+  45.179 [GC<0x118400108>: M a=0kb hf=0.000 mu=0.600 v=1349kb (C:1348 M:0 P1:0) o=3 b=0 3570+1 p=0.739248ms (max 19.213863)...]
+  45.181 [GC<0x118400108>: M a=0kb hf=0.000 mu=0.600 v=1349kb (C:1348 M:0 P1:0) o=3 b=0 1530+1 p=0.688712ms (max 19.213863)...]
+  45.185 [GC<0x118400108>: M a=94kb hf=0.007 mu=0.596 v=1349kb (C:1348 M:0 P1:0) o=3 b=1 0+1 v=1349kb (C:1348 M:0 P1:0) o=3 b=1 i#2:N<WsOJw>Pbc 1+1 v=1349kb (C:1348 M:0 P1:0) o=3 b=1 i#3:P<OWsJwMsm(1)>Pbc 0+1 p=3.764958ms (max 19.213863)...]
+  45.194 [GC<0x118400108>: M a=336kb hf=0.026 mu=0.585 v=1443kb (C:1443 M:0 P1:0) o=3 b=1 i#4:P<Cs> 2+1 v=1443kb (C:1443 M:0 P1:0) o=3 b=1 i#5:P<CsMsm(1)> 0+1 v=1503kb (C:1503 M:0 P1:0) o=3 b=1 i#6:P<Msm(0)ShCsMsrDCbDomoOWsJw>Pbc => 4342kb, p=3.284853ms (max 19.213863), cycle 27.675452ms END]
+  45.194 GC END!
+  45.196 [GC<0x118400108>: epilogue 0.187333ms]
+  45.408 [GC<0x118400108>: START M 37300kb => FullCollection, a=0kb hf=0.000 mu=0.600 v=0kb (C:0 M:0 P1:0) o=0 b=7 i#1:N<CsMsrShDMsm(0)> 1450+0 p=3.837905ms (max 19.213863)...]
+  45.410 [GC<0x118400108>: M a=0kb hf=0.000 mu=0.600 v=191kb (C:191 M:0 P1:0) o=1 b=0 1530+0 p=0.697649ms (max 19.213863)...]
+  45.412 [GC<0x118400108>: M a=0kb hf=0.000 mu=0.600 v=238kb (C:191 M:0 P1:46) o=1 b=0 510+0 p=0.679328ms (max 19.213863)...]
+  45.418 [GC<0x118400108>: M a=0kb hf=0.000 mu=0.600 v=279kb (C:191 M:0 P1:87) o=3 b=0 i#2:N<WsOJw>Pbc 4+0 v=279kb (C:192 M:0 P1:87) o=3 b=0 i#3:P<WsOJwShMsrMsm(0)CsDCbDomo>Pbc => 560kb, p=4.529173ms (max 19.213863), cycle 14.128753ms END]
+  45.418 GC END!
+  45.420 [GC<0x118400108>: epilogue 0.521965ms]
+  45.431 TIGER title: allocbench 41061
+  60.662 TIGER-EXIT pid 0xdf0
+  60.662  thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2dff05
+  60.680 TIGER-EXIT pid 0xe07
+  60.680  thread 0xd03 state-kr 0x0 pc 0x10b6dfe4e leaf mach_msg_trap+0xa crashinfo 0x206 0x270 0x0 0xe03 0x3 0x7fff5fbff430 0x270 frames: 0x10b6dfe4e 0x10b69511d 0x100329acc 0x10b684c75 0x10b684a0c 0x100001c53 0x100001b61 0x3
