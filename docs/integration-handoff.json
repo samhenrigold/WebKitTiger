@@ -1,0 +1,30 @@
+{
+  "snapshot": "20260923-185541",
+  "upstream_base": "d2f5260584c57562d71dd883203e5d3c36f2eea1",
+  "integration_base": "46ce7e847fd37dffcf75a4817ef085c7f4be8106",
+  "outer_base": "e5af6f8228c35219507042f64b027dcba6ce03ed",
+  "feature_checkpoint": "292660833962f61d4e9dfa6c2edda5e4a754f2b4",
+  "backup_bundle": "build/handoff/20260923-185541/tiger-branches.bundle",
+  "backup_bundle_sha256": "98ac13c4e808526c555d392cd30e5588ec648ab09257360d58d9b5551b0d904b",
+  "branches": {
+    "master": "e5af6f8228c35219507042f64b027dcba6ce03ed",
+    "tiger-fontcache": "46ce7e847fd37dffcf75a4817ef085c7f4be8106",
+    "tiger-faithful": "99c456740d284d0f9b87e592c78ba5423657ba47",
+    "tiger-fasttext": "aede0e5c94215a417990875df81dde6186f21619",
+    "tiger-features": "452ea86c6dd78f5a11ecad1682c500491554f74a",
+    "tiger-ime": "ae093cad125624b025cab9ca127fea06a4d1e956",
+    "tiger-ipc-abi": "b649afd621b5e3026432da475aed318c51fd7436",
+    "tiger-jsc64": "462737289122c97b59d467aa5f16d986a2c34ce8",
+    "tiger-jsperf": "750994f1eb1aea83522a88e75142c2cb1330fd6b",
+    "tiger-media": "53859fc3e8a3bbe9f38496d061df782408f1e636",
+    "tiger-perf": "fec9476d4321409dbb1b9e4227dc481a24eab793",
+    "tiger-recover": "60e3406bcad6a39a4a68efda10538f5f1d93dea1",
+    "tiger-regress": "aa1bc41553743be691c1062e0077ae9743eb85e3",
+    "tiger-tests": "40d3d118188574a7c1c4e6b60a909be71e94aac2",
+    "tiger-video": "6de7529f86d5545f6d9ebeebc47504917fa38410"
+  },
+  "dirty_patches": {
+    "WebKitTiger": "5b2120bbcabf83f529fc0a5d4d61c8c3377a914a6d6dd6cdbef8a52470b7fa46",
+    "WebKit-features": "2a434196fdce3f0c6b3d0737218b445dafa746b3026edc454fb7e173275350d1"
+  }
+}
