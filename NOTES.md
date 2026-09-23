@@ -5021,3 +5021,62 @@ to the backing-store track; not touched here.
 closes -- so every exited helper stayed a zombie ("(TigerWebProcess)" in ps). There is a
 SIGCHLD handler now. Not `SIG_IGN`: that auto-reaps but also makes the `system()`
 TigerBrowser2 uses for `screencapture` return before the child.
+
+## The 15-second fence, and where nytimes actually spends its time (2026-09-22 21:30)
+
+tiger-perf 5d3e0e6e.
+
+**The white page was the GPU flush fence.** Every fast-mode update ended with
+`ensureRemoteRenderingBackendProxy().flushImageBuffers()`, which sends
+`RemoteRenderingBackend::Flush` to the GPU process and waits on an IPC semaphore with
+the connection's 15 s timeout. Nothing on this port renders remotely -- the new probe
+prints `remote rendering DOM=0 canvas=0 media=0` -- so the fence never had anything to
+flush. It only became visible when the GPU process binary stopped matching the web
+process: `MessageNames` is **one global enum**, so adding a message to any
+`.messages.in` (the merge added 7 lines to WebPageProxy.messages.in) renumbers every
+message after it, and a GPU process built before that answers a different message or
+none. The semaphore was then never signalled:
+
+    TIGER web: commit queue waited 1.2 ms, fence 15000.8 ms
+    TIGER web: displayDidRefresh 14.1 ms after the update was sent, deferred 15010.2 ms
+
+i.e. a white window for the first 15 s and one frame every 15 s after -- the blank
+example.com, and "flickers out and repaints I can watch" on a heavy page. The round trip
+itself was always 14 ms. The fence is now taken only when something really is rendered in
+the GPU process. **This does not make a stale GPU process safe** -- faithful mode's
+compositing and the video path still talk to it, so rebuild and restage it with the web
+process.
+
+**Accelerated compositing never turns on in fast mode.** `composited=0` in all 830
+updates measured on apple.com/iphone-duo and in every update of a page built to force it
+(`scrolltest.html?composited`, `will-change: transform` on a fixed bar plus an animating
+layer). So `DrawingAreaWC::sendUpdateAC` and `WCScene::renderToBitmap` are not on the
+fast-mode path at all today, and the mirrored regions the user saw cannot have come from
+them. For the record, that path is sound: `renderToBitmap` reverses the rows after
+`glReadPixels` explicitly, and it emits a full-viewport `updateRects` with an empty
+`scrollRect`, so the UI applies no scroll blit for an AC frame. One trap was real and is
+fixed: `sendUpdateAC` did not clear `m_dirtyRegion`, `m_scrollRect` or `m_scrollOffset`,
+which only `sendUpdateNonAC` cleared, so a page that scrolled and then put up a
+compositing layer would carry an already-applied scroll offset into the first update
+after it left compositing mode.
+
+**nytimes is not paint-bound.** 30 s of wheel scrolling, sampled with
+`TIGER_SAMPLE_MAIN` and bucketed with tools/tiger-profile.py (samples filtered to the
+scroll phase by the `n` index; the sampler has no start delay):
+
+| bucket            | % of busy main-thread samples |
+|-------------------|-------------------------------|
+| JS: execute       | 47 |
+| JS: parse/bytecode| 19 |
+| Images            | 14 |
+| Layout            | 8  |
+| JS: GC / JIT      | 6  |
+| **paint**         | **0 samples** |
+
+24 updates in ~22 s of scrolling, cairo paint 24.6 ms median, UI incorporate 5.9 ms,
+fence 0.0 ms. Paint is about 0.6 s of 8.5 s of main-thread work: making cairo twice as
+fast would buy ~2%. The main thread is pegged by the page's own JavaScript, and the wheel
+steps coalesce (`by 0,-329`, `by 0,-391` for 120 px steps) because a rendering update only
+gets a slot about once a second. Notable in the hot frames: `FFmpegByteSource::append`,
+`SharedBufferBuilder::appendSpans` and `fastMalloc` together are about a third of the busy
+main-thread samples -- media source appends, on the main thread, during scrolling.
