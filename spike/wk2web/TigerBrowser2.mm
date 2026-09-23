@@ -285,8 +285,10 @@ static NSPoint pointFromString(NSString* spec)
 // -[NSPopUpButtonCell trackMouse:...] positions its menu from the REAL cursor and then runs
 // its own event loop reading the REAL event stream, so a posted NSEvent opens nothing. This
 // warps the cursor and injects a press through the window server, which is indistinguishable
-// from a hand. The release lags, in the common run loop modes, because a press and release in
-// the same instant opens an Aqua menu and closes it again on the item already selected.
+// from a hand. The release comes 50 ms later, in the common run loop modes so it still arrives
+// once the menu's own loop is running: a quick click is what leaves a 10.4 menu open for the
+// keys that pick from it. Holding for 350 ms was a press-drag-release instead -- the menu
+// opened with the current item under the cursor and the release chose it again (measured).
 - (void)realClickAt:(NSString*)spec
 {
     NSPoint viewPoint = pointFromString(spec);
@@ -299,7 +301,22 @@ static NSPoint pointFromString(NSString* spec)
     CGWarpMouseCursorPosition(global);
     CGPostMouseEvent(global, TRUE, 1, TRUE);
     [self performSelector:@selector(postRealMouseUp:) withObject:[NSValue valueWithPoint:NSMakePoint(global.x, global.y)]
-        afterDelay:0.35 inModes:[NSArray arrayWithObject:(NSString*)kCFRunLoopCommonModes]];
+        afterDelay:0.05 inModes:[NSArray arrayWithObject:(NSString*)kCFRunLoopCommonModes]];
+}
+
+static BOOL keyForName(NSString* name, unichar* character, unsigned short* code, unsigned* extraFlags);
+
+// "realkey down", "realkey return": a key through the window server, for the same reason
+// as realclick -- an open pop-up menu reads the real event stream, not the page view.
+- (void)realKey:(NSString*)name
+{
+    unichar character = 0;
+    unsigned short code = 0;
+    unsigned extraFlags = 0;
+    if (!keyForName(name, &character, &code, &extraFlags) || !code)
+        return;
+    CGPostKeyboardEvent((CGCharCode)character, (CGKeyCode)code, TRUE);
+    CGPostKeyboardEvent((CGCharCode)character, (CGKeyCode)code, FALSE);
 }
 
 - (void)postRealMouseUp:(NSValue*)point
@@ -504,6 +521,8 @@ static BOOL keyForName(NSString* name, unichar* character, unsigned short* code,
         [self sendKeyCombination:rest];
     else if ([verb isEqualToString:@"realclick"])
         [self realClickAt:rest];
+    else if ([verb isEqualToString:@"realkey"])
+        [self realKey:rest];
     else if ([verb isEqualToString:@"move"])
         [_view mouseMoved:[self mouseEventOfType:NSMouseMoved at:pointFromString(rest)]];
     else if ([verb isEqualToString:@"wheel"])
