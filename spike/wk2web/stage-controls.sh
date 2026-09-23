@@ -33,9 +33,9 @@ APP_ENV="$APP_ENV ${EXTRA_ENV:-}"
 SCRIPT=${SCRIPT:-}   # TIGER_SCRIPT steps, e.g. SCRIPT='wait 6; click 80,150; type hi; shot /tmp/a.png'
 
 ssh tiger-eth "mkdir -p $DIR/bin $DIR/Frameworks $DIR/share"
-rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" "$WKT/spike/wk2web/controls-test.html" tiger-eth:$DIR/share/
+rsync -t -z "$WKT/logs/tiger-fonts.json" "$WKT/deps/src/cacert.pem" "$WKT/spike/wk2web/controls-test.html" "$WKT/spike/wk2web/scrollbars.html" tiger-eth:$DIR/share/
 FILES=""
-for f in "$WKT/build/tiger-ui-faithful/bin/TigerBrowser2" "$WKT/build/tiger-web-faithful/bin/TigerWebProcess" "$WKT/build/tiger-web-faithful/bin/TigerNetworkProcess" "$WKT/build/tiger-gpu-faithful/bin/TigerGPUProcess" "$WKT/build/tigeraudio32"; do
+for f in "$WKT/build/tiger-ui-faithful/bin/TigerBrowser2" "$WKT/build/tiger-web-faithful/bin/TigerWebProcess" "$WKT/build/tiger-web-faithful/bin/TigerNetworkProcess" "${GPU_BIN:-$WKT/build/tiger-gpu-faithful/bin/TigerGPUProcess}" "$WKT/build/tigeraudio32"; do
     [ -f "$f" ] && FILES="$FILES $f" || echo "stage-controls: missing $f (not copied)"
 done
 rsync -t -z --partial --inplace --bwlimit=20000 $FILES tiger-eth:$DIR/bin/

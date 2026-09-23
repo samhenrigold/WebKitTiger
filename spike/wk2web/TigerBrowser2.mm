@@ -256,6 +256,13 @@ static void gpuProcessDidCrash(WKContextRef, WKProcessID, WKProcessTerminationRe
         return;
     auto& state = page->pageLoadState();
     String title = state.title();
+    // Scripted runs: the page's title is how test pages report (scrollbars.html, the
+    // controls page), and the harness reads it from the log.
+    static String lastLoggedTitle;
+    if (getenv("TIGER_SCRIPT") && title != lastLoggedTitle) {
+        lastLoggedTitle = title;
+        fprintf(stderr, "TIGER title: %s\n", title.utf8().data());
+    }
     [_window setTitle:title.isEmpty() ? @"TigerBrowser" : (NSString*)title.createNSString().get()];
     if (!state.activeURL().isEmpty()) {
         [_lastURL release];
@@ -609,6 +616,20 @@ static void selectInputSource(NSString* which)
         return;
     NSPoint from = pointFromString([words objectAtIndex:0]);
     NSPoint to = pointFromString([words objectAtIndex:1]);
+    // A hosted AppKit view under the press -- the main frame's NSScroller, a slider -- tracks
+    // the drag in its own loop, pulling the events out of the queue: the whole gesture is
+    // posted, in order, and the window's hit test delivers the press. (Sent straight to the
+    // page view it would drag-select the page under the scroller.)
+    NSView* hit = [[_window contentView] hitTest:[_view convertPoint:from toView:nil]];
+    if (hit && hit != _view && [hit isDescendantOf:_view]) {
+        [NSApp postEvent:[self mouseEventOfType:NSLeftMouseDown at:from] atStart:NO];
+        for (unsigned step = 1; step <= 8; ++step) {
+            NSPoint p = NSMakePoint(from.x + (to.x - from.x) * step / 8, from.y + (to.y - from.y) * step / 8);
+            [NSApp postEvent:[self mouseEventOfType:NSLeftMouseDragged at:p] atStart:NO];
+        }
+        [NSApp postEvent:[self mouseEventOfType:NSLeftMouseUp at:to] atStart:NO];
+        return;
+    }
     [_window makeFirstResponder:_view];
     [_view mouseDown:[self mouseEventOfType:NSLeftMouseDown at:from]];
     for (unsigned step = 1; step <= 8; ++step) {
