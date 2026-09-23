@@ -1,0 +1,93 @@
+2026-09-23 16:48:53.019 TigerBrowser2[8592] *** _NSAutoreleaseNoPool(): Object 0x7c09180 of class NSCFString autoreleased with no pool in place - just leaking
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::initializeNetworkProcess: Presenting processPID=8613
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 3
+[com.apple.WebKit:Process:4] 0x11908c240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 3
+[com.apple.WebKit:Process:4] 0x11908c240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established service worker server connection
+[com.apple.WebKit:Process:4] 0x11908c240 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 3 established shared worker connection
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 3, notifying the UI process
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 3 to the UI process
+[com.apple.WebKit:Process:4] 0x1190300c0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=8592
+[com.apple.WebKit:Loading:4] 0x119110b80 - [webPageID=5] WebPage::constructor:
+[com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+[com.apple.WebKit:Loading:4] [webPageID=5] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=0, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=0
+[com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=8592, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+[com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: Deferring resource load until service worker registrations for origin are imported
+[com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=8592, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9, existingLoaderToResume=0)
+[com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=8592, pageProxyID=4, webPageID=5, frameID=4294967297, resourceID=9)
+TIGER script: wait 22
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Create connection for web process core identifier 5
+[com.apple.WebKit:Process:4] 0x11908c370 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Create connection for web process core identifier 5
+[com.apple.WebKit:Process:4] 0x11908c370 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established service worker server connection
+[com.apple.WebKit:Process:4] 0x11908c370 - NetworkConnectionToWebProcess::NetworkConnectionToWebProcess: Connection for web process core identifier 5 established shared worker connection
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Finished creating connection for web process core identifier 5, notifying the UI process
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::createNetworkConnectionToWebProcess: Handed off connect for web process core identifier 5 to the UI process
+[com.apple.WebKit:Process:4] 0x1190300c0 - [sessionID=1] WebProcess::initializeWebProcess: Presenting processPID=8592
+[com.apple.WebKit:Loading:4] 0x11910cb80 - [webPageID=14] WebPage::constructor:
+[com.apple.WebKit:Loading:4] WebPreferencesStore: non-default preferences: UseGPUProcessForDOMRenderingEnabled=false, AcceleratedCompositingEnabled=false
+[com.apple.WebKit:Loading:4] [webPageID=14] WebPage::loadRequest: navigationID=11, shouldTreatAsContinuingLoad=2, lastNavigationWasAppInitiated=1, existingNetworkResourceLoadIdentifierToResume=1
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=9, existingLoaderToResume=1)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: Resuming existing NetworkResourceLoader
+TIGER-CONSOLE [0] FEATURE-UA Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15 (https://192.168.1.253:8444/features.html:167)
+[com.apple.WebKit:Loading:4] 0x11908c240 - [webProcessIdentifier=3] NetworkConnectionToWebProcess::didClose: WebProcess closed its connection. Aborting related loaders.
+[com.apple.WebKit:Process:4] 0x119030190 - NetworkProcess::removeNetworkConnectionToWebProcess: Removing process 3
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=24, existingLoaderToResume=0)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=24)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=25, existingLoaderToResume=0)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=25)
+[com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(504E5BEBD95D5AAC) state = Idle
+[com.apple.WebKit:Media:-] MediaElementSession::setState(504E5BEBD95D5AAC) Autoplaying, canProduceAudio=false
+[com.apple.WebKit:Media:-] MediaElementSession::clientWillBeginAutoplaying(504E5BEBD95D5AAC) state = Autoplaying
+TIGER-CONSOLE [0] FEATURE webgl PASS 53ms null x3 in 0.6ms; WebGLRenderingContext undefined (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE webgpu PASS 53ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE webrtc PASS 52ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE getusermedia PASS 52ms mediaDevices absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE eme PASS 52ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE notifications PASS 52ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE geolocation PASS 51ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE gamepad PASS 51ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE devices PASS 51ms bluetooth/usb/serial/hid/midi absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE payment PASS 51ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE share PASS 52ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE speech PASS 51ms synthesis absent; recognition absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE battery PASS 50ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE vibrate PASS 50ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE webxr PASS 49ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE webauthn PASS 49ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE permissions PASS 49ms absent (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE localstorage PASS 48ms local+session round trip (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE offscreencanvas FAIL 25ms Can't find variable: OffscreenCanvas (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE sab FAIL 17ms Can't find variable: SharedArrayBuffer (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE webcodecs FAIL 16ms VideoDecoder absent (https://192.168.1.253:8444/features.html:175)
+[com.apple.WebKit:Media:-] MediaElementSession::effectivePreloadForElement(504E5BEBD95D5AAC) 2
+[com.apple.WebKit:Media:-] HTMLMediaElement::loadResource(504E5BEBD95D5AAC) loading MSE blob
+[com.apple.WebKit:MediaSource:-] MediaSource::setLogIdentifier(504E5BEBD95D5AAC) 
+[com.apple.WebKit:MediaSource:-] MediaSource::onReadyStateChange(504E5BEBD95D5AAC) old state = closed, new state = open
+[com.apple.WebKit:MediaSource:-] MediaSource::openIfDeferredOpen(504E5BEBD95D5AAC) 
+TIGER-CONSOLE [0] FEATURE wasm PASS 182ms add(2,3)=5 (https://192.168.1.253:8444/features.html:175)
+[com.apple.WebKit:MediaSource:-] SourceBuffer::SourceBuffer(0) 
+TIGER-CONSOLE [0] FEATURE mediasource PASS 171ms sourceopen + addSourceBuffer(avc1+aac) (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE wakelock PASS 216ms rejected NotAllowedError (https://192.168.1.253:8444/features.html:175)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=31, existingLoaderToResume=0)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=31)
+TIGER-CONSOLE [0] FEATURE worker PASS 260ms blob worker round trip (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE websocket PASS 288ms wss echo (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE cacheapi PASS 355ms put/match/delete (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE indexeddb PASS 374ms put/get in two transactions (https://192.168.1.253:8444/features.html:175)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::scheduleResourceLoad: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=43, existingLoaderToResume=0)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::resolveBlobReferences: (parentPID=8592, pageProxyID=4, webPageID=14, frameID=4294967298, resourceID=43)
+[com.apple.WebKit:Loading:4] 0x11908c370 - [webProcessIdentifier=5] NetworkConnectionToWebProcess::removeLoadIdentifier: Removing identifier 43 and aborting corresponding loader
+TIGER-CONSOLE [0] FEATURE serviceworker PASS 415ms registered, claimed, intercepted fetch (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE fetchstream PASS 925ms 3 chunks via TextDecoderStream (https://192.168.1.253:8444/features.html:175)
+TIGER-CONSOLE [0] FEATURE-DONE FEATURES pass=27 fail=3 pending=0 (https://192.168.1.253:8444/features.html:180)
+TIGER-CONSOLE [2] WebSocket connection to 'wss://192.168.1.253:8444/ws' failed: WebSocket network error: error code 56 (:0)
+[com.apple.WebKit:Media:-] MediaSessionManagerInterface::dumpSessionStates(0)  Sessions:
+(504E5BEBD95D5AAC): Video, Autoplaying, MediaSource (Media Element Source Type)
+
+[com.apple.WebKit:MediaSource:-] MediaSource::elementIsShuttingDown(504E5BEBD95D5AAC) 
+[com.apple.WebKit:MediaSource:-] MediaSource::detachFromElement(504E5BEBD95D5AAC) 
+[com.apple.WebKit:MediaSource:-] MediaSource::onReadyStateChange(504E5BEBD95D5AAC) old state = open, new state = closed
+[com.apple.WebKit:MediaSource:-] FFmpegSourceBufferPrivate::removedFromMediaSource(0) 
+TIGER-EXIT pid 0x2190
+ thread 0x117 state-kr 0x0 pc 0x90009817 leaf mach_msg_trap+0x7 frames: 0x90009817 0x9004626a 0x2ddbc5
+TIGER-EXIT pid 0x21a5
+ thread 0xd03 state-kr 0x0 pc 0x10b6dfe4e leaf mach_msg_trap+0xa crashinfo 0x206 0x270 0x0 0xe03 0x3 0x7fff5fbff450 0x270 frames: 0x10b6dfe4e 0x10b69511d 0x1003298dc 0x10b684c75 0x10b684a0c 0x100001b13 0x100001a21 0x3

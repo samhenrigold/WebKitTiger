@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<!-- Feature probes for the Tiger port (tools/regress.sh `features`; serve with tools/features-server.py).
+     "absent" group: things we do not have. PASS means the web-visible answer keeps a site on its
+     fallback -- absent, null, false, denied or rejected within the timeout. "working" group: things
+     that must work; each is a small functional test, not a presence check. PENDING means the probe
+     never settled, which is the hang this page exists to catch.
+     Output: one "FEATURE <name> <PASS|FAIL|PENDING> <ms> <detail>" console line per probe (TIGER_CONSOLE=1)
+     and document.title = "FEATURES pass=N fail=N pending=N". -->
+<html><head><meta charset="utf-8"><title>FEATURES running</title>
+<style>body{font:12px Helvetica;margin:8px}td{padding:1px 6px}.PASS{background:#bfb}.FAIL{background:#fbb}.PENDING{background:#ffb}</style>
+</head><body><table id="t"></table><pre id="ua"></pre><script>
+'use strict';
+const absent = {}, working = {};
+const settle = p => Promise.resolve(p).then(v => ['ok', v], e => ['err', e && e.name || String(e)]);
+const gone = (...names) => names.every(n => { const [o, k] = n.includes('.') ? n.split('.') : ['window', n]; const t = o === 'navigator' ? navigator : window; return !(k in t) || t[k] == null; });
+
+// ---- absent: must be missing or refuse at once ----
+absent.webgl = async () => {
+    const c = document.createElement('canvas'), t0 = performance.now();
+    const r = ['webgl', 'webgl2', 'experimental-webgl'].map(k => c.getContext(k));
+    if (r.some(x => x)) throw 'a context came back';
+    return `null x3 in ${(performance.now() - t0).toFixed(1)}ms; WebGLRenderingContext ${typeof WebGLRenderingContext}`;
+};
+absent.webgpu = async () => { if (!gone('navigator.gpu')) { const a = await navigator.gpu.requestAdapter(); if (a) throw 'adapter'; return 'adapter null'; } return 'absent'; };
+absent.webrtc = async () => {
+    if (gone('RTCPeerConnection', 'webkitRTCPeerConnection')) return 'absent';
+    const [s, v] = await settle(new RTCPeerConnection().createOffer());
+    if (s === 'ok') throw 'createOffer resolved'; return 'createOffer rejected ' + v;
+};
+absent.getusermedia = async () => {
+    if (!gone('navigator.getUserMedia', 'navigator.webkitGetUserMedia')) throw 'legacy getUserMedia present';
+    if (!navigator.mediaDevices) return 'mediaDevices absent';
+    const [s, v] = await settle(navigator.mediaDevices.getUserMedia({ video: true, audio: true }));
+    if (s === 'ok') throw 'granted'; return 'rejected ' + v;
+};
+absent.eme = async () => { if (!gone('navigator.requestMediaKeySystemAccess', 'WebKitMediaKeys', 'MediaKeys')) throw 'present'; return 'absent'; };
+absent.notifications = async () => {
+    if (gone('Notification')) return 'absent';
+    const p = await Notification.requestPermission(); if (p === 'granted') throw 'granted'; return p;
+};
+absent.geolocation = async () => {
+    if (gone('navigator.geolocation')) return 'absent';
+    return new Promise((ok, no) => navigator.geolocation.getCurrentPosition(() => no('position'), e => ok('error ' + e.code)));
+};
+absent.gamepad = async () => { if (gone('navigator.getGamepads')) return 'absent'; return 'getGamepads -> ' + navigator.getGamepads().length; };
+absent.devices = async () => { const n = ['navigator.bluetooth', 'navigator.usb', 'navigator.serial', 'navigator.hid', 'navigator.requestMIDIAccess'].filter(k => !gone(k)); if (n.length) throw 'present: ' + n; return 'bluetooth/usb/serial/hid/midi absent'; };
+absent.payment = async () => {
+    if (!gone('ApplePaySession')) throw 'ApplePaySession';
+    if (gone('PaymentRequest')) return 'absent';
+    const [s, v] = await settle(new PaymentRequest([{ supportedMethods: 'https://example.com/pay' }], { total: { label: 't', amount: { currency: 'USD', value: '1' } } }).canMakePayment());
+    if (s === 'ok' && v) throw 'canMakePayment true'; return 'canMakePayment ' + v;
+};
+absent.share = async () => {
+    if (gone('navigator.share')) return 'absent';
+    const [s, v] = await settle(navigator.share({ title: 't', url: location.href }));
+    if (s === 'ok') throw 'shared'; return 'rejected ' + v;
+};
+absent.speech = async () => {
+    const out = [];
+    if (!gone('speechSynthesis')) out.push('speechSynthesis voices=' + speechSynthesis.getVoices().length); else out.push('synthesis absent');
+    const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!R) { out.push('recognition absent'); return out.join('; '); }
+    const r = new R();
+    await new Promise((ok, no) => { r.onerror = e => ok(out.push('recognition error ' + e.error)); r.onstart = () => no('recognition started'); r.start(); });
+    return out.join('; ');
+};
+absent.battery = async () => { if (gone('navigator.getBattery')) return 'absent'; const [s, v] = await settle(navigator.getBattery()); if (s === 'ok') throw 'battery'; return 'rejected ' + v; };
+absent.vibrate = async () => gone('navigator.vibrate') ? 'absent' : 'vibrate -> ' + navigator.vibrate(10);
+absent.wakelock = async () => {
+    if (gone('navigator.wakeLock')) return 'absent';
+    const [s, v] = await settle(navigator.wakeLock.request('screen'));
+    if (s === 'ok') { v.release(); throw 'granted'; } return 'rejected ' + v;
+};
+absent.webxr = async () => { if (gone('navigator.xr')) return 'absent'; if (await navigator.xr.isSessionSupported('immersive-vr')) throw 'vr supported'; return 'isSessionSupported false'; };
+absent.webauthn = async () => {
+    if (gone('PublicKeyCredential')) return 'absent';
+    if (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) throw 'platform authenticator';
+    return 'no platform authenticator';
+};
+absent.permissions = async () => {
+    if (gone('navigator.permissions')) return 'absent';
+    const r = [];
+    for (const name of ['geolocation', 'notifications', 'camera', 'microphone', 'push', 'screen-wake-lock']) {
+        const [s, v] = await settle(navigator.permissions.query({ name }));
+        if (s === 'ok' && v.state === 'granted') throw name + ' granted';
+        r.push(name + '=' + (s === 'ok' ? v.state : v));
+    }
+    return r.join(' ');
+};
+
+// ---- working: must work ----
+const once = (t, ev) => new Promise((ok, no) => { t.addEventListener(ev, ok, { once: true }); t.addEventListener('error', e => no(e.message || 'error'), { once: true }); });
+working.localstorage = async () => {
+    localStorage.setItem('f', 'v1'); sessionStorage.setItem('f', 'v2');
+    const v = localStorage.getItem('f') + sessionStorage.getItem('f'); localStorage.removeItem('f');
+    if (v !== 'v1v2') throw v; return 'local+session round trip';
+};
+working.indexeddb = async () => {
+    const req = indexedDB.open('features', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('s');
+    const db = await new Promise((ok, no) => { req.onsuccess = () => ok(req.result); req.onerror = () => no(req.error.name); });
+    const done = t => new Promise((ok, no) => { t.oncomplete = ok; t.onerror = () => no(t.error.name); });
+    let t = db.transaction('s', 'readwrite'); t.objectStore('s').put({ n: 42, d: new Date(0) }, 'k'); await done(t);
+    t = db.transaction('s'); const g = t.objectStore('s').get('k');
+    await done(t); db.close();
+    if (!g.result || g.result.n !== 42) throw 'got ' + JSON.stringify(g.result); return 'put/get in two transactions';
+};
+working.cacheapi = async () => {
+    const c = await caches.open('features'); await c.put('/cached', new Response('from-cache'));
+    const r = await c.match('/cached'); const v = r && await r.text(); await caches.delete('features');
+    if (v !== 'from-cache') throw String(v); return 'put/match/delete';
+};
+working.serviceworker = async () => {
+    const reg = await navigator.serviceWorker.register('features-sw.js');
+    if (!navigator.serviceWorker.controller) await once(navigator.serviceWorker, 'controllerchange');
+    const v = await (await fetch('sw-ping')).text(); await reg.unregister();
+    if (v !== 'sw-ok') throw v; return 'registered, claimed, intercepted fetch';
+};
+working.websocket = async () => {
+    const ws = new WebSocket(`wss://${location.host}/ws`);
+    await once(ws, 'open'); ws.send('echo-me');
+    const m = await once(ws, 'message'); ws.close();
+    if (m.data !== 'echo-me') throw m.data; return 'wss echo';
+};
+working.fetchstream = async () => {
+    const reader = (await fetch('stream')).body.pipeThrough(new TextDecoderStream()).getReader();
+    let s = '', n = 0; for (;;) { const { done, value } = await reader.read(); if (done) break; s += value; n++; }
+    if (s !== 'one,two,three') throw s; return `${n} chunks via TextDecoderStream`;
+};
+working.wasm = async () => {
+    const bytes = new Uint8Array([0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,97,100,100,0,0,10,9,1,7,0,32,0,32,1,106,11]);
+    const { instance } = await WebAssembly.instantiate(bytes);
+    const v = instance.exports.add(2, 3); if (v !== 5) throw 'add=' + v; return 'add(2,3)=5';
+};
+working.offscreencanvas = async () => {
+    const c = new OffscreenCanvas(4, 4), g = c.getContext('2d'); g.fillStyle = '#f00'; g.fillRect(0, 0, 4, 4);
+    const px = g.getImageData(1, 1, 1, 1).data; if (px[0] !== 255 || px[1]) throw 'px ' + px;
+    await c.convertToBlob(); return '2d fill + convertToBlob';
+};
+const blobWorker = src => new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+working.worker = async () => {
+    const w = blobWorker('onmessage = e => postMessage(e.data * 2)'); w.postMessage(21);
+    const m = await once(w, 'message'); w.terminate(); if (m.data !== 42) throw m.data; return 'blob worker round trip';
+};
+working.sab = async () => {
+    if (!crossOriginIsolated) throw 'not crossOriginIsolated';
+    const sab = new SharedArrayBuffer(8), a = new Int32Array(sab);
+    const w = blobWorker('onmessage = e => { const a = new Int32Array(e.data); Atomics.store(a, 0, 42); Atomics.notify(a, 0); postMessage(1); }');
+    const waited = Atomics.waitAsync ? Atomics.waitAsync(a, 0, 0).value : null;
+    w.postMessage(sab); await once(w, 'message'); if (waited && waited.then) await waited; w.terminate();
+    if (Atomics.load(a, 0) !== 42) throw 'value ' + a[0]; return 'worker Atomics.store seen' + (waited ? ' (waitAsync)' : '');
+};
+working.webcodecs = async () => {
+    if (gone('VideoDecoder')) throw 'VideoDecoder absent';
+    const s = await VideoDecoder.isConfigSupported({ codec: 'avc1.42E01E' }); if (!s.supported) throw 'avc1 unsupported'; return 'avc1 decoder config supported';
+};
+working.mediasource = async () => {
+    const type = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+    if (!MediaSource.isTypeSupported(type)) throw 'isTypeSupported false';
+    const ms = new MediaSource(), v = document.createElement('video'); v.src = URL.createObjectURL(ms);
+    await once(ms, 'sourceopen'); ms.addSourceBuffer(type); return 'sourceopen + addSourceBuffer(avc1+aac)';
+};
+
+function withTimeout(p, ms) { return Promise.race([p.then(v => ['PASS', v], e => ['FAIL', e && e.message || e && e.name || String(e)]), new Promise(ok => setTimeout(() => ok(['PENDING', `no answer in ${ms}ms`]), ms))]); }
+(async () => {
+    document.getElementById('ua').textContent = 'userAgent: ' + navigator.userAgent + '\nuserAgentData: ' + (navigator.userAgentData ? JSON.stringify(navigator.userAgentData.brands) : 'absent') + '\nAudioContext: ' + typeof AudioContext + '  requestFullscreen: ' + typeof document.documentElement.requestFullscreen + '  mediaSession: ' + typeof navigator.mediaSession;
+    console.log('FEATURE-UA ' + navigator.userAgent);
+    const tests = [...Object.entries(absent).map(([n, f]) => ['absent', n, f, 3000]), ...Object.entries(working).map(([n, f]) => ['working', n, f, 10000])];
+    const counts = { PASS: 0, FAIL: 0, PENDING: 0 };
+    await Promise.all(tests.map(async ([group, name, f, ms]) => {
+        const t0 = performance.now();
+        const [res, detail] = await withTimeout((async () => f())(), ms);
+        const took = Math.round(performance.now() - t0);
+        counts[res]++;
+        console.log(`FEATURE ${name} ${res} ${took}ms ${detail}`);
+        const row = document.getElementById('t').insertRow(); row.className = res;
+        [group, name, res, took + 'ms', detail].forEach(x => row.insertCell().textContent = x);
+    }));
+    document.title = `FEATURES pass=${counts.PASS} fail=${counts.FAIL} pending=${counts.PENDING}`;
+    console.log('FEATURE-DONE ' + document.title);
+})();
+</script></body></html>
