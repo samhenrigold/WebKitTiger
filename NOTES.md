@@ -5749,7 +5749,7 @@ controls page and then a plain one would.
 and msync(MS_KILLPAGES) succeed and free nothing -- tiger-video's probe). Two places still
 relied on the madvise path:
 
-- **WTF OSAllocator::decommit** (e7b5..., see tiger-jsperf log): its HAVE(MADV_FREE) arm was a
+- **WTF OSAllocator::decommit** (3735a35b): its HAVE(MADV_FREE) arm was a
   silent no-op. It now remaps, reading each region's protection back with `vm_region_64` and
   reusing it, because decommit() is called on RW memory and on freed RWX JIT pages alike and is
   not told which (x86_64 has no separated W^X heap; the pool is one RWX anonymous mapping, so a
