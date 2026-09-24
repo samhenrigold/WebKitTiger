@@ -36,7 +36,7 @@ SHARE=${SHARE:-/Users/shg/wk2/share}             # ...and then SHARE is that dir
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt videolifetime fvideolifetime"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt videolifetime fvideolifetime filetracks ffiletracks"
 DEFAULT="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost"
 case "${1:-}" in --list) echo "$ALL"; exit 0;; --all) shift; set -- $ALL "$@";; esac
 WANTED=${*:-$DEFAULT}
@@ -439,6 +439,16 @@ if wants fvideolifetime; then
     run fvideolifetime "http://$MEDIA_HOST/video-lifetime.html" 26 'wait 22' 'TIGER_CONSOLE=1 TIGER_FAITHFUL=1'
     check fvideolifetime "$(title_seen fvideolifetime 'VIDEO LIFETIME PASS (API only)')"
 fi
+
+# Real file metadata, paused canvas selection and retired DOM track callbacks.
+# This is an API/canvas gate; separate held screenshots verify window output.
+for tracks_case in filetracks ffiletracks; do
+    wants "$tracks_case" || continue
+    tracks_env=TIGER_CONSOLE=1
+    case "$tracks_case" in f*) tracks_env="$tracks_env TIGER_FAITHFUL=1";; esac
+    run "$tracks_case" "http://$MEDIA_HOST/file-tracks.html" 38 'wait 34' "$tracks_env"
+    check "$tracks_case" "$(title_seen "$tracks_case" 'FILE TRACKS PASS (API + canvas only)')"
+done
 
 # 12. Cookies: tools/cookie-server.py on this Mac is the oracle (it logs every Cookie
 #    header it gets). Two launches with the same storage: the first walks sets, fetches,
