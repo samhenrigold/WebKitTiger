@@ -324,5 +324,7 @@ P('\n## Crash lines\n')
 for name, r in M.items():
     for t, s in r['crashes']:
         P('- %s @ %.1f s: `%s`' % (name, t, s.replace('`', "'")))
+live_sites = runpy.run_path(WKT + '/tools/live-site-evidence.py')['write_report']
+P('\n' + live_sites(d, M))
 open(os.path.join(d, 'tables.md'), 'w').write('\n'.join(o) + '\n')
 print('\n'.join(o))
