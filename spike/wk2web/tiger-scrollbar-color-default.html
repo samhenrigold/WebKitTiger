@@ -1,0 +1,80 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS SCROLLBAR DEFAULT pending</title>
+<style>
+html { scrollbar-color: #a014b4 #f8dc78; color: #4d168b; }
+body { font: 14px "Lucida Grande", sans-serif; }
+.box { width: 240px; height: 100px; overflow: scroll; }
+.content { width: 480px; height: 320px; }
+#explicit { scrollbar-color: #1644c8 #ffcca0; }
+#automatic { scrollbar-color: auto; }
+#result { white-space: pre-wrap; color: black; }
+</style>
+<h1>Default scrollbar-color support</h1>
+<p>This test uses the browser's default preferences. It checks CSS support and
+computed values; the separate scrollbar-colors fixture checks painting and input.</p>
+<div id="inherited" class="box"><div class="content">Inherited author colors</div></div>
+<div id="explicit" class="box"><div class="content">Explicit author colors</div></div>
+<div id="automatic" class="box"><div class="content">Native automatic colors</div></div>
+<iframe id="frame" title="Scrollbar color preference in a subframe"></iframe>
+<div id="result">Waiting for subframe</div>
+<script>
+(function () {
+    "use strict";
+    var root = document.documentElement;
+    var frame = document.getElementById("frame");
+    var result = document.getElementById("result");
+    var checks = [], failures = [], completed = false;
+    function equal(name, actual, expected) {
+        var success = actual === expected;
+        checks.push((success ? "PASS " : "FAIL ") + name + ": " + String(actual));
+        if (!success)
+            failures.push(name + ": expected " + String(expected) + ", got " + String(actual));
+    }
+    function color(element) {
+        return element.ownerDocument.defaultView.getComputedStyle(element).getPropertyValue("scrollbar-color");
+    }
+    function finish() {
+        if (completed)
+            return;
+        completed = true;
+        window.scrollbarDefaultResult = { pass: !failures.length, checks: checks, failures: failures };
+        document.title = "CSS SCROLLBAR DEFAULT " + (failures.length ? "FAIL" : "PASS") + " (" + checks.length + " checks)";
+        result.textContent = document.title + "\n" + checks.join("\n") + (failures.length ? "\n" + failures.join("\n") : "");
+        console.log(result.textContent);
+    }
+    var timeout = setTimeout(function () {
+        equal("subframe completed", false, true);
+        finish();
+    }, 5000);
+    frame.onload = function () {
+        if (!frame.contentDocument.getElementById("ready"))
+            return;
+        clearTimeout(timeout);
+        try {
+            equal("CSS.supports pair", CSS.supports("scrollbar-color", "#a014b4 #f8dc78"), true);
+            equal("CSS.supports auto", CSS.supports("scrollbar-color", "auto"), true);
+            equal("CSS rejects single color", CSS.supports("scrollbar-color", "red"), false);
+            equal("root author colors", color(root), "rgb(160, 20, 180) rgb(248, 220, 120)");
+            equal("overflow inherits", color(document.getElementById("inherited")), color(root));
+            equal("overflow explicit colors", color(document.getElementById("explicit")), "rgb(22, 68, 200) rgb(255, 204, 160)");
+            equal("overflow auto overrides inheritance", color(document.getElementById("automatic")), "auto");
+            equal("subframe CSS.supports pair", frame.contentWindow.CSS.supports("scrollbar-color", "red blue"), true);
+            equal("subframe explicit colors", color(frame.contentDocument.documentElement), "rgb(200, 40, 30) rgb(200, 220, 250)");
+            root.style.scrollbarColor = "auto";
+            equal("root transitions to auto", color(root), "auto");
+            equal("inherited transitions to auto", color(document.getElementById("inherited")), "auto");
+            root.style.scrollbarColor = "#c8281e #c8dcfa";
+            equal("root transitions to alternate", color(root), "rgb(200, 40, 30) rgb(200, 220, 250)");
+            root.style.scrollbarColor = "currentColor rgba(0, 200, 200, 0.35)";
+            equal("currentColor and alpha", color(root), "rgb(77, 22, 139) rgba(0, 200, 200, 0.35)");
+            root.style.removeProperty("scrollbar-color");
+            equal("stylesheet colors restored", color(root), "rgb(160, 20, 180) rgb(248, 220, 120)");
+        } catch (error) {
+            equal("unexpected exception", String(error), "none");
+        }
+        finish();
+    };
+    frame.srcdoc = "<!doctype html><style>html{overflow:scroll;scrollbar-color:#c8281e #c8dcfa}body{width:480px;height:320px}</style><div id='ready'>Subframe author colors</div>";
+}());
+</script>

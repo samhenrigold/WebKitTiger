@@ -1,0 +1,18 @@
+--- a/src/base/ftrfork.c
++++ b/src/base/ftrfork.c
+@@ -271,12 +271,9 @@
+            * However, FreeType2 is not a font synthesizer, no need
+            * to check the acceptable resource ID.
+            */
+-          if ( temp < 0 )
+-          {
+-            error = FT_THROW( Invalid_Table );
+-            goto Exit;
+-          }
+-
++          /* The high byte contains resource attributes, not offset bits.
++           * Tiger's installed font suitcases can set its top bit (e.g. 0xE0).
++           * Mask the 24-bit offset before interpreting its sign. */
+           ref[j].offset = temp & 0xFFFFFFL;
+ 
+           FT_TRACE3(( "             [%d]:"

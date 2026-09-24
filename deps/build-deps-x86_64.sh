@@ -208,6 +208,7 @@ build_cmake libavif $WKT/deps/src/libavif-1.2.1 \
   -DAVIF_CODEC_DAV1D=SYSTEM -DAVIF_LIBYUV=OFF -DAVIF_LIBSHARPYUV=OFF -DAVIF_LIBXML2=OFF \
   -DPKG_CONFIG_EXECUTABLE=/opt/homebrew/bin/pkg-config -DCMAKE_PREFIX_PATH=$P
 
+python3 "$WKT/deps/apply-freetype-patches.py" "$WKT/deps/src/freetype-2.13.3"
 build freetype freetype-2.13.3 --with-zlib=yes --with-png=yes --with-harfbuzz=no --with-bzip2=no --with-brotli=no
 build expat expat-2.6.4 --without-docbook --without-tests --without-examples
 

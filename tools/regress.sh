@@ -36,7 +36,7 @@ SHARE=${SHARE:-/Users/shg/wk2/share}             # ...and then SHARE is that dir
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip hostedcycle fhostedcycle scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt videolifetime fvideolifetime filetracks ffiletracks"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip hostedcycle fhostedcycle scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt scrolldefault fscrolldefault fontink ffontink videolifetime fvideolifetime filetracks ffiletracks"
 DEFAULT="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost"
 case "${1:-}" in --list) echo "$ALL"; exit 0;; --all) shift; set -- $ALL "$@";; esac
 WANTED=${*:-$DEFAULT}
@@ -440,6 +440,24 @@ for color_case in scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt; d
     check "$color_case" "$color_detail; $(fixture_shot check-scrollbar-colors "$color_case" --root-mode "$color_mode")"
 done
 
+# Defaults must expose author colors without a special feature flag.
+for default_case in scrolldefault fscrolldefault; do
+    wants "$default_case" || continue
+    default_env=TIGER_CONSOLE=1
+    case "$default_case" in fscrolldefault) default_env="$default_env TIGER_FAITHFUL=1";; esac
+    run "$default_case" "file://$SHARE/tiger-scrollbar-color-default.html" 12 'wait 6' "$default_env"
+    check "$default_case" "$(title_seen "$default_case" 'CSS SCROLLBAR DEFAULT PASS (14 checks)')"
+done
+
+# Layout width alone cannot detect missing painted glyphs.
+for font_case in fontink ffontink; do
+    wants "$font_case" || continue
+    font_env=TIGER_CONSOLE=1
+    case "$font_case" in ffontink) font_env="$font_env TIGER_FAITHFUL=1";; esac
+    run "$font_case" "file://$SHARE/font-ink.html" 12 'wait 6' "$font_env"
+    check "$font_case" "$(title_seen "$font_case" 'FONT INK LAYOUT PASS (12 rows; pixels checked separately)'); $(fixture_shot check-font-ink "$font_case")"
+done
+
 # Ring lifecycle workload: API progress plus crash/paint checks. A JS pass does
 # not prove frame integrity; inspect returned screenshots and presentation probes.
 if wants videolifetime; then
@@ -456,7 +474,7 @@ fi
 for tracks_case in filetracks ffiletracks; do
     wants "$tracks_case" || continue
     tracks_env=TIGER_CONSOLE=1
-    case "$tracks_case" in f*) tracks_env="$tracks_env TIGER_FAITHFUL=1";; esac
+    case "$tracks_case" in ffiletracks) tracks_env="$tracks_env TIGER_FAITHFUL=1";; esac
     run "$tracks_case" "http://$MEDIA_HOST/file-tracks.html" 38 'wait 34' "$tracks_env"
     check "$tracks_case" "$(title_seen "$tracks_case" 'FILE TRACKS PASS (API + canvas only)')"
 done

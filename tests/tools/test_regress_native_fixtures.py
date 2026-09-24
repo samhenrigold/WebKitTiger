@@ -114,6 +114,19 @@ class NativeFixtureRowTests(unittest.TestCase):
         self.assertTrue(output.startswith("FAILED hosted-iframe: FAIL"))
         self.assertIn("need at least 48 dark pixels", output)
 
+    def test_filetracks_selects_two_distinct_rendering_modes(self):
+        block = SCRIPT.split('for tracks_case in filetracks ffiletracks;', 1)[1].split('\n# 12. Cookies:', 1)[0]
+        shell = '\n'.join([
+            'MEDIA_HOST=unused',
+            'wants() { return 0; }',
+            'run() { printf "%s:%s\\n" "$1" "$5"; }',
+            'check() { :; }', 'title_seen() { :; }',
+            'for tracks_case in filetracks ffiletracks;' + block,
+        ])
+        output = subprocess.check_output(['/bin/sh', '-c', shell], text=True).splitlines()
+        self.assertEqual(output, ['filetracks:TIGER_CONSOLE=1',
+                                 'ffiletracks:TIGER_CONSOLE=1 TIGER_FAITHFUL=1'])
+
 
 if __name__ == "__main__":
     unittest.main()
