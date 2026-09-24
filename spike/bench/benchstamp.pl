@@ -23,7 +23,7 @@ if (!$ps) {
         my $d = $t0 + $at - time;
         sleep($d) if $d > 0;
         last if !kill(0, $app);
-        for (`ps -axo pid,ppid,rss,vsz,%cpu,time,command`) {
+        for (`ps -axww -o pid,ppid,rss,vsz,%cpu,time,command`) {
             next unless m{Tiger|tigeraudio};
             next if m{grep|benchstamp|Applications/TigerBrowser};
             print "BENCH-PS $at: $_";
@@ -38,4 +38,7 @@ while (my $line = <$r>) {
     printf "%8.3f %s", time - $t0, $line;
 }
 waitpid($app, 0);
+my $status = $?;
 kill 'TERM', $ps;
+waitpid($ps, 0);
+exit(($status & 127) ? 128 + ($status & 127) : $status >> 8);
