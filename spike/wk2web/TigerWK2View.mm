@@ -28,6 +28,8 @@ using namespace WebKit;
 
 - (void)attachWebView:(TigerWebView*)view
 {
+    if (_webView && _webView.get() != view)
+        _webView->setNSView(nullptr);
     _webView = view;
     if (_webView)
         _webView->setNSView(self);
@@ -38,7 +40,71 @@ using namespace WebKit;
 // upside down.
 - (BOOL)isFlipped { return YES; }
 - (BOOL)acceptsFirstResponder { return YES; }
-- (BOOL)isOpaque { return YES; }
+- (BOOL)isOpaque { return !_webView || !_webView->isTigerDirectPresentationActive(); }
+
+- (void)dealloc
+{
+    if (_webView)
+        _webView->setNSView(nullptr);
+    _webView = nullptr;
+    [super dealloc];
+}
+
+- (void)viewWillMoveToWindow:(NSWindow*)window
+{
+    if (_webView)
+        _webView->invalidateTigerDirectPresentation();
+    [super viewWillMoveToWindow:window];
+}
+
+- (void)didAddSubview:(NSView*)view
+{
+    if (_webView)
+        _webView->invalidateTigerDirectPresentation();
+    [super didAddSubview:view];
+}
+
+- (void)setHidden:(BOOL)hidden
+{
+    if (_webView && hidden != [self isHidden])
+        _webView->invalidateTigerDirectPresentation();
+    [super setHidden:hidden];
+}
+
+- (void)setFrameOrigin:(NSPoint)origin
+{
+    if (_webView && !NSEqualPoints(origin, [self frame].origin))
+        _webView->invalidateTigerDirectPresentation();
+    [super setFrameOrigin:origin];
+}
+
+- (void)setBoundsOrigin:(NSPoint)origin
+{
+    if (_webView && !NSEqualPoints(origin, [self bounds].origin))
+        _webView->invalidateTigerDirectPresentation();
+    [super setBoundsOrigin:origin];
+}
+
+- (void)setBoundsSize:(NSSize)size
+{
+    if (_webView && !NSEqualSizes(size, [self bounds].size))
+        _webView->invalidateTigerDirectPresentation();
+    [super setBoundsSize:size];
+}
+
+- (void)setFrameRotation:(CGFloat)rotation
+{
+    if (_webView)
+        _webView->invalidateTigerDirectPresentation();
+    [super setFrameRotation:rotation];
+}
+
+- (void)setBoundsRotation:(CGFloat)rotation
+{
+    if (_webView)
+        _webView->invalidateTigerDirectPresentation();
+    [super setBoundsRotation:rotation];
+}
 
 - (void)drawRect:(NSRect)dirtyRect
 {
@@ -54,6 +120,8 @@ using namespace WebKit;
 
 - (void)setFrameSize:(NSSize)size
 {
+    if (_webView && !NSEqualSizes(size, [self frame].size))
+        _webView->invalidateTigerDirectPresentation();
     [super setFrameSize:size];
     if (_webView)
         _webView->setViewSizeFromNSView(WebCore::IntSize(size.width, size.height));
