@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Font ink loading</title>
+<style>
+html,body { margin:0; width:940px; height:620px; overflow:hidden; background:white; color:#111; }
+body { font:13px 'Lucida Grande',sans-serif; }
+h1 { font:16px 'Lucida Grande',sans-serif; margin:12px; }
+.row { position:absolute; left:12px; width:910px; height:42px; background:#eee; }
+.label { position:absolute; left:8px; top:12px; width:205px; font:13px 'Lucida Grande',sans-serif; }
+.sample { position:absolute; left:230px; top:5px; margin:0; font-size:22px; line-height:30px; }
+pre.sample.default { font-size:initial; line-height:normal; }
+</style>
+<h1>Each gray row must visibly contain “Sphinx 012345”.</h1>
+<div class="row" style="top:500px"><span class="label">static default pre</span><pre class="sample default" id="static">Sphinx 012345</pre></div>
+<div class="row" style="top:545px"><span class="label">dynamic default pre</span><pre class="sample default" id="dynamic"></pre></div>
+<script>
+const fonts=['serif','sans-serif','monospace','cursive','fantasy','Monaco','Courier','Courier New','Lucida Grande','Helvetica'];
+for (let index=0;index<fonts.length;++index) {
+    const row=document.createElement('div'); row.className='row'; row.style.top=(50+index*45)+'px';
+    const label=document.createElement('span'); label.className='label'; label.textContent=fonts[index];
+    const sample=document.createElement('span'); sample.className='sample'; sample.style.fontFamily=fonts[index]; sample.textContent='Sphinx 012345';
+    row.append(label,sample); document.body.append(row);
+}
+setTimeout(()=>{
+    document.getElementById('dynamic').textContent='Sphinx 012345';
+    const metrics=Array.from(document.querySelectorAll('.sample'),sample=>{
+        const bounds=sample.getBoundingClientRect(), style=getComputedStyle(sample);
+        const value={family:style.fontFamily,size:style.fontSize,width:bounds.width,height:bounds.height};
+        console.log('[FONT-INK] '+JSON.stringify(value));return value;
+    });
+    window.fontInkResult=metrics;
+    const valid=metrics.length===12 && metrics.every(value=>value.width>=40 && value.height>=6);
+    document.title='FONT INK '+(valid?'LAYOUT PASS':'FAIL')+' (12 rows; pixels checked separately)';
+},1000);
+</script>
+
+<!-- Diagnostic only: keep the original mutation/measurement sequence above intact. -->
+<script>
+setTimeout(()=>requestAnimationFrame(()=>{
+    console.log('[FONT-INK-RAF] empty animation-frame callback ran');
+    document.title+='; empty rAF ran';
+}),4000);
+</script>

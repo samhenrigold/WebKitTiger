@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mutation ink probe loading</title>
+<style>
+html,body { margin:0; width:940px; height:620px; overflow:hidden; background:white; color:#111; }
+body { font:13px 'Lucida Grande',sans-serif; }
+h1 { margin:12px; font-size:16px; }
+.row { position:absolute; left:12px; width:910px; height:48px; background:#eee; }
+.label { position:absolute; left:8px; top:14px; width:215px; }
+.sample { position:absolute; left:240px; top:8px; margin:0; }
+#fixed { width:240px; height:24px; }
+#flow { position:static; margin:8px 0 0 240px; }
+#sans { font:13px 'Lucida Grande',sans-serif; }
+</style>
+<h1>Delayed text mutation: each row must show “Sphinx 012345”.</h1>
+<div class="row" style="top:55px"><span class="label">static control</span><pre class="sample">Sphinx 012345</pre></div>
+<div class="row" style="top:110px"><span class="label">absolute empty, measured</span><pre class="sample" id="absolute"></pre></div>
+<div class="row" style="top:165px"><span class="label">absolute replacement</span><pre class="sample" id="replace">Before 987654</pre></div>
+<div class="row" style="top:220px"><span class="label">absolute fixed size, empty</span><pre class="sample" id="fixed"></pre></div>
+<div class="row" style="top:275px"><span class="label">normal flow, empty</span><pre class="sample" id="flow"></pre></div>
+<div class="row" style="top:330px"><span class="label">absolute sans, empty</span><span class="sample" id="sans"></span></div>
+<div class="row" style="top:385px"><span class="label">absolute empty, no measure</span><pre class="sample" id="unmeasured"></pre></div>
+<div style="position:absolute;left:20px;top:455px;width:850px">At 1s text changes; at 2s one rAF logs without a visual change. At 6s only the first dynamic sample gets a pink background. At 10s the body background changes to blue. Screenshots distinguish mutation, local repaint, and full-page repaint.</div>
+<script>
+const ids=['absolute','replace','fixed','flow','sans','unmeasured'];
+function note(text) { console.log('[MUTATION-INK] '+text); document.title='MUTATION INK '+text; }
+setTimeout(()=>{
+    for (const id of ids) document.getElementById(id).textContent='Sphinx 012345';
+    for (const id of ids.filter(id=>id!=='unmeasured')) {
+        const r=document.getElementById(id).getBoundingClientRect();
+        console.log('[MUTATION-INK] '+id+' rect='+[r.x,r.y,r.width,r.height].join(','));
+    }
+    note('text changed');
+},1000);
+setTimeout(()=>requestAnimationFrame(()=>note('rAF ran')),2000);
+setTimeout(()=>{document.getElementById('absolute').style.background='#ffc0d0';note('local background changed');},6000);
+setTimeout(()=>{document.body.style.background='#d0e8ff';note('body background changed');},10000);
+</script>
