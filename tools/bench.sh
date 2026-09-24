@@ -48,8 +48,8 @@ fv480|http://$MEDIA/video480loop.html|92|$STD|TIGER_FAITHFUL=1
 fv720|http://$BENCH/video720loop.html|92|$STD|TIGER_FAITHFUL=1
 fnyt|https://www.nytimes.com/|92|$STD|TIGER_FAITHFUL=1
 fverge|https://www.theverge.com/|92|$STD|TIGER_FAITHFUL=1
-n720|http://$BENCH/video720native.html|45|wait 40|TIGER_TEST_WINDOW_SIZE=1280x772 TIGER_VIDEO_PROBE=1
-fn720|http://$BENCH/video720native.html|45|wait 40|TIGER_TEST_WINDOW_SIZE=1280x772 TIGER_VIDEO_PROBE=1 TIGER_FAITHFUL=1
+n720|http://$BENCH/video720native.html|45|wait 1; move 8,8; wait 39|TIGER_TEST_WINDOW_SIZE=1280x772 TIGER_VIDEO_PROBE=1
+fn720|http://$BENCH/video720native.html|45|wait 1; move 8,8; wait 39|TIGER_TEST_WINDOW_SIZE=1280x772 TIGER_VIDEO_PROBE=1 TIGER_FAITHFUL=1
 EOF
 }
 case "${1:-}" in --list) pages | cut -d'|' -f1 | tr '\n' ' '; echo; exit 0;; esac
@@ -77,6 +77,12 @@ python3 "$WKT/tools/tiger-artifacts.py" verify \
     --web "$(candidate_path "${WEBDIR:-build/tiger-web-port}")" \
     --gpu "$(candidate_path "${GPUDIR:-build/tiger-gpu}")" > "$OUT/candidate.json" || exit 1
 candidate_path "${WEBDIR:-build/tiger-web-port}" > "$OUT/web-build-dir.txt"
+case " $WANTED " in *" n720 "*|*" fn720 "*)
+    # Extract the parser from the verified candidate's Git object, never from a
+    # mutable worktree. The snapshot records its source commit/blob and SHA-256.
+    python3 "$WKT/tools/tiger-video-bench.py" prepare --candidate "$OUT/candidate.json" \
+        --repo "$WKT/WebKit" --snapshot "$OUT/video-paint-tool" > "$OUT/video-paint-parser.json" || exit 1;;
+esac
 case " $WANTED " in *" sp3 "*|*" octane "*)
     [ -d "$WKT/spike/bench/speedometer3.1" ] || sh "$WKT/spike/bench/fetch.sh" || exit 1;;
 esac
@@ -119,7 +125,13 @@ run() { # run <name> <url> <secs> <script> <extra env>
             if [ "$rc" = 0 ] && ! grep -q 'NATIVE720 READY' "$OUT/$name.log"; then
                 echo '   invalid native-720 workload: source or viewport dimensions did not match'
                 rc=1
-            fi;;
+            fi
+            mode=fast; [ "$name" = fn720 ] && mode=faithful
+            # UI window paints only: 8 s warmup lets the controls finish fading.
+            # The helper persists the report/rejection reasons and propagates all
+            # parser, duration, source-size, presentation-rate and gap failures.
+            python3 "$WKT/tools/tiger-video-bench.py" check --snapshot "$OUT/video-paint-tool" \
+                --log "$OUT/$name.log" --output "$OUT/$name.video-paints.json" --mode "$mode" || rc=1;;
         esac
         [ $rc = 0 ] || echo "   stage-app.sh exited $rc (see $name.stage.log)"
         echo "$url" > "$OUT/$name.url"
