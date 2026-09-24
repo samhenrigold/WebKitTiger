@@ -60,7 +60,8 @@ artifact, not a published remote.
 
 The original topic branches are retained. The features checkpoint is WIP,
 not an integrated feature claim. WKTR has additional isolated fixes on
-`tiger-wktr-integration-20260923`; its functional test gates are still pending.
+`tiger-wktr-integration-20260923`; initial text/reset and HTTP-cookie gates now
+pass there, with integration and event/pixel coverage still pending.
 Do not push inner branches to the inner `origin`: that remote is upstream WebKit.
 
 ## Build and run
@@ -215,7 +216,7 @@ pixels become occluded although API state still agrees. Browser integration must
 still implement trusted GPU connection identity, geometry generations, surface
 retirement, complete redraws and recovery before replacing readback presentation.
 
-The latest complete engine candidate is `f9c6cfc90`. In addition to the preceding
+Candidate `f9c6cfc90` was installed on 23 September. In addition to the preceding
 fixes, it separates native ATS indices from FreeType's resource-container indices.
 The [manifest probe](../spike/fontmanifest.md) preserves all 176 native indices and
 matches all 174 supported native faces using public ATS structural tables. Fifty-one
@@ -236,11 +237,12 @@ All 74 installed regular bundle files were verified against the local candidate.
 `logs/regress/fixes-f9c6cfc90/summary.md` records seven passing checks and three
 failures. All four author-color checks and both default-scrollbar checks pass.
 The fast file-track test now passes the canvas, selection, audio, unload/reload
-and retired-callback checks. In faithful mode, restoring the paused video leaves
-black successfully but fails exact canvas frame equality; its cause remains under
-investigation. Both font-ink checks show all eleven static rows correctly, while
+and retired-callback checks. At that stage, faithful paused-video restoration
+left black successfully but failed exact canvas frame equality. Both font-ink
+checks showed all eleven static rows correctly, while
 the dynamically inserted final row has nonzero layout but no visible paint.
-The strict pixel gates remain unchanged.
+The strict pixel gates remain unchanged; the 24 September follow-up below fixes
+both failures and passes those gates.
 
 `logs/bench/native-f9c6cfc90/` records **809 distinct full-window frames in 30
 seconds (26.97 FPS)** in fast mode and **453 (15.10 FPS)** in faithful mode. Both
@@ -249,8 +251,8 @@ is 128.78 ms. The bootstrap correction restores continuous fast presentation;
 the owned-buffer pool improves faithful presentation from 12.87 FPS. These are
 local 1280×720 window-paint measurements, not YouTube streaming or physical scanout.
 The [measured performance note](native-video-f9c6cfc90.md) identifies Cocoa backing
-store synchronization as the dominant sampled fast-path wait. Direct GPU
-presentation remains the next major performance change.
+store synchronization as the dominant sampled fast-path wait. This motivated
+the direct GPU presentation work recorded in the follow-up below.
 
 WebKitTestRunner's UI and WEB targets compile in `WebKit-wktr-integration`.
 Its first functional test exposed Tiger's legacy `realpath(path, NULL)` behavior:
@@ -262,15 +264,39 @@ next runtime attempt exposed test-runner GPU preferences requesting an unstaged
 helper; software defaults avoid that failure. Reusing upstream Cocoa's bounded
 NSRunLoop pumping resolves the subsequent storage-cleanup wait. The next runtime
 gate exposed a missing opt-in to JSC testing configuration in the Tiger launcher
-and WEB64 argument parser; the isolated correction is being rebuilt with a built
-artifact check for the parser switch. The real JavaScript text,
-consecutive-test/reset and HTTP-cookie gates remain pending. Successful builds
-alone do not establish a functioning conformance runner.
+and WEB64 argument parser. The isolated correction has since passed real
+JavaScript text and consecutive-test/reset gates. Candidate `78e94f610` also
+passes the unchanged HTTP cookie test and Promise catch/chain batch without
+retries. The HTTP fix follows upstream Curl's secure-loopback capability handling.
+Evidence: `logs/layout-tests/20260924-000000-27ce763fb92b/`,
+`logs/layout-tests/20260924-000024-b6a39110d8a3/` and
+`logs/wktr-loopback/20260923-235959-6e83ad56da78/PASS`.
+These are text-runner results; event/pixel/GPU support remains unqualified.
+Keep this topic separate from the control/presentation build. In particular,
+`78e94f610` contains historical-view inactive compatibility methods which must
+not replace the real direct-presentation methods in the main integration.
 
 Pending IME work remains isolated. It has fixed-width range sentinels, ordered
 synchronous queries, asynchronous spelling cancellation and a verified native
 persistent Learn Word path. Composition state, blur/navigation cleanup and full
 input-method keyboard-event propagation still need integration and validation.
+
+### 2026-09-24 control and presentation follow-up
+
+The [control and presentation evidence](engine-controls-and-presentation.md)
+records custom-control eligibility, native popup tracking, image-edge correctness,
+indexed cookie lookup, direct scene presentation and the unchanged performance
+gates. The controlled fast path remains about 27.1 FPS; direct faithful rendering
+reaches 26.3 FPS compared with 15.5 FPS through faithful readback. All remain below
+the 720p30 target. Direct rendering stays opt-in while lifecycle and CSS geometry
+qualification proceeds. Counts require visible content and distinguish window
+painting or drawable acceptance from physical scanout.
+
+Candidate `7b2ce2201` is now installed on Tiger after twenty functional browser
+checks passed. Its 74 regular bundle files and four symlinks were verified, with
+the previous installation retained for rollback. The linked evidence note records
+the exact suites and installation paths. Diagnostic candidate `b6e98a730` remains
+separate; its opt-in timers are for measuring the next video change.
 
 ### Delivery milestones and estimate
 
