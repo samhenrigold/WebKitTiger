@@ -83,6 +83,18 @@ class LiveSiteEvidenceTests(unittest.TestCase):
         self.assertEqual(run['observation'], 'crash-markers-observed')
         self.assertEqual(run['crash_markers']['count'], 1)
 
+    def test_gate_failure_does_not_change_successful_stage_to_failure(self):
+        self.metric.update(exit_status=1, stage_exit_status=0, stage_status_source='explicit', benchmark_gate_exit_status=1)
+        run = self.run_report()['targets']['YouTube']['runs'][0]
+        self.assertEqual(run['observation'], 'benchmark-gate-failed')
+        self.assertEqual(run['stage_completion'], 'success')
+
+    def test_legacy_combined_failure_leaves_stage_unknown(self):
+        self.metric.update(exit_status=1, stage_exit_status=None, stage_status_source='legacy-combined-unknown')
+        run = self.run_report()['targets']['YouTube']['runs'][0]
+        self.assertEqual(run['observation'], 'legacy-combined-failure')
+        self.assertEqual(run['stage_completion'], 'unknown-legacy-combined')
+
     def test_missing_log_and_invalid_video_artifact_are_not_silent_passes(self):
         (self.root / 'youtube.log').unlink()
         (self.root / 'youtube.video-paints.json').write_text('{invalid')

@@ -54,10 +54,16 @@ def summarize_run(directory, name, metric):
     counts = {key: value.get('count') for key, value in operations.get('operations', {}).items()}
     inputs = metric.get('input', {})
     stage = metric.get('stage_exit_status')
+    stage_source = metric.get('stage_status_source', 'unrecorded')
+    gate = metric.get('benchmark_gate_exit_status')
     crashes = metric.get('crashes', [])
     titles = metric.get('titles', [])
     if stage not in (None, 0):
         observation = 'run-failed'
+    elif gate not in (None, 0):
+        observation = 'benchmark-gate-failed'
+    elif stage_source == 'legacy-combined-unknown':
+        observation = 'legacy-combined-failure'
     elif crashes:
         observation = 'crash-markers-observed'
     elif not log.is_file():
@@ -84,7 +90,9 @@ def summarize_run(directory, name, metric):
             video.update(status='invalid-artifact', error=str(error))
     return {'name': name, 'requested_url': metric['url'], 'observation': observation,
             'functional_acceptance': 'unverified', 'checks': {key: 'unverified' for key in FUNCTIONS},
-            'stage_exit_status': stage, 'stage_completion': 'unrecorded' if stage is None else ('success' if stage == 0 else 'failure'),
+            'exit_status': metric.get('exit_status'), 'stage_exit_status': stage, 'stage_status_source': stage_source,
+            'stage_completion': ('unknown-legacy-combined' if stage_source == 'legacy-combined-unknown' else 'unrecorded') if stage is None else ('success' if stage == 0 else 'failure'),
+            'benchmark_gate_exit_status': gate,
             'last_title': titles[-1][1] if titles else None, 'titles': titles,
             'first_visually_nonempty_layout_s': metric.get('fvnl'),
             'paint_operations': operations,

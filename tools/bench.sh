@@ -116,24 +116,32 @@ run() { # run <name> <url> <secs> <script> <extra env>
         APP=TigerBrowser2 SHOT="$OUT/$name.png" LOG="$OUT/$name.log" \
         APP_ENV="$env TIGER_SCRIPT='$script' BENCH_PS_AT='30 $((secs - 4))' /Users/shg/wk2/share/benchstamp.pl" \
             sh "$STAGE" "$url" "$secs" > "$OUT/$name.stage.log" 2>&1
-        rc=$?
+        stage_rc=$?
         # stage-app gives up after 10 min on the lock or 5 min on a busy box: try again.
-        if [ $rc != 0 ] && grep -q 'box busy\|box still busy\|occupied' "$OUT/$name.stage.log"; then
+        if [ $stage_rc != 0 ] && grep -q 'box busy\|box still busy\|occupied' "$OUT/$name.stage.log"; then
             tries=$((tries + 1)); echo "   $(date +%T) box busy, retry $tries"; sleep 30; continue
         fi
+        echo "$stage_rc" > "$OUT/$name.stage-exit-status"
+        rc=$stage_rc
         case "$name" in n720|fn720)
-            if [ "$rc" = 0 ] && ! grep -q 'NATIVE720 READY' "$OUT/$name.log"; then
+            gate_rc=0
+            if [ "$stage_rc" = 0 ] && ! grep -q 'NATIVE720 READY' "$OUT/$name.log"; then
                 echo '   invalid native-720 workload: source or viewport dimensions did not match'
-                rc=1
+                gate_rc=1
             fi
             mode=fast; [ "$name" = fn720 ] && mode=faithful
             # UI window paints only: 8 s warmup lets the controls finish fading.
             # The helper persists the report/rejection reasons and propagates all
             # parser, duration, source-size, presentation-rate and gap failures.
             python3 "$WKT/tools/tiger-video-bench.py" check --snapshot "$OUT/video-paint-tool" \
-                --log "$OUT/$name.log" --output "$OUT/$name.video-paints.json" --mode "$mode" || rc=1;;
+                --log "$OUT/$name.log" --output "$OUT/$name.video-paints.json" --mode "$mode" || gate_rc=1
+            echo "$gate_rc" > "$OUT/$name.gate-exit-status"
+            if [ "$gate_rc" != 0 ]; then
+                echo "   benchmark gate failed (see $name.video-paints.json)"
+                [ "$rc" != 0 ] || rc=1
+            fi;;
         esac
-        [ $rc = 0 ] || echo "   stage-app.sh exited $rc (see $name.stage.log)"
+        [ $stage_rc = 0 ] || echo "   stage-app.sh exited $stage_rc (see $name.stage.log)"
         echo "$url" > "$OUT/$name.url"
         echo "$rc" > "$OUT/$name.exit-status"
         return $rc

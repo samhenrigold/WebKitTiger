@@ -15,6 +15,7 @@ WKT = '/Users/shg/Developer/WebKitTiger'
 WEB = WKT + '/build/tiger-web-port/bin/TigerWebProcess'
 d = sys.argv[1]
 paint_summary = runpy.run_path(WKT + '/tools/paint-metrics.py')['summarize']
+read_status = runpy.run_path(WKT + '/tools/bench-status.py')['read_status']
 build_record = os.path.join(d, 'web-build-dir.txt')
 if os.path.isfile(build_record):
     WEB = os.path.join(open(build_record).read().strip(), 'bin', 'TigerWebProcess')
@@ -199,8 +200,7 @@ for name in names:
     web30 = ps.get(30, {}).get('TigerWebProcess')
     r = dict(url=url, fvnl=fvnl(name), crashes=crashes(name), ps={str(k): v for k, v in ps.items()},
              media=media(name), titles=titles(name)[-40:])
-    status = os.path.join(d, name + '.exit-status')
-    r['stage_exit_status'] = int(open(status).read()) if os.path.exists(status) else None
+    r.update(read_status(d, name))
     with open(os.path.join(d, name + '.log'), errors='replace') as stream:
         r['paint_operations'] = paint_summary(stream)
     if not name.startswith(('octane', 'sp3')):
@@ -235,6 +235,12 @@ def later(r):
 failed = [name for name, r in M.items() if r['stage_exit_status'] not in (None, 0)]
 if failed:
     P('Failed staging runs (diagnostics only, not successful benchmarks): ' + ', '.join(failed) + '\n')
+gate_failed = [name for name, r in M.items() if r['benchmark_gate_exit_status'] not in (None, 0)]
+if gate_failed:
+    P('Failed benchmark acceptance gates: ' + ', '.join(gate_failed) + '. Staging status is recorded separately.\n')
+legacy_unknown = [name for name, r in M.items() if r['stage_status_source'] == 'legacy-combined-unknown']
+if legacy_unknown:
+    P('Legacy combined failures with unknown staging status: ' + ', '.join(legacy_unknown) + '. These exits may include acceptance-gate failures.\n')
 P('## Load, responsiveness, CPU (fast mode unless the name starts with f)\n')
 P('| page | first non-empty layout | TTI (move answered <100 ms) | wheel->frame median / p90 (n) | hover->cursor median / p90 (n/15) | web / UI / GPU / net %CPU 0-30 s | ... 30-88 s | web RSS @88 s | load @30/88 | crashes |')
 P('|---|---|---|---|---|---|---|---|---|---|')
