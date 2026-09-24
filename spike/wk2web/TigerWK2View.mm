@@ -57,11 +57,21 @@ using namespace WebKit;
     [super viewWillMoveToWindow:window];
 }
 
-- (void)didAddSubview:(NSView*)view
+// Tiger calls didAddSubview: from _setSuperview: before _setWindow:.
+// Invalidation draws the retained bitmap synchronously, so do it before the
+// hierarchy mutation rather than drawing a child whose window is still nil.
+- (void)addSubview:(NSView*)view
 {
-    if (_webView)
+    if (_webView && view)
         _webView->invalidateTigerDirectPresentation();
-    [super didAddSubview:view];
+    [super addSubview:view];
+}
+
+- (void)addSubview:(NSView*)view positioned:(NSWindowOrderingMode)place relativeTo:(NSView*)otherView
+{
+    if (_webView && view)
+        _webView->invalidateTigerDirectPresentation();
+    [super addSubview:view positioned:place relativeTo:otherView];
 }
 
 - (void)setHidden:(BOOL)hidden
