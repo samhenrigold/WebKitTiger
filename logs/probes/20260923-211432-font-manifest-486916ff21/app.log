@@ -1,0 +1,355 @@
+[face 1]
+  identity: LiGothicMed native=0 freetype=0 path=/System/Library/Fonts/Apple LiGothic Medium.dfont match=unique-head-hhea-maxp
+[face 2]
+  identity: AppleGothic native=0 freetype=0 path=/System/Library/Fonts/AppleGothic.dfont match=unique-head-hhea-maxp
+[face 3]
+  identity: AquaKana-Bold native=0 freetype=0 path=/System/Library/Fonts/AquaKanaBold.otf match=unique-head-hhea-maxp
+[face 4]
+  identity: AquaKana native=0 freetype=0 path=/System/Library/Fonts/AquaKanaRegular.otf match=unique-head-hhea-maxp
+[face 5]
+  identity: Courier native=0 freetype=0 path=/System/Library/Fonts/Courier.dfont match=unique-head-hhea-maxp
+[face 6]
+  identity: Courier-Bold native=1 freetype=1 path=/System/Library/Fonts/Courier.dfont match=unique-head-hhea-maxp
+[face 7]
+  identity: GeezaPro-Bold native=0 freetype=0 path=/System/Library/Fonts/Geeza Pro Bold.ttf match=unique-head-hhea-maxp
+[face 8]
+  identity: GeezaPro native=0 freetype=0 path=/System/Library/Fonts/Geeza Pro.ttf match=unique-head-hhea-maxp
+[face 9]
+  identity: Geneva native=0 freetype=0 path=/System/Library/Fonts/Geneva.dfont match=unique-head-hhea-maxp
+[face 10]
+  identity: SIL-Hei-Med-Jian native=0 freetype=0 path=/System/Library/Fonts/Hei.dfont match=unique-head-hhea-maxp
+[face 11]
+  identity: HelveticaLTMM native=-1 freetype=-1 path=/System/Library/Fonts/HelveLTMM match=unresolved
+[face 12]
+  identity: Helvetica native=0 freetype=0 path=/System/Library/Fonts/Helvetica.dfont match=unique-head-hhea-maxp
+[face 13]
+  identity: Helvetica-Bold native=1 freetype=1 path=/System/Library/Fonts/Helvetica.dfont match=unique-head-hhea-maxp
+[face 14]
+  identity: Keyboard native=0 freetype=0 path=/System/Library/Fonts/Keyboard.dfont match=unique-head-hhea-maxp
+[face 15]
+  identity: LastResort native=0 freetype=0 path=/System/Library/Fonts/LastResort.dfont match=unique-head-hhea-maxp
+[face 16]
+  identity: LucidaGrande native=0 freetype=0 path=/System/Library/Fonts/LucidaGrande.dfont match=unique-head-hhea-maxp
+[face 17]
+  identity: LucidaGrande-Bold native=1 freetype=1 path=/System/Library/Fonts/LucidaGrande.dfont match=unique-head-hhea-maxp
+[face 18]
+  identity: Monaco native=0 freetype=0 path=/System/Library/Fonts/Monaco.dfont match=unique-head-hhea-maxp
+[face 19]
+  identity: Osaka native=0 freetype=0 path=/System/Library/Fonts/Osaka.dfont match=unique-head-hhea-maxp
+[face 20]
+  identity: Osaka-Mono native=0 freetype=0 path=/System/Library/Fonts/OsakaMono.dfont match=unique-head-hhea-maxp
+[face 21]
+  identity: Symbol native=0 freetype=0 path=/System/Library/Fonts/Symbol.dfont match=unique-head-hhea-maxp
+[face 22]
+  identity: TimesLTMM native=-1 freetype=-1 path=/System/Library/Fonts/TimesLTMM match=unresolved
+[face 23]
+  identity: Times-Roman native=0 freetype=0 path=/System/Library/Fonts/Times.dfont match=unique-head-hhea-maxp
+[face 24]
+  identity: Times-Bold native=1 freetype=1 path=/System/Library/Fonts/Times.dfont match=unique-head-hhea-maxp
+[face 25]
+  identity: Times-Italic native=2 freetype=2 path=/System/Library/Fonts/Times.dfont match=unique-head-hhea-maxp
+[face 26]
+  identity: Times-BoldItalic native=3 freetype=3 path=/System/Library/Fonts/Times.dfont match=unique-head-hhea-maxp
+[face 27]
+  identity: ZapfDingbatsITC native=0 freetype=0 path=/System/Library/Fonts/ZapfDingbats.dfont match=unique-head-hhea-maxp
+[face 28]
+  identity: HiraMaruPro-W4 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ丸ゴ Pro W4.otf match=unique-head-hhea-maxp
+[face 29]
+  identity: HiraMinPro-W3 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ明朝 Pro W3.otf match=unique-head-hhea-maxp
+[face 30]
+  identity: HiraMinPro-W6 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ明朝 Pro W6.otf match=unique-head-hhea-maxp
+[face 31]
+  identity: HiraKakuPro-W3 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ角ゴ Pro W3.otf match=unique-head-hhea-maxp
+[face 32]
+  identity: HiraKakuPro-W6 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ角ゴ Pro W6.otf match=unique-head-hhea-maxp
+[face 33]
+  identity: HiraKakuStd-W8 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ角ゴ Std W8.otf match=unique-head-hhea-maxp
+[face 34]
+  identity: LiHeiPro native=0 freetype=0 path=/System/Library/Fonts/儷黑 Pro.ttf match=unique-head-hhea-maxp
+[face 35]
+  identity: STXihei native=0 freetype=0 path=/System/Library/Fonts/华文细黑.ttf match=unique-head-hhea-maxp
+[face 36]
+  identity: STHeiti native=0 freetype=0 path=/System/Library/Fonts/华文黑体.ttf match=unique-head-hhea-maxp
+[face 37]
+  identity: AcademyEngravedLetPlain native=0 freetype=0 path=/Library/Fonts/Academy Engraved LET Fonts match=unique-head-hhea-maxp
+[face 38]
+  identity: AmericanTypewriter native=0 freetype=2 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-hhea-maxp
+[face 39]
+  identity: AmericanTypewriter-Bold native=1 freetype=3 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-hhea-maxp
+[face 40]
+  identity: AmericanTypewriter-Condensed native=2 freetype=4 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-hhea-maxp
+[face 41]
+  identity: AmericanTypewriter-CondensedBold native=3 freetype=0 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-hhea-maxp
+[face 42]
+  identity: AmericanTypewriter-Light native=4 freetype=5 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-hhea-maxp
+[face 43]
+  identity: AmericanTypewriter-CondensedLight native=5 freetype=1 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-hhea-maxp
+[face 44]
+  identity: AndaleMono native=0 freetype=0 path=/Library/Fonts/Andale Mono match=unique-head-hhea-maxp
+[face 45]
+  identity: Apple-Chancery native=0 freetype=0 path=/Library/Fonts/Apple Chancery.dfont match=unique-head-hhea-maxp
+[face 46]
+  identity: AppleSymbols native=0 freetype=0 path=/Library/Fonts/Apple Symbols.ttf match=unique-head-hhea-maxp
+[face 47]
+  identity: AppleCasual native=0 freetype=0 path=/Library/Fonts/AppleCasual.dfont match=unique-head-hhea-maxp
+[face 48]
+  identity: ArialMT native=0 freetype=0 path=/Library/Fonts/Arial match=unique-head-hhea-maxp
+[face 49]
+  identity: Arial-BoldMT native=1 freetype=1 path=/Library/Fonts/Arial match=unique-head-hhea-maxp
+[face 50]
+  identity: Arial-ItalicMT native=2 freetype=2 path=/Library/Fonts/Arial match=unique-head-hhea-maxp
+[face 51]
+  identity: Arial-BoldItalicMT native=3 freetype=3 path=/Library/Fonts/Arial match=unique-head-hhea-maxp
+[face 52]
+  identity: Arial-Black native=0 freetype=0 path=/Library/Fonts/Arial Black match=unique-head-hhea-maxp
+[face 53]
+  identity: ArialNarrow native=0 freetype=0 path=/Library/Fonts/Arial Narrow match=unique-head-hhea-maxp
+[face 54]
+  identity: ArialNarrow-Bold native=1 freetype=1 path=/Library/Fonts/Arial Narrow match=unique-head-hhea-maxp
+[face 55]
+  identity: ArialNarrow-Italic native=2 freetype=2 path=/Library/Fonts/Arial Narrow match=unique-head-hhea-maxp
+[face 56]
+  identity: ArialNarrow-BoldItalic native=3 freetype=3 path=/Library/Fonts/Arial Narrow match=unique-head-hhea-maxp
+[face 57]
+  identity: ArialRoundedMTBold native=0 freetype=0 path=/Library/Fonts/Arial Rounded Bold match=unique-head-hhea-maxp
+[face 58]
+  identity: BankGothic-Light native=0 freetype=0 path=/Library/Fonts/Bank Gothic match=unique-head-hhea-maxp
+[face 59]
+  identity: BankGothic-Medium native=1 freetype=1 path=/Library/Fonts/Bank Gothic match=unique-head-hhea-maxp
+[face 60]
+  identity: Baskerville native=0 freetype=1 path=/Library/Fonts/Baskerville.dfont match=unique-head-hhea-maxp
+[face 61]
+  identity: Baskerville-Bold native=1 freetype=5 path=/Library/Fonts/Baskerville.dfont match=unique-head-hhea-maxp
+[face 62]
+  identity: Baskerville-Italic native=2 freetype=2 path=/Library/Fonts/Baskerville.dfont match=unique-head-hhea-maxp
+[face 63]
+  identity: Baskerville-BoldItalic native=3 freetype=0 path=/Library/Fonts/Baskerville.dfont match=unique-head-hhea-maxp
+[face 64]
+  identity: Baskerville-SemiBold native=4 freetype=4 path=/Library/Fonts/Baskerville.dfont match=unique-head-hhea-maxp
+[face 65]
+  identity: Baskerville-SemiBoldItalic native=5 freetype=3 path=/Library/Fonts/Baskerville.dfont match=unique-head-hhea-maxp
+[face 66]
+  identity: BigCaslon-Medium native=0 freetype=0 path=/Library/Fonts/BigCaslon.dfont match=unique-head-hhea-maxp
+[face 67]
+  identity: BlackmoorLetPlain native=0 freetype=0 path=/Library/Fonts/Blackmoor LET Fonts match=unique-head-hhea-maxp
+[face 68]
+  identity: BlairMdITCTT-Medium native=0 freetype=0 path=/Library/Fonts/BlairMdITC TT-Medium match=unique-head-hhea-maxp
+[face 69]
+  identity: BodoniOrnamentsITCTT native=0 freetype=0 path=/Library/Fonts/Bodoni Ornaments ITC TT match=unique-head-hhea-maxp
+[face 70]
+  identity: BodoniSvtyTwoITCTT-Book native=0 freetype=0 path=/Library/Fonts/Bodoni SvtyTwo ITC TT match=unique-head-hhea-maxp
+[face 71]
+  identity: BodoniSvtyTwoITCTT-Bold native=1 freetype=1 path=/Library/Fonts/Bodoni SvtyTwo ITC TT match=unique-head-hhea-maxp
+[face 72]
+  identity: BodoniSvtyTwoITCTT-BookIta native=2 freetype=2 path=/Library/Fonts/Bodoni SvtyTwo ITC TT match=unique-head-hhea-maxp
+[face 73]
+  identity: BodoniSvtyTwoOSITCTT-Book native=0 freetype=0 path=/Library/Fonts/Bodoni SvtyTwo OS ITC TT match=unique-head-hhea-maxp
+[face 74]
+  identity: BodoniSvtyTwoOSITCTT-Bold native=1 freetype=1 path=/Library/Fonts/Bodoni SvtyTwo OS ITC TT match=unique-head-hhea-maxp
+[face 75]
+  identity: BodoniSvtyTwoOSITCTT-BookIt native=2 freetype=2 path=/Library/Fonts/Bodoni SvtyTwo OS ITC TT match=unique-head-hhea-maxp
+[face 76]
+  identity: BodoniSvtyTwoSCITCTT-Book native=0 freetype=0 path=/Library/Fonts/Bodoni SvtyTwo SC ITC TT match=unique-head-hhea-maxp
+[face 77]
+  identity: BordeauxRomanBoldLetPlain native=0 freetype=0 path=/Library/Fonts/Bordeaux Roman Bold LET Fonts match=unique-head-hhea-maxp
+[face 78]
+  identity: BradleyHandITCTT-Bold native=0 freetype=0 path=/Library/Fonts/Bradley Hand ITC TT-Bold match=unique-head-hhea-maxp
+[face 79]
+  identity: BrushScriptMT native=0 freetype=0 path=/Library/Fonts/Brush Script match=unique-head-hhea-maxp
+[face 80]
+  identity: CapitalsRegular native=0 freetype=0 path=/Library/Fonts/Capitals.dfont match=unique-head-hhea-maxp
+[face 81]
+  identity: Chalkboard native=0 freetype=0 path=/Library/Fonts/Chalkboard.ttf match=unique-head-hhea-maxp
+[face 82]
+  identity: Chalkboard-Bold native=0 freetype=0 path=/Library/Fonts/ChalkboardBold.ttf match=unique-head-hhea-maxp
+[face 83]
+  identity: Cochin native=0 freetype=0 path=/Library/Fonts/Cochin.dfont match=unique-head-hhea-maxp
+[face 84]
+  identity: Cochin-Bold native=1 freetype=3 path=/Library/Fonts/Cochin.dfont match=unique-head-hhea-maxp
+[face 85]
+  identity: Cochin-Italic native=2 freetype=1 path=/Library/Fonts/Cochin.dfont match=unique-head-hhea-maxp
+[face 86]
+  identity: Cochin-BoldItalic native=3 freetype=2 path=/Library/Fonts/Cochin.dfont match=unique-head-hhea-maxp
+[face 87]
+  identity: ComicSansMS native=0 freetype=0 path=/Library/Fonts/Comic Sans MS match=unique-head-hhea-maxp
+[face 88]
+  identity: ComicSansMS-Bold native=1 freetype=1 path=/Library/Fonts/Comic Sans MS match=unique-head-hhea-maxp
+[face 89]
+  identity: Copperplate native=0 freetype=2 path=/Library/Fonts/Copperplate.dfont match=unique-head-hhea-maxp
+[face 90]
+  identity: Copperplate-Bold native=1 freetype=1 path=/Library/Fonts/Copperplate.dfont match=unique-head-hhea-maxp
+[face 91]
+  identity: Copperplate-Light native=2 freetype=0 path=/Library/Fonts/Copperplate.dfont match=unique-head-hhea-maxp
+[face 92]
+  identity: CourierNewPSMT native=0 freetype=3 path=/Library/Fonts/Courier New match=unique-head-hhea-maxp
+[face 93]
+  identity: CourierNewPS-BoldMT native=1 freetype=2 path=/Library/Fonts/Courier New match=unique-head-hhea-maxp
+[face 94]
+  identity: CourierNewPS-ItalicMT native=2 freetype=1 path=/Library/Fonts/Courier New match=unique-head-hhea-maxp
+[face 95]
+  identity: CourierNewPS-BoldItalicMT native=3 freetype=0 path=/Library/Fonts/Courier New match=unique-head-hhea-maxp
+[face 96]
+  identity: Cracked native=0 freetype=0 path=/Library/Fonts/Cracked match=unique-head-hhea-maxp
+[face 97]
+  identity: Didot native=0 freetype=0 path=/Library/Fonts/Didot.dfont match=unique-head-hhea-maxp
+[face 98]
+  identity: Didot-Bold native=1 freetype=2 path=/Library/Fonts/Didot.dfont match=unique-head-hhea-maxp
+[face 99]
+  identity: Didot-Italic native=2 freetype=1 path=/Library/Fonts/Didot.dfont match=unique-head-hhea-maxp
+[face 100]
+  identity: Futura-Medium native=0 freetype=0 path=/Library/Fonts/Futura.dfont match=unique-head-hhea-maxp
+[face 101]
+  identity: Futura-MediumItalic native=1 freetype=3 path=/Library/Fonts/Futura.dfont match=unique-head-hhea-maxp
+[face 102]
+  identity: Futura-CondensedMedium native=2 freetype=1 path=/Library/Fonts/Futura.dfont match=unique-head-hhea-maxp
+[face 103]
+  identity: Futura-CondensedExtraBold native=3 freetype=2 path=/Library/Fonts/Futura.dfont match=unique-head-hhea-maxp
+[face 104]
+  identity: Georgia native=0 freetype=0 path=/Library/Fonts/Georgia match=unique-head-hhea-maxp
+[face 105]
+  identity: Georgia-Bold native=1 freetype=1 path=/Library/Fonts/Georgia match=unique-head-hhea-maxp
+[face 106]
+  identity: Georgia-Italic native=2 freetype=2 path=/Library/Fonts/Georgia match=unique-head-hhea-maxp
+[face 107]
+  identity: Georgia-BoldItalic native=3 freetype=3 path=/Library/Fonts/Georgia match=unique-head-hhea-maxp
+[face 108]
+  identity: GillSans native=0 freetype=1 path=/Library/Fonts/GillSans.dfont match=unique-head-hhea-maxp
+[face 109]
+  identity: GillSans-Bold native=1 freetype=3 path=/Library/Fonts/GillSans.dfont match=unique-head-hhea-maxp
+[face 110]
+  identity: GillSans-Italic native=2 freetype=2 path=/Library/Fonts/GillSans.dfont match=unique-head-hhea-maxp
+[face 111]
+  identity: GillSans-BoldItalic native=3 freetype=0 path=/Library/Fonts/GillSans.dfont match=unique-head-hhea-maxp
+[face 112]
+  identity: GillSans-Light native=4 freetype=5 path=/Library/Fonts/GillSans.dfont match=unique-head-hhea-maxp
+[face 113]
+  identity: GillSans-LightItalic native=5 freetype=4 path=/Library/Fonts/GillSans.dfont match=unique-head-hhea-maxp
+[face 114]
+  identity: Handwriting-Dakota native=0 freetype=0 path=/Library/Fonts/Handwriting - Dakota match=unique-head-hhea-maxp
+[face 115]
+  identity: HelveticaNeue native=0 freetype=4 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 116]
+  identity: HelveticaNeue-Bold native=1 freetype=3 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 117]
+  identity: HelveticaNeue-Italic native=2 freetype=5 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 118]
+  identity: HelveticaNeue-BoldItalic native=3 freetype=1 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 119]
+  identity: HelveticaNeue-CondensedBold native=4 freetype=9 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 120]
+  identity: HelveticaNeue-UltraLight native=5 freetype=0 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 121]
+  identity: HelveticaNeue-UltraLightItalic native=6 freetype=7 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 122]
+  identity: HelveticaNeue-Light native=7 freetype=6 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 123]
+  identity: HelveticaNeue-LightItalic native=8 freetype=2 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 124]
+  identity: HelveticaNeue-CondensedBlack native=9 freetype=8 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-hhea-maxp
+[face 125]
+  identity: Herculanum native=0 freetype=0 path=/Library/Fonts/Herculanum.dfont match=unique-head-hhea-maxp
+[face 126]
+  identity: HoeflerText-Regular native=0 freetype=2 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-hhea-maxp
+[face 127]
+  identity: HoeflerText-Black native=1 freetype=0 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-hhea-maxp
+[face 128]
+  identity: HoeflerText-Italic native=2 freetype=1 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-hhea-maxp
+[face 129]
+  identity: HoeflerText-BlackItalic native=3 freetype=4 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-hhea-maxp
+[face 130]
+  identity: HoeflerText-Ornaments native=4 freetype=3 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-hhea-maxp
+[face 131]
+  identity: Impact native=0 freetype=0 path=/Library/Fonts/Impact match=unique-head-hhea-maxp
+[face 132]
+  identity: JazzLetPlain native=0 freetype=0 path=/Library/Fonts/Jazz LET Fonts match=unique-head-hhea-maxp
+[face 133]
+  identity: SIL-Kai-Reg-Jian native=0 freetype=0 path=/Library/Fonts/Kai.dfont match=unique-head-hhea-maxp
+[face 134]
+  identity: MarkerFelt-Thin native=0 freetype=1 path=/Library/Fonts/MarkerFelt.dfont match=unique-head-hhea-maxp
+[face 135]
+  identity: MarkerFelt-Wide native=1 freetype=0 path=/Library/Fonts/MarkerFelt.dfont match=unique-head-hhea-maxp
+[face 136]
+  identity: MonaLisaSolidITCTT native=0 freetype=0 path=/Library/Fonts/Mona Lisa Solid ITC TT match=unique-head-hhea-maxp
+[face 137]
+  identity: Optima-ExtraBlack native=0 freetype=0 path=/Library/Fonts/Optima.dfont match=unique-head-hhea-maxp
+[face 138]
+  identity: Optima-Regular native=1 freetype=2 path=/Library/Fonts/Optima.dfont match=unique-head-hhea-maxp
+[face 139]
+  identity: Optima-Bold native=2 freetype=3 path=/Library/Fonts/Optima.dfont match=unique-head-hhea-maxp
+[face 140]
+  identity: Optima-Italic native=3 freetype=1 path=/Library/Fonts/Optima.dfont match=unique-head-hhea-maxp
+[face 141]
+  identity: Optima-BoldItalic native=4 freetype=4 path=/Library/Fonts/Optima.dfont match=unique-head-hhea-maxp
+[face 142]
+  identity: Palatino-Roman native=0 freetype=0 path=/Library/Fonts/Palatino match=unique-head-hhea-maxp
+[face 143]
+  identity: Palatino-Bold native=1 freetype=1 path=/Library/Fonts/Palatino match=unique-head-hhea-maxp
+[face 144]
+  identity: Palatino-Italic native=2 freetype=2 path=/Library/Fonts/Palatino match=unique-head-hhea-maxp
+[face 145]
+  identity: Palatino-BoldItalic native=3 freetype=3 path=/Library/Fonts/Palatino match=unique-head-hhea-maxp
+[face 146]
+  identity: Papyrus native=0 freetype=0 path=/Library/Fonts/Papyrus.dfont match=unique-head-hhea-maxp
+[face 147]
+  identity: PartyLetPlain native=0 freetype=0 path=/Library/Fonts/Party LET Fonts match=unique-head-hhea-maxp
+[face 148]
+  identity: PortagoITCTT native=0 freetype=0 path=/Library/Fonts/PortagoITC TT match=unique-head-hhea-maxp
+[face 149]
+  identity: PrincetownLET native=0 freetype=0 path=/Library/Fonts/Princetown LET Fonts match=unique-head-hhea-maxp
+[face 150]
+  identity: SantaFeLetPlain native=0 freetype=0 path=/Library/Fonts/Santa Fe LET Fonts match=unique-head-hhea-maxp
+[face 151]
+  identity: SavoyeLetPlain native=0 freetype=0 path=/Library/Fonts/Savoye LET Fonts match=unique-head-hhea-maxp
+[face 152]
+  identity: SchoolHouseCursiveB native=0 freetype=0 path=/Library/Fonts/SchoolHouse Cursive B.suit match=unique-head-hhea-maxp
+[face 153]
+  identity: SchoolHousePrintedA native=0 freetype=0 path=/Library/Fonts/SchoolHouse Printed A match=unique-head-hhea-maxp
+[face 154]
+  identity: Skia-Regular native=0 freetype=0 path=/Library/Fonts/Skia.dfont match=unique-head-hhea-maxp
+[face 155]
+  identity: SnellRoundhand native=0 freetype=0 path=/Library/Fonts/Snell Roundhand match=unique-head-hhea-maxp
+[face 156]
+  identity: SnellRoundhand-Bold native=1 freetype=2 path=/Library/Fonts/Snell Roundhand match=unique-head-hhea-maxp
+[face 157]
+  identity: SnellRoundhand-Black native=2 freetype=1 path=/Library/Fonts/Snell Roundhand match=unique-head-hhea-maxp
+[face 158]
+  identity: StoneSansITCTT-Semi native=0 freetype=0 path=/Library/Fonts/Stone Sans ITC TT match=unique-head-hhea-maxp
+[face 159]
+  identity: StoneSansITCTT-Bold native=1 freetype=1 path=/Library/Fonts/Stone Sans ITC TT match=unique-head-hhea-maxp
+[face 160]
+  identity: StoneSansITCTT-SemiIta native=2 freetype=2 path=/Library/Fonts/Stone Sans ITC TT match=unique-head-hhea-maxp
+[face 161]
+  identity: SynchroLET native=0 freetype=0 path=/Library/Fonts/Synchro LET Fonts match=unique-head-hhea-maxp
+[face 162]
+  identity: TimesNewRomanPSMT native=0 freetype=0 path=/Library/Fonts/Times New Roman match=unique-head-hhea-maxp
+[face 163]
+  identity: TimesNewRomanPS-BoldMT native=1 freetype=1 path=/Library/Fonts/Times New Roman match=unique-head-hhea-maxp
+[face 164]
+  identity: TimesNewRomanPS-ItalicMT native=2 freetype=2 path=/Library/Fonts/Times New Roman match=unique-head-hhea-maxp
+[face 165]
+  identity: TimesNewRomanPS-BoldItalicMT native=3 freetype=3 path=/Library/Fonts/Times New Roman match=unique-head-hhea-maxp
+[face 166]
+  identity: TrebuchetMS native=0 freetype=0 path=/Library/Fonts/Trebuchet MS match=unique-head-hhea-maxp
+[face 167]
+  identity: TrebuchetMS-Bold native=1 freetype=1 path=/Library/Fonts/Trebuchet MS match=unique-head-hhea-maxp
+[face 168]
+  identity: TrebuchetMS-Italic native=2 freetype=2 path=/Library/Fonts/Trebuchet MS match=unique-head-hhea-maxp
+[face 169]
+  identity: Trebuchet-BoldItalic native=3 freetype=3 path=/Library/Fonts/Trebuchet MS match=unique-head-hhea-maxp
+[face 170]
+  identity: TypeEmbellishmentsOneLetPlain native=0 freetype=0 path=/Library/Fonts/Type Embellishmnt One LET match=unique-head-hhea-maxp
+[face 171]
+  identity: Verdana native=0 freetype=0 path=/Library/Fonts/Verdana match=unique-head-hhea-maxp
+[face 172]
+  identity: Verdana-Bold native=1 freetype=1 path=/Library/Fonts/Verdana match=unique-head-hhea-maxp
+[face 173]
+  identity: Verdana-Italic native=2 freetype=2 path=/Library/Fonts/Verdana match=unique-head-hhea-maxp
+[face 174]
+  identity: Verdana-BoldItalic native=3 freetype=3 path=/Library/Fonts/Verdana match=unique-head-hhea-maxp
+[face 175]
+  identity: Webdings native=0 freetype=0 path=/Library/Fonts/Webdings match=unique-head-hhea-maxp
+[face 176]
+  identity: Zapfino native=0 freetype=0 path=/Library/Fonts/Zapfino.dfont match=unique-head-hhea-maxp
+faces 176, resolvable to (path, index) 174, not 2
+table identity: 174 uniquely matched FreeType faces, 2 unresolved, 51 indices differ from ATS
+self-check: 174 handles resolve to the named face, 0 do not

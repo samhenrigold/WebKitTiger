@@ -1,0 +1,489 @@
+[face 1]
+  identity: LiGothicMed native=0 freetype=0 path=/System/Library/Fonts/Apple LiGothic Medium.dfont match=unique-head-name-maxp
+[face 2]
+  identity: AppleGothic native=0 freetype=0 path=/System/Library/Fonts/AppleGothic.dfont match=unique-head-name-maxp
+[face 3]
+  identity: AquaKana-Bold native=0 freetype=0 path=/System/Library/Fonts/AquaKanaBold.otf match=unique-head-name-maxp
+[face 4]
+  identity: AquaKana native=0 freetype=0 path=/System/Library/Fonts/AquaKanaRegular.otf match=unique-head-name-maxp
+[face 5]
+  identity: Courier native=0 freetype=0 path=/System/Library/Fonts/Courier.dfont match=unique-head-name-maxp
+[face 6]
+  identity: Courier-Bold native=1 freetype=1 path=/System/Library/Fonts/Courier.dfont match=unique-head-name-maxp
+[face 7]
+  identity: GeezaPro-Bold native=0 freetype=0 path=/System/Library/Fonts/Geeza Pro Bold.ttf match=unique-head-name-maxp
+[face 8]
+  identity: GeezaPro native=0 freetype=0 path=/System/Library/Fonts/Geeza Pro.ttf match=unique-head-name-maxp
+[face 9]
+  identity: Geneva native=0 freetype=0 path=/System/Library/Fonts/Geneva.dfont match=unique-head-name-maxp
+[face 10]
+  identity: SIL-Hei-Med-Jian native=0 freetype=0 path=/System/Library/Fonts/Hei.dfont match=unique-head-name-maxp
+[face 11]
+  identity: HelveticaLTMM native=-1 freetype=-1 path=/System/Library/Fonts/HelveLTMM match=unresolved
+[face 12]
+  identity: Helvetica native=0 freetype=0 path=/System/Library/Fonts/Helvetica.dfont match=unique-head-name-maxp
+[face 13]
+  identity: Helvetica-Bold native=1 freetype=1 path=/System/Library/Fonts/Helvetica.dfont match=unique-head-name-maxp
+[face 14]
+  identity: Keyboard native=0 freetype=0 path=/System/Library/Fonts/Keyboard.dfont match=unique-head-name-maxp
+[face 15]
+  identity: LastResort native=0 freetype=0 path=/System/Library/Fonts/LastResort.dfont match=unique-head-name-maxp
+[face 16]
+  identity: LucidaGrande native=0 freetype=0 path=/System/Library/Fonts/LucidaGrande.dfont match=unique-head-name-maxp
+[face 17]
+  identity: LucidaGrande-Bold native=1 freetype=1 path=/System/Library/Fonts/LucidaGrande.dfont match=unique-head-name-maxp
+[face 18]
+  identity: Monaco native=0 freetype=0 path=/System/Library/Fonts/Monaco.dfont match=unique-head-name-maxp
+[face 19]
+  identity: Osaka native=0 freetype=0 path=/System/Library/Fonts/Osaka.dfont match=unique-head-name-maxp
+[face 20]
+  identity: Osaka-Mono native=0 freetype=0 path=/System/Library/Fonts/OsakaMono.dfont match=unique-head-name-maxp
+[face 21]
+  identity: Symbol native=0 freetype=0 path=/System/Library/Fonts/Symbol.dfont match=unique-head-name-maxp
+[face 22]
+  identity: TimesLTMM native=-1 freetype=-1 path=/System/Library/Fonts/TimesLTMM match=unresolved
+[face 23]
+  identity: Times-Roman native=0 freetype=0 path=/System/Library/Fonts/Times.dfont match=unique-head-name-maxp
+[face 24]
+  identity: Times-Bold native=1 freetype=1 path=/System/Library/Fonts/Times.dfont match=unique-head-name-maxp
+[face 25]
+  identity: Times-Italic native=2 freetype=2 path=/System/Library/Fonts/Times.dfont match=unique-head-name-maxp
+[face 26]
+  identity: Times-BoldItalic native=3 freetype=3 path=/System/Library/Fonts/Times.dfont match=unique-head-name-maxp
+[face 27]
+  identity: ZapfDingbatsITC native=0 freetype=0 path=/System/Library/Fonts/ZapfDingbats.dfont match=unique-head-name-maxp
+[face 28]
+  identity: HiraMaruPro-W4 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ丸ゴ Pro W4.otf match=unique-head-name-maxp
+[face 29]
+  identity: HiraMinPro-W3 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ明朝 Pro W3.otf match=unique-head-name-maxp
+[face 30]
+  identity: HiraMinPro-W6 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ明朝 Pro W6.otf match=unique-head-name-maxp
+[face 31]
+  identity: HiraKakuPro-W3 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ角ゴ Pro W3.otf match=unique-head-name-maxp
+[face 32]
+  identity: HiraKakuPro-W6 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ角ゴ Pro W6.otf match=unique-head-name-maxp
+[face 33]
+  identity: HiraKakuStd-W8 native=0 freetype=0 path=/System/Library/Fonts/ヒラギノ角ゴ Std W8.otf match=unique-head-name-maxp
+[face 34]
+  identity: LiHeiPro native=0 freetype=0 path=/System/Library/Fonts/儷黑 Pro.ttf match=unique-head-name-maxp
+[face 35]
+  identity: STXihei native=0 freetype=0 path=/System/Library/Fonts/华文细黑.ttf match=unique-head-name-maxp
+[face 36]
+  identity: STHeiti native=0 freetype=0 path=/System/Library/Fonts/华文黑体.ttf match=unique-head-name-maxp
+[face 37]
+  identity: AcademyEngravedLetPlain native=0 freetype=0 path=/Library/Fonts/Academy Engraved LET Fonts match=unique-head-name-maxp
+[face 38]
+  identity: AmericanTypewriter native=0 freetype=2 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-name-maxp
+[face 39]
+  identity: AmericanTypewriter-Bold native=1 freetype=3 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-name-maxp
+[face 40]
+  identity: AmericanTypewriter-Condensed native=2 freetype=4 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-name-maxp
+[face 41]
+  identity: AmericanTypewriter-CondensedBold native=3 freetype=0 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-name-maxp
+[face 42]
+  identity: AmericanTypewriter-Light native=4 freetype=5 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-name-maxp
+[face 43]
+  identity: AmericanTypewriter-CondensedLight native=5 freetype=1 path=/Library/Fonts/AmericanTypewriter.dfont match=unique-head-name-maxp
+[face 44]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=2244/2073,diff=1707,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: AndaleMono native=0 freetype=-1 path=/Library/Fonts/Andale Mono match=unresolved
+[face 45]
+  identity: Apple-Chancery native=0 freetype=0 path=/Library/Fonts/Apple Chancery.dfont match=unique-head-name-maxp
+[face 46]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=369/303,diff=171,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: AppleSymbols native=0 freetype=-1 path=/Library/Fonts/Apple Symbols.ttf match=unresolved
+[face 47]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=342/276,diff=167,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: AppleCasual native=0 freetype=-1 path=/Library/Fonts/AppleCasual.dfont match=unresolved
+[face 48]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=11376/6899,diff=6181,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 1: head(size=54/54,diff=9,first=8) name(size=11376/7459,diff=6723,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 2: head(size=54/54,diff=13,first=8) name(size=11376/7491,diff=6746,first=3) maxp(size=32/32,diff=6,first=11)
+    candidate 3: head(size=54/54,diff=13,first=8) name(size=11376/7974,diff=6811,first=3) maxp(size=32/32,diff=7,first=7)
+  identity: ArialMT native=0 freetype=-1 path=/Library/Fonts/Arial match=unresolved
+[face 49]
+    candidate 0: head(size=54/54,diff=9,first=8) name(size=12238/6899,diff=6118,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 1: head(size=54/54,diff=0,first=0) name(size=12238/7459,diff=6564,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 2: head(size=54/54,diff=13,first=8) name(size=12238/7491,diff=6588,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 3: head(size=54/54,diff=13,first=8) name(size=12238/7974,diff=6783,first=3) maxp(size=32/32,diff=5,first=7)
+  identity: Arial-BoldMT native=1 freetype=-1 path=/Library/Fonts/Arial match=unresolved
+[face 50]
+    candidate 0: head(size=54/54,diff=13,first=8) name(size=12374/6899,diff=6124,first=3) maxp(size=32/32,diff=6,first=11)
+    candidate 1: head(size=54/54,diff=13,first=8) name(size=12374/7459,diff=6585,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 2: head(size=54/54,diff=0,first=0) name(size=12374/7491,diff=6589,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 3: head(size=54/54,diff=13,first=8) name(size=12374/7974,diff=6798,first=3) maxp(size=32/32,diff=6,first=7)
+  identity: Arial-ItalicMT native=2 freetype=-1 path=/Library/Fonts/Arial match=unresolved
+[face 51]
+    candidate 0: head(size=54/54,diff=13,first=8) name(size=13105/6899,diff=6130,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 1: head(size=54/54,diff=13,first=8) name(size=13105/7459,diff=6543,first=3) maxp(size=32/32,diff=5,first=7)
+    candidate 2: head(size=54/54,diff=13,first=8) name(size=13105/7491,diff=6574,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 3: head(size=54/54,diff=0,first=0) name(size=13105/7974,diff=7087,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: Arial-BoldItalicMT native=3 freetype=-1 path=/Library/Fonts/Arial match=unresolved
+[face 52]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=6865/6694,diff=6313,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: Arial-Black native=0 freetype=-1 path=/Library/Fonts/Arial Black match=unresolved
+[face 53]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=1182/1011,diff=876,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 1: head(size=54/54,diff=13,first=7) name(size=1182/1894,diff=770,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 2: head(size=54/54,diff=11,first=8) name(size=1182/1050,diff=707,first=3) maxp(size=32/32,diff=4,first=7)
+    candidate 3: head(size=54/54,diff=15,first=7) name(size=1182/2363,diff=993,first=3) maxp(size=32/32,diff=5,first=7)
+  identity: ArialNarrow native=0 freetype=-1 path=/Library/Fonts/Arial Narrow match=unresolved
+[face 54]
+    candidate 0: head(size=54/54,diff=13,first=7) name(size=2065/1011,diff=840,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 1: head(size=54/54,diff=0,first=0) name(size=2065/1894,diff=1584,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 2: head(size=54/54,diff=14,first=7) name(size=2065/1050,diff=881,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 3: head(size=54/54,diff=14,first=8) name(size=2065/2363,diff=1164,first=3) maxp(size=32/32,diff=5,first=7)
+  identity: ArialNarrow-Bold native=1 freetype=-1 path=/Library/Fonts/Arial Narrow match=unresolved
+[face 55]
+    candidate 0: head(size=54/54,diff=11,first=8) name(size=1221/1011,diff=690,first=3) maxp(size=32/32,diff=4,first=7)
+    candidate 1: head(size=54/54,diff=14,first=7) name(size=1221/1894,diff=1028,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 2: head(size=54/54,diff=0,first=0) name(size=1221/1050,diff=916,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 3: head(size=54/54,diff=15,first=7) name(size=1221/2363,diff=806,first=3) maxp(size=32/32,diff=5,first=19)
+  identity: ArialNarrow-Italic native=2 freetype=-1 path=/Library/Fonts/Arial Narrow match=unresolved
+[face 56]
+    candidate 0: head(size=54/54,diff=15,first=7) name(size=2534/1011,diff=881,first=3) maxp(size=32/32,diff=5,first=7)
+    candidate 1: head(size=54/54,diff=14,first=8) name(size=2534/1894,diff=1087,first=3) maxp(size=32/32,diff=5,first=7)
+    candidate 2: head(size=54/54,diff=15,first=7) name(size=2534/1050,diff=833,first=3) maxp(size=32/32,diff=5,first=19)
+    candidate 3: head(size=54/54,diff=0,first=0) name(size=2534/2363,diff=2051,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: ArialNarrow-BoldItalic native=3 freetype=-1 path=/Library/Fonts/Arial Narrow match=unresolved
+[face 57]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=2140/1969,diff=1660,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: ArialRoundedMTBold native=0 freetype=-1 path=/Library/Fonts/Arial Rounded Bold match=unresolved
+[face 58]
+  identity: BankGothic-Light native=0 freetype=0 path=/Library/Fonts/Bank Gothic match=unique-head-name-maxp
+[face 59]
+  identity: BankGothic-Medium native=1 freetype=1 path=/Library/Fonts/Bank Gothic match=unique-head-name-maxp
+[face 60]
+  identity: Baskerville native=0 freetype=1 path=/Library/Fonts/Baskerville.dfont match=unique-head-name-maxp
+[face 61]
+  identity: Baskerville-Bold native=1 freetype=5 path=/Library/Fonts/Baskerville.dfont match=unique-head-name-maxp
+[face 62]
+  identity: Baskerville-Italic native=2 freetype=2 path=/Library/Fonts/Baskerville.dfont match=unique-head-name-maxp
+[face 63]
+  identity: Baskerville-BoldItalic native=3 freetype=0 path=/Library/Fonts/Baskerville.dfont match=unique-head-name-maxp
+[face 64]
+  identity: Baskerville-SemiBold native=4 freetype=4 path=/Library/Fonts/Baskerville.dfont match=unique-head-name-maxp
+[face 65]
+  identity: Baskerville-SemiBoldItalic native=5 freetype=3 path=/Library/Fonts/Baskerville.dfont match=unique-head-name-maxp
+[face 66]
+  identity: BigCaslon-Medium native=0 freetype=0 path=/Library/Fonts/BigCaslon.dfont match=unique-head-name-maxp
+[face 67]
+  identity: BlackmoorLetPlain native=0 freetype=0 path=/Library/Fonts/Blackmoor LET Fonts match=unique-head-name-maxp
+[face 68]
+  identity: BlairMdITCTT-Medium native=0 freetype=0 path=/Library/Fonts/BlairMdITC TT-Medium match=unique-head-name-maxp
+[face 69]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=1430/920,diff=688,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: BodoniOrnamentsITCTT native=0 freetype=-1 path=/Library/Fonts/Bodoni Ornaments ITC TT match=unresolved
+[face 70]
+  identity: BodoniSvtyTwoITCTT-Book native=0 freetype=0 path=/Library/Fonts/Bodoni SvtyTwo ITC TT match=unique-head-name-maxp
+[face 71]
+  identity: BodoniSvtyTwoITCTT-Bold native=1 freetype=1 path=/Library/Fonts/Bodoni SvtyTwo ITC TT match=unique-head-name-maxp
+[face 72]
+  identity: BodoniSvtyTwoITCTT-BookIta native=2 freetype=2 path=/Library/Fonts/Bodoni SvtyTwo ITC TT match=unique-head-name-maxp
+[face 73]
+  identity: BodoniSvtyTwoOSITCTT-Book native=0 freetype=0 path=/Library/Fonts/Bodoni SvtyTwo OS ITC TT match=unique-head-name-maxp
+[face 74]
+  identity: BodoniSvtyTwoOSITCTT-Bold native=1 freetype=1 path=/Library/Fonts/Bodoni SvtyTwo OS ITC TT match=unique-head-name-maxp
+[face 75]
+  identity: BodoniSvtyTwoOSITCTT-BookIt native=2 freetype=2 path=/Library/Fonts/Bodoni SvtyTwo OS ITC TT match=unique-head-name-maxp
+[face 76]
+  identity: BodoniSvtyTwoSCITCTT-Book native=0 freetype=0 path=/Library/Fonts/Bodoni SvtyTwo SC ITC TT match=unique-head-name-maxp
+[face 77]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=311/245,diff=163,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: BordeauxRomanBoldLetPlain native=0 freetype=-1 path=/Library/Fonts/Bordeaux Roman Bold LET Fonts match=unresolved
+[face 78]
+  identity: BradleyHandITCTT-Bold native=0 freetype=0 path=/Library/Fonts/Bradley Hand ITC TT-Bold match=unique-head-name-maxp
+[face 79]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=1945/1774,diff=1467,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: BrushScriptMT native=0 freetype=-1 path=/Library/Fonts/Brush Script match=unresolved
+[face 80]
+  identity: CapitalsRegular native=0 freetype=0 path=/Library/Fonts/Capitals.dfont match=unique-head-name-maxp
+[face 81]
+  identity: Chalkboard native=0 freetype=0 path=/Library/Fonts/Chalkboard.ttf match=unique-head-name-maxp
+[face 82]
+  identity: Chalkboard-Bold native=0 freetype=0 path=/Library/Fonts/ChalkboardBold.ttf match=unique-head-name-maxp
+[face 83]
+  identity: Cochin native=0 freetype=0 path=/Library/Fonts/Cochin.dfont match=unique-head-name-maxp
+[face 84]
+  identity: Cochin-Bold native=1 freetype=3 path=/Library/Fonts/Cochin.dfont match=unique-head-name-maxp
+[face 85]
+  identity: Cochin-Italic native=2 freetype=1 path=/Library/Fonts/Cochin.dfont match=unique-head-name-maxp
+[face 86]
+  identity: Cochin-BoldItalic native=3 freetype=2 path=/Library/Fonts/Cochin.dfont match=unique-head-name-maxp
+[face 87]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=2158/1987,diff=1632,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 1: head(size=54/54,diff=13,first=8) name(size=2158/3249,diff=1752,first=3) maxp(size=32/32,diff=6,first=7)
+  identity: ComicSansMS native=0 freetype=-1 path=/Library/Fonts/Comic Sans MS match=unresolved
+[face 88]
+    candidate 0: head(size=54/54,diff=13,first=8) name(size=3420/1987,diff=1643,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 1: head(size=54/54,diff=0,first=0) name(size=3420/3249,diff=2704,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: ComicSansMS-Bold native=1 freetype=-1 path=/Library/Fonts/Comic Sans MS match=unresolved
+[face 89]
+  identity: Copperplate native=0 freetype=2 path=/Library/Fonts/Copperplate.dfont match=unique-head-name-maxp
+[face 90]
+  identity: Copperplate-Bold native=1 freetype=1 path=/Library/Fonts/Copperplate.dfont match=unique-head-name-maxp
+[face 91]
+  identity: Copperplate-Light native=2 freetype=0 path=/Library/Fonts/Copperplate.dfont match=unique-head-name-maxp
+[face 92]
+    candidate 0: head(size=54/54,diff=16,first=8) name(size=9446/6896,diff=5700,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 1: head(size=54/54,diff=18,first=6) name(size=9446/6489,diff=5768,first=3) maxp(size=32/32,diff=7,first=5)
+    candidate 2: head(size=54/54,diff=16,first=8) name(size=9446/6507,diff=5773,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 3: head(size=54/54,diff=0,first=0) name(size=9446/5762,diff=5089,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: CourierNewPSMT native=0 freetype=-1 path=/Library/Fonts/Courier New match=unresolved
+[face 93]
+    candidate 0: head(size=54/54,diff=12,first=8) name(size=10644/6896,diff=5718,first=3) maxp(size=32/32,diff=4,first=11)
+    candidate 1: head(size=54/54,diff=15,first=6) name(size=10644/6489,diff=5621,first=3) maxp(size=32/32,diff=9,first=5)
+    candidate 2: head(size=54/54,diff=0,first=0) name(size=10644/6507,diff=5614,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 3: head(size=54/54,diff=16,first=8) name(size=10644/5762,diff=5016,first=3) maxp(size=32/32,diff=7,first=7)
+  identity: CourierNewPS-BoldMT native=1 freetype=-1 path=/Library/Fonts/Courier New match=unresolved
+[face 94]
+    candidate 0: head(size=54/54,diff=14,first=6) name(size=10732/6896,diff=5685,first=3) maxp(size=32/32,diff=9,first=5)
+    candidate 1: head(size=54/54,diff=0,first=0) name(size=10732/6489,diff=5615,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 2: head(size=54/54,diff=15,first=6) name(size=10732/6507,diff=5620,first=3) maxp(size=32/32,diff=9,first=5)
+    candidate 3: head(size=54/54,diff=18,first=6) name(size=10732/5762,diff=4995,first=3) maxp(size=32/32,diff=7,first=5)
+  identity: CourierNewPS-ItalicMT native=2 freetype=-1 path=/Library/Fonts/Courier New match=unresolved
+[face 95]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=11519/6896,diff=6024,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 1: head(size=54/54,diff=14,first=6) name(size=11519/6489,diff=5539,first=3) maxp(size=32/32,diff=9,first=5)
+    candidate 2: head(size=54/54,diff=12,first=8) name(size=11519/6507,diff=5541,first=3) maxp(size=32/32,diff=4,first=11)
+    candidate 3: head(size=54/54,diff=16,first=8) name(size=11519/5762,diff=5030,first=3) maxp(size=32/32,diff=7,first=7)
+  identity: CourierNewPS-BoldItalicMT native=3 freetype=-1 path=/Library/Fonts/Courier New match=unresolved
+[face 96]
+  identity: Cracked native=0 freetype=0 path=/Library/Fonts/Cracked match=unique-head-name-maxp
+[face 97]
+  identity: Didot native=0 freetype=0 path=/Library/Fonts/Didot.dfont match=unique-head-name-maxp
+[face 98]
+  identity: Didot-Bold native=1 freetype=2 path=/Library/Fonts/Didot.dfont match=unique-head-name-maxp
+[face 99]
+  identity: Didot-Italic native=2 freetype=1 path=/Library/Fonts/Didot.dfont match=unique-head-name-maxp
+[face 100]
+  identity: Futura-Medium native=0 freetype=0 path=/Library/Fonts/Futura.dfont match=unique-head-name-maxp
+[face 101]
+  identity: Futura-MediumItalic native=1 freetype=3 path=/Library/Fonts/Futura.dfont match=unique-head-name-maxp
+[face 102]
+  identity: Futura-CondensedMedium native=2 freetype=1 path=/Library/Fonts/Futura.dfont match=unique-head-name-maxp
+[face 103]
+  identity: Futura-CondensedExtraBold native=3 freetype=2 path=/Library/Fonts/Futura.dfont match=unique-head-name-maxp
+[face 104]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=1550/1379,diff=1052,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 1: head(size=54/54,diff=13,first=8) name(size=1550/2329,diff=1180,first=3) maxp(size=32/32,diff=2,first=7)
+    candidate 2: head(size=54/54,diff=14,first=8) name(size=1550/2409,diff=1181,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 3: head(size=54/54,diff=15,first=8) name(size=1550/3142,diff=941,first=3) maxp(size=32/32,diff=7,first=7)
+  identity: Georgia native=0 freetype=-1 path=/Library/Fonts/Georgia match=unresolved
+[face 105]
+    candidate 0: head(size=54/54,diff=13,first=8) name(size=2500/1379,diff=1069,first=3) maxp(size=32/32,diff=2,first=7)
+    candidate 1: head(size=54/54,diff=0,first=0) name(size=2500/2329,diff=1806,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 2: head(size=54/54,diff=14,first=8) name(size=2500/2409,diff=1904,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 3: head(size=54/54,diff=13,first=8) name(size=2500/3142,diff=1356,first=3) maxp(size=32/32,diff=7,first=7)
+  identity: Georgia-Bold native=1 freetype=-1 path=/Library/Fonts/Georgia match=unresolved
+[face 106]
+    candidate 0: head(size=54/54,diff=14,first=8) name(size=2580/1379,diff=1059,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 1: head(size=54/54,diff=14,first=8) name(size=2580/2329,diff=1807,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 2: head(size=54/54,diff=0,first=0) name(size=2580/2409,diff=1889,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 3: head(size=54/54,diff=13,first=8) name(size=2580/3142,diff=1421,first=3) maxp(size=32/32,diff=2,first=7)
+  identity: Georgia-Italic native=2 freetype=-1 path=/Library/Fonts/Georgia match=unresolved
+[face 107]
+    candidate 0: head(size=54/54,diff=15,first=8) name(size=3313/1379,diff=969,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 1: head(size=54/54,diff=13,first=8) name(size=3313/2329,diff=1266,first=3) maxp(size=32/32,diff=7,first=7)
+    candidate 2: head(size=54/54,diff=13,first=8) name(size=3313/2409,diff=1290,first=3) maxp(size=32/32,diff=2,first=7)
+    candidate 3: head(size=54/54,diff=0,first=0) name(size=3313/3142,diff=2642,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: Georgia-BoldItalic native=3 freetype=-1 path=/Library/Fonts/Georgia match=unresolved
+[face 108]
+  identity: GillSans native=0 freetype=1 path=/Library/Fonts/GillSans.dfont match=unique-head-name-maxp
+[face 109]
+  identity: GillSans-Bold native=1 freetype=3 path=/Library/Fonts/GillSans.dfont match=unique-head-name-maxp
+[face 110]
+  identity: GillSans-Italic native=2 freetype=2 path=/Library/Fonts/GillSans.dfont match=unique-head-name-maxp
+[face 111]
+  identity: GillSans-BoldItalic native=3 freetype=0 path=/Library/Fonts/GillSans.dfont match=unique-head-name-maxp
+[face 112]
+  identity: GillSans-Light native=4 freetype=5 path=/Library/Fonts/GillSans.dfont match=unique-head-name-maxp
+[face 113]
+  identity: GillSans-LightItalic native=5 freetype=4 path=/Library/Fonts/GillSans.dfont match=unique-head-name-maxp
+[face 114]
+  identity: Handwriting-Dakota native=0 freetype=0 path=/Library/Fonts/Handwriting - Dakota match=unique-head-name-maxp
+[face 115]
+  identity: HelveticaNeue native=0 freetype=4 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 116]
+  identity: HelveticaNeue-Bold native=1 freetype=3 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 117]
+  identity: HelveticaNeue-Italic native=2 freetype=5 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 118]
+  identity: HelveticaNeue-BoldItalic native=3 freetype=1 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 119]
+  identity: HelveticaNeue-CondensedBold native=4 freetype=9 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 120]
+  identity: HelveticaNeue-UltraLight native=5 freetype=0 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 121]
+  identity: HelveticaNeue-UltraLightItalic native=6 freetype=7 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 122]
+  identity: HelveticaNeue-Light native=7 freetype=6 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 123]
+  identity: HelveticaNeue-LightItalic native=8 freetype=2 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 124]
+  identity: HelveticaNeue-CondensedBlack native=9 freetype=8 path=/Library/Fonts/HelveticaNeue.dfont match=unique-head-name-maxp
+[face 125]
+  identity: Herculanum native=0 freetype=0 path=/Library/Fonts/Herculanum.dfont match=unique-head-name-maxp
+[face 126]
+  identity: HoeflerText-Regular native=0 freetype=2 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-name-maxp
+[face 127]
+  identity: HoeflerText-Black native=1 freetype=0 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-name-maxp
+[face 128]
+  identity: HoeflerText-Italic native=2 freetype=1 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-name-maxp
+[face 129]
+  identity: HoeflerText-BlackItalic native=3 freetype=4 path=/Library/Fonts/Hoefler Text.dfont match=unique-head-name-maxp
+[face 130]
+    candidate 0: head(size=54/54,diff=18,first=8) name(size=309/1556,diff=210,first=3) maxp(size=32/32,diff=12,first=4)
+    candidate 1: head(size=54/54,diff=17,first=8) name(size=309/1727,diff=211,first=3) maxp(size=32/32,diff=9,first=4)
+    candidate 2: head(size=54/54,diff=15,first=8) name(size=309/1926,diff=210,first=3) maxp(size=32/32,diff=9,first=4)
+    candidate 3: head(size=54/54,diff=0,first=0) name(size=309/243,diff=158,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 4: head(size=54/54,diff=19,first=8) name(size=309/1712,diff=210,first=3) maxp(size=32/32,diff=13,first=4)
+  identity: HoeflerText-Ornaments native=4 freetype=-1 path=/Library/Fonts/Hoefler Text.dfont match=unresolved
+[face 131]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=5707/5536,diff=5171,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: Impact native=0 freetype=-1 path=/Library/Fonts/Impact match=unresolved
+[face 132]
+  identity: JazzLetPlain native=0 freetype=0 path=/Library/Fonts/Jazz LET Fonts match=unique-head-name-maxp
+[face 133]
+  identity: SIL-Kai-Reg-Jian native=0 freetype=0 path=/Library/Fonts/Kai.dfont match=unique-head-name-maxp
+[face 134]
+  identity: MarkerFelt-Thin native=0 freetype=1 path=/Library/Fonts/MarkerFelt.dfont match=unique-head-name-maxp
+[face 135]
+  identity: MarkerFelt-Wide native=1 freetype=0 path=/Library/Fonts/MarkerFelt.dfont match=unique-head-name-maxp
+[face 136]
+  identity: MonaLisaSolidITCTT native=0 freetype=0 path=/Library/Fonts/Mona Lisa Solid ITC TT match=unique-head-name-maxp
+[face 137]
+  identity: Optima-ExtraBlack native=0 freetype=0 path=/Library/Fonts/Optima.dfont match=unique-head-name-maxp
+[face 138]
+  identity: Optima-Regular native=1 freetype=2 path=/Library/Fonts/Optima.dfont match=unique-head-name-maxp
+[face 139]
+  identity: Optima-Bold native=2 freetype=3 path=/Library/Fonts/Optima.dfont match=unique-head-name-maxp
+[face 140]
+  identity: Optima-Italic native=3 freetype=1 path=/Library/Fonts/Optima.dfont match=unique-head-name-maxp
+[face 141]
+  identity: Optima-BoldItalic native=4 freetype=4 path=/Library/Fonts/Optima.dfont match=unique-head-name-maxp
+[face 142]
+  identity: Palatino-Roman native=0 freetype=0 path=/Library/Fonts/Palatino match=unique-head-name-maxp
+[face 143]
+  identity: Palatino-Bold native=1 freetype=1 path=/Library/Fonts/Palatino match=unique-head-name-maxp
+[face 144]
+  identity: Palatino-Italic native=2 freetype=2 path=/Library/Fonts/Palatino match=unique-head-name-maxp
+[face 145]
+  identity: Palatino-BoldItalic native=3 freetype=3 path=/Library/Fonts/Palatino match=unique-head-name-maxp
+[face 146]
+  identity: Papyrus native=0 freetype=0 path=/Library/Fonts/Papyrus.dfont match=unique-head-name-maxp
+[face 147]
+  identity: PartyLetPlain native=0 freetype=0 path=/Library/Fonts/Party LET Fonts match=unique-head-name-maxp
+[face 148]
+  identity: PortagoITCTT native=0 freetype=0 path=/Library/Fonts/PortagoITC TT match=unique-head-name-maxp
+[face 149]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=298/232,diff=149,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: PrincetownLET native=0 freetype=-1 path=/Library/Fonts/Princetown LET Fonts match=unresolved
+[face 150]
+  identity: SantaFeLetPlain native=0 freetype=0 path=/Library/Fonts/Santa Fe LET Fonts match=unique-head-name-maxp
+[face 151]
+  identity: SavoyeLetPlain native=0 freetype=0 path=/Library/Fonts/Savoye LET Fonts match=unique-head-name-maxp
+[face 152]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=1249/811,diff=581,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: SchoolHouseCursiveB native=0 freetype=-1 path=/Library/Fonts/SchoolHouse Cursive B.suit match=unresolved
+[face 153]
+  identity: SchoolHousePrintedA native=0 freetype=0 path=/Library/Fonts/SchoolHouse Printed A match=unique-head-name-maxp
+[face 154]
+  identity: Skia-Regular native=0 freetype=0 path=/Library/Fonts/Skia.dfont match=unique-head-name-maxp
+[face 155]
+  identity: SnellRoundhand native=0 freetype=0 path=/Library/Fonts/Snell Roundhand match=unique-head-name-maxp
+[face 156]
+  identity: SnellRoundhand-Bold native=1 freetype=2 path=/Library/Fonts/Snell Roundhand match=unique-head-name-maxp
+[face 157]
+  identity: SnellRoundhand-Black native=2 freetype=1 path=/Library/Fonts/Snell Roundhand match=unique-head-name-maxp
+[face 158]
+  identity: StoneSansITCTT-Semi native=0 freetype=0 path=/Library/Fonts/Stone Sans ITC TT match=unique-head-name-maxp
+[face 159]
+  identity: StoneSansITCTT-Bold native=1 freetype=1 path=/Library/Fonts/Stone Sans ITC TT match=unique-head-name-maxp
+[face 160]
+  identity: StoneSansITCTT-SemiIta native=2 freetype=2 path=/Library/Fonts/Stone Sans ITC TT match=unique-head-name-maxp
+[face 161]
+  identity: SynchroLET native=0 freetype=0 path=/Library/Fonts/Synchro LET Fonts match=unique-head-name-maxp
+[face 162]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=12140/7343,diff=6619,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 1: head(size=54/54,diff=11,first=8) name(size=12140/8147,diff=7392,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 2: head(size=54/54,diff=13,first=8) name(size=12140/8127,diff=7378,first=3) maxp(size=32/32,diff=5,first=7)
+    candidate 3: head(size=54/54,diff=14,first=8) name(size=12140/8668,diff=7326,first=3) maxp(size=32/32,diff=5,first=11)
+  identity: TimesNewRomanPSMT native=0 freetype=-1 path=/Library/Fonts/Times New Roman match=unresolved
+[face 163]
+    candidate 0: head(size=54/54,diff=11,first=8) name(size=13364/7343,diff=6563,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 1: head(size=54/54,diff=0,first=0) name(size=13364/8147,diff=7224,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 2: head(size=54/54,diff=14,first=8) name(size=13364/8127,diff=7238,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 3: head(size=54/54,diff=12,first=8) name(size=13364/8668,diff=7310,first=3) maxp(size=32/32,diff=6,first=7)
+  identity: TimesNewRomanPS-BoldMT native=1 freetype=-1 path=/Library/Fonts/Times New Roman match=unresolved
+[face 164]
+    candidate 0: head(size=54/54,diff=13,first=8) name(size=13464/7343,diff=6564,first=3) maxp(size=32/32,diff=5,first=7)
+    candidate 1: head(size=54/54,diff=14,first=8) name(size=13464/8147,diff=7257,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 2: head(size=54/54,diff=0,first=0) name(size=13464/8127,diff=7231,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 3: head(size=54/54,diff=13,first=8) name(size=13464/8668,diff=7304,first=3) maxp(size=32/32,diff=6,first=7)
+  identity: TimesNewRomanPS-ItalicMT native=2 freetype=-1 path=/Library/Fonts/Times New Roman match=unresolved
+[face 165]
+    candidate 0: head(size=54/54,diff=14,first=8) name(size=14235/7343,diff=6541,first=3) maxp(size=32/32,diff=5,first=11)
+    candidate 1: head(size=54/54,diff=12,first=8) name(size=14235/8147,diff=7103,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 2: head(size=54/54,diff=13,first=8) name(size=14235/8127,diff=7080,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 3: head(size=54/54,diff=0,first=0) name(size=14235/8668,diff=7770,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: TimesNewRomanPS-BoldItalicMT native=3 freetype=-1 path=/Library/Fonts/Times New Roman match=unresolved
+[face 166]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=2864/2693,diff=2356,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 1: head(size=54/54,diff=15,first=8) name(size=2864/3907,diff=2484,first=3) maxp(size=32/32,diff=2,first=7)
+    candidate 2: head(size=54/54,diff=15,first=8) name(size=2864/3987,diff=2486,first=3) maxp(size=32/32,diff=6,first=5)
+    candidate 3: head(size=54/54,diff=17,first=8) name(size=2864/4714,diff=1531,first=3) maxp(size=32/32,diff=8,first=5)
+  identity: TrebuchetMS native=0 freetype=-1 path=/Library/Fonts/Trebuchet MS match=unresolved
+[face 167]
+    candidate 0: head(size=54/54,diff=15,first=8) name(size=4078/2693,diff=2373,first=3) maxp(size=32/32,diff=2,first=7)
+    candidate 1: head(size=54/54,diff=0,first=0) name(size=4078/3907,diff=3378,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 2: head(size=54/54,diff=14,first=8) name(size=4078/3987,diff=3468,first=3) maxp(size=32/32,diff=6,first=5)
+    candidate 3: head(size=54/54,diff=14,first=8) name(size=4078/4714,diff=2095,first=3) maxp(size=32/32,diff=8,first=5)
+  identity: TrebuchetMS-Bold native=1 freetype=-1 path=/Library/Fonts/Trebuchet MS match=unresolved
+[face 168]
+    candidate 0: head(size=54/54,diff=15,first=8) name(size=4158/2693,diff=2373,first=3) maxp(size=32/32,diff=6,first=5)
+    candidate 1: head(size=54/54,diff=14,first=8) name(size=4158/3907,diff=3373,first=3) maxp(size=32/32,diff=6,first=5)
+    candidate 2: head(size=54/54,diff=0,first=0) name(size=4158/3987,diff=3455,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 3: head(size=54/54,diff=14,first=8) name(size=4158/4714,diff=1460,first=3) maxp(size=32/32,diff=6,first=7)
+  identity: TrebuchetMS-Italic native=2 freetype=-1 path=/Library/Fonts/Trebuchet MS match=unresolved
+[face 169]
+    candidate 0: head(size=54/54,diff=17,first=8) name(size=4885/2693,diff=1607,first=3) maxp(size=32/32,diff=8,first=5)
+    candidate 1: head(size=54/54,diff=14,first=8) name(size=4885/3907,diff=1982,first=3) maxp(size=32/32,diff=8,first=5)
+    candidate 2: head(size=54/54,diff=14,first=8) name(size=4885/3987,diff=2033,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 3: head(size=54/54,diff=0,first=0) name(size=4885/4714,diff=4201,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: Trebuchet-BoldItalic native=3 freetype=-1 path=/Library/Fonts/Trebuchet MS match=unresolved
+[face 170]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=444/378,diff=282,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: TypeEmbellishmentsOneLetPlain native=0 freetype=-1 path=/Library/Fonts/Type Embellishmnt One LET match=unresolved
+[face 171]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=1586/1415,diff=1094,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 1: head(size=54/54,diff=14,first=8) name(size=1586/2365,diff=1213,first=3) maxp(size=32/32,diff=10,first=5)
+    candidate 2: head(size=54/54,diff=13,first=8) name(size=1586/2445,diff=1215,first=3) maxp(size=32/32,diff=10,first=5)
+    candidate 3: head(size=54/54,diff=15,first=8) name(size=1586/3178,diff=952,first=3) maxp(size=32/32,diff=10,first=5)
+  identity: Verdana native=0 freetype=-1 path=/Library/Fonts/Verdana match=unresolved
+[face 172]
+    candidate 0: head(size=54/54,diff=14,first=8) name(size=2536/1415,diff=1104,first=3) maxp(size=32/32,diff=10,first=5)
+    candidate 1: head(size=54/54,diff=0,first=0) name(size=2536/2365,diff=1848,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 2: head(size=54/54,diff=14,first=8) name(size=2536/2445,diff=1934,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 3: head(size=54/54,diff=12,first=8) name(size=2536/3178,diff=1375,first=3) maxp(size=32/32,diff=6,first=7)
+  identity: Verdana-Bold native=1 freetype=-1 path=/Library/Fonts/Verdana match=unresolved
+[face 173]
+    candidate 0: head(size=54/54,diff=13,first=8) name(size=2616/1415,diff=1101,first=3) maxp(size=32/32,diff=10,first=5)
+    candidate 1: head(size=54/54,diff=14,first=8) name(size=2616/2365,diff=1841,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 2: head(size=54/54,diff=0,first=0) name(size=2616/2445,diff=1924,first=3) maxp(size=32/32,diff=0,first=0)
+    candidate 3: head(size=54/54,diff=13,first=8) name(size=2616/3178,diff=1441,first=3) maxp(size=32/32,diff=3,first=7)
+  identity: Verdana-Italic native=2 freetype=-1 path=/Library/Fonts/Verdana match=unresolved
+[face 174]
+    candidate 0: head(size=54/54,diff=15,first=8) name(size=3349/1415,diff=991,first=3) maxp(size=32/32,diff=10,first=5)
+    candidate 1: head(size=54/54,diff=12,first=8) name(size=3349/2365,diff=1291,first=3) maxp(size=32/32,diff=6,first=7)
+    candidate 2: head(size=54/54,diff=13,first=8) name(size=3349/2445,diff=1306,first=3) maxp(size=32/32,diff=3,first=7)
+    candidate 3: head(size=54/54,diff=0,first=0) name(size=3349/3178,diff=2678,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: Verdana-BoldItalic native=3 freetype=-1 path=/Library/Fonts/Verdana match=unresolved
+[face 175]
+    candidate 0: head(size=54/54,diff=0,first=0) name(size=2742/2676,diff=1281,first=3) maxp(size=32/32,diff=0,first=0)
+  identity: Webdings native=0 freetype=-1 path=/Library/Fonts/Webdings match=unresolved
+[face 176]
+  identity: Zapfino native=0 freetype=0 path=/Library/Fonts/Zapfino.dfont match=unique-head-name-maxp
+faces 176, resolvable to (path, index) 174, not 2
+table identity: 130 uniquely matched FreeType faces, 46 unresolved, 46 indices differ from ATS
+self-check: 174 handles resolve to the named face, 0 do not

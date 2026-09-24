@@ -10,7 +10,7 @@
  *
  * The native handle is (path, faceIndex), in ATS activation order. FreeType's
  * freeTypeIndex is separate: it uses TTC directory order or sfnt resource order,
- * which can be the reverse of ATS's order. Match the public ATS head/hhea/maxp
+ * which can be the reverse of ATS's order. Match the public ATS head/name/maxp
  * table bytes to one unique container face; never guess from a PostScript name
  * (ATS synthesises names for some suitcases) or reuse the native index.
  *
@@ -266,10 +266,7 @@ static struct sfnt containerFace(const struct container* c, unsigned index)
 }
 
 struct identityTable { unsigned char* bytes; size_t length; };
-/* ATS expands some name tables (Courier New is one), while these structural
- * tables are byte-identical on the box. Require all three and a unique face;
- * aliases and activation/resource ordering never participate in this match. */
-static const char* identityTags[] = { "head", "hhea", "maxp" };
+static const char* identityTags[] = { "head", "name", "maxp" };
 
 static int freeTypeIndexForTables(const struct container* c, const struct identityTable tables[3])
 {
@@ -531,7 +528,7 @@ static void emitFace(ATSFontRef ats, int first)
     }
     if (getenv("FM_TRACE") || freeTypeIndex < 0 || freeTypeIndex != index)
         fprintf(stderr, "  identity: %s native=%d freetype=%d path=%s match=%s\n",
-            psName, index, freeTypeIndex, path, freeTypeIndex >= 0 ? "unique-head-hhea-maxp" : "unresolved");
+            psName, index, freeTypeIndex, path, freeTypeIndex >= 0 ? "unique-head-name-maxp" : "unresolved");
 
     printf("%s\n    {", first ? "" : ",");
     printf("\"postScriptName\": "); jsonString(psName);

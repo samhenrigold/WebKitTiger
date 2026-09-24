@@ -266,9 +266,6 @@ static struct sfnt containerFace(const struct container* c, unsigned index)
 }
 
 struct identityTable { unsigned char* bytes; size_t length; };
-/* ATS expands some name tables (Courier New is one), while these structural
- * tables are byte-identical on the box. Require all three and a unique face;
- * aliases and activation/resource ordering never participate in this match. */
 static const char* identityTags[] = { "head", "hhea", "maxp" };
 
 static int freeTypeIndexForTables(const struct container* c, const struct identityTable tables[3])

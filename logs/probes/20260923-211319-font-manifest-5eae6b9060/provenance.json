@@ -1,0 +1,31 @@
+{
+  "build_command": [
+    "/Users/shg/Developer/WebKitTiger/toolchain/bin/tiger-clang",
+    "-std=gnu99",
+    "-O1",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "/Users/shg/Developer/WebKitTiger/logs/probes/20260923-211319-font-manifest-5eae6b9060/fontmanifest.c",
+    "-ltigercompat",
+    "-F/Users/shg/Developer/WebKitTiger/compat/sdk-overlay",
+    "-F/Users/shg/Developer/WebKitTiger/sdk/MacOSX10.4u.sdk/System/Library/Frameworks/ApplicationServices.framework/Frameworks",
+    "-framework",
+    "CoreFoundation",
+    "-framework",
+    "CoreServices",
+    "-framework",
+    "ApplicationServices",
+    "-o",
+    "/Users/shg/Developer/WebKitTiger/logs/probes/20260923-211319-font-manifest-5eae6b9060/TigerFontManifest"
+  ],
+  "source_sha256": "543d9376988d4ab011da260d2630783196a8ae5b7e309c2ce9e3796f241b9676",
+  "binary_sha256": "4eb0bfc59156da875aefdb02545815f70c74cc38993ba658e18796b2c6bf71ca",
+  "runner_sha256": "236f2c9fa62a6919fc3d7476c4eac474852ace168e26b522536894e87693012c",
+  "baseline_sha256": "be1b0a45c37876f9eb9bbfc16589cc0eeb94fc33b1725ec61bbf4e9a1f95fb66",
+  "compat_sha256": "8ecb83c2e4d167ce3848319ca5d116b4a49232201726000a8b0f511b8b94ab13",
+  "remote_helper_sha256": "acbe3d6bb70e3e3bc903a969d1cfb8443c33bb5106c907bc4a354e52d36e2663",
+  "lease_runner_sha256": "d77350f4c60bf83263590ff377dbc7e9832ace668cdf6e1fe5226e09ff4e485b",
+  "remote_run": "/Users/shg/wk2/runs/20260923-211319-font-manifest-5eae6b9060",
+  "scope": "Generate only; no manifest installation."
+}

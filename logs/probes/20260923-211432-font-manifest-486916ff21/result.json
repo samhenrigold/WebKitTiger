@@ -1,0 +1,60 @@
+{
+  "faces": 176,
+  "exact_table_matches": 174,
+  "unresolved": 2,
+  "indices_differ": 51,
+  "native_baseline_handles_unchanged": 176,
+  "native_resolver_self_check": 174,
+  "courier_and_stone": [
+    {
+      "postScriptName": "CourierNewPSMT",
+      "path": "/Library/Fonts/Courier New",
+      "faceIndex": 0,
+      "freeTypeIndex": 3,
+      "unitsPerEm": 2048
+    },
+    {
+      "postScriptName": "CourierNewPS-BoldMT",
+      "path": "/Library/Fonts/Courier New",
+      "faceIndex": 1,
+      "freeTypeIndex": 2,
+      "unitsPerEm": 2048
+    },
+    {
+      "postScriptName": "CourierNewPS-ItalicMT",
+      "path": "/Library/Fonts/Courier New",
+      "faceIndex": 2,
+      "freeTypeIndex": 1,
+      "unitsPerEm": 2048
+    },
+    {
+      "postScriptName": "CourierNewPS-BoldItalicMT",
+      "path": "/Library/Fonts/Courier New",
+      "faceIndex": 3,
+      "freeTypeIndex": 0,
+      "unitsPerEm": 2048
+    },
+    {
+      "postScriptName": "StoneSansITCTT-Semi",
+      "path": "/Library/Fonts/Stone Sans ITC TT",
+      "faceIndex": 0,
+      "freeTypeIndex": 0,
+      "unitsPerEm": 1000
+    },
+    {
+      "postScriptName": "StoneSansITCTT-Bold",
+      "path": "/Library/Fonts/Stone Sans ITC TT",
+      "faceIndex": 1,
+      "freeTypeIndex": 1,
+      "unitsPerEm": 1000
+    },
+    {
+      "postScriptName": "StoneSansITCTT-SemiIta",
+      "path": "/Library/Fonts/Stone Sans ITC TT",
+      "faceIndex": 2,
+      "freeTypeIndex": 2,
+      "unitsPerEm": 1000
+    }
+  ],
+  "manifest_sha256": "8b9399998179befbc2e0dfb258de4689b3666a02a64fa61fd74ab5eb0e6aa08e"
+}
