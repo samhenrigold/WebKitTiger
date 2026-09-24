@@ -14,6 +14,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <dlfcn.h>
+
+#if SURFACE_PROBE_CA
+#undef AVAILABLE_MAC_OS_X_VERSION_10_5_AND_LATER
+#define AVAILABLE_MAC_OS_X_VERSION_10_5_AND_LATER
+#undef AVAILABLE_MAC_OS_X_VERSION_10_5_AND_LATER_BUT_DEPRECATED
+#define AVAILABLE_MAC_OS_X_VERSION_10_5_AND_LATER_BUT_DEPRECATED
+#import <QuartzCore/CoreAnimation.h>
+#import <QuartzCore/CARenderer.h>
+
+@interface CALayer (TigerCAPrivate)
+- (void)setGeometryFlipped:(BOOL)flipped;
+@end
+#endif
 
 extern int CGSMainConnectionID(void);
 extern int CGSAddSurface(int, int, int*);
@@ -24,7 +38,10 @@ extern int CGSSetWindowProperty(int, int, CFStringRef, CFTypeRef);
 extern int CGSSetWindowSharingState(int, int, int);
 extern CGLError CGLSetSurface(CGLContextObj, int, int, int);
 
-struct Surface { int window, surface, width, height; };
+struct Surface {
+    int window, surface, width, height;
+    double programStart, measurementDeadline;
+};
 
 static void requireOK(const char* operation, int error)
 {
@@ -54,7 +71,50 @@ static int compareDouble(const void* a, const void* b)
     return (x > y) - (x < y);
 }
 
-static int renderChild(int fd)
+#if SURFACE_PROBE_CA
+static CALayer* createLayer(void)
+{
+    CALayer* layer = [[CALayer alloc] init];
+    NSDictionary* actions = [NSDictionary dictionaryWithObjectsAndKeys:
+        [NSNull null], @"contents", [NSNull null], @"position",
+        [NSNull null], @"bounds", [NSNull null], @"sublayers",
+        [NSNull null], @"backgroundColor", [NSNull null], @"onOrderIn",
+        [NSNull null], @"onOrderOut", nil];
+    [layer setActions:actions];
+    [layer setAnchorPoint:CGPointMake(0, 0)];
+    return layer;
+}
+
+static void releaseImageBytes(void* info, const void* bytes, size_t length)
+{
+    (void)info;
+    (void)length;
+    free((void*)bytes);
+}
+
+// Match WCSceneCA's owned snapshot and BGRA CGImage representation. CA is free
+// to retain the image: it never references the mutable producer pixels below.
+static CGImageRef copyFrameImage(const unsigned char* pixels, const struct Surface* target, CGColorSpaceRef colorSpace)
+{
+    size_t bytes = (size_t)target->width * target->height * 4;
+    void* owned = malloc(bytes);
+    if (!owned)
+        return NULL;
+    memcpy(owned, pixels, bytes);
+    CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, owned, bytes, releaseImageBytes);
+    if (!provider) {
+        free(owned);
+        return NULL;
+    }
+    CGImageRef image = CGImageCreate(target->width, target->height, 8, 32, target->width * 4,
+        colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little,
+        provider, NULL, false, kCGRenderingIntentDefault);
+    CGDataProviderRelease(provider);
+    return image;
+}
+#endif
+
+static int renderChild(int fd, int useCA)
 {
     int connection = CGSMainConnectionID();
     if (!connection)
@@ -66,7 +126,8 @@ static int renderChild(int fd)
     if (target.width != 1280 || target.height != 720 || target.window <= 0 || target.surface <= 0)
         return 2;
     CGLPixelFormatAttribute attributes[] = { kCGLPFAAccelerated, kCGLPFANoRecovery,
-        kCGLPFADoubleBuffer, kCGLPFAColorSize, 32, kCGLPFAAlphaSize, 8, 0 };
+        kCGLPFADoubleBuffer, kCGLPFAColorSize, 32, kCGLPFAAlphaSize, 8,
+        kCGLPFADepthSize, useCA ? 24 : 0, 0 };
     CGLPixelFormatObj format = NULL;
     CGLContextObj context = NULL;
     GLint count = 0;
@@ -80,6 +141,8 @@ static int renderChild(int fd)
     GLint interval = 1;
     requireOK("swap-interval", CGLSetParameter(context, kCGLCPSwapInterval, &interval));
     fprintf(stderr, "SURFACE renderer=%s\n", glGetString(GL_RENDERER));
+    fprintf(stderr, "SURFACE mode=%s\n", useCA ? "ca" : "gl");
+    NSAutoreleasePool* renderPool = [[NSAutoreleasePool alloc] init];
 
     size_t bytes = (size_t)target.width * target.height * 4;
     unsigned char* pixels = malloc(bytes);
@@ -94,75 +157,185 @@ static int renderChild(int fd)
             pixels[p + 3] = 255;
         }
     }
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_RECTANGLE_EXT, texture);
-    glTexParameteri(GL_TEXTURE_RECTANGLE_EXT, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_RECTANGLE_EXT, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, GL_RGBA, target.width, target.height, 0,
-        GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
+    GLuint texture = 0;
+#if SURFACE_PROBE_CA
+    CARenderer* renderer = nil;
+    CALayer *host = nil, *video = nil, *overlay = nil;
+    CGColorSpaceRef colorSpace = NULL;
+    if (useCA) {
+        Dl_info framework;
+        if (!dladdr((void*)CACurrentMediaTime, &framework) || !framework.dli_fname)
+            return 2;
+        fprintf(stderr, "SURFACE quartzcore_path=%s\n", framework.dli_fname);
+        renderer = [[CARenderer rendererWithCGLContext:context options:nil] retain];
+        if (!renderer)
+            return 2;
+        colorSpace = CGColorSpaceCreateDeviceRGB();
+        if (!colorSpace)
+            return 2;
+        [CATransaction begin];
+        [CATransaction setValue:(id)kCFBooleanTrue forKey:kCATransactionDisableActions];
+        host = createLayer();
+        [host setGeometryFlipped:YES];
+        [host setBounds:CGRectMake(0, 0, target.width, target.height)];
+        video = createLayer();
+        [video setBounds:CGRectMake(0, 0, target.width, target.height)];
+        [host addSublayer:video];
+        overlay = createLayer();
+        [overlay setPosition:CGPointMake(40, 40)];
+        [overlay setBounds:CGRectMake(0, 0, 200, 72)];
+        CGFloat pink[] = { 1, 0, 1, 1 };
+        CGColorRef color = CGColorCreate(colorSpace, pink);
+        [overlay setBackgroundColor:color];
+        CGColorRelease(color);
+        [host addSublayer:overlay];
+        [renderer setLayer:host];
+        [renderer setBounds:CGRectMake(0, 0, target.width, target.height)];
+        [CATransaction commit];
+        [CATransaction flush];
+        fprintf(stderr, "SURFACE overlay=opaque-magenta rect=40,40,200,72 above=fresh-video-image\n");
+    } else
+#endif
+    {
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_RECTANGLE_EXT, texture);
+        glTexParameteri(GL_TEXTURE_RECTANGLE_EXT, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_RECTANGLE_EXT, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, GL_RGBA, target.width, target.height, 0,
+            GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
+        glEnable(GL_TEXTURE_RECTANGLE_EXT);
+    }
     glViewport(0, 0, target.width, target.height);
     glMatrixMode(GL_PROJECTION); glLoadIdentity();
     glOrtho(0, target.width, 0, target.height, -1, 1);
     glMatrixMode(GL_MODELVIEW); glLoadIdentity();
-    glEnable(GL_TEXTURE_RECTANGLE_EXT);
 
     // Finish measurement before the runner's screenshot at 10 s. Capturing the
     // screen can stall Tiger's WindowServer and must not contaminate this sample.
     enum { frameCount = 240 };
     double start = CFAbsoluteTimeGetCurrent(), costs[frameCount], sum = 0;
+    double copySum = 0, renderSum = 0, flushSum = 0;
+    int completed = 0;
     int slowestFrame = -1;
     double slowestCost = 0;
     for (int frame = 0; frame < frameCount; ++frame) {
         double due = start + frame / 30.0, now = CFAbsoluteTimeGetCurrent();
         if (due > now)
             usleep((useconds_t)((due - now) * 1e6));
+        if (CFAbsoluteTimeGetCurrent() >= target.measurementDeadline)
+            break;
         double before = CFAbsoluteTimeGetCurrent();
+        NSAutoreleasePool* framePool = [[NSAutoreleasePool alloc] init];
         // Upload an entire changing 720p BGRA buffer, as a video texture would.
         int y = frame % target.height;
         memset(pixels + (size_t)y * target.width * 4, 255, target.width * 4);
-        glTexSubImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, 0, 0, target.width, target.height,
-            GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
-        glBegin(GL_QUADS);
-        glTexCoord2f(0, 0); glVertex2f(0, 0);
-        glTexCoord2f(target.width, 0); glVertex2f(target.width, 0);
-        glTexCoord2f(target.width, target.height); glVertex2f(target.width, target.height);
-        glTexCoord2f(0, target.height); glVertex2f(0, target.height);
-        glEnd();
+        double copied = before;
+#if SURFACE_PROBE_CA
+        if (useCA) {
+            CGImageRef image = copyFrameImage(pixels, &target, colorSpace);
+            if (!image)
+                return 2;
+            copied = CFAbsoluteTimeGetCurrent();
+            [CATransaction begin];
+            [CATransaction setValue:(id)kCFBooleanTrue forKey:kCATransactionDisableActions];
+            [video setContents:(id)image];
+            CGImageRelease(image);
+            [CATransaction commit];
+            [CATransaction flush];
+            // Unlike the persistent pbuffer, swapped drawable contents are not
+            // assumed preserved: redraw the entire scene on every frame.
+            glViewport(0, 0, target.width, target.height);
+            glMatrixMode(GL_PROJECTION); glLoadIdentity();
+            glOrtho(0, target.width, 0, target.height, -1, 1);
+            glMatrixMode(GL_MODELVIEW); glLoadIdentity();
+            glDisable(GL_SCISSOR_TEST);
+            glClearColor(0, 0, 0, 0);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            [renderer beginFrameAtTime:CACurrentMediaTime() timeStamp:NULL];
+            [renderer addUpdateRect:CGRectMake(0, 0, target.width, target.height)];
+            [renderer render];
+            [renderer endFrame];
+        } else
+#endif
+        {
+            glTexSubImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, 0, 0, target.width, target.height,
+                GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
+            glBegin(GL_QUADS);
+            glTexCoord2f(0, 0); glVertex2f(0, 0);
+            glTexCoord2f(target.width, 0); glVertex2f(target.width, 0);
+            glTexCoord2f(target.width, target.height); glVertex2f(target.width, target.height);
+            glTexCoord2f(0, target.height); glVertex2f(0, target.height);
+            glEnd();
+        }
+        double rendered = CFAbsoluteTimeGetCurrent();
         CGLError flushError = CGLFlushDrawable(context);
         if (flushError)
             requireOK("flush", flushError);
         GLenum error = glGetError();
         if (error)
             requireOK("gl-error", error);
+        double flushed = CFAbsoluteTimeGetCurrent();
+        [framePool release];
         costs[frame] = (CFAbsoluteTimeGetCurrent() - before) * 1000;
         sum += costs[frame];
+        copySum += (copied - before) * 1000;
+        renderSum += (rendered - copied) * 1000;
+        flushSum += (flushed - rendered) * 1000;
+        ++completed;
         if (costs[frame] > slowestCost) {
             slowestCost = costs[frame];
             slowestFrame = frame;
         }
     }
     double elapsed = CFAbsoluteTimeGetCurrent() - start;
-    qsort(costs, frameCount, sizeof(double), compareDouble);
-    fprintf(stderr, "SURFACE RESULT uploads=%d pixels=1280x720 elapsed=%.3f rate=%.3f work_mean_ms=%.3f work_p95_ms=%.3f work_max_ms=%.3f slowest_frame=%d (flushes, not scanout)\n",
-        frameCount, elapsed, frameCount / elapsed, sum / frameCount, costs[frameCount * 95 / 100 - 1], slowestCost, slowestFrame);
+    if (!completed)
+        return 2;
+    qsort(costs, completed, sizeof(double), compareDouble);
+    int percentile = (completed * 95 + 99) / 100 - 1;
+    fprintf(stderr, "SURFACE RESULT mode=%s uploads=%d pixels=1280x720 elapsed=%.3f rate=%.3f work_mean_ms=%.3f work_p95_ms=%.3f work_max_ms=%.3f slowest_frame=%d copy_mean_ms=%.3f render_mean_ms=%.3f flush_mean_ms=%.3f completed_at=%.3f deadline=%.3f (flushes, not scanout)\n",
+        useCA ? "ca" : "gl", completed, elapsed, completed / elapsed, sum / completed, costs[percentile], slowestCost, slowestFrame,
+        copySum / completed, renderSum / completed, flushSum / completed,
+        CFAbsoluteTimeGetCurrent() - target.programStart, target.measurementDeadline - target.programStart);
     sleep(4); // Keep the rendered surface alive for the later screenshot.
-    glDeleteTextures(1, &texture);
+    if (texture)
+        glDeleteTextures(1, &texture);
+#if SURFACE_PROBE_CA
+    if (useCA) {
+        [renderer setLayer:nil];
+        [video setContents:nil];
+        [CATransaction flush];
+        [overlay release];
+        [video release];
+        [host release];
+        [renderer release];
+        CGColorSpaceRelease(colorSpace);
+    }
+#endif
     free(pixels);
+    [renderPool release];
+    requireOK("detach-surface", CGLClearDrawable(context));
     CGLSetCurrentContext(NULL);
     CGLDestroyContext(context);
-    return 0;
+    return completed == frameCount ? 0 : 3;
 }
 
 int main(int argc, char** argv)
 {
     alarm(20);
+    double programStart = CFAbsoluteTimeGetCurrent();
     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-    if (argc == 3 && !strcmp(argv[1], "--child")) {
-        int result = renderChild(atoi(argv[2]));
+    if (argc == 4 && !strcmp(argv[1], "--child")) {
+        int result = renderChild(atoi(argv[2]), !strcmp(argv[3], "ca"));
         [pool release];
         return result;
     }
+    int useCA = argc == 2 && !strcmp(argv[1], "--ca");
+    if (argc != 1 && !useCA)
+        return 2;
+#if !SURFACE_PROBE_CA
+    if (useCA)
+        return 2;
+#endif
     int channel[2];
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, channel))
         return 2;
@@ -173,7 +346,7 @@ int main(int argc, char** argv)
         close(channel[0]);
         char descriptor[20];
         snprintf(descriptor, sizeof(descriptor), "%d", channel[1]);
-        execl(argv[0], argv[0], "--child", descriptor, NULL);
+        execl(argv[0], argv[0], "--child", descriptor, useCA ? "ca" : "gl", NULL);
         _exit(2);
     }
     close(channel[1]);
@@ -186,7 +359,7 @@ int main(int argc, char** argv)
     [window display];
     int connection = CGSMainConnectionID(), childConnection = 0;
     transfer(channel[0], &childConnection, sizeof(childConnection), 0);
-    struct Surface target = { [window windowNumber], 0, 1280, 720 };
+    struct Surface target = { [window windowNumber], 0, 1280, 720, programStart, programStart + 8.5 };
     requireOK("add-owned-surface", CGSAddSurface(connection, target.window, &target.surface));
     requireOK("surface-bounds", CGSSetSurfaceBounds(connection, target.window, target.surface, CGRectMake(0, 22, 1280, 720)));
     requireOK("order-surface", CGSOrderSurface(connection, target.window, target.surface, 1, 0));

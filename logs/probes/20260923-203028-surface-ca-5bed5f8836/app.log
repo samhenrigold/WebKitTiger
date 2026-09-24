@@ -1,0 +1,18 @@
+SURFACE add-owned-surface=0
+SURFACE surface-bounds=0
+SURFACE order-surface=0
+SURFACE secondary-owner=0
+SURFACE share-owned-window=0
+SURFACE parent=43663 child=39963 window=2014 surface=145890357
+SURFACE choose-format=0
+SURFACE create-context=0
+SURFACE attach-other-process-surface=0
+SURFACE current-context=0
+SURFACE swap-interval=0
+SURFACE renderer=NVIDIA GeForce 8600M GT OpenGL Engine
+SURFACE mode=ca
+SURFACE quartzcore_path=/Users/shg/wk2/runs/20260923-203028-surface-ca-5bed5f8836/bin/../Frameworks/QuartzCore.framework/Versions/A/QuartzCore
+SURFACE overlay=opaque-magenta rect=40,40,200,72 above=fresh-video-image
+SURFACE RESULT mode=ca uploads=240 pixels=1280x720 elapsed=8.065 rate=29.758 work_mean_ms=33.604 work_p95_ms=32.387 work_max_ms=788.629 slowest_frame=0 copy_mean_ms=11.501 render_mean_ms=18.212 flush_mean_ms=3.882 completed_at=8.405 deadline=8.500 (flushes, not scanout)
+SURFACE detach-surface=0
+SURFACE remove-owned-surface=0

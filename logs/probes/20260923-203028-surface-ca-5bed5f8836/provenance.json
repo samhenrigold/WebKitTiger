@@ -1,0 +1,209 @@
+{
+  "mode": "ca",
+  "source_sha256": "66524a3eede59ded9cb50a8fba2e12bb19554ca6ee34bd166adc92d33da5f32e",
+  "binary_sha256": "aae3edd51636aee87f49501a9f83f1949630f84e31f2081adec1d4a9b13739d6",
+  "build_command": [
+    "/Users/shg/Developer/WebKitTiger/toolchain/bin/tiger-clang",
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-DSURFACE_PROBE_CA=1",
+    "/Users/shg/Developer/WebKitTiger/logs/probes/20260923-203028-surface-ca-5bed5f8836/surface-probe.m",
+    "-framework",
+    "Cocoa",
+    "-framework",
+    "OpenGL",
+    "-framework",
+    "ApplicationServices",
+    "-F/Users/shg/Developer/WebKitTiger/logs/probes/20260923-203028-surface-ca-5bed5f8836/Frameworks",
+    "-framework",
+    "QuartzCore",
+    "-o",
+    "/Users/shg/Developer/WebKitTiger/logs/probes/20260923-203028-surface-ca-5bed5f8836/TigerSurfaceProbe"
+  ],
+  "remote_run": "/Users/shg/wk2/runs/20260923-203028-surface-ca-5bed5f8836",
+  "framework": {
+    "origin": "spike/CAHost/Frameworks/QuartzCore.framework",
+    "binary_sha256": "ae24133c5536c1ba386a812eda25b2391cdbdd3d9312016e7fae14e559c85cb0",
+    "files": {
+      "Headers": {
+        "symlink": "Versions/Current/Headers"
+      },
+      "QuartzCore": {
+        "symlink": "Versions/Current/QuartzCore"
+      },
+      "Resources": {
+        "symlink": "Versions/Current/Resources"
+      },
+      "Versions/A/.DS_Store": {
+        "sha256": "fb6f47b26808825bdff17f77d242c73509f038732838a07644f8f0ab892c1801"
+      },
+      "Versions/A/Headers/CAAnimation.h": {
+        "sha256": "73d7eeabfa87fff2ac3d878adc2236332ef544e1acec17de1b44ccc36686ea83"
+      },
+      "Versions/A/Headers/CABase.h": {
+        "sha256": "dbf0720616f76e61cca0f8a40701f6158c11f42e7b68335d3eaa784a13c504ff"
+      },
+      "Versions/A/Headers/CACIFilterAdditions.h": {
+        "sha256": "1469ed41334d70e91c9d768035422c65a7f5fd2bb3ffa354cf9cddebf6483a5f"
+      },
+      "Versions/A/Headers/CAConstraintLayoutManager.h": {
+        "sha256": "d85bd323ea4184b6da80ae710346bf688453999d1f66e3bdbed1a531aa637779"
+      },
+      "Versions/A/Headers/CALayer.h": {
+        "sha256": "588758dd86272815b8e55da939821f52bd006d762826c6b222e4a5b71115f317"
+      },
+      "Versions/A/Headers/CAMediaTiming.h": {
+        "sha256": "a5bd6be51663f794248a06f1021488385f24d7363a2f8d282f816c9e790ed124"
+      },
+      "Versions/A/Headers/CAMediaTimingFunction.h": {
+        "sha256": "37b6fd9ff0529cf83d9154032accf68cdb4e2d5eaf4c471e4d3d60507a02275a"
+      },
+      "Versions/A/Headers/CAOpenGLLayer.h": {
+        "sha256": "e524ffafe0979b7a4180d21c9d583ef86af6cf45fb60712bc23ab65b67dd03e7"
+      },
+      "Versions/A/Headers/CARenderer.h": {
+        "sha256": "06bcba51813713510e63f72c9f5996a62e3aac52433b06dc9777209f55d17bf7"
+      },
+      "Versions/A/Headers/CAScrollLayer.h": {
+        "sha256": "ca57b65f68d1e81498450510ca8c240f2836903dc17a3a87ab9c809886a0ba5a"
+      },
+      "Versions/A/Headers/CATextLayer.h": {
+        "sha256": "aade045b0598a7d04db7e1638f12836bc7f53a2aafd9bf634185290868606788"
+      },
+      "Versions/A/Headers/CATiledLayer.h": {
+        "sha256": "1e499ca992c9ff04cd12affa73f71c93868eb1bbc40d4904133b7129bc54b72d"
+      },
+      "Versions/A/Headers/CATransaction.h": {
+        "sha256": "7552091d17147f7a7c8f5d44fc2ca341e827da5a047264f753ede56889e556e3"
+      },
+      "Versions/A/Headers/CATransform3D.h": {
+        "sha256": "f3496c1d826e3d17cdf97edd2966d9f19dd4808fc0520cc49d3e0f5c1a8c41db"
+      },
+      "Versions/A/Headers/CIColor.h": {
+        "sha256": "c13c74218e0b5d698ff647e83ccdea0aa19d75bb13ef0e1ad7d97a2f1605e33a"
+      },
+      "Versions/A/Headers/CIContext.h": {
+        "sha256": "cc395899e35be7baf925471dd5b68aeb522e779c19bf67727c22b499dac9f2a1"
+      },
+      "Versions/A/Headers/CIFilter.h": {
+        "sha256": "c123b31ac0346529d3a9a1368524523945a640901547ad82742b5b26a5004bef"
+      },
+      "Versions/A/Headers/CIFilterGenerator.h": {
+        "sha256": "f484da4e5eb457aaec808b03948350c72caf2aa2ab6db25b64e950c4571e5282"
+      },
+      "Versions/A/Headers/CIFilterShape.h": {
+        "sha256": "f49c1f286b3615eef23d23069544f40b84ff8b1a920cb63c7f6af48b08f2b75c"
+      },
+      "Versions/A/Headers/CIImage.h": {
+        "sha256": "8730ba0d06e3bf3a2530ffe07dae82d71c69cf271759d765e9968e0cb8d5c799"
+      },
+      "Versions/A/Headers/CIImageAccumulator.h": {
+        "sha256": "5ed19882eda1bd7e480f4f8bd827929f77b697fa73721f8f4c665f568265cb93"
+      },
+      "Versions/A/Headers/CIImageProvider.h": {
+        "sha256": "2413173bc7a848c0e8c5ca61acff4dfe62d4a1ea0b79d56c8e4150fc05e53dc9"
+      },
+      "Versions/A/Headers/CIKernel.h": {
+        "sha256": "40972a14bb464e65f156f90149346cd97d3cd2d84ee11b3928e1e15eca55e2ff"
+      },
+      "Versions/A/Headers/CIPlugIn.h": {
+        "sha256": "e48f806a4e5833d4bf7b1fe6780c7679790e9bcd7d8974f6fd8e1decc7939c6c"
+      },
+      "Versions/A/Headers/CIPlugInInterface.h": {
+        "sha256": "9d486e08a8bd4fb1806b20a892a9b979b8029846cd98f8919758f839fd0b6aa0"
+      },
+      "Versions/A/Headers/CIRAWFilter.h": {
+        "sha256": "73c90c0c005f9fe9a0047dd8f21c1032f15bc8621795849f8f9de260ef17d828"
+      },
+      "Versions/A/Headers/CISampler.h": {
+        "sha256": "ef498de411c2234e115bf7263b59926269c1534fb752fcb0a51464a2e0375414"
+      },
+      "Versions/A/Headers/CIVector.h": {
+        "sha256": "12c3e64717115fe2988b3711fdd814dae69048bf4e80e1cb71a71c2b513907ab"
+      },
+      "Versions/A/Headers/CVBase.h": {
+        "sha256": "1dd761c494d753d551fbc961b801b2b1e0c29482d8e8424bdbe3eef4a5ffd76d"
+      },
+      "Versions/A/Headers/CVBuffer.h": {
+        "sha256": "ab1bd10910502d26678b16802aaa35cc544e868e858de182eaceca546cf512dd"
+      },
+      "Versions/A/Headers/CVDisplayLink.h": {
+        "sha256": "31972aae588d7c8de5d60cbd582e68519e4dabe504586fab2b263a123e3b4534"
+      },
+      "Versions/A/Headers/CVHostTime.h": {
+        "sha256": "0a3d103f0d7843952ed095afec917db58f603978219df3b92e1e4654dec2f0fd"
+      },
+      "Versions/A/Headers/CVImageBuffer.h": {
+        "sha256": "e2c5d52de69c38db8866b3013bf683ed784354518b85d37472f85c7c3bcf61cf"
+      },
+      "Versions/A/Headers/CVOpenGLBuffer.h": {
+        "sha256": "5110ff74b9ab080ed7a6660f2a706ca7dc49ff81bae64eb399b21855c7e29b20"
+      },
+      "Versions/A/Headers/CVOpenGLBufferPool.h": {
+        "sha256": "09eefa98f5bf32c45f90d468a7ed015f60ec082ecb55c08d552cd50cf7ed4371"
+      },
+      "Versions/A/Headers/CVOpenGLTexture.h": {
+        "sha256": "3dd6d9b3001f023a3651b9d31078acc59adae8396393bb559cdb09ad3a9cd96d"
+      },
+      "Versions/A/Headers/CVOpenGLTextureCache.h": {
+        "sha256": "77ac4ea73526a6079af502620ed95c389f92a2fefe5d85afaada46e5b9fcde2b"
+      },
+      "Versions/A/Headers/CVPixelBuffer.h": {
+        "sha256": "ddc445d842580c9dd57abb7920aa1e3053b4b0e7b5070a83c48a2faf2f0a397a"
+      },
+      "Versions/A/Headers/CVPixelBufferPool.h": {
+        "sha256": "a549a75fa1c0daf1f7803da3fd527262dd920c02e159b8def2912535116504df"
+      },
+      "Versions/A/Headers/CVPixelFormatDescription.h": {
+        "sha256": "7a4cdc67ed633d5099bff6e65cbf81f3e51e9fb683fc44c59ce7bf12c6276f07"
+      },
+      "Versions/A/Headers/CVReturn.h": {
+        "sha256": "bdb900679184b28cd743b549ae8e063e78581e644fb328fe487e9807ae2320cf"
+      },
+      "Versions/A/Headers/CoreAnimation.h": {
+        "sha256": "4b06337106ef0002ccd75ab49413b555d76d543d22333ab30b91c0ee6a892bb9"
+      },
+      "Versions/A/Headers/CoreImage.h": {
+        "sha256": "a9da8cfbd3c3f5132c0857e77f0a23e9343d0e56178e4b6c5e9923e84db1f604"
+      },
+      "Versions/A/Headers/CoreVideo.h": {
+        "sha256": "9bc540e5f6cd4705f2e0c87c118ae63a6aa4d6f7464222d971d9a9784bf900a0"
+      },
+      "Versions/A/Headers/QuartzCore.h": {
+        "sha256": "c61d45a9ef1a7cdd856dc76680537e833a74858dcf61bc6dfe2387806ab2e840"
+      },
+      "Versions/A/QuartzCore": {
+        "sha256": "ae24133c5536c1ba386a812eda25b2391cdbdd3d9312016e7fae14e559c85cb0"
+      },
+      "Versions/A/Resources/CIDebugging.defs": {
+        "sha256": "35555c3e67db7fe1d10edb98ca0994f487e42c6712aaaec998e8b35f6dbef14a"
+      },
+      "Versions/A/Resources/English.lproj/Categories.strings": {
+        "sha256": "aadda824a07563b8ded6aa25591026c7f531a040fa08bd87b8e6c8d28195bb2a"
+      },
+      "Versions/A/Resources/English.lproj/Descriptions.strings": {
+        "sha256": "bbbb3376d3590e2c08211d09001f1764bcf1a3b326c6e3349aa6e6707ce76fc2"
+      },
+      "Versions/A/Resources/English.lproj/Filters.strings": {
+        "sha256": "ba39a89fda02f1f81a5040eec0756240076accd1b8d1b268905070226e406887"
+      },
+      "Versions/A/Resources/English.lproj/Keys.strings": {
+        "sha256": "cc239ba082b185a02845ff8d3be5c4ca1a72d1f8fbd5e2b3e8a79f63b6652d92"
+      },
+      "Versions/A/Resources/Info.plist": {
+        "sha256": "975e169824c069e7e3f45ef48a61baf71f739fd21ac22bb5f41133905156ba35"
+      },
+      "Versions/A/Resources/version.plist": {
+        "sha256": "47ac498699755df66cddff8b84906582386a8adb5026c0824385ce99215a488e"
+      },
+      "Versions/Current": {
+        "symlink": "A"
+      }
+    }
+  },
+  "remote_helper_sha256": "acbe3d6bb70e3e3bc903a969d1cfb8443c33bb5106c907bc4a354e52d36e2663",
+  "scope": "Isolated imported drawable experiment; no video playback or scanout claim."
+}
