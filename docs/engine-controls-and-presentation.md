@@ -133,6 +133,8 @@ establish YouTube streaming support or physical display scanout.
 | Faithful, `f9c6cfc90` | 464 | 15.47 | 131.41 ms |
 | Faithful, `75a29da0e` | 464 | 15.47 | 129.46 ms |
 | Direct faithful, `89c598d83` (drawable acceptances) | 790 | 26.33 | 102.79 ms |
+| Direct faithful, `7b2ce2201` (drawable acceptances) | 807 | 26.90 | 112.46 ms |
+| Direct faithful, `b2fcc886c` (drawable acceptances) | 895 | 29.83 | 122.25 ms |
 
 The fast comparison shows no measurable FPS improvement. Both faithful rows use
 the same second pointer movement after startup so WebKit's media controls hide.
@@ -144,7 +146,9 @@ Every row still fails the unchanged performance gate.
 
 Evidence is retained under `logs/bench/native-unprofiled-{f9c6cfc90,75a29da0e}/`,
 `logs/bench/faithful-latepointer-{f9c6cfc90,75a29da0e}/` and
-`logs/bench/direct-latepointer-captureafter-89c598d83/`.
+`logs/bench/direct-latepointer-captureafter-{89c598d83,7b2ce2201,b2fcc886c}/`.
+The `7b2ce2201` screenshot starts 4.275 seconds after the measured interval;
+the capture helper records the same monotonic clock used by frame telemetry.
 
 Direct presentation reuses the existing WC/CoreAnimation scene on a Tiger native
 cross-process surface. It removes readback and the UI bitmap copy. GPU identity,
@@ -159,6 +163,18 @@ restore bitmap painting before mutating the hierarchy: Tiger calls
 `didAddSubview:` before assigning that child's window, making synchronous painting
 from that callback unsafe. The new pre-insertion hooks cover both insertion APIs.
 
+The `7b2ce2201` target lifecycle run verifies bitmap and direct scene geometry,
+changing tiles, a static canvas, native-control insertion, bitmap fallback,
+editing and navigation with visible pixel checks. Resize remains untested because
+target accessibility automation is disabled. GPU-exit recovery fails: the surface
+retires and the retained bitmap stays visible, but a new scene is not painted.
+Direct presentation therefore remains experimental. Evidence is in
+`logs/probes/direct-lifecycle-7b2ce2201/20260924-004542-794611/`.
+Its original results are preserved alongside `checker-reanalysis.json`: the
+navigated empty promoted panel needed a CSS-color reference rather than the
+DeviceRGB raster reference. Geometry and tolerances were unchanged; nine checker
+tests retain missing-content, displaced-content and stale-recovery negatives.
+
 ## Next performance work
 
 The direct-path UI acknowledgement is normally below one millisecond and UI CPU
@@ -168,6 +184,49 @@ GPU scene rendering/flush and video preparation. Rendering/flush alone averaged
 p95 17.58 ms. Variable preparation can push the
 total beyond the 33.3 ms frame budget. Split preparation timing and buffer-pool
 evidence should guide the next change.
+
+The diagnostic `b6e98a730` run isolates a startup-dependent retention problem.
+All three reusable video buffers are checked out before direct activation, and
+all 684 preparations in the measured interval allocate independent storage.
+Snapshot filling averages 15.15 ms, scene rendering 19.67 ms and drawable flushing
+5.69 ms. The queried swap interval is already zero, with no GL/flush errors.
+This run delivers 22.77 accepted frames/second and also fails the unchanged gate.
+Different startup buffering confounds comparison with the clean run, so the
+difference cannot be attributed to logging overhead. Evidence is in
+`logs/bench/direct-video-prep-b6e98a730/`.
+
+An isolated Tiger probe confirms the inactive bitmap renderer retains those image
+providers after layer detachment. Releasing the renderer frees obsolete images;
+when its factory autorelease remains pending, that release is postponed until
+the factory pool drains. Destroying the old GL context releases no additional
+providers. All subsequent frames reuse cached storage, a recreated bitmap renderer
+draws the unchanged scene, and all twelve provider callbacks occur exactly once
+at final teardown. Both cases pass native pixel and ownership checks; see
+`logs/probes/ca-renderer-retention-20260924-010908-800bcbfcf782/`.
+
+Candidate `b2fcc886c` implements that bounded correction. It retires the inactive
+renderer only after a successful full direct flush, drains its factory autorelease
+while the GL context is alive, and preserves the scene and retained UI bitmap.
+Bitmap fallback recreates its target lazily and forces a complete redraw.
+Direct frames no longer recreate an unused bitmap target. Actual-helper sanitizer
+tests cover six creation/attachment failure points, retries and repeated
+transitions; omitting either retirement or the factory pool fails negative
+controls. This fixes ownership without increasing the buffer cache or changing
+the swap interval.
+
+The full-browser `b2fcc886c` run delivers 895 unique frames in 30 seconds
+(29.83 accepted frames/second, p95 gap 41.5 ms), up from 807 at `7b2ce2201`.
+It still fails the unchanged gate on a single 122.25 ms gap against the 100 ms
+limit; the FPS floor of 29 is met. Decoder output stays at 30.0 FPS with no drops.
+The screenshot starts 4.29 seconds after the interval and shows the playing video.
+A diagnostic rerun confirms the ownership fix: all 893 preparations reuse cached
+storage, at most three buffers are checked out, and snapshot filling falls from
+15.15 ms to 2.92 ms mean (p95 5.98 ms). Scene rendering averages 13.49 ms and
+drawable flushing 5.01 ms, with zero GL or flush errors. That rerun reaches
+29.77 frames/second with a 116.69 ms maximum gap and also fails. The remaining
+work is the isolated long gap, not steady-state throughput. Evidence is in
+`logs/bench/direct-latepointer-captureafter-b2fcc886c/` and
+`logs/bench/direct-video-prep-b2fcc886c/`.
 
 The [native video contents research](native-video-queues.md) identifies two
 existing API paths and older upstream adapters to probe: public CoreVideo texture

@@ -287,16 +287,24 @@ The [control and presentation evidence](engine-controls-and-presentation.md)
 records custom-control eligibility, native popup tracking, image-edge correctness,
 indexed cookie lookup, direct scene presentation and the unchanged performance
 gates. The controlled fast path remains about 27.1 FPS; direct faithful rendering
-reaches 26.3 FPS compared with 15.5 FPS through faithful readback. All remain below
-the 720p30 target. Direct rendering stays opt-in while lifecycle and CSS geometry
-qualification proceeds. Counts require visible content and distinguish window
+reaches 29.8 FPS compared with 15.5 FPS through faithful readback. All remain below
+the 720p30 target. Direct rendering stays opt-in: geometry, native insertion,
+fallback, editing and navigation pass, but resize is untested and GPU-exit recovery
+retains the old bitmap without refreshing the scene. Counts require visible content and distinguish window
 painting or drawable acceptance from physical scanout.
 
 Candidate `7b2ce2201` is now installed on Tiger after twenty functional browser
 checks passed. Its 74 regular bundle files and four symlinks were verified, with
 the previous installation retained for rollback. The linked evidence note records
 the exact suites and installation paths. Diagnostic candidate `b6e98a730` remains
-separate; its opt-in timers are for measuring the next video change.
+separate. Its opt-in timers expose three reusable video buffers pinned before
+direct activation and fresh allocation for every measured video preparation.
+A native two-renderer probe confirms the inactive bitmap renderer retains the
+image providers until destruction and its factory autorelease must drain before
+destroying the GL context. Candidate `b2fcc886c` implements that lifetime correction
+with lazy full-frame bitmap fallback. It raises direct faithful playback to 29.8
+accepted frames/second with cached video storage, but one 122 ms gap still fails
+the 100 ms limit; see the linked evidence note.
 
 ### Delivery milestones and estimate
 
