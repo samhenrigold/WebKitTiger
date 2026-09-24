@@ -1,0 +1,61 @@
+{
+  "mode": "ca",
+  "uploads": 240,
+  "pixels": [
+    1280,
+    720
+  ],
+  "frame_storage": "pool",
+  "elapsed_seconds": 7.988,
+  "completed_flushes_per_second": 30.047,
+  "work_mean_ms": 24.064,
+  "work_p95_ms": 22.42,
+  "work_max_ms": 775.511,
+  "slowest_frame": 0,
+  "copy_mean_ms": 2.406,
+  "render_mean_ms": 17.76,
+  "flush_mean_ms": 3.889,
+  "completed_at_seconds": 8.328,
+  "measurement_deadline_seconds": 8.5,
+  "measurement": "Fresh owned CGImage copies, full CA scene renders and CGLFlushDrawable completions; not decoded video delivery or physical scanout.",
+  "frame_timing": {
+    "all": {
+      "count": 240,
+      "mean_ms": {
+        "allocation": 0.0027,
+        "memcpy": 2.3795,
+        "image": 0.0124,
+        "transaction": 0.0826,
+        "render": 17.6771,
+        "flush": 3.8892,
+        "total": 24.0642
+      },
+      "total_p95_ms": 22.42,
+      "total_max_ms": 775.511
+    },
+    "after_first_30_frames": {
+      "count": 210,
+      "mean_ms": {
+        "allocation": 0.0026,
+        "memcpy": 2.2389,
+        "image": 0.0116,
+        "transaction": 0.0809,
+        "render": 14.6044,
+        "flush": 3.8404,
+        "total": 20.8003
+      },
+      "total_p95_ms": 22.225,
+      "total_max_ms": 23.015
+    }
+  },
+  "pool": {
+    "allocations": 3,
+    "reuses": 237,
+    "fallbacks": 0,
+    "in_use": 2,
+    "peak_in_use": 3,
+    "slots": 3
+  },
+  "accepted": true,
+  "framework_binary_sha256": "ae24133c5536c1ba386a812eda25b2391cdbdd3d9312016e7fae14e559c85cb0"
+}

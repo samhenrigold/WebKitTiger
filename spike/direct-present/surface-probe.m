@@ -23,6 +23,7 @@
 #define AVAILABLE_MAC_OS_X_VERSION_10_5_AND_LATER_BUT_DEPRECATED
 #import <QuartzCore/CoreAnimation.h>
 #import <QuartzCore/CARenderer.h>
+#include "PixelBufferPool.h"
 
 @interface CALayer (TigerCAPrivate)
 - (void)setGeometryFlipped:(BOOL)flipped;
@@ -71,6 +72,10 @@ static int compareDouble(const void* a, const void* b)
     return (x > y) - (x < y);
 }
 
+struct FrameTiming {
+    double allocation, copy, image, transaction, render, flush, total;
+};
+
 #if SURFACE_PROBE_CA
 static CALayer* createLayer(void)
 {
@@ -85,36 +90,37 @@ static CALayer* createLayer(void)
     return layer;
 }
 
-static void releaseImageBytes(void* info, const void* bytes, size_t length)
-{
-    (void)info;
-    (void)length;
-    free((void*)bytes);
-}
-
 // Match WCSceneCA's owned snapshot and BGRA CGImage representation. CA is free
 // to retain the image: it never references the mutable producer pixels below.
-static CGImageRef copyFrameImage(const unsigned char* pixels, const struct Surface* target, CGColorSpaceRef colorSpace)
+static CGImageRef copyFrameImage(const unsigned char* pixels, const struct Surface* target, CGColorSpaceRef colorSpace,
+    struct PixelBufferPool* pool, struct FrameTiming* timing)
 {
     size_t bytes = (size_t)target->width * target->height * 4;
-    void* owned = malloc(bytes);
+    double start = CFAbsoluteTimeGetCurrent();
+    void* info = NULL;
+    void* owned = pool ? pixelPoolAcquire(pool, bytes, &info) : malloc(bytes);
+    double allocated = CFAbsoluteTimeGetCurrent();
     if (!owned)
         return NULL;
     memcpy(owned, pixels, bytes);
-    CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, owned, bytes, releaseImageBytes);
+    double copied = CFAbsoluteTimeGetCurrent();
+    CGDataProviderRef provider = CGDataProviderCreateWithData(info, owned, bytes, pixelPoolRelease);
     if (!provider) {
-        free(owned);
+        pixelPoolRelease(info, owned, bytes);
         return NULL;
     }
     CGImageRef image = CGImageCreate(target->width, target->height, 8, 32, target->width * 4,
         colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little,
         provider, NULL, false, kCGRenderingIntentDefault);
     CGDataProviderRelease(provider);
+    timing->allocation = (allocated - start) * 1000;
+    timing->copy = (copied - allocated) * 1000;
+    timing->image = (CFAbsoluteTimeGetCurrent() - copied) * 1000;
     return image;
 }
 #endif
 
-static int renderChild(int fd, int useCA)
+static int renderChild(int fd, int useCA, int usePool)
 {
     int connection = CGSMainConnectionID();
     if (!connection)
@@ -142,6 +148,7 @@ static int renderChild(int fd, int useCA)
     requireOK("swap-interval", CGLSetParameter(context, kCGLCPSwapInterval, &interval));
     fprintf(stderr, "SURFACE renderer=%s\n", glGetString(GL_RENDERER));
     fprintf(stderr, "SURFACE mode=%s\n", useCA ? "ca" : "gl");
+    fprintf(stderr, "SURFACE frame_storage=%s\n", usePool ? "pool" : "malloc");
     NSAutoreleasePool* renderPool = [[NSAutoreleasePool alloc] init];
 
     size_t bytes = (size_t)target.width * target.height * 4;
@@ -162,6 +169,9 @@ static int renderChild(int fd, int useCA)
     CARenderer* renderer = nil;
     CALayer *host = nil, *video = nil, *overlay = nil;
     CGColorSpaceRef colorSpace = NULL;
+    struct PixelBufferPool* pixelPool = usePool ? pixelPoolCreate() : NULL;
+    if (usePool && !pixelPool)
+        return 2;
     if (useCA) {
         Dl_info framework;
         if (!dladdr((void*)CACurrentMediaTime, &framework) || !framework.dli_fname)
@@ -215,6 +225,7 @@ static int renderChild(int fd, int useCA)
     enum { frameCount = 240 };
     double start = CFAbsoluteTimeGetCurrent(), costs[frameCount], sum = 0;
     double copySum = 0, renderSum = 0, flushSum = 0;
+    struct FrameTiming timings[frameCount] = { { 0 } };
     int completed = 0;
     int slowestFrame = -1;
     double slowestCost = 0;
@@ -232,7 +243,7 @@ static int renderChild(int fd, int useCA)
         double copied = before;
 #if SURFACE_PROBE_CA
         if (useCA) {
-            CGImageRef image = copyFrameImage(pixels, &target, colorSpace);
+            CGImageRef image = copyFrameImage(pixels, &target, colorSpace, pixelPool, &timings[frame]);
             if (!image)
                 return 2;
             copied = CFAbsoluteTimeGetCurrent();
@@ -242,6 +253,8 @@ static int renderChild(int fd, int useCA)
             CGImageRelease(image);
             [CATransaction commit];
             [CATransaction flush];
+            double committed = CFAbsoluteTimeGetCurrent();
+            timings[frame].transaction = (committed - copied) * 1000;
             // Unlike the persistent pbuffer, swapped drawable contents are not
             // assumed preserved: redraw the entire scene on every frame.
             glViewport(0, 0, target.width, target.height);
@@ -255,6 +268,7 @@ static int renderChild(int fd, int useCA)
             [renderer addUpdateRect:CGRectMake(0, 0, target.width, target.height)];
             [renderer render];
             [renderer endFrame];
+            timings[frame].render = (CFAbsoluteTimeGetCurrent() - committed) * 1000;
         } else
 #endif
         {
@@ -277,6 +291,8 @@ static int renderChild(int fd, int useCA)
         double flushed = CFAbsoluteTimeGetCurrent();
         [framePool release];
         costs[frame] = (CFAbsoluteTimeGetCurrent() - before) * 1000;
+        timings[frame].flush = (flushed - rendered) * 1000;
+        timings[frame].total = costs[frame];
         sum += costs[frame];
         copySum += (copied - before) * 1000;
         renderSum += (rendered - copied) * 1000;
@@ -296,6 +312,21 @@ static int renderChild(int fd, int useCA)
         useCA ? "ca" : "gl", completed, elapsed, completed / elapsed, sum / completed, costs[percentile], slowestCost, slowestFrame,
         copySum / completed, renderSum / completed, flushSum / completed,
         CFAbsoluteTimeGetCurrent() - target.programStart, target.measurementDeadline - target.programStart);
+    // Emit only after measurement; file logging cannot affect the frame timings.
+    if (useCA) {
+        for (int frame = 0; frame < completed; ++frame) {
+            struct FrameTiming* t = &timings[frame];
+            fprintf(stderr, "SURFACE FRAME id=%d allocation_ms=%.3f memcpy_ms=%.3f image_ms=%.3f transaction_ms=%.3f render_ms=%.3f flush_ms=%.3f total_ms=%.3f\n",
+                frame, t->allocation, t->copy, t->image, t->transaction, t->render, t->flush, t->total);
+        }
+    }
+#if SURFACE_PROBE_CA
+    if (pixelPool) {
+        struct PixelBufferPoolStats stats = pixelPoolStats(pixelPool);
+        fprintf(stderr, "SURFACE POOL allocations=%u reuses=%u fallbacks=%u in_use=%u peak_in_use=%u slots=%d\n",
+            stats.allocations, stats.reuses, stats.fallbacks, stats.inUse, stats.peakInUse, PIXEL_POOL_SLOTS);
+    }
+#endif
     sleep(4); // Keep the rendered surface alive for the later screenshot.
     if (texture)
         glDeleteTextures(1, &texture);
@@ -313,6 +344,10 @@ static int renderChild(int fd, int useCA)
 #endif
     free(pixels);
     [renderPool release];
+#if SURFACE_PROBE_CA
+    if (pixelPool)
+        pixelPoolClose(pixelPool);
+#endif
     requireOK("detach-surface", CGLClearDrawable(context));
     CGLSetCurrentContext(NULL);
     CGLDestroyContext(context);
@@ -325,11 +360,12 @@ int main(int argc, char** argv)
     double programStart = CFAbsoluteTimeGetCurrent();
     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
     if (argc == 4 && !strcmp(argv[1], "--child")) {
-        int result = renderChild(atoi(argv[2]), !strcmp(argv[3], "ca"));
+        int result = renderChild(atoi(argv[2]), strcmp(argv[3], "gl") != 0, !strcmp(argv[3], "ca-pool"));
         [pool release];
         return result;
     }
-    int useCA = argc == 2 && !strcmp(argv[1], "--ca");
+    int usePool = argc == 2 && !strcmp(argv[1], "--ca-pool");
+    int useCA = usePool || (argc == 2 && !strcmp(argv[1], "--ca"));
     if (argc != 1 && !useCA)
         return 2;
 #if !SURFACE_PROBE_CA
@@ -346,7 +382,7 @@ int main(int argc, char** argv)
         close(channel[0]);
         char descriptor[20];
         snprintf(descriptor, sizeof(descriptor), "%d", channel[1]);
-        execl(argv[0], argv[0], "--child", descriptor, useCA ? "ca" : "gl", NULL);
+        execl(argv[0], argv[0], "--child", descriptor, usePool ? "ca-pool" : (useCA ? "ca" : "gl"), NULL);
         _exit(2);
     }
     close(channel[1]);

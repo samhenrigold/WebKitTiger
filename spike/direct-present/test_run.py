@@ -8,12 +8,15 @@ probe = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(probe)
 REMOTE = '/Users/shg/wk2/runs/test-surface'
 LOG = '''SURFACE mode=ca
+SURFACE frame_storage=malloc
 SURFACE quartzcore_path=/Users/shg/wk2/runs/test-surface/bin/../Frameworks/QuartzCore.framework/Versions/A/QuartzCore
 SURFACE overlay=opaque-magenta rect=40,40,200,72 above=fresh-video-image
 SURFACE RESULT mode=ca uploads=240 pixels=1280x720 elapsed=7.98 rate=30.08 work_mean_ms=9.1 work_p95_ms=10.2 work_max_ms=40.3 slowest_frame=0 copy_mean_ms=1.1 render_mean_ms=6.0 flush_mean_ms=2.0 completed_at=8.1 deadline=8.5 (flushes, not scanout)
 SURFACE detach-surface=0
 SURFACE remove-owned-surface=0
 '''
+
+LOG += ''.join(f'SURFACE FRAME id={i} allocation_ms=0.100 memcpy_ms=0.900 image_ms=0.100 transaction_ms=1.000 render_ms=5.000 flush_ms=2.000 total_ms=9.100\n' for i in range(240))
 
 
 class SurfaceResultTests(unittest.TestCase):
@@ -44,6 +47,26 @@ class SurfaceResultTests(unittest.TestCase):
         for line in ['SURFACE detach-surface=0', 'SURFACE remove-owned-surface=0', 'SURFACE overlay=']:
             with self.subTest(line=line), self.assertRaises(ValueError):
                 probe.parse_result('\n'.join(item for item in LOG.splitlines() if not item.startswith(line)), 'ca', REMOTE)
+
+    def test_detailed_stages_include_explicit_warmup_window(self):
+        details = probe.parse_result(LOG, 'ca', REMOTE)['frame_timing']
+        self.assertEqual(details['all']['count'], 240)
+        self.assertEqual(details['after_first_30_frames']['count'], 210)
+        self.assertEqual(details['all']['mean_ms']['memcpy'], .9)
+
+    def test_missing_or_inconsistent_frame_details_fail(self):
+        for changed in [LOG.replace('SURFACE FRAME id=8 ', 'SURFACE FRAME id=7 '),
+                        LOG.replace('total_ms=9.100', 'total_ms=1.000')]:
+            with self.assertRaises(ValueError):
+                probe.parse_result(changed, 'ca', REMOTE)
+
+    def test_pool_reuse_requires_consistent_counters(self):
+        pooled = LOG.replace('frame_storage=malloc', 'frame_storage=pool')
+        pooled += 'SURFACE POOL allocations=3 reuses=237 fallbacks=0 in_use=1 peak_in_use=3 slots=3\n'
+        result = probe.parse_result(pooled, 'ca', REMOTE, 'pool')
+        self.assertEqual(result['pool']['reuses'], 237)
+        with self.assertRaises(ValueError):
+            probe.parse_result(pooled.replace('reuses=237', 'reuses=236'), 'ca', REMOTE, 'pool')
 
     def test_duplicate_or_missing_result_fails(self):
         with self.assertRaises(ValueError):

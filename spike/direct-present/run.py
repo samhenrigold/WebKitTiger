@@ -5,6 +5,7 @@ import datetime
 import hashlib
 import importlib.util
 import json
+import math
 from pathlib import Path
 import re
 import shutil
@@ -19,7 +20,29 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def parse_result(log, mode, remote_path):
+def frame_details(log):
+    names = ('allocation', 'memcpy', 'image', 'transaction', 'render', 'flush', 'total')
+    pattern = r'^SURFACE FRAME id=(\d+)' + ''.join(' ' + name + r'_ms=([\d.]+)' for name in names) + '$'
+    rows = list(re.finditer(pattern, log, re.M))
+    if [int(row[1]) for row in rows] != list(range(240)):
+        raise ValueError('expected ordered timing details for all 240 frames')
+    samples = [{name: float(row[index + 2]) for index, name in enumerate(names)} for row in rows]
+    for row in samples:
+        if sum(row[name] for name in names[:-1]) > row['total'] + .01:
+            raise ValueError('frame stage timings exceed total work')
+
+    def summarize(rows):
+        ordered = sorted(row['total'] for row in rows)
+        return {
+            'count': len(rows),
+            'mean_ms': {name: round(sum(row[name] for row in rows) / len(rows), 4) for name in names},
+            'total_p95_ms': ordered[math.ceil(.95 * len(ordered)) - 1],
+            'total_max_ms': ordered[-1],
+        }
+    return {'all': summarize(samples), 'after_first_30_frames': summarize(samples[30:])}
+
+
+def parse_result(log, mode, remote_path, storage='malloc'):
     pattern = (r'SURFACE RESULT mode=(gl|ca) uploads=(\d+) pixels=1280x720 elapsed=([\d.]+) '
                r'rate=([\d.]+) work_mean_ms=([\d.]+) work_p95_ms=([\d.]+) work_max_ms=([\d.]+) '
                r'slowest_frame=(\d+) copy_mean_ms=([\d.]+) render_mean_ms=([\d.]+) '
@@ -30,6 +53,8 @@ def parse_result(log, mode, remote_path):
     result = results[0]
     if result[1] != mode or int(result[2]) != 240:
         raise ValueError('wrong mode or incomplete 240-frame workload')
+    if re.findall(r'^SURFACE frame_storage=(.+)$', log, re.M) != [storage]:
+        raise ValueError('wrong frame storage mode')
     if 'SURFACE detach-surface=0' not in log or 'SURFACE remove-owned-surface=0' not in log:
         raise ValueError('surface cleanup did not complete')
     if float(result[12]) > float(result[13]) or float(result[13]) > 8.5:
@@ -42,8 +67,9 @@ def parse_result(log, mode, remote_path):
             raise ValueError('CA did not load the framework copied into this run')
         if 'SURFACE overlay=opaque-magenta rect=40,40,200,72 above=fresh-video-image' not in log:
             raise ValueError('missing CA overlay scene')
-    return {
+    report = {
         'mode': mode, 'uploads': int(result[2]), 'pixels': [1280, 720],
+        'frame_storage': storage,
         'elapsed_seconds': float(result[3]), 'completed_flushes_per_second': float(result[4]),
         'work_mean_ms': float(result[5]), 'work_p95_ms': float(result[6]),
         'work_max_ms': float(result[7]), 'slowest_frame': int(result[8]),
@@ -54,21 +80,38 @@ def parse_result(log, mode, remote_path):
                         if mode == 'ca' else 'Texture uploads and CGLFlushDrawable completions')
                        + '; not decoded video delivery or physical scanout.',
     }
+    if mode == 'ca':
+        report['frame_timing'] = frame_details(log)
+    if storage == 'pool':
+        pools = re.findall(r'^SURFACE POOL allocations=(\d+) reuses=(\d+) fallbacks=(\d+) in_use=(\d+) peak_in_use=(\d+) slots=(\d+)$', log, re.M)
+        if len(pools) != 1:
+            raise ValueError('missing pool ownership counters')
+        names = ('allocations', 'reuses', 'fallbacks', 'in_use', 'peak_in_use', 'slots')
+        pool = dict(zip(names, map(int, pools[0])))
+        if pool['allocations'] + pool['reuses'] + pool['fallbacks'] != 240 or not pool['reuses'] or pool['peak_in_use'] > pool['slots']:
+            raise ValueError('pool counters do not describe safe reuse of all frames')
+        report['pool'] = pool
+    return report
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--mode', choices=('gl', 'ca'), default='gl')
+    parser.add_argument('--frame-storage', choices=('malloc', 'pool'), default='malloc')
     parser.add_argument('--build-only', action='store_true')
     args = parser.parse_args()
+    if args.mode != 'ca' and args.frame_storage != 'malloc':
+        parser.error('--frame-storage pool requires --mode ca')
     spec = importlib.util.spec_from_file_location('tiger_run', ROOT / 'tools/tiger-run.py')
     runner = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner)
-    name = datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '-surface-' + args.mode + '-' + uuid.uuid4().hex[:10]
+    name = datetime.datetime.now().strftime('%Y%m%d-%H%M%S') + '-surface-' + args.mode + '-' + args.frame_storage + '-' + uuid.uuid4().hex[:10]
     output = ROOT / 'logs/probes' / name
     output.mkdir(parents=True)
     source = output / 'surface-probe.m'
     shutil.copy2(ROOT / 'spike/direct-present/surface-probe.m', source)
+    pool_header = output / 'PixelBufferPool.h'
+    shutil.copy2(ROOT / 'spike/direct-present/PixelBufferPool.h', pool_header)
     binary = output / 'TigerSurfaceProbe'
     command = [str(ROOT / 'toolchain/bin/tiger-clang'), '-std=gnu11', '-O2', '-Wall', '-Wextra', '-Werror',
                '-DSURFACE_PROBE_CA=' + ('1' if args.mode == 'ca' else '0'), str(source),
@@ -97,6 +140,7 @@ def main():
     helper = ROOT / 'tools/tiger-run-remote.pl'
     provenance = {
         'mode': args.mode, 'source_sha256': sha256(source), 'binary_sha256': sha256(binary),
+        'frame_storage': args.frame_storage, 'pixel_pool_header_sha256': sha256(pool_header),
         'build_command': command, 'remote_run': remote_path,
         'framework': framework_provenance, 'remote_helper_sha256': sha256(helper),
         'scope': 'Isolated imported drawable experiment; no video playback or scanout claim.',
@@ -117,7 +161,7 @@ def main():
         try:
             command = ['perl', remote_path + '/tiger-run-remote.pl', 'run', remote_path, '13', remote_path + '/bin/TigerSurfaceProbe']
             if args.mode == 'ca':
-                command.append('--ca')
+                command.append('--ca-pool' if args.frame_storage == 'pool' else '--ca')
             remote.run(command)
         except BaseException as error:
             failure = error
@@ -132,11 +176,17 @@ def main():
                 print('surface probe diagnostics: ' + str(error), file=sys.stderr)
                 if failure is None:
                     failure = error
-    if failure:
-        raise failure
     log = (output / 'app.log').read_text(errors='replace')
-    print(log)
-    result = parse_result(log, args.mode, remote_path)
+    print('\n'.join(line for line in log.splitlines() if not line.startswith('SURFACE FRAME ')))
+    try:
+        result = parse_result(log, args.mode, remote_path, args.frame_storage)
+    except ValueError as error:
+        (output / 'result.json').write_text(json.dumps({'accepted': False, 'error': str(error)}, indent=2) + '\n')
+        raise
+    if failure:
+        (output / 'result.json').write_text(json.dumps({'accepted': False, 'error': str(failure)}, indent=2) + '\n')
+        raise failure
+    result['accepted'] = True
     result['framework_binary_sha256'] = framework_provenance['binary_sha256'] if framework_provenance else None
     (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
 

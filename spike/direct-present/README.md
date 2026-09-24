@@ -15,6 +15,9 @@ it under the unique leased remote run. The child logs the loaded framework path;
 the result parser rejects a system or unrelated framework. `--build-only` builds
 and records provenance without contacting Tiger. Parser checks can be run with
 `python3 spike/direct-present/test_run.py`.
+Add `--frame-storage pool` in CA mode to reuse at most three private pixel
+allocations, exclusively after their previous CGDataProvider release callbacks.
+The default `--frame-storage malloc` creates fresh storage for every image.
 
 The protocol is taken from Tiger's own implementation, rather than inferred from
 newer macOS behavior:
@@ -84,16 +87,71 @@ deadline; the parser rejects fewer than 240 completed frames, late completion,
 missing teardown, or a mismatched mode/framework. Timings are **drawable flush
 completions, not decoded video delivery or physical scanout**.
 
-This demonstrates full CA compositing on the drawable, with little steady-frame
-headroom for a browser's 33.3 ms budget and substantial cold-start cost. The next
-useful isolated measurement separates allocation, memcpy and CGImage creation;
-their combined stage already averages 11.501 ms. A successful integration must
-also include ring acquisition, decoding, IPC and the lifecycle checks below.
+This initial result demonstrates full CA compositing on the drawable, with little
+steady-frame headroom and substantial cold-start cost. The owned-buffer experiment
+below isolates the preparation cost and recovers headroom. An integration must
+still include ring acquisition, decoding, IPC and the lifecycle checks below.
 
 The committed evidence is in
 `logs/probes/20260923-203028-surface-ca-5bed5f8836/`: `app.log`, `result.json`,
 `provenance.json`, and `shot.png`. Probe source snapshots, executables and copied
 frameworks remain local build artifacts.
+
+## Provider-owned storage reuse
+
+Two subsequent leased trials used identical scene/image/render behavior and added
+per-frame timing for allocation, memcpy, CGImage creation, CA transaction/flush,
+CA drawing, and drawable flush. These are CPU-side elapsed call durations; they
+can include driver waits and are not GPU-only or thread-CPU counters. Per-frame
+lines are written **after** the timed loop. The table explicitly excludes the
+first 30 frames from both trials (210 measured steady frames each).
+
+| Stage / work duration | Fresh allocation | Provider-released pool |
+| --- | ---: | ---: |
+| Allocation/acquisition mean | 0.0264 ms | 0.0026 ms |
+| memcpy mean | 11.2662 ms | 2.2389 ms |
+| CGImage construction mean | 0.0127 ms | 0.0116 ms |
+| CA transaction mean | 0.0786 ms | 0.0809 ms |
+| CA full-scene render mean | 14.7869 ms | 14.6044 ms |
+| Drawable flush mean | 3.8159 ms | 3.8404 ms |
+| Total work mean | 30.0006 ms | 20.8003 ms |
+| Total work p95 | 31.257 ms | 22.225 ms |
+| Total work maximum | 35.856 ms | 23.015 ms |
+
+The pool made three allocations and reused released slots 237 times. No fallback
+allocation was needed; peak occupancy was three, with two providers still holding
+slots at the end of measurement. Every frame still received a **fresh CGImage**
+over its private copied pixels. The screenshot preserves the same overlay and
+orientation. The full 240-frame pool run completed at 30.047 flushes/s, with an
+all-frame work p95 of 22.420 ms. Startup frame 0 still cost 775.511 ms; pooling
+does not fix cold CA renderer setup.
+
+Most of the 9.2 ms steady-frame saving appears in memcpy, not the malloc call.
+This is consistent with avoiding first-write faults/zeroing on fresh destination
+pages, but this experiment did not collect page-fault counters to prove that
+mechanism. It establishes a useful end-to-end gain in this synthetic scene,
+not native-720 browser acceptance or a scanout rate.
+
+`PixelBufferPool.h` uses Tiger's public malloc and pthread APIs. Checkout reserves
+a slot under a mutex; only the provider release callback returns it. If all three
+slots remain retained, the producer allocates independent fallback storage and
+never waits or overwrites live pixels. Closing drops the owner's reference while
+outstanding providers retain the pool until their callbacks finish. Host tests
+cover retained-byte integrity, exhaustion, cross-thread release, reuse, changed
+size, and close with outstanding callbacks:
+
+```sh
+clang -std=c11 -Wall -Wextra -Werror -g -fsanitize=address,undefined -pthread \
+  spike/direct-present/test_pixel_pool.c -o /tmp/tiger-pixel-pool-test
+/tmp/tiger-pixel-pool-test
+```
+
+The same test passes with `-fsanitize=thread`; nine Python parser checks pass.
+Both CA variants and the default GL mode cross-compile. Committed trial evidence
+(`app.log`, `result.json`, `provenance.json`, `shot.png`) is under:
+
+- `logs/probes/20260923-204030-surface-ca-malloc-dc42a1c31b/`
+- `logs/probes/20260923-204111-surface-ca-pool-94f68ad825/`
 
 ## Remaining browser work
 
