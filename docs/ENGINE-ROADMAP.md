@@ -113,3 +113,69 @@ that all rendering or web features are complete. Existing measurements in
 `NOTES.md` show software 480p30 and approximately 20 FPS for the initial faithful
 video path. Neither is evidence of end-to-end 720p30. Record new candidate source
 IDs, test logs and measured results below as integration progresses.
+
+### 2026-09-23 integration evidence
+
+The original baseline `46ce7e847` was rebuilt on the Mini for all three process
+configurations. Its immutable artifacts are in `build/baselines/46ce7e847/`.
+All 14 established regressions passed on Tiger; logs are in
+`logs/regress/baseline-46ce7e847-{smoke,rest}/`. Cookie testing passed all 24
+assertions, including a second launch with the same isolated test profile.
+
+The new hosted-control fixture exposed three baseline defects: an input outside
+its overflow clip intercepts clicks; a hidden input intercepts clicks; and an
+offset iframe's input accepts text but does not display it. The latter now has
+an explicit screenshot ink check in addition to the DOM value assertion. The
+native-control integration contains targeted fixes and separate author-colored
+scrollbar tests; these require their own matched build and device validation.
+
+Rendering candidate `44eab1c9a` includes two bounded in-flight video updates,
+safe pinned-ring snapshots with owned CGImage pixels, and distinct window-paint
+telemetry. All three Mini builds and wire/dependency verification passed. Its
+artifacts are retained in `build/candidates/44eab1c9a/`. Fast and faithful smoke
+screenshots matched the baseline exactly. Both 18-second video lifecycle
+workloads passed their API/event/progress checks, including resize,
+pause/resume, detach/reinsert and player replacement. This is not a frame-integrity
+or presentation-rate claim.
+
+The shared ring's bounds, ownership, concurrent publication, replacement and
+abandoned-reader recovery probes passed in both i386 and x86_64 executables on
+Tiger (83,328 concurrent snapshots combined). See
+`build/handoff/video-ring-tiger-results.txt`. Host sanitizer coverage also passed.
+
+Native 720p benchmark results for `44eab1c9a` are retained in
+`logs/bench/perf-44eab1c9a/` and **do not meet the target**:
+
+- Fast mode decoded at approximately 30 FPS but produced only one certified full
+  video window paint in the 30-second measurement interval. Partial control-strip
+  paints were correctly excluded. A pre-existing repaint-notification latch was
+  never cleared by the fast direct sink. The correction is integrated separately
+  as `cbc81bf0f`, with deterministic publication/acknowledgement race tests in
+  `6f7da45df`; its device validation is pending.
+- Faithful mode completed approximately 11.8 GPU renders/second in the measured
+  8–38 second interval. Median rendering, readback and UI-copy costs were roughly
+  23, 10 and 11 ms respectively. Visible media controls correctly prevented
+  certification of unobscured full video frames. Missing file-video track
+  registration also prevents WebKit's controls from enabling auto-hide; this is
+  an implementation gap, not grounds to relax the benchmark.
+
+Native benchmarks now snapshot their parser from the exact candidate Git commit,
+record its hash and enforce source/display dimensions, a 30-second interval,
+minimum 29 unique window paints/second and maximum 100 ms gap. Receipt, decoding,
+partial paints and physical display scanout are kept distinct.
+
+The [cross-process surface experiment](../spike/direct-present/README.md) proves
+that Tiger can render from a separate GPU process directly into an owned Cocoa
+window using its native surface-sharing protocol. Full 1280×720 texture-upload,
+draw and flush work had p95 5.782 ms in the isolated probe. This establishes a
+concrete route to eliminate readback and UI copies, but full scene composition,
+native-view overlap, surface lifecycle and browser integration remain to be
+validated before adoption.
+
+WebKitTestRunner now builds against the current rendering engine in the separate
+`WebKit-wktr-integration` worktree rather than an older incompatible video-ring
+tree. Its WEB test process and network helper build passed; the UI runner and
+functional text/reset/HTTP gates are still in progress. Pending IME work also has
+fixed-width range sentinels, ordered synchronous queries, explicit asynchronous
+spelling cancellation and a verified Tiger-private persistent Learn Word path.
+It remains isolated until compilation and Cocoa composition-state checks pass.
