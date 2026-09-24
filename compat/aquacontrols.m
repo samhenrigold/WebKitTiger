@@ -32,7 +32,22 @@ static NSRect toNSRect(CGRect r)
 
 /* ------------------------------------------------------------ shared state */
 
-static NSWindow *gWindow;
+/* Faithful to WebCore's WebControlWindow: cells query a drawing-only window's
+ * key appearance. Ordering a real window to obtain that state steals focus and
+ * exposes a 1024px blank window over the browser when bitmap fallback is used. */
+@interface TigerControlDrawingWindow : NSWindow {
+    BOOL _hasKeyAppearance;
+}
+- (void)setHasKeyAppearance:(BOOL)value;
+@end
+
+@implementation TigerControlDrawingWindow
+- (void)setHasKeyAppearance:(BOOL)value { _hasKeyAppearance = value; }
+- (BOOL)hasKeyAppearance { return _hasKeyAppearance; }
+- (BOOL)isKeyWindow { return _hasKeyAppearance; }
+@end
+
+static TigerControlDrawingWindow *gWindow;
 static NSView *gView;
 
 /* ControlFactoryMac keeps one cell per kind and reconfigures it per draw; the
@@ -56,8 +71,8 @@ static void ensureDrawingView(void)
      * focus ring and for the window's key state), so ControlFactoryMac's
      * drawingView path is the one that applies. */
     NSRect frame = NSMakeRect(0, 0, 1024, 1024);
-    gWindow = [[NSWindow alloc] initWithContentRect:frame
-                                          styleMask:NSTitledWindowMask
+    gWindow = [[TigerControlDrawingWindow alloc] initWithContentRect:frame
+                                          styleMask:NSBorderlessWindowMask
                                             backing:NSBackingStoreBuffered
                                               defer:YES];
     gView = [[NSView alloc] initWithFrame:frame];
@@ -558,19 +573,11 @@ void TigerDrawControl(CGContextRef context, TigerControlKind kind, const TigerCo
         return;
     }
 
-    /* Measured against live NSControls in a real window on 10.4: an NSButton
-     * and an NSButtonCell check box draw identical pixels whether or not their
-     * window is key, but an NSPopUpButtonCell does not. So the window's key
-     * state is the only way to reach the popup's inactive artwork, and it costs
-     * nothing for the controls that ignore it. An earlier version drew the
-     * whole button family through HIThemeDrawButton to get an inactive
-     * appearance instead; that produced artwork which does not match a live
-     * control, which is a worse failure than not varying. */
+    /* Preserve AppKit's active/inactive cell artwork without ordering or
+     * activating a helper window. Upstream ControlMac::updateCellStates sets
+     * WebControlWindow's key-appearance flag for exactly this purpose. */
     ensureDrawingView();
-    if (style->states & TigerControlStateWindowActive)
-        [gWindow makeKeyAndOrderFront:nil];
-    else
-        [gWindow orderOut:nil];
+    [gWindow setHasKeyAppearance:!!(style->states & TigerControlStateWindowActive)];
 
     beginDrawing(context);
 
