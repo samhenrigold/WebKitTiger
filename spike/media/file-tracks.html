@@ -1,0 +1,124 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>FILE TRACKS RUN</title>
+<style>
+body { margin:16px; font:14px Helvetica,sans-serif; background:#eee; color:#111 }
+nav { height:44px }
+video { display:block; width:640px; height:360px; background:black }
+pre { white-space:pre-wrap }
+</style>
+<nav><button id="picture">Toggle selected video track</button> <button id="sound">Toggle enabled audio track</button> <button id="mute">Toggle element mute</button></nav>
+<video id="v" width="640" height="360" controls muted autoplay></video>
+<pre id="status">Checking real file tracks, paused selection and reload.</pre>
+<script>
+(async function () {
+    'use strict';
+    const v = document.getElementById('v');
+    const status = document.getElementById('status');
+    const hold = new URLSearchParams(location.search).get('hold');
+    const lines = [];
+    const result = window.fileTracksResult = { passed:false, steps:[], failures:[] };
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const canvas = document.createElement('canvas');
+    canvas.width = 32; canvas.height = 18;
+    const context = canvas.getContext('2d', { willReadFrequently:true });
+    function report(text) {
+        document.title = 'FILE TRACKS ' + text;
+        lines.push(text); status.textContent = lines.join('\n');
+        console.log('[FILE-TRACKS] ' + text);
+    }
+    function require(condition, message) {
+        if (!condition) throw new Error(message);
+    }
+    async function until(test, label) {
+        const started = performance.now();
+        while (!test()) {
+            if (v.error) throw new Error('media error ' + v.error.code + ' during ' + label);
+            if (performance.now() - started > 10000) throw new Error('timeout: ' + label);
+            await sleep(25);
+        }
+    }
+    function pixels() {
+        context.drawImage(v, 0, 0, 32, 18);
+        const data = context.getImageData(0, 0, 32, 18).data;
+        let sum = 0, maximum = 0;
+        for (let i = 0; i < data.length; ++i) {
+            if (i % 4 === 3) continue;
+            sum += data[i]; maximum = Math.max(maximum, data[i]);
+        }
+        return { data:Array.from(data).join(','), mean:sum / (32 * 18 * 3), maximum };
+    }
+    function tracks(label) {
+        require(v.videoTracks.length === 1, label + ': expected one video track');
+        require(v.audioTracks.length === 1, label + ': expected one audio track');
+        const video = v.videoTracks[0], audio = v.audioTracks[0];
+        require(video.selected && audio.enabled, label + ': decoded tracks must start active');
+        require(video.id === '1' && audio.id === '2', label + ': stream IDs incorrect');
+        require(video.language === 'und' && audio.language === 'und', label + ': stream language missing');
+        report(label + ' v=' + video.id + ':' + video.language + ' a=' + audio.id + ':' + audio.language);
+        result.steps.push(label);
+        return { video, audio };
+    }
+    async function load(label) {
+        v.src = 'bbb-480p.mp4'; v.load();
+        await v.play();
+        await until(() => v.readyState >= 2 && v.videoWidth > 0, label + ' first frame');
+        v.pause(); v.currentTime = 3;
+        await until(() => !v.seeking && Math.abs(v.currentTime - 3) < 0.1, label + ' seek');
+        await until(() => pixels().mean > 20, label + ' visible picture');
+        return tracks(label);
+    }
+    function held(phase) {
+        if (hold !== phase) return false;
+        report('HOLD ' + phase + ' (API + canvas checked; inspect viewport separately)');
+        return true;
+    }
+    document.getElementById('picture').onclick = () => {
+        if (v.videoTracks.length) v.videoTracks[0].selected = !v.videoTracks[0].selected;
+    };
+    document.getElementById('sound').onclick = () => {
+        if (v.audioTracks.length) v.audioTracks[0].enabled = !v.audioTracks[0].enabled;
+    };
+    document.getElementById('mute').onclick = () => { v.muted = !v.muted; };
+    try {
+        const old = await load('initial');
+        const before = pixels();
+        if (held('selected')) return;
+        const pausedTime = v.currentTime;
+        old.video.selected = false;
+        await until(() => !old.video.selected && pixels().maximum <= 1, 'deselected black picture');
+        require(v.paused && Math.abs(v.currentTime - pausedTime) < 0.02, 'selection changed paused clock');
+        result.steps.push('paused-black');
+        if (held('black')) return;
+        old.video.selected = true;
+        await until(() => old.video.selected && pixels().data === before.data, 'restore same paused frame');
+        result.steps.push('paused-restored');
+        if (held('restored')) return;
+        old.audio.enabled = false;
+        await until(() => !old.audio.enabled, 'audio disabled state');
+        old.audio.enabled = true;
+        await until(() => old.audio.enabled, 'audio reenabled state');
+        v.removeAttribute('src'); v.load();
+        await until(() => !v.videoTracks.length && !v.audioTracks.length && v.readyState === 0, 'unload removes tracks');
+        result.steps.push('unloaded');
+        const current = await load('reload');
+        require(current.video !== old.video && current.audio !== old.audio, 'reload reused retired DOM tracks');
+        old.video.selected = false; old.audio.enabled = false;
+        old.video.selected = true; old.audio.enabled = true;
+        old.video.selected = false; old.audio.enabled = false;
+        await sleep(250);
+        require(current.video.selected && current.audio.enabled, 'retired tracks changed current track state');
+        require(pixels().mean > 20, 'retired video callback hid current frame');
+        require(v.videoTracks.length === 1 && v.audioTracks.length === 1, 'reload duplicated tracks');
+        result.steps.push('retired-callbacks');
+        if (held('stale')) return;
+        result.passed = true;
+        report('PASS (API + canvas only)');
+        v.loop = true;
+        await v.play();
+    } catch (error) {
+        result.failures.push(String(error));
+        report('FAIL ' + error);
+    }
+})();
+</script>
