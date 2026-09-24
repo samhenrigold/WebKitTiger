@@ -69,6 +69,10 @@ def inventory(root, paths):
         if start.is_dir() and not start.is_symlink():
             entries.extend(sorted(start.rglob("*")))
         for p in entries:
+            # Finder rewrites this metadata independently on each Mac. It is
+            # never a compiler input and cannot be part of a frozen identity.
+            if p.name == ".DS_Store":
+                continue
             if p.is_symlink():
                 result[str(p.relative_to(root))] = "link:" + os.readlink(p)
             elif p.is_file():
@@ -225,7 +229,7 @@ def sync_path(host, root, relative, directory=False, excludes=()):
     ssh(host, ["mkdir", "-p", str(root / relative.parent)])
     # Changed content gets a fresh mtime on the Mini. Preserving a restored old
     # source/archive timestamp can otherwise hide a change from Ninja's mtime DAG.
-    args = ["rsync", "-a", "--checksum", "--no-times"]
+    args = ["rsync", "-a", "--checksum", "--no-times", "--exclude", ".DS_Store"]
     if directory:
         args += ["--delete"]
     for exclusion in excludes:

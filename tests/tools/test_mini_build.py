@@ -124,6 +124,33 @@ print(json.dumps(result))
             mini.remote_build(self.job)
         self.assertFalse((self.build / "configured").exists())
 
+    def test_finder_metadata_is_not_identity_but_hidden_inputs_are(self):
+        folder = self.root / "toolchain/nested"
+        folder.mkdir()
+        (folder / ".compiler-config").write_text("flags")
+        (folder / ".DS_Store.h").write_text("header")
+        (folder / "compiler-link").symlink_to("../tiger64.cmake")
+        original = mini.inventory(self.root, ["toolchain"])
+        for parent in (folder, folder.parent):
+            (parent / ".DS_Store").write_text("Finder state")
+        self.assertEqual(mini.inventory(self.root, ["toolchain"]), original)
+        (folder / ".DS_Store").write_text("changed Finder state")
+        self.assertEqual(mini.inventory(self.root, ["toolchain"]), original)
+        self.assertIn("toolchain/nested/.compiler-config", original)
+        self.assertIn("toolchain/nested/.DS_Store.h", original)
+        self.assertEqual(original["toolchain/nested/compiler-link"], "link:../tiger64.cmake")
+        (folder / ".compiler-config").write_text("changed flags")
+        self.assertNotEqual(mini.inventory(self.root, ["toolchain"]), original)
+
+    def test_sync_excludes_finder_metadata_and_preserves_explicit_exclusions(self):
+        with mock.patch.object(mini, "ssh"), mock.patch.object(mini, "run") as run:
+            mini.sync_path("mini", self.root, Path("toolchain"), True, (".git",))
+        command = run.call_args.args[0]
+        exclusions = [command[index + 1] for index, value in enumerate(command) if value == "--exclude"]
+        self.assertEqual(exclusions, [".DS_Store", ".git"])
+        self.assertIn("--checksum", command)
+        self.assertIn("--delete", command)
+
     def test_download_corruption_does_not_replace_previous_local_artifact(self):
         mini.remote_build(self.job)
         destination = self.root / "published"
