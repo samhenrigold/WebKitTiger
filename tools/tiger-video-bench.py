@@ -67,7 +67,10 @@ def prepare(candidate_path, repo, snapshot):
 
 
 def check(snapshot, log, output, mode):
-    report = {'measurement': 'window-paint-not-scanout', 'status': 'gate-error', 'streams': []}
+    direct = mode == 'direct'
+    measurement = 'drawable-accepted-not-scanout' if direct else 'window-paint-not-scanout'
+    certified_status = 'certified-drawable-acceptances' if direct else 'certified-window-paints'
+    report = {'measurement': measurement, 'status': 'gate-error', 'streams': []}
     result = None
     try:
         metadata = json.loads((snapshot / 'parser.json').read_text())
@@ -79,27 +82,36 @@ def check(snapshot, log, output, mode):
         command = [sys.executable, '-I', str(parser), str(log), '--warmup', str(LIMITS['warmup']), '--duration', str(LIMITS['duration']),
                    '--expect-pixels', LIMITS['pixels'], '--expect-display', LIMITS['display'], '--min-fps', str(LIMITS['min_fps']),
                    '--max-gap-ms', str(LIMITS['max_gap_ms'])]
+        if direct:
+            command += ['--measurement', 'drawable-accepted']
         result = subprocess.run(command, capture_output=True, text=True, timeout=60)
         write_atomic(output.with_suffix('.parser-stdout.log'), result.stdout.encode())
         write_atomic(output.with_suffix('.parser-stderr.log'), result.stderr.encode())
         report = json.loads(result.stdout)
-        if not isinstance(report, dict) or report.get('measurement') != 'window-paint-not-scanout':
-            raise ValueError('parser did not return a window-paint report')
+        if not isinstance(report, dict) or report.get('measurement') != measurement:
+            raise ValueError('parser did not return the expected ' + measurement + ' report')
         streams = report.get('streams', [])
         qualifying = []
         for stream in streams:
             fps, gap = stream.get('fps'), stream.get('max_gap_ms_including_window_edges')
-            qualifies = (stream.get('mode') == mode and stream.get('status') == 'certified-window-paints'
+            qualifies = (stream.get('mode') == mode and stream.get('status') == certified_status
                          and isinstance(fps, (float, int)) and math.isfinite(fps) and fps >= LIMITS['min_fps']
                          and isinstance(gap, (float, int)) and math.isfinite(gap) and gap <= LIMITS['max_gap_ms'])
+            if direct:
+                qualifies = (qualifies and stream.get('measurement_window_covered') is True
+                             and isinstance(stream.get('target'), int) and not isinstance(stream['target'], bool) and stream['target'] > 0
+                             and stream.get('unique_frames', 0) >= LIMITS['min_fps'] * LIMITS['duration']
+                             and report.get('expected_pixels') == [1280, 720] and report.get('expected_display') == [1280, 720]
+                             and stream.get('actual_pixel_sizes', {}).get(LIMITS['pixels'], 0) > 0
+                             and stream.get('actual_display_sizes', {}).get(LIMITS['display'], 0) > 0)
             if qualifies:
-                qualifying.append(stream['ring'])
+                qualifying.append({'ring': stream['ring'], 'target': stream['target']} if direct else stream['ring'])
         passed = result.returncode == 0 and report.get('status') == 'complete' and bool(qualifying)
         report['benchmark_gate'] = {'passed': passed, 'expected_mode': mode, 'qualifying_rings': qualifying,
                                     'source_head': metadata['source']['head'], 'parser_sha256': metadata['parser_sha256'],
                                     'parser_returncode': result.returncode, 'limits': LIMITS}
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as error:
-        report = {'measurement': 'window-paint-not-scanout', 'status': 'gate-error', 'error': str(error),
+        report = {'measurement': measurement, 'status': 'gate-error', 'error': str(error),
                   'benchmark_gate': {'passed': False, 'expected_mode': mode}, 'streams': []}
         passed = False
     write_atomic(output, (json.dumps(report, indent=2, sort_keys=True) + '\n').encode())
@@ -120,7 +132,7 @@ def main():
     command.add_argument('--snapshot', type=Path, required=True)
     command.add_argument('--log', type=Path, required=True)
     command.add_argument('--output', type=Path, required=True)
-    command.add_argument('--mode', choices=('fast', 'faithful'), required=True)
+    command.add_argument('--mode', choices=('fast', 'faithful', 'direct'), required=True)
     args = parser.parse_args()
     try:
         if args.command == 'prepare':
