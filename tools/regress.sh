@@ -36,7 +36,7 @@ SHARE=${SHARE:-/Users/shg/wk2/share}             # ...and then SHARE is that dir
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt videolifetime fvideolifetime filetracks ffiletracks"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip hostedcycle fhostedcycle scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt videolifetime fvideolifetime filetracks ffiletracks"
 DEFAULT="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost"
 case "${1:-}" in --list) echo "$ALL"; exit 0;; --all) shift; set -- $ALL "$@";; esac
 WANTED=${*:-$DEFAULT}
@@ -403,6 +403,17 @@ if wants fhostedclip; then
     run fhostedclip "file://$SHARE/hosted-clipping.html" 22 "$CLIP_SCRIPT" 'TIGER_CONSOLE=1 TIGER_FAITHFUL=1'
     check fhostedclip "$(title_seen fhostedclip 'hits=1,1,1 values=//frame/'); $(fixture_shot check-hosted-iframe fhostedclip)"
 fi
+
+# Follow the complete fixture cycle: reveal, edit, hide, reveal again, and
+# independently scroll the iframe. Values must survive native-view retirement.
+CYCLE_SCRIPT="$CLIP_SCRIPT; click 70,34; wait 1; click 60,102; type clip; wait 1; click 190,34; wait 1; click 60,232; wait 1; click 70,34; wait 1; click 390,34; wait 1; click 380,92; type vis; wait 1; click 520,34; wait 1; click 380,92; wait 1; click 390,184; wait 1; click 380,252; type lower; wait 1; click 520,184; wait 1; click 380,382; wait 2"
+for cycle_case in hostedcycle fhostedcycle; do
+    wants "$cycle_case" || continue
+    cycle_env=TIGER_CONSOLE=1
+    case "$cycle_case" in f*) cycle_env="$cycle_env TIGER_FAITHFUL=1";; esac
+    run "$cycle_case" "file://$SHARE/hosted-clipping.html" 46 "$CYCLE_SCRIPT" "$cycle_env"
+    check "$cycle_case" "$(title_seen "$cycle_case" 'frameY=130 hits=2,2,1 values=clip/vis/frame/lower'); $(title_seen "$cycle_case" 'frameY=0 hits=2,2,2 values=clip/vis/frame/lower'); $(fixture_shot check-hosted-iframe "$cycle_case")"
+done
 
 # Author-colored root, overflow, thin and iframe scrollbars: explicit RGB checks
 # keep native artwork or a blank page from passing. The alternate palette visits
