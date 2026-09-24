@@ -36,7 +36,7 @@ SHARE=${SHARE:-/Users/shg/wk2/share}             # ...and then SHARE is that dir
 MEDIA_HOST=${MEDIA_HOST:-192.168.1.253:8765}
 BLESS=${BLESS:-}
 
-ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip videolifetime fvideolifetime"
+ALL="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost relaunch frelaunch features scrollbars fscrollbars hostedclip fhostedclip scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt videolifetime fvideolifetime"
 DEFAULT="example scroll controls boxtest textarea xcom video youtube fexample fscroll fcontrols cookies ghost fghost"
 case "${1:-}" in --list) echo "$ALL"; exit 0;; --all) shift; set -- $ALL "$@";; esac
 WANTED=${*:-$DEFAULT}
@@ -155,6 +155,15 @@ golden() {
 probe() { # probe <compare args...> -> detail string
     out=$(python3 "$COMPARE" "$@" 2>&1)
     [ $? -eq 0 ] && echo "$out" || echo "FAILED $out"
+}
+
+fixture_shot() { # fixture_shot <checker basename> <shot name> [checker options...]
+    checker=$1; shot=$2; shift 2
+    out=$(python3 "$WKT/tools/$checker.py" "$OUT/$shot.png" "$@" 2>&1)
+    shot_status=$?
+    # Keep sampled RGB/ink failure details in one Markdown summary-table cell.
+    out=$(printf '%s\n' "$out" | tr '\n' ';' | sed 's/;$//')
+    [ "$shot_status" -eq 0 ] && printf '%s\n' "$out" || printf 'FAILED %s\n' "$out"
 }
 
 wants() { case " $WANTED " in *" $1 "*) return 0;; *) return 1;; esac; }
@@ -383,16 +392,42 @@ if wants fscrollbars; then
 fi
 
 # Fully clipped native controls must neither cover nor intercept the page beneath
-# them; the visible offset iframe's field must still accept native text input.
+# them. The offset iframe must accept input AND visibly render it: a missing native
+# host can still accept WebCore input while the page paints transparent field text.
 CLIP_SCRIPT='wait 6; click 60,232; wait 1; click 380,92; wait 1; click 380,382; wait 1; click 380,242; wait 1; type frame; wait 2'
 if wants hostedclip; then
     run hostedclip "file://$SHARE/hosted-clipping.html" 22 "$CLIP_SCRIPT" TIGER_CONSOLE=1
-    check hostedclip "$(title_seen hostedclip 'hits=1,1,1 values=//frame/')"
+    check hostedclip "$(title_seen hostedclip 'hits=1,1,1 values=//frame/'); $(fixture_shot check-hosted-iframe hostedclip)"
 fi
 if wants fhostedclip; then
     run fhostedclip "file://$SHARE/hosted-clipping.html" 22 "$CLIP_SCRIPT" 'TIGER_CONSOLE=1 TIGER_FAITHFUL=1'
-    check fhostedclip "$(title_seen fhostedclip 'hits=1,1,1 values=//frame/')"
+    check fhostedclip "$(title_seen fhostedclip 'hits=1,1,1 values=//frame/'); $(fixture_shot check-hosted-iframe fhostedclip)"
 fi
+
+# Author-colored root, overflow, thin and iframe scrollbars: explicit RGB checks
+# keep native artwork or a blank page from passing. The alternate palette visits
+# Native auto first, then Other colors, exercising removal of the hosted NSScroller.
+# Coordinates are the fixed links documented in spike/wk2web/scrollbar-colors.md.
+for color_case in scrollcolors fscrollcolors scrollcolorsalt fscrollcolorsalt; do
+    wants "$color_case" || continue
+    color_mode=author
+    color_script='wait 6'
+    color_seconds=12
+    color_env=TIGER_CONSOLE=1
+    case "$color_case" in f*) color_env="$color_env TIGER_FAITHFUL=1";; esac
+    case "$color_case" in *alt)
+        color_mode=alternate
+        color_script='wait 6; click 200,34; wait 1; click 330,34; wait 2'
+        color_seconds=16
+        ;;
+    esac
+    run "$color_case" "file://$SHARE/scrollbar-colors.html" "$color_seconds" "$color_script" "$color_env"
+    color_detail=$(title_seen "$color_case" "colors mode=$color_mode root=0,0 over=0,0 auto=0,0 thin=0,0 frame=0,0")
+    if [ "$color_mode" = alternate ]; then
+        color_detail="$color_detail; $(title_seen "$color_case" 'colors mode=auto root=0,0')"
+    fi
+    check "$color_case" "$color_detail; $(fixture_shot check-scrollbar-colors "$color_case" --root-mode "$color_mode")"
+done
 
 # Ring lifecycle workload: API progress plus crash/paint checks. A JS pass does
 # not prove frame integrity; inspect returned screenshots and presentation probes.
