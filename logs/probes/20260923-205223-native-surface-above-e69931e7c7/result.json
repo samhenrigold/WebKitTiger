@@ -1,0 +1,33 @@
+{
+  "order": "above",
+  "content_origin": [
+    100,
+    80
+  ],
+  "native_editing_api": true,
+  "surface_cleanup": true,
+  "scope": "Native Cocoa overlap/clipping with a separate-process GL drawable; not video or scanout.",
+  "screenshot": {
+    "passed": true,
+    "checks": {
+      "GPU checker is visible": true,
+      "native clipping does not leak past viewport": true,
+      "above-window control covers native view": true,
+      "above-window control covers text field": true,
+      "above-window control covers clipped field": true,
+      "above-window control covers scroller": true
+    },
+    "metrics": {
+      "gpu_red_fraction": 1.0,
+      "gpu_blue_stddev": 84.48,
+      "opaque_native_magenta_fraction": 0.0,
+      "field_white_fraction": 0.0,
+      "field_dark_fraction": 0.054292929292929296,
+      "field_blue_selection_fraction": 0.45454545454545453,
+      "clipped_visible_white_fraction": 0.0,
+      "clipped_visible_dark_fraction": 0.5,
+      "outside_clip_gpu_fraction": 1.0,
+      "scroller_light_fraction": 0.020833333333333332
+    }
+  }
+}

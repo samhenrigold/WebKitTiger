@@ -1,0 +1,23 @@
+SURFACE foreground-process=0
+SURFACE front-process=0
+SURFACE add-owned-surface=0
+SURFACE surface-bounds=0
+SURFACE order-surface=0
+SURFACE secondary-owner=0
+SURFACE share-owned-window=0
+SURFACE parent=37119 child=43835 window=2059 surface=149190778
+NATIVE geometry origin=100,80 size=1280,720 field=40,72,360,28 clipped=200,170,80,28 scroller=1240,60,16,500
+SURFACE choose-format=0
+SURFACE create-context=0
+SURFACE attach-other-process-surface=0
+SURFACE current-context=0
+SURFACE public-surface-order=0
+SURFACE read-surface-order=0
+NATIVE order requested=-1 actual=-1
+SURFACE swap-interval=0
+SURFACE renderer=NVIDIA GeForce 8600M GT OpenGL Engine
+SURFACE mode=gl
+NATIVE editing field-editor=1 text-match=1 selected=0,6 key=1 clipped-viewport=240x72
+SURFACE RESULT mode=gl uploads=180 pixels=1280x720 elapsed=5.972 rate=30.140 work_mean_ms=6.665 work_p95_ms=12.505 work_max_ms=153.109 slowest_frame=0 copy_mean_ms=0.000 render_mean_ms=5.904 flush_mean_ms=0.749 completed_at=6.541 deadline=8.500 (flushes, not scanout)
+SURFACE detach-surface=0
+SURFACE remove-owned-surface=0

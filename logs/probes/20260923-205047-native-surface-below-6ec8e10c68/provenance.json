@@ -1,0 +1,29 @@
+{
+  "order": "below",
+  "derived_from": "7566cf6:spike/direct-present",
+  "source_sha256": "8b6a9b5f7d895ea44b19648bd43c20ec413685c8ac4f5d0c99635d2e5a5fd126",
+  "binary_sha256": "cc1d6c1c5f4c5c99d248bd6138845dbd646f5514ac8e72286b539510b38cb4c8",
+  "build_command": [
+    "/Users/shg/Developer/WebKitTiger/toolchain/bin/tiger-clang",
+    "-std=gnu11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-DSURFACE_PROBE_CA=0",
+    "/Users/shg/Developer/WebKitTiger/logs/probes/20260923-205047-native-surface-below-6ec8e10c68/surface-probe.m",
+    "-framework",
+    "Cocoa",
+    "-framework",
+    "OpenGL",
+    "-framework",
+    "ApplicationServices",
+    "-o",
+    "/Users/shg/Developer/WebKitTiger/logs/probes/20260923-205047-native-surface-below-6ec8e10c68/TigerNativeSurfaceProbe"
+  ],
+  "remote_run": "/Users/shg/wk2/runs/20260923-205047-native-surface-below-6ec8e10c68",
+  "runner_sha256": "f90848ba48e55af46ec0e540d5192a6719a0615c05735f9beb5de820c39e2cbc",
+  "remote_helper_sha256": "acbe3d6bb70e3e3bc903a969d1cfb8443c33bb5106c907bc4a354e52d36e2663",
+  "lease_runner_sha256": "d77350f4c60bf83263590ff377dbc7e9832ace668cdf6e1fe5226e09ff4e485b",
+  "scope": "Native Cocoa overlap/clipping experiment; no browser modification."
+}
