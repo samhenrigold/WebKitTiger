@@ -489,28 +489,38 @@ _Bool _dyld_find_unwind_sections(void *addr, struct dyld_unwind_sections *info)
     return 0;
 }
 
-#if defined(__x86_64__)
 /* 10.4's realpath() writes into a caller buffer only; POSIX.1-2008 lets resolved be NULL
    for a malloc'd result, which libc++'s filesystem::canonical (WTF::FileSystem::realPath)
-   relies on -- on the box it faulted inside realpath (TestWTF FileSystemTest.realPath).
+   relies on -- both TestWTF and the 32-bit WebKitTestRunner faulted inside realpath.
+   Tiger's legacy realpath also allows a missing final component. Validate the
+   original path with public stat(), including trailing-slash/directory semantics,
+   for modern callers that require all components to exist.
    The system one is still reached through dlsym, since this definition shadows it. */
 #include <dlfcn.h>
+static char *(*tigerSystemRealpath)(const char *, char *);
+static pthread_once_t tigerRealpathOnce = PTHREAD_ONCE_INIT;
+static void tigerResolveRealpath(void)
+{
+    tigerSystemRealpath = (char *(*)(const char *, char *))dlsym(RTLD_NEXT, "realpath");
+}
+
 char *realpath(const char *path, char *resolved)
 {
-    static char *(*systemRealpath)(const char *, char *);
-    if (!systemRealpath)
-        systemRealpath = (char *(*)(const char *, char *))dlsym(RTLD_NEXT, "realpath");
-    if (resolved)
-        return systemRealpath(path, resolved);
-    char *buffer = malloc(PATH_MAX);
+    pthread_once(&tigerRealpathOnce, tigerResolveRealpath);
+    if (!tigerSystemRealpath) {
+        errno = ENOSYS;
+        return NULL;
+    }
+    char *buffer = resolved ? resolved : malloc(PATH_MAX);
     if (!buffer)
         return NULL;
-    if (!systemRealpath(path, buffer)) {
+    struct stat status;
+    if (!tigerSystemRealpath(path, buffer) || stat(path, &status)) {
         int saved = errno;
-        free(buffer);
+        if (!resolved)
+            free(buffer);
         errno = saved;
         return NULL;
     }
     return buffer;
 }
-#endif
