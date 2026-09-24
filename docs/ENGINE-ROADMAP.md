@@ -303,8 +303,8 @@ A native two-renderer probe confirms the inactive bitmap renderer retains the
 image providers until destruction and its factory autorelease must drain before
 destroying the GL context. Candidate `b2fcc886c` implements that lifetime correction
 with lazy full-frame bitmap fallback. It raises direct faithful playback to 29.8
-accepted frames/second with cached video storage, but one 122 ms gap still fails
-the 100 ms limit; see the linked evidence note.
+accepted frames/second with cached video storage, but one 122 ms gap at the clip's
+loop-wrap seek still fails the 100 ms limit; see the linked evidence note.
 
 ### Delivery milestones and estimate
 

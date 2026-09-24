@@ -223,8 +223,13 @@ A diagnostic rerun confirms the ownership fix: all 893 preparations reuse cached
 storage, at most three buffers are checked out, and snapshot filling falls from
 15.15 ms to 2.92 ms mean (p95 5.98 ms). Scene rendering averages 13.49 ms and
 drawable flushing 5.01 ms, with zero GL or flush errors. That rerun reaches
-29.77 frames/second with a 116.69 ms maximum gap and also fails. The remaining
-work is the isolated long gap, not steady-state throughput. Evidence is in
+29.77 frames/second with a 116.69 ms maximum gap and also fails. In both runs
+the largest gap is between frames 900 and 901, at the clip's loop-wrap seek to
+zero; the following flush takes 41.3 ms and 25.3 ms respectively. Excluding that
+gap, the clean run's maximum is 90.1 ms. The diagnostic run also has a 101.0 ms
+gap outside the loop wrap. The gate remains unchanged and still counts loop wraps.
+The remaining work is the loop-wrap stall and residual jitter, not steady-state
+throughput. Evidence is in
 `logs/bench/direct-latepointer-captureafter-b2fcc886c/` and
 `logs/bench/direct-video-prep-b2fcc886c/`.
 
